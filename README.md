@@ -46,7 +46,8 @@ This repository is the **process**, not any one project's records:
    Finalization Gate. See [Pre-Lock Review](#pre-lock-review)
 5. **Lock** (Final) — All gate items answered; RDR is the specification prompt for implementation
 6. **Implement** (Final) — Use locked RDR as spec; do not edit during implementation
-7. **Close** (Implemented | Reverted | Abandoned | Superseded) — Update status; create post-mortem
+7. **Close** (Implemented | Reverted | Abandoned | Superseded) — once the RDR is implemented and in use, update status
+   and write the post-mortem. See [Post-Mortem Process](#post-mortem-process)
 
 **If implementation reveals RDR is wrong**: Abandon implementation, iterate on RDR with lessons learned, start fresh.
 
@@ -204,6 +205,10 @@ substitute for these rounds — its written-response items are sharper when the 
 template slot can capture, and its mechanical pre-sweep catches anything the rounds disturbed.
 
 ## Post-Mortem Process
+
+The final lifecycle phase, reached only after the RDR has been implemented and lived with — once code is the source of
+truth and the plan has met reality. It is the deliberate counterpart to the up-front Pre-Lock Review: that gate looks
+forward at a draft, this one looks back at an implementation in use.
 
 After an RDR is implemented, reverted, or abandoned, create a post-mortem as a sibling file next to the original RDR
 using the [post-mortem template](post-mortem/TEMPLATE.md). Name the file `NNNN-slug-postmortem.md` (e.g.
