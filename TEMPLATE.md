@@ -8,10 +8,26 @@
 - **Date**: YYYY-MM-DD
 - **Status**: Draft | Final | Implemented | Reverted |
   Abandoned | Superseded
+  - A Draft demoted from Final by the 08.1 cluster gate
+    carries a qualifier on the live value:
+    `Draft [revised from Final YYYY-MM-DD; re-verify A2,A4
+    — <one-line reason>]`. It is still a `Draft` for every
+    binary Draft/Final gate; only Stage 4 (scoped
+    re-verify) and Stage 8 (re-lock) parse the qualifier.
+    The Stage 8 flip to `Final` overwrites the whole value,
+    so the qualifier self-clears at re-lock — no separate
+    cleanup. (`Reverted` above is the unrelated terminal
+    "implementation rolled back" status — do not conflate.)
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
+- **Predecessors**: [Comma-separated `NNNN-slug` of
+  load-bearing prior RDRs, or omit if none. The
+  implementation prompt gates on each predecessor's
+  `status.md` reading `COMPLETE`.]
+- **Overrides**: [Prior RDR contracts intentionally
+  replaced or narrowed by this RDR, or omit if none.]
 
 ## Problem Statement
 
@@ -37,12 +53,6 @@ related components.]
 [What was analyzed? Code, docs, source, experiments,
 standards. Cite specific locations.]
 
-#### Dependency Source Verification
-
-| Dependency | Source Searched? | Key Findings |
-| --- | --- | --- |
-| [library/service name] | Yes / No | [Signatures, constraints, or defaults confirmed or corrected] |
-
 ### Key Discoveries
 
 [Label each finding's evidence basis:
@@ -53,22 +63,52 @@ standards. Cite specific locations.]
 
 ### Critical Assumptions
 
-[Load-bearing assumptions — if wrong, the approach fails.
-Each must be verified before marking this RDR Final.]
+[Load-bearing assumptions — if wrong, the approach
+fails. Each must have a complete Evidence Record
+before marking this RDR Final.]
 
-- [ ] [Assumption 1] — **Status**: Verified | Unverified
-  — **Method**: Source Search | Spike | Docs Only
-- [ ] [Assumption 2] — **Status**: Verified | Unverified
-  — **Method**: Source Search | Spike | Docs Only
+- **A1 [Statement]**
+  - **Status**: Verified | Pending | Unverified
+  - **Method**: `one of the eight below`
+  - **Evidence**: [single sentence — concrete artifact;
+    see method-specific guidance below]
+  - **If wrong**: [single sentence — what fails; how
+    it surfaces to a user or test]
+- **A2 [Statement]** — (same shape)
 
-**Method definitions**:
+**Method vocabulary** (pick exactly one per assumption):
 
-- **Source Search**: API verified against dependency
-  source code (standard method for libraries)
-- **Spike**: Behavior verified by running code
-  against a live service (for opaque services only)
-- **Docs Only**: Based on documentation reading alone
-  (insufficient for load-bearing assumptions)
+- **Source Search** — verified against dependency
+  source code. Evidence: `path/to/file.go:LN`. Standard
+  for libraries.
+- **Spike** — verified by running code against a live
+  service or fixture. Evidence: command run + path to
+  captured output.
+- **Prior Art** — same property holds in ≥1 named
+  external system. Evidence: system + section/page.
+- **Derivation** — pure math or proof. Evidence: the
+  derivation, shown inline.
+- **Design Decision** — a scoping choice this RDR is
+  *making* (not *verifying*). Evidence: the decision
+  and the alternative explicitly rejected.
+- **Peer RDR** — relies on a property defined in
+  another RDR. Evidence: RDR ID + section.
+- **MVV Test** — the property is testable and the test
+  is named in this RDR's Validation section (pending
+  implementation at lock time). Evidence: test name.
+- **Docs Only** — documentation reading alone.
+  **Insufficient** for load-bearing assumptions; allowed
+  only when paired with a Spike or Source Search plan
+  in the Evidence line.
+
+A `Method: Source Search` whose Evidence cites this
+same RDR file — or any path under the RDR's artifact
+directory — is self-reference and not Verified.
+
+Any exactness claim such as all/every, first/nearest,
+byte-identical, lossless, canonical, deterministic, or
+stable order must be covered by a Critical Assumption
+Evidence Record or by the Minimum Viable Validation.
 
 ## Proposed Solution
 
@@ -81,33 +121,84 @@ Each must be verified before marking this RDR Final.]
 [Architecture, component relationships, data flow,
 extension points.]
 
-**Code guidance**:
+#### Normative Contracts
 
-- Specify interfaces (function signatures, input/output
-  types, error contracts) — not class implementations
-- Mark every external API call as Verified (source
-  search) or Assumed (needs validation before
-  implementation)
-- Do NOT include full class implementations,
-  config/schema definitions, or code for deferred
-  features
-- Limit illustrative code to patterns that cannot be
-  expressed as prose (e.g., callback signatures,
-  serialization formats)
+[Load-bearing — implementers must match exactly.
+The implementation prompt extracts REQ-N quotes from
+this section.]
 
-```text
-// Illustrative — verify API signatures during implementation
+- Function/method signatures and type definitions for
+  values that cross module boundaries
+- Wire-format / on-disk / serialization grammars
+- Error envelope shapes and error code enums
+- For every introduced user-facing or system-facing
+  surface, specify the I/O contract:
+  - **Success output**: silent | single value | named
+    structured format (link to grammar)
+  - **Failure output**: human-readable | structured |
+    both (give field-level shape if structured)
+  - **Status / sentinel errors**: every distinct code or
+    state with one-line user-visible meaning
+  - **Preview / dry-run / validation-only mode**: exact
+    shape; how it differs from committed success output
+  - **Environment divergence**: what changes across
+    interactive vs non-interactive, local vs remote,
+    batch vs streaming, or equivalent execution modes
+
+State each Normative item in a clearly labeled block,
+e.g.:
+
+```normative
+func Validate(existing []Record, proposed []Record) Report
+type Report struct { ... }
 ```
+
+Every external API call inside a Normative block must
+have a corresponding Critical Assumption Evidence
+Record above (Method: Source Search or Spike, with
+file:line or command + output).
+
+#### Illustrative Code
+
+[Shape only — not load-bearing. Use sparingly; prose
+is usually clearer.]
+
+- Pseudocode showing algorithmic structure
+- Sample invocations showing user-side syntax
+- Examples of canonical-form output
+
+Every example, fixture, sample input/output, numeric
+count, and platform path is either **Normative** (tests
+may assert it; cite the artifact or derivation) or
+**Illustrative** (intent only; tests must not assert it
+literally).
+
+Do not include full class implementations,
+config/schema definitions, or code for deferred
+features. Do not annotate Verified/Assumed inside
+Illustrative blocks; the surrounding prose makes
+assumptions explicit.
+
+### Capability Dependencies
+
+[For each load-bearing behavior, state whether the
+enabling capability exists now, is introduced by this
+RDR, is provided by a predecessor, or is deferred.]
+
+| Needed Capability | Source | Status | Spec Impact |
+| --- | --- | --- | --- |
+| [Capability] | Existing / This RDR / Predecessor / Future | Available / Introduced / Deferred | [Impact] |
 
 ### Existing Infrastructure Audit
 
 [List existing modules that overlap with proposed
 components. For each, state whether to reuse, extend,
-or replace — with justification.]
+or replace, and name any known limit that affects the
+spec.]
 
-| Proposed Component | Existing Module | Decision |
-| --- | --- | --- |
-| [New component] | [Existing module path] | Reuse / Extend / Replace: [reason] |
+| Needed Capability | Existing Surface | Known Limit | Decision | Spec Impact |
+| --- | --- | --- | --- | --- |
+| [Capability] | [Module/path] | [Limit or none] | Reuse / Extend / Replace | [Impact] |
 
 ### Decision Rationale
 
@@ -232,6 +323,13 @@ chosen approach over a rejected one.]
 > Complete each item with a written response before
 > marking this RDR as **Final**. Written responses
 > prevent rubber-stamping and produce a review record.
+>
+> First run the mechanical pre-sweep
+> (`prompts/gate/tooling-pass.md`): TEMPLATE section
+> coverage, Method-label vocabulary, `Source Search`
+> self-reference, `Docs Only` on load-bearing claims. It
+> catches what the review rounds disturbed; resolve any
+> BLOCK before the written responses below.
 
 ### Contradiction Check
 
@@ -242,15 +340,13 @@ design principles, and proposed solution."]
 
 ### Assumption Verification
 
-[Confirm all Critical Assumptions are verified. List
-any that remain unverified with a plan to verify
-before implementation begins.]
-
-#### API Verification
-
-| API Call | Library | Verification |
-| --- | --- | --- |
-| [method/endpoint] | [library name] | Source Search / Spike / Docs Only |
+[Confirm every Critical Assumption Evidence Record
+is internally consistent: Status, Method, and
+Evidence agree, and "If wrong" is non-empty. List
+any record whose Method is `Docs Only` (these block
+lock unless paired with a Spike or Source Search
+plan) and any that remain `Pending` or `Unverified`
+with a plan to verify before implementation begins.]
 
 ### Scope Verification
 
@@ -260,19 +356,26 @@ deferred. State the specific test or proof.]
 
 ### Cross-Cutting Concerns
 
-[For each applicable concern, state how it is
-addressed in this RDR. Mark the rest N/A.]
+[List only concerns that apply to this RDR. For each,
+state either how this RDR addresses it, or which peer
+RDR owns the project-wide policy this RDR conforms
+to. Omit (rather than N/A-bullet) anything that does
+not apply.]
 
-- **Versioning**: [How addressed | N/A]
-- **Build tool compatibility**: [How addressed | N/A]
-- **Licensing**: [How addressed | N/A]
-- **Deployment model**: [How addressed | N/A]
-- **IDE compatibility**: [How addressed | N/A]
-- **Incremental adoption**: [How addressed | N/A]
-- **Secret/credential lifecycle**: [Generation,
-  storage, rotation, override | N/A]
-- **Memory management**: [Peak memory estimation,
-  streaming strategy, cleanup | N/A]
+Candidate concerns (include only those that apply):
+versioning · build tool compatibility · licensing ·
+deployment model · IDE compatibility · incremental
+adoption · secret/credential lifecycle · memory
+management · concurrency model · character encoding ·
+canonical-form / determinism (see note below).
+
+If this RDR claims byte-identical output,
+content-addressed identity, or replay-stable hashes,
+also confirm: hash function + library, pre-image
+byte layout, primitive encodings, map iteration order,
+whitespace policy, case folding, empty/null/absent
+distinguishability, and a version marker for future
+evolution.
 
 ### Proportionality
 
