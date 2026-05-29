@@ -96,6 +96,9 @@ one of these elements, this is the reasoning you are changing.
 
 ### Overall shape — filter cascade, few phases, gate-method-not-phase-count
 
+**Drives**: the [`prompts/`](prompts/README.md) lens set and the
+[Stage 5 risk-profile matrix](flow/05-prelock.md); the written-response gate in [`TEMPLATE.md`](TEMPLATE.md).
+
 - **Piskala (2026), *Spec-Driven Development: From Code to Contract in the Age of
   AI Coding Assistants*** — the "few phases, each producing an artifact that
   constrains the next, with a human review at each checkpoint" default, and the
@@ -115,6 +118,9 @@ one of these elements, this is the reasoning you are changing.
 
 ### Resolve-before-review ordering, and the 3amigo lens
 
+**Drives**: [`flow/04-resolve-assumptions.md`](flow/04-resolve-assumptions.md) (resolve-before-review ordering) and the
+[`prompts/pre-lock/1-3amigo.md`](prompts/pre-lock/1-3amigo.md) lens.
+
 - **Basili, Green, Laitenberger, Lanubile, Shull, Sørumgård & Zelkowitz (1996),
   *The Empirical Investigation of Perspective-Based Reading*, Empirical Software
   Engineering 1(2)** — Perspective-Based Reading (PBR): build and verify a model
@@ -132,6 +138,8 @@ one of these elements, this is the reasoning you are changing.
   <https://www.manning.com/books/specification-by-example>
 
 ### Critique / premortem lens
+
+**Drives**: [`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md).
 
 - **Klein (2007), *Performing a Project Premortem*, Harvard Business Review** —
   the premortem technique the Critique lens is built on: imagine the failure has
@@ -153,6 +161,9 @@ one of these elements, this is the reasoning you are changing.
 
 ### Repeatability lens
 
+**Drives**: [`prompts/pre-lock/3-repeatability.md`](prompts/pre-lock/3-repeatability.md); the paired internal-silence
+check is [`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md).
+
 - **Böckeler (2025), *Understanding Spec-Driven-Development: Kiro, spec-kit, and
   Tessl*** (on martinfowler.com) — the non-determinism / regenerate-and-compare
   experiment: generate from the same spec several times and treat the
@@ -161,6 +172,9 @@ one of these elements, this is the reasoning you are changing.
   <https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html>
 
 ### Pairwise / cross-RDR consistency (Stage 8.1)
+
+**Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at
+[`flow/08.1-cluster-reconcile.md`](flow/08.1-cluster-reconcile.md).
 
 - **Finkelstein, Gabbay, Hunter, Kramer & Nuseibeh (1994), *Inconsistency
   Handling in Multiperspective Specifications*, IEEE TSE 20(8)** — the viewpoints
@@ -183,6 +197,8 @@ one of these elements, this is the reasoning you are changing.
 
 ### Reconcile gate (Stage 7) — residual-risk closure
 
+**Drives**: [`flow/07-reconcile.md`](flow/07-reconcile.md).
+
 - **Letier & van Lamsweerde (2025), *Obstacle Analysis in Requirements
   Engineering: Retrospective and Emerging Challenges*, IEEE TSE 51(3)** —
   obstacle analysis: residual risk is closed only when it is *explicitly judged
@@ -193,6 +209,9 @@ one of these elements, this is the reasoning you are changing.
   (open: <https://discovery.ucl.ac.uk/id/eprint/10204032/>)
 
 ### Evidence discipline & defect economics (the template's core)
+
+**Drives**: the *Critical Assumptions* Evidence-Record model in [`TEMPLATE.md`](TEMPLATE.md), enforced mechanically by
+[`prompts/gate/tooling-pass.md`](prompts/gate/tooling-pass.md).
 
 - **Boehm (1984), *Software Engineering Economics*, IEEE TSE SE-10(1)** — the
   cost-of-late-defects argument that motivates spending tokens on verifying
@@ -213,6 +232,9 @@ one of these elements, this is the reasoning you are changing.
   DOI 10.1109/32.177364 — <https://doi.org/10.1109/32.177364>
 
 ### Implementation launch (Stage 9)
+
+**Drives**: [`prompts/implementation/launch.md`](prompts/implementation/launch.md), dispatched at
+[`flow/09-implement.md`](flow/09-implement.md).
 
 - **Fakhoury, Naik, Sakkas, Chakraborty & Lahiri (2024), *LLM-based Test-driven
   Interactive Code Generation* (TiCoder), IEEE TSE** — tests-from-spec-first and
