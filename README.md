@@ -8,33 +8,16 @@ statement becomes more refined through research and exploration and alternatives
 **Core Purpose**: Capture both the final recommendation and supporting evidence to prevent purpose drift during
 implementation.
 
-## Index
+## Indexes
 
-RDR instances live in per-project subdirectories (one row per RDR). Drop your
-own RDRs under a project folder and index them here. Each project may keep its
-own `<project>/README.md` index as well.
+RDRs are indexed per project. Each consumer keeps its RDR instances in its own
+repo (the engine never holds them), and that consumer's README carries the
+authoritative Status/Priority table, co-located with the RDR files it lists —
+e.g. a `cli/README.md` listing a `cli/` RDR set.
 
-| Project | ID | Title | Status | Priority |
-| --- | --- | --- | --- | --- |
-| _example_ | _0001_ | _First RDR — replace this row with your own_ | _Draft_ | _—_ |
-
-## What you get
-
-This repository is the **process**, not any one project's records:
-
-- [`TEMPLATE.md`](TEMPLATE.md) — the RDR document template (Critical Assumption
-  Evidence Records, Normative vs. Illustrative contracts, the Finalization
-  Gate).
-- [`flow/`](flow/README.md) — a runnable, project-agnostic recipe that drives a
-  single RDR from idea → **Final** → implemented code, one pasteable prompt per
-  stage. Start at [`flow/00-bootstrap.md`](flow/00-bootstrap.md).
-- [`prompts/`](prompts/README.md) — the pre-lock review lenses and the
-  implementation-launch orchestrator the flow dispatches into.
-- [`post-mortem/`](post-mortem/TEMPLATE.md) — the post-implementation drift
-  template.
-- [`RESEARCH.md`](RESEARCH.md) — the evidence base: every citation behind the
-  template, the flow, and the prompts, with online links, plus the wider
-  spec-driven-development bibliography this process draws on.
+This README is the cross-project **process manual** for authoring RDRs: the
+workflow, finalization gate, pre-lock review rounds, and post-mortem process
+below apply to every project's RDRs regardless of which index lists them.
 
 ## Workflow
 
@@ -55,9 +38,9 @@ This repository is the **process**, not any one project's records:
 per stage (seed → propose → refine → resolve-assumptions → pre-lock → reconcile → finalize → implement), each with a
 review gate and an advance-when condition (the implement stage terminates at COMPLETE/INCOMPLETE instead), so an RDR can
 be driven from idea to implemented code without reconstructing the prompts from memory, then handed to step 7 (Close).
-The stages are mined from real RDR-authoring sessions (see [`RESEARCH.md`](RESEARCH.md) for the methodology and the
-literature anchors); Stage 5 dispatches into the [`prompts/`](prompts/) pre-lock rounds and Stage 8 into
-[`prompts/implementation/launch.md`](prompts/implementation/launch.md) rather than duplicating them.
+The stages are mined from this project's own session history; Stage 5 dispatches into the [`prompts/`](prompts/) pre-lock
+rounds and Stage 8 into [`prompts/implementation/launch.md`](prompts/implementation/launch.md) rather than duplicating
+them.
 
 ## Status Definitions
 
@@ -104,8 +87,12 @@ self-reference rule live in [TEMPLATE.md](TEMPLATE.md) under *Critical Assumptio
 - **`Docs Only` is insufficient for anything load-bearing.** It is allowed only when paired with a Spike or Source
   Search plan in the Evidence line.
 - **`Source Search` whose Evidence cites this same RDR — or any path under the RDR's artifact directory — is
-  self-reference, not verification.** An early audit of RDRs authored before the structured Evidence Record existed
-  found this failure mode in nearly half of all load-bearing assumptions; the gate now blocks it explicitly.
+  self-reference, not verification.** The X4 triage on RDRs 0001–0010 found this failure mode in 24 of 54 assumptions;
+  the gate now blocks it explicitly. The proof must also support **the specific claim**, not an adjacent one
+  ("verified something adjacent and called it the thing" is the same failure in a subtler form).
+- **Anchor by symbol, not by line.** Cite source as a greppable `path::Symbol`, never a bare `file:line`; a commit-SHA
+  permalink only for audit/traceability. The only mechanical anchor check worth running is *does the cited symbol still
+  resolve on `main`?* Write fewer, durable anchors rather than many volatile ones. (Rationale: flow `README` *Doctrine*.)
 - **Exactness words are claims, not emphasis.** If the RDR says all/every, first/nearest, byte-identical, lossless,
   canonical, deterministic, or stable order, back it with an Evidence Record or with the Minimum Viable Validation.
 - **Examples are contracts only when labeled Normative.** Fixtures, sample inputs/outputs, numeric counts, platform
@@ -145,7 +132,9 @@ confirm.
    peer RDR that owns the project-wide policy? Concerns to consider: versioning, licensing, build/deployment, secrets,
    memory, concurrency, character encoding, canonical-form/determinism. Omit (don't N/A-bullet) what doesn't apply.
 5. **Proportionality** — Is the document right-sized? Are alternatives, code examples, and future considerations trimmed
-   to what adds value?
+   to what adds value? The split test is **contract count, not word count**: an RDR that is the sole author of more than
+   one independent load-bearing contract (a type design *and* a hash *and* a taxonomy…) spans more than one seam and
+   should be split along those seams, not locked together. The Normative Contracts section is the seam detector.
 
 **When to run the gate**: After the Proposed Solution and Alternatives are complete, before marking Draft → Final.
 
@@ -181,9 +170,9 @@ the mechanical pre-step of the Finalization Gate, run on every RDR after the rou
 reconcile) as a post-mutation regression sweep: TEMPLATE section coverage, Method-label vocabulary, `Source Search`
 self-reference, `Docs Only` on load-bearing claims. The rounds rewrite the draft; this sweep confirms none of them
 hollowed a section or disturbed an evidence record before the Gate's written responses. It is also the conformance
-backstop for RDRs whose earlier passes were skimped. (Placed last — after the analytical rounds and the spike/assumption
-reconcile, immediately before the Gate — because the assumption-evidence checks it runs are the mechanical share of what
-Resolve and the Repeatability/CoVe lenses verify analytically.)
+backstop for RDRs whose earlier passes were skimped. (Placed last per `_spec_validation/RDR-PROCESS-IMPROVEMENT.md`
+§D.2; the assumption-evidence checks it runs are the mechanical share of what Resolve and the Repeatability/CoVe lenses
+verify analytically.)
 
 ### Applicability matrix
 
@@ -200,6 +189,10 @@ Finalization Gate run on every profile, so they are folded into "Gate" below:
 3amigo runs on every non-trivial RDR; Critique on RDRs that lock a surface; Repeatability + CoVe on foundational
 work. The Tooling-pass sweep runs on every RDR as the Gate's mechanical pre-step.
 
+The profile is recorded in the RDR's `Profile` Metadata field (classified by contract count) rather than re-inferred
+each stage — Seed estimates it, Resolve overwrites it from the verified count, the Gate re-validates it. See the
+[flow README](flow/README.md#applicability--which-stages-a-given-rdr-needs) for the field's lifecycle.
+
 After each round, the author makes a fix pass on the draft. The Finalization Gate is the *last* check, not a
 substitute for these rounds — its written-response items are sharper when the rounds have already absorbed the gaps a
 template slot can capture, and its mechanical pre-sweep catches anything the rounds disturbed.
@@ -212,7 +205,7 @@ forward at a draft, this one looks back at an implementation in use.
 
 After an RDR is implemented, reverted, or abandoned, create a post-mortem as a sibling file next to the original RDR
 using the [post-mortem template](post-mortem/TEMPLATE.md). Name the file `NNNN-slug-postmortem.md` (e.g.
-`<project>/0001-first-rdr-postmortem.md`). Cross-RDR synthesis artifacts (e.g. `SYNTHESIS.md`) live under
+`cli/0003-project-config-and-init-postmortem.md`). Cross-RDR synthesis artifacts (e.g. `SYNTHESIS.md`) live under
 `post-mortem/`.
 
 The purpose is **not** to catalog gaps for their own sake, but to identify recurring patterns of plan-vs-reality drift

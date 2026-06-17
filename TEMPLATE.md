@@ -7,7 +7,17 @@
 
 - **Date**: YYYY-MM-DD
 - **Status**: Draft | Final | Implemented | Reverted |
-  Abandoned | Superseded
+  Abandoned | Superseded | Demoted
+  - `Demoted` is the terminal status for an RDR judged
+    *not RDR-shaped* — the decision was never a real
+    design fork, so it leaves the RDR lifecycle and is
+    refiled as a plain issue. Carry the destination on the
+    live value: `Demoted [→ <issue link>]`, and record the
+    same link under **Related Issues**. A `Demoted` RDR runs
+    no further stages. (Distinct from the 08.1 *demotion*
+    below, which is a `Final → Draft` flip that keeps the
+    RDR in the lifecycle — that flip never writes
+    `Status: Demoted`; see the disambiguation note there.)
   - A Draft demoted from Final by the 08.1 cluster gate
     carries a qualifier on the live value:
     `Draft [revised from Final YYYY-MM-DD; re-verify A2,A4
@@ -16,10 +26,33 @@
     re-verify) and Stage 8 (re-lock) parse the qualifier.
     The Stage 8 flip to `Final` overwrites the whole value,
     so the qualifier self-clears at re-lock — no separate
-    cleanup. (`Reverted` above is the unrelated terminal
-    "implementation rolled back" status — do not conflate.)
+    cleanup. This 08.1 "demotion" is a *verb* describing the
+    Final→Draft flip; it is **not** the `Demoted` status
+    above (which exits the lifecycle to an issue) — do not
+    conflate the two. (`Reverted` above is the unrelated
+    terminal "implementation rolled back" status — also do
+    not conflate.)
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture
+- **Profile**: small | mid | large | foundational
+  - The flow's routing latch — which Stage 5 lenses run
+    (applicability matrix in `rdr/flow/README.md`). Sized
+    by **contract count, not word count**: count the
+    *independent* load-bearing contracts this RDR is sole
+    author of (per the Normative Contracts split signal).
+    One contract, no user-facing surface → `small` (skips
+    Stage 5: Resolve → Reconcile → Finalize); one contract
+    + user-facing surface, OR locks a contract → `mid`;
+    locks an enum/hash/format/grammar/destructive-op →
+    `large`; cross-RDR producer / spans modules →
+    `foundational`.
+  - **Provenance is the `Status`, not a qualifier.** Seed
+    writes a provisional estimate from the design shape;
+    Stage 4 (Resolve) overwrites it from the verified
+    contract count; the Stage 8 Gate re-validates it and
+    it becomes authoritative at the `Draft → Final` flip.
+    A Profile on a `Draft` is an estimate — **never skip
+    lenses off it until Resolve has run.**
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
 - **Predecessors**: [Comma-separated `NNNN-slug` of
@@ -79,8 +112,11 @@ before marking this RDR Final.]
 **Method vocabulary** (pick exactly one per assumption):
 
 - **Source Search** — verified against dependency
-  source code. Evidence: `path/to/file.go:LN`. Standard
-  for libraries.
+  source code. Evidence: a greppable `path::Symbol`
+  (function/type/const name), **not a bare `file:line`**;
+  a commit-SHA permalink only for audit/traceability.
+  Standard for libraries. (Why symbol not line: flow
+  README *Doctrine*.)
 - **Spike** — verified by running code against a live
   service or fixture. Evidence: command run + path to
   captured output.
@@ -103,7 +139,12 @@ before marking this RDR Final.]
 
 A `Method: Source Search` whose Evidence cites this
 same RDR file — or any path under the RDR's artifact
-directory — is self-reference and not Verified.
+directory — is self-reference and not Verified. The
+cited proof must also support **the specific claim**,
+not an adjacent one: confirming a neighbouring fact and
+stamping the assumption `Verified` is not verification.
+The cited symbol must resolve on `main` (a renamed,
+deleted, or never-built symbol fails the check).
 
 Any exactness claim such as all/every, first/nearest,
 byte-identical, lossless, canonical, deterministic, or
@@ -125,7 +166,22 @@ extension points.]
 
 [Load-bearing — implementers must match exactly.
 The implementation prompt extracts REQ-N quotes from
-this section.]
+this section. This section is also the **authoritative
+list of the contracts this RDR owns**: a surface not
+named here has no spec to test against, so during
+implementation an un-named surface is a deviation, not
+free latitude (see `prompts/implementation/launch.md`
+Phase 2).]
+
+> **Proportionality (split signal).** Count the
+> *independent* load-bearing contracts this RDR is the
+> sole author of (a distinct type design, a hash, a wire
+> format, a taxonomy, a destructive-op policy each count
+> as one). If an implementer would have to hold **more
+> than one** such contract in working memory at once,
+> this RDR spans more than one seam — split it along those
+> seams rather than locking them together. The split test
+> is **contract count, not word count**.
 
 - Function/method signatures and type definitions for
   values that cross module boundaries
@@ -149,14 +205,50 @@ State each Normative item in a clearly labeled block,
 e.g.:
 
 ```normative
-func Validate(existing []Record, proposed []Record) Report
+func Check(sealed []op.Op, proposed []op.Op) Report
 type Report struct { ... }
 ```
 
 Every external API call inside a Normative block must
 have a corresponding Critical Assumption Evidence
-Record above (Method: Source Search or Spike, with
-file:line or command + output).
+Record above (Method: Source Search or Spike, with a
+greppable `path::Symbol` or command + output).
+
+#### Load-Bearing Decisions
+
+[Conditional — include only the classes this RDR
+touches; omit (don't N/A-bullet) the rest. These four
+decision classes are the ones implementation otherwise
+invents silently, so each must carry **one explicit
+answer** here when in play. This is targeted rigor on
+the churn-prone decisions, not blanket detail.]
+
+- **Identity** — what makes two of these things "the
+  same"? (the equality/dedup/merge key)
+- **Wire / byte format** — the exact layout, or
+  explicitly deferred with the named owner.
+- **Naming** — the canonical name, and the rejected
+  alternatives.
+- **Selection / predicate** — when N candidates qualify,
+  *which one* is chosen and *why*.
+
+#### Round-Trip / Inverse Invariants
+
+[Conditional — include only if this RDR introduces a
+pair of operations expected to compose to identity
+(encode/decode, serialize/parse, import/export,
+migrate/rollback, snapshot/restore, undo/redo). Omit
+otherwise.]
+
+State each invariant explicitly as `X ∘ Y = identity on
+input class Z`, and specify the equality as **byte- or
+value-for-byte fidelity** — *not* "does not error." A
+green exit code does not prove the round-trip preserved
+the input; the validation must assert the reconstructed
+value equals the original. If the pair spans two RDRs,
+also record it as a Critical Assumption with
+`Method: Peer RDR` so Stage 8.1 asserts it across the
+seam.
 
 #### Illustrative Code
 
@@ -346,7 +438,13 @@ Evidence agree, and "If wrong" is non-empty. List
 any record whose Method is `Docs Only` (these block
 lock unless paired with a Spike or Source Search
 plan) and any that remain `Pending` or `Unverified`
-with a plan to verify before implementation begins.]
+with a plan to verify before implementation begins.
+Confirm no `Verified` stamp is self-referential or
+proves only an adjacent claim, and that each cited
+`path::Symbol` resolves on `main`. **Status
+consistency:** no assumption marked `Pending` or
+`Unverified` may have settled-fact prose elsewhere in
+the RDR depending on it.]
 
 ### Scope Verification
 
@@ -380,7 +478,25 @@ evolution.
 ### Proportionality
 
 [Is the document right-sized for the change? Flag
-any sections that should be trimmed before locking.]
+any sections that should be trimmed before locking.
+The split test is **contract count, not word count**:
+confirm this RDR is the sole author of at most one
+independent load-bearing contract (per the Normative
+Contracts split signal). If it owns more than one
+seam, flag it for splitting rather than locking the
+seams together.
+
+Re-validate the **Profile** Metadata field against the
+contracts you just counted: confirm the value Resolve
+wrote still matches (one contract + no user-facing
+surface → `small`; etc. per the applicability matrix).
+If the lenses that actually ran disagree with the
+Profile (e.g. Profile says `small` but the change locks
+a contract that warranted `mid`+ lenses, or the lenses
+were skipped on a wrong `small`), correct the field and
+do not lock until the missing lenses have run. This is
+the latch's backstop — a wrong Profile cannot route
+past the lens battery undetected.]
 
 ## References
 
