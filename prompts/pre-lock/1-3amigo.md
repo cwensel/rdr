@@ -34,7 +34,9 @@ Persona 3 — QA / Tester
 
 Write each persona's list to {FLOW_DIR} as its own file —
 persona-1-pm.md, persona-2-implementer.md, persona-3-qa.md
-(where {FLOW_DIR} = _rdr/3amigo/<rdr-slug>/).
+({FLOW_DIR} is already bound by the dispatcher to this lens's
+`3amigo/<rdr-slug>/` folder under the base {RDR_ENV} defines — do not
+re-derive it).
 
 At the end, consolidate: which passages appeared under two or more personas?
 Those are the highest-priority rewrites. Write that to

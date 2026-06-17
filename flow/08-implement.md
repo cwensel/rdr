@@ -1,4 +1,4 @@
-# Stage 9 — Implement
+# Stage 8 — Implement
 
 **Goal**: turn the locked RDR into working, spec-verified code. This is the
 flow's true terminus — the RDR exists to be implemented, and implementation
@@ -11,25 +11,25 @@ This stage **dispatches into the orchestrator prompt in
 below); this file adds only the *driving discipline*: the entry contract it
 consumes, the gate it terminates on, and how it resumes across long gaps. The
 launch prompt is standalone — pasted with `{RDR_PATH}` and `{RDR_RESOURCES}`
-(default `_rdr/rdr-resources.md`, so a defect can be reasoned against the same
+(resolved via the workspace marker, so a defect can be reasoned against the same
 evidence base the flow used) filled, it needs nothing else loaded;
-`{ARTIFACT_DIR}` (from `_rdr/rdr-env.md`) is where it writes.
+`{ARTIFACT_DIR}` (from `{RDR_ENV}`, likewise marker-resolved) is where it writes.
 
-**Run when**: the RDR is **Final** — Stage 8 left it locked. Implementation
+**Run when**: the RDR is **Final** — Stage 7 left it locked. Implementation
 usually starts hours or days after lock, often in a fresh session; this stage
 is re-entrant by design (see *resuming* below). **Produces**: working code +
 tests in the project source tree, and the artifacts under `{ARTIFACT_DIR}`
 (`req-list.md`, `coverage.md`, `verification.md`, `deviations.md`,
 `status.md`), ending at exactly `COMPLETE` or `INCOMPLETE`.
 
-## Entry contract (what Stage 8 must have left true)
+## Entry contract (what Stage 7 must have left true)
 
-launch.md's PRECHECKS assume a locked RDR. Stage 8 guarantees exactly what
+launch.md's PRECHECKS assume a locked RDR. Stage 7 guarantees exactly what
 they consume — state it once, here:
 
 - **Status: Final**, with the Finalization Gate's five written responses in the
   RDR. launch.md treats the spec as an immutable contract.
-- **MVV in scope** (Stage 8 Scope Verification) — Phase 1 turns it into
+- **MVV in scope** (Stage 7 Scope Verification) — Phase 1 turns it into
   `REQ-MVV`, the runnable end-to-end test.
 - **Predecessors COMPLETE** — every `**Predecessors**:` entry's
   `{ARTIFACT_DIR}/status.md` reads `COMPLETE`. This is the same gate the
@@ -37,7 +37,7 @@ they consume — state it once, here:
   halt otherwise.
 
 If any of these is not true, the RDR is not ready to implement — return to
-Stage 8 (lock) or Stage 7 (an unreconciled assumption), not into this stage.
+Stage 7 (lock) or Stage 6 (an unreconciled assumption), not into this stage.
 
 ## Paste this
 
@@ -72,7 +72,7 @@ from artifact headers, not a re-read.
 - **A contract-level deviation** (`SPEC-DEFECT`, or a `SPEC-UNDER` no reading
   resolves) means the locked RDR is wrong. **Do not edit the RDR.** Abandon
   implementation and iterate the RDR — re-enter the flow at Stage 2/3/4 as the
-  defect dictates, re-lock (Stage 8), then re-run this stage. This is the
+  defect dictates, re-lock (Stage 7), then re-run this stage. This is the
   flow's only backward edge out of Final, and it is deliberate: the spec is the
   source of truth, so a spec defect is fixed in the spec, never in the code.
   (Deviation Types — SPEC-DEFECT / SPEC-UNDER / DEPENDENCY-LIMIT /
@@ -87,7 +87,7 @@ and if it names a phase, resume at the next one. A reader returning days later
 pastes the same prompt against the same RDR — the on-disk artifacts, not the
 session, carry state. This is why the artifacts are the authoritative record
 and why `COMPLETE`/`INCOMPLETE` must be computable from disk. The linear
-per-stage model holds up to Stage 8; Stage 9 trades it for a disk-backed,
+per-stage model holds up to Stage 7; Stage 8 trades it for a disk-backed,
 resumable gate.
 
 ## Terminus
@@ -98,3 +98,10 @@ resumable gate.
 → Close (workflow step 7 in [`../README.md`](../README.md#workflow)): set the
 RDR's status (Implemented | Reverted | Abandoned | Superseded) and write the
 post-mortem ([`../prompts/post-mortem/`](../prompts/post-mortem/)).
+
+**Also drain the kata tracker.** Close every open `kind:rdr-tracked` kata whose
+`tracks: cli/NNNN` comment names this RDR (`kata close <id> --reason done`) —
+after confirming the defect actually resolves; if it survives, leave the kata
+open and comment why. On Reverted | Abandoned | Superseded, do not close
+trackers: strip `kind:rdr-tracked` and re-route them through
+`kata-scope-review` (the defect lost its RDR).

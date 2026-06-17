@@ -171,16 +171,16 @@ check is [`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md).
   Repeatability lens (3 runs, ≥1 on a different base model, then diff).
   <https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html>
 
-### Pairwise / cross-RDR consistency (Stage 8.1)
+### Pairwise / cross-RDR consistency (Stage 7.1)
 
 **Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at
-[`flow/08.1-cluster-reconcile.md`](flow/08.1-cluster-reconcile.md).
+[`flow/07.1-cluster-reconcile.md`](flow/07.1-cluster-reconcile.md).
 
 - **Finkelstein, Gabbay, Hunter, Kramer & Nuseibeh (1994), *Inconsistency
   Handling in Multiperspective Specifications*, IEEE TSE 20(8)** — the viewpoints
   tradition: tolerate inconsistency between views during work, and reconcile it
   at *chosen* points rather than enforcing global consistency as a precondition.
-  This is exactly how the flow defers cross-RDR drift to Stage 8.1 instead of
+  This is exactly how the flow defers cross-RDR drift to Stage 7.1 instead of
   gating every per-RDR edit on it. DOI 10.1109/32.310667 —
   <https://doi.org/10.1109/32.310667>
   (open PDF: <https://www.finkelstein.live/papers/tse94.esec.pdf>)
@@ -195,9 +195,9 @@ check is [`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md).
   Pairwise lens's modern anchor. DOI 10.1109/QRS65678.2025.00014 —
   <https://doi.org/10.1109/QRS65678.2025.00014>
 
-### Reconcile gate (Stage 7) — residual-risk closure
+### Reconcile gate (Stage 6) — residual-risk closure
 
-**Drives**: [`flow/07-reconcile.md`](flow/07-reconcile.md).
+**Drives**: [`flow/06-reconcile.md`](flow/06-reconcile.md).
 
 - **Letier & van Lamsweerde (2025), *Obstacle Analysis in Requirements
   Engineering: Retrospective and Emerging Challenges*, IEEE TSE 51(3)** —
@@ -231,10 +231,10 @@ check is [`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md).
   classifies implementation divergences so patterns can be analyzed across RDRs.
   DOI 10.1109/32.177364 — <https://doi.org/10.1109/32.177364>
 
-### Implementation launch (Stage 9)
+### Implementation launch (Stage 8)
 
 **Drives**: [`prompts/implementation/launch.md`](prompts/implementation/launch.md), dispatched at
-[`flow/09-implement.md`](flow/09-implement.md).
+[`flow/08-implement.md`](flow/08-implement.md).
 
 - **Fakhoury, Naik, Sakkas, Chakraborty & Lahiri (2024), *LLM-based Test-driven
   Interactive Code Generation* (TiCoder), IEEE TSE** — tests-from-spec-first and

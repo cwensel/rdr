@@ -1,0 +1,1 @@
+../../../prompts/gate/tooling-pass.md

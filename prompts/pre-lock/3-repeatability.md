@@ -10,22 +10,28 @@ lenses; peers with [3amigo](1-3amigo.md), [critique](2-critique.md), and
 Where multiple generation runs disagree, the RDR is silent — that silence is
 the finding.
 
-**Cost**: 15 min × 3 runs + 10 min to diff.
+**Cost**: 15 min × 3 runs (one session each) + 10 min for a 4th `diff` pass in a
+fresh session.
 
 ## Generation prompt
 
-**Run 3 times in fresh sessions** — at least one run on a **different base
-model**. The cross-model run is the point: it surfaces where the RDR reads
-differently to a different model, not just a different temperature draw. A
-sub-agent **cannot** stand in for this — it inherits this session's model, so
-it would weaken the probe to a self-consistency check. Relaunch the CLI on the
-alt model yourself between runs (e.g.
-`ollama launch claude --model kimi-k2.6:cloud`); if `{RDR_RESOURCES}` lists an
-alt-model roster, use it and one of its commands for run N.
+**Run 3 times, one run per fresh session** — at least one run on a **different
+base model**. The cross-model run is the point: it surfaces where the RDR reads
+differently to a different model, not just a different temperature draw.
 
-`{RDR_PATH}`, `{FLOW_DIR}` (`_rdr/repeatability/<rdr-slug>/`), and `<N>` (this
-run's number, 1–3) are bound by the Stage 5 arg header — paste verbatim. Running
-standalone (outside the flow)? Fill them yourself first.
+**One session writes exactly one run.** A context window that authored a run
+anchors to that interpretation, so the rest are paraphrases of it — which is why a
+sub-agent **cannot** stand in (self-consistency check) and this session must not
+write a second `run-*.md`. If you can't relaunch the CLI for the next run on a
+fresh session (and, for the cross-model run, on the alt base), **stop and hand the
+command to the user** — don't write the extra run yourself. Relaunch on the alt
+model between runs (e.g. `ollama launch claude --model kimi-k2.6:cloud`); if
+`{RDR_RESOURCES}` lists an alt-model roster, use one of its commands for run N.
+
+`{RDR_PATH}`, `{FLOW_DIR}` (this lens's `repeatability/<rdr-slug>/` folder
+under the base `{RDR_ENV}` defines), and `<N>` (this run's number, 1–3) are
+bound by the Stage 5 arg header — paste verbatim. Running standalone (outside
+the flow)? Read `{RDR_ENV}` for the base and fill them yourself first.
 
 ```text
 Based only on the RDR at {RDR_PATH}, produce:
@@ -45,9 +51,13 @@ Write your output to {FLOW_DIR}/run-<N>.md. Report nothing else.
 
 ## Diff prompt
 
-After all three runs exist, paste this once (any session — pure analysis, no
-independence requirement, so a sub-agent is fine here). `{RDR_PATH}`/`{FLOW_DIR}`
-bind from the Stage 5 arg header — paste verbatim, or fill them if standalone.
+Run the diff as its own pass (`/rdr-prelock NNNN repeatability diff`) **in a
+fresh session that authored none of the three runs**. The analysis is pure, but an
+authoring session isn't neutral — it diffs toward the interpretation it already
+wrote — so the diff is a fourth pass, not a tail on the last generation (and a
+sub-agent of an authoring session can't stand in either). Once all three runs
+exist and this session wrote none, paste this once. `{RDR_PATH}`/`{FLOW_DIR}` bind
+from the Stage 5 arg header — paste verbatim, or fill them if standalone.
 
 ```text
 Read the three repeatability runs at {FLOW_DIR}/run-1.md, run-2.md, run-3.md
@@ -69,8 +79,8 @@ RDR section it lands in — the **Normative Contracts** subsection of the
 Technical Design is where most rewrites go. Report nothing else.
 ```
 
-`diff.md` is the file Stage 6
-([`../../flow/06-prelock-resolve.md`](../../flow/06-prelock-resolve.md)) reads.
+`diff.md` is the file the cycle's fix half
+([`$PROCESS_ROOT/rdr/flow/05-prelock.md`]($PROCESS_ROOT/rdr/flow/05-prelock.md), *Resolve (the fix half)*) reads.
 
 ## Expected signal
 
@@ -81,6 +91,6 @@ Technical Design is where most rewrites go. Report nothing else.
 
 ## Source
 
-Böckeler, *Understanding Spec-Driven-Development* (on martinfowler.com; the
-non-determinism / regenerate-and-compare experiment) —
+Fowler, *Understanding Spec-Driven Development* (the non-determinism /
+regenerate-and-compare experiment) —
 <https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html>.

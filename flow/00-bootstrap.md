@@ -2,10 +2,20 @@
 
 **Goal**: set a project up to run the RDR flow **without the project knowing
 about RDR** — no versioned footprint, no `CLAUDE.md` edits, nothing in the
-project's own `.gitignore`. The flow expects two files at the project root:
-`_rdr/rdr-resources.md` (the evidence index) and `_rdr/rdr-env.md` (the path
-map). This stage creates them, filled from the project itself, and ensures
-`_rdr/` stays out of git. Run once; re-run only to refresh values.
+project's own `.gitignore`. The flow expects two files: `rdr-resources.md` (the
+evidence index) and `rdr-env.md` (the path map), defaulting to an `_rdr/` folder
+at the project root. This stage creates them, filled from the project itself,
+and ensures `_rdr/` stays out of git. Run once; re-run only to refresh values.
+
+> **Already have a pinned seam?** A project may keep its seam (and evidence) in
+> a tracked external directory instead of gitignored `_rdr/` — e.g. a consumer
+> that keeps `rdr-resources.md` / `rdr-env.md` in a sibling seam repo (such as a
+> `flow/context/`), with evidence under that repo's `rdr/evidence/`. If a
+> **workspace marker**
+> (`.rdr-workspace` at the workspace parent, see the README *Where the seam
+> lives*) already exports `$RDR_RESOURCES` / `$RDR_ENV`, **skip this stage** —
+> the resolver finds them. Bootstrap only creates the fallback `_rdr/` seam (and
+> a marker pointing at it) for a project that has none.
 
 ## Paste this
 
@@ -26,7 +36,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    - Output staging keys {SPIKE_DIR}, {FLOW_DIR}, {ARTIFACT_DIR}. Default
      {SPIKE_DIR}=_rdr/spikes/<rdr-slug>/, {FLOW_DIR}=_rdr/<lens>/<rdr-slug>/
      — lens-first, then a per-RDR folder under it (e.g.
-     _rdr/3amigo/0001-example/ holds persona-1-pm.md, persona-2-implementer.md,
+     _rdr/3amigo/0038-policies/ holds persona-1-pm.md, persona-2-implementer.md,
      persona-3-qa.md, consolidation.md). Each lens fills <lens> with its own
      name and writes its element files there; both gitignored scratch.
      {ARTIFACT_DIR}= wherever this project keeps RDRs,
@@ -58,8 +68,23 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    project; leave a clearly-marked TODO only where a value needs my judgment.
    Flag the filled files for my review at the end.
 
+4. Install the WORKSPACE MARKER so every repo/worktree resolves the seam without
+   probing _rdr/. Find the workspace parent (the dir holding this project) with
+   `WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd
+   -P)")")`. If `$WS/.rdr-workspace` already exists, leave it. Otherwise **copy
+   the tracked template** `flow/context/workspace.example` (in this workspace's
+   flow repo — resolve via `$WS/flow/context/workspace.example`) to
+   `$WS/.rdr-workspace`, then fill its repo-root and seam blocks for this
+   machine: keep the repo roots that exist, point `RDR_ENV` / `RDR_RESOURCES` at
+   the seam files just written (the `_rdr/` ones, or the pinned location if this
+   project pins one). If no flow repo / template is reachable, hand-write an
+   equivalent sourceable file exporting at least `RDR_ENV` / `RDR_RESOURCES`
+   anchored on `$WS`. The marker lives ABOVE the repos (not inside one) so it
+   survives worktrees; it is per-machine working config, not tracked.
+
 Report: which ignore path was taken (already-ignored vs wrote _rdr/.gitignore),
-the two files written, and any TODO I must resolve.
+the two files written, whether a workspace marker was created or already present,
+and any TODO I must resolve.
 ```
 
 ## Review gate

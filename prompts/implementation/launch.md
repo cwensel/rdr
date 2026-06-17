@@ -15,7 +15,7 @@ code — and so each launch leaves file-backed artifacts the next launch
   before the next starts. Cross-RDR orchestration is out of scope.
 - Each RDR is ≤2k lines × 120 chars (~30k tokens worst case). The full
   spec fits in any modern context; the prompt does not paginate it.
-- RDRs follow the template at `../../TEMPLATE.md` (the rdr/ directory
+- RDRs follow the template at `$PROCESS_ROOT/rdr/TEMPLATE.md` (the rdr/ directory
   containing this prompt). Required sections, with their TEMPLATE
   paths:
   - `## Metadata` (top-level)
@@ -44,20 +44,23 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 ```
 
 This `NNNN-slug/` directory is the RDR flow's `{ARTIFACT_DIR}` (defined under
-*Output staging* in the flow's resource file, `_rdr/rdr-resources.md` at the
-project root). The prompt derives the path itself — `<art>` = the directory
-next to the RDR named after its basename — so it stays standalone-pasteable;
-the flow simply gives that same location a name. These implementation
-artifacts stay tracked beside the RDR; the flow's pre-lock evidence
-(`{SPIKE_DIR}`/`{FLOW_DIR}`) is separate, non-permanent scratch under `_rdr/`.
+*Output staging* in the flow's path map, `{RDR_ENV}` — resolved via the
+workspace marker, see the flow README *Where the seam lives*). The prompt
+derives the path itself — `<art>` = the directory next to the RDR named after
+its basename — so it stays standalone-pasteable; the flow simply gives that
+same location a name. These implementation artifacts stay tracked beside the
+RDR; the flow's pre-lock evidence (`{SPIKE_DIR}`/`{FLOW_DIR}`) is separate, and
+its location is whatever `{RDR_ENV}` defines (a tracked evidence tree where the
+project pins one; gitignored `_rdr/` scratch only in the generic default).
 
 ## The Prompt
 
 Replace `{RDR_PATH}` with the RDR file's path
-(e.g. `<project>/0001-first-rdr.md`) and `{RDR_RESOURCES}` with the flow's
-evidence index (default `_rdr/rdr-resources.md`) — the same corpora, design
-docs, and anchors the flow grounded the spec against, so a sub-agent facing a
-defect can verify and reason rather than ask:
+(e.g. `cli/0001-smo-catalog.md`) and `{RDR_RESOURCES}` with the flow's
+evidence index (resolved via the workspace marker — see the flow README *Where
+the seam lives*) — the same corpora, design docs, and anchors the flow grounded
+the spec against, so a sub-agent facing a defect can verify and reason rather
+than ask:
 
 ```text
 You are the ORCHESTRATOR for implementing the locked RDR at {RDR_PATH}.
@@ -138,7 +141,11 @@ future change broke that clause. Each test:
   - Asserts on spec-described behaviour only — no mocks of the unit
     under test, no private fields, no log strings, no call counts
     unless the spec names them.
-  - REQ-MVV is a runnable end-to-end test.
+  - REQ-MVV is a runnable end-to-end test. If the RDR declares a
+    Round-Trip / Inverse Invariant (X∘Y = identity), the MVV asserts
+    the reconstructed value equals the original byte-/value-for-byte —
+    a green exit code or "did not error" is NOT sufficient; fidelity
+    loss hides behind a passing run.
 After writing the tests, the sub-agent runs the suite and confirms
 ALL new tests FAIL (red). Any test green against a missing/stub
 implementation is tautological — the sub-agent rewrites it before
@@ -170,9 +177,8 @@ entry in `deviations.md` with "Status: mechanical translation" and
 continues. When a gap looks contract-level (spec wording wrong,
 behaviour under-specified in a load-bearing way, scope deferral
 needed), it first grounds the gap against `{RDR_RESOURCES}` — Source
-Search the corpora for the owning behaviour (the standard/spec corpus
-for documented behaviour, the dependency/peer-source corpus for
-implementation behaviour, per `{RDR_RESOURCES}`), check the design docs
+Search the corpora for the owning behaviour (PG/standard → DevRef,
+dependency/peer source → DevRefOS/SchemaEvoOS), check the design docs
 and anchors — and ultrathinks a resolution the spec's own evidence
 base supports, recording that evidence on the entry. Only a genuine
 design decision the evidence cannot resolve gets "Status: needs author
@@ -189,6 +195,16 @@ one Type:
     platform path is wrong.
   - IMPL-DECISION — valid implementation latitude; record only when
     it affects future interpretation.
+ADDITIVE IS NOT EXEMPT. Any NEW public surface (function, accessor,
+output format, flag, error code) that is not named in the RDR's
+Normative Contracts is a SPEC-UNDER deviation requiring author
+decision — even when it only ADDS and breaks nothing. A surface the
+RDR did not name has no REQ-N, so the red-before-green gate is blind
+to it and it would ship untested and unspecified. Record it in
+deviations.md with "Status: needs author decision" and escalate; do
+not add it silently. (A purely mechanical append-only enum extension
+already covered above stays mechanical; a new public surface does
+not.)
 Do not record ordinary implementation choices unless they affect
 contract, validation, or future interpretation. After the suite is
 green, it runs REQ-MVV end-to-end and records the actual output in
@@ -284,7 +300,7 @@ When an RDR's tests or code will reference behaviour pinned by an
 earlier RDR, list the load-bearing predecessors in the RDR's Metadata:
 
 ```markdown
-- **Predecessors**: 0001-first-rdr, 0003-some-prior-rdr
+- **Predecessors**: 0001-smo-catalog, 0003-project-config-and-init
 ```
 
 The launch prompt's PRECHECKS step gates on each predecessor's
@@ -337,10 +353,10 @@ prompt only needs to know which predecessors to gate on.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
   DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
   taxonomy the RDR process uses for post-mortem drift classification
-  (`../../README.md`, *Post-Mortem Process*). They are defined inline
+  (`$PROCESS_ROOT/rdr/README.md`, *Post-Mortem Process*). They are defined inline
   in the prompt above so this file stays standalone-pasteable; keep the
-  two definitions in sync. In the RDR flow ([`../../flow/`](../../flow/README.md)),
-  this prompt is **Stage 9 (Implement)** — the flow's terminus.
+  two definitions in sync. In the RDR flow ([`$PROCESS_ROOT/rdr/flow/`]($PROCESS_ROOT/rdr/flow/README.md)),
+  this prompt is **Stage 8 (Implement)** — the flow's terminus.
 
 ## Citations
 

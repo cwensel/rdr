@@ -5,48 +5,58 @@ template-conformant Draft so every later stage has structured slots to fill.
 
 ## Paste this
 
-Fill `{IDEA}` (a kata id or a one-line description) and `{RDR_ENV}` (default
-`_rdr/rdr-env.md`). The RDR process README + TEMPLATE are the flow's own,
+Fill `{IDEA}` (a kata id or a one-line description); resolve `{RDR_ENV}` via the
+workspace marker (see README *Where the seam lives* — `. "$WS/.rdr-workspace"`
+exports `$RDR_ENV`). The RDR process README + TEMPLATE are the flow's own,
 beside this file.
 
-```text
-Seed a new RDR from: {IDEA}. See the rdr README and TEMPLATE (beside the flow
-docs) for what an RDR is and the template.
-
-Read {RDR_ENV} and place the new RDR file in the project's RDR directory — the
-parent of {ARTIFACT_DIR} (the RDR file and its artifact dir are siblings:
-file `<rdr-dir>/NNNN-slug.md`, artifacts `<rdr-dir>/NNNN-slug/`). If {RDR_ENV}
-names no RDR directory yet, ask me before writing.
-
-Allocate the next free NNNN (max across existing RDR files there). Fill the
-template's Metadata, Problem Statement, and Context from the kata. For every
-other section, keep the template's structure and mark it a Draft
-placeholder — do NOT invent a solution, assumptions, or research findings;
-those are later stages.
-
-State the Problem Statement as a USER OUTCOME first (who runs this, what they
-want to accomplish, how they discover they need it), then the system-internal
-requirement. Do not solve it here.
-
-If {IDEA} is a plain description rather than a kata id, synthesize a
-one-paragraph problem statement from it, flagged for my review.
-
-This is a skeleton, not a finished document. No ultrathink at seed time.
-```
+**Prompt**: [`../prompts/flow/01-seed.prompt.md`](../prompts/flow/01-seed.prompt.md)
+— the `/rdr-seed` skill runs it (binds the params, allocates the number). Paste
+its body by hand if driving without the skill.
 
 **Run when**: starting a brand-new RDR. **Produces**: a new RDR file in the
 project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status: Draft.
 
 ## Review gate
 
-- **Number + slug** are free (no collision) and the slug is descriptive.
+- **Number was claimed atomically** (§rdr-claim: reserved as `NNNN-RESERVED.md`
+  *before* authoring, then `git mv`'d to the slug) — not a bare `max+1` that races
+  a concurrent session. No stray `*-RESERVED.md` left behind; slug is descriptive.
 - **Problem Statement leads with a user outcome**, not a mechanism. "The
   system will parse…" is a mechanism — send it back.
 - **No premature solution.** Proposed Solution, Critical Assumptions, and
   Research Findings are placeholders. Seeding that already picks an approach
   skips Propose's option analysis — reject it.
+- **Skeleton is TEMPLATE.md, filled in place** — not authored from scratch or
+  copied from a neighbor RDR. The unfilled sections should read *verbatim* as the
+  template ships them (`diff` against `TEMPLATE.md` shows changes only in the H1,
+  Metadata, Problem Statement, Context). Neighbor-copied structure drifts the
+  template and smuggles in the neighbor's solution — send it back.
 - **Metadata is honest**: Status Draft; Type/Priority set; Predecessors listed
   if the kata names dependencies.
+- **Is it RDR-shaped at all?** If the {IDEA} carries no real design fork —
+  there is one obvious implementation and nothing to weigh — it is not an RDR.
+  Refile it as a plain issue and set `Status: Demoted [→ <issue link>]` (record
+  the same link under Related Issues). A Demoted RDR runs no further stages.
+
+## Two genesis pathways (both are first-class)
+
+A seed arrives by one of two routes, and **neither is a process miss**:
+
+- **Designed-ahead** — a well-bounded concept named top-down before any code.
+  Foundational, separable concepts admit this.
+- **Discovered-design** — a seed *forced out by building*: an implementation
+  collision, a spike that refutes the design, or a Stage 8 spec-defect re-open
+  surfaces a contract the up-front pass could not have anticipated. Deeply
+  entangled concepts are *only* discoverable this way — expecting to design them
+  whole ahead of time is the wrong frame, so a collision-born seed is the
+  **expected** route for them, not a slowdown.
+
+The economy is in converting *uncontrolled* discovered-design (N collisions each
+absorbed as a fresh point-fix) into *controlled* discovered-design: **once a 2nd
+collision lands on the same concept area, author the contract RDR proactively**
+rather than absorbing a 3rd. (This is the RDR-level twin of the kata
+seam-accretion tripwire in `kata-scope-review`.)
 
 ## Advance when
 

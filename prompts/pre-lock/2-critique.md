@@ -55,9 +55,10 @@ Structure:
 Hostile critique is the assignment. If you find yourself softening,
 restart.
 
-Write the critique to {FLOW_DIR}/critique.md (where {FLOW_DIR} =
-_rdr/critique/<rdr-slug>/). On a dual-model run, the second model writes
-critique-modelB.md alongside it, and you diff the two.
+Write the critique to {FLOW_DIR}/critique.md ({FLOW_DIR} is already bound
+by the dispatcher to this lens's `critique/<rdr-slug>/` folder under the
+base {RDR_ENV} defines — do not re-derive it). On a dual-model run, the
+second model writes critique-modelB.md alongside it, and you diff the two.
 ```
 
 ## Prompt — whole RDR set (higher-leverage variant)

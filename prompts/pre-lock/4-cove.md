@@ -29,9 +29,10 @@ contradiction or silence as a separate finding.
 
 Do not skip Step 2's independence discipline — that is the whole point.
 
-Write the Step 3 findings list to {FLOW_DIR}/findings.md (where {FLOW_DIR} =
-_rdr/cove/<rdr-slug>/) — that is the file the fix pass reads. Report nothing
-else.
+Write the Step 3 findings list to {FLOW_DIR}/findings.md ({FLOW_DIR} is
+already bound by the dispatcher to this lens's `cove/<rdr-slug>/` folder
+under the base {RDR_ENV} defines — do not re-derive it) — that is the file
+the fix pass reads. Report nothing else.
 ```
 
 ## Expected signal

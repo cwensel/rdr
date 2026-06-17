@@ -56,7 +56,7 @@ per stage (seed → propose → refine → resolve-assumptions → pre-lock → 
 review gate and an advance-when condition (the implement stage terminates at COMPLETE/INCOMPLETE instead), so an RDR can
 be driven from idea to implemented code without reconstructing the prompts from memory, then handed to step 7 (Close).
 The stages are mined from real RDR-authoring sessions (see [`RESEARCH.md`](RESEARCH.md) for the methodology and the
-literature anchors); Stage 5 dispatches into the [`prompts/`](prompts/) pre-lock rounds and Stage 9 into
+literature anchors); Stage 5 dispatches into the [`prompts/`](prompts/) pre-lock rounds and Stage 8 into
 [`prompts/implementation/launch.md`](prompts/implementation/launch.md) rather than duplicating them.
 
 ## Status Definitions
@@ -173,7 +173,7 @@ The three analytical rounds, in order of cost. Each links to its prompt file und
    and **CoVe** ([prompts/pre-lock/4-cove.md](prompts/pre-lock/4-cove.md)) — the single-RDR implementation-prompt
    lenses: under-specified signatures the implementer can't grip on, and internal silences/contradictions. Cross-RDR
    contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs two settled
-   (Final) RDRs, so the [`flow/`](flow/README.md#cross-rdr-drift-stage-81) recipe runs it post-Final at Stage 8.1
+   (Final) RDRs, so the [`flow/`](flow/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at Stage 7.1
    (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier peer.
 
 The **[Tooling pass](prompts/gate/tooling-pass.md)** (~5 min, seconds when scripted) is *not* a fourth round — it is
@@ -195,7 +195,7 @@ Finalization Gate run on every profile, so they are folded into "Gate" below:
 | Small / single-file / non-user-facing | Gate (sweep + written responses; no analytical rounds) |
 | Mid / has user-facing surface OR locks a contract | 3amigo + Gate |
 | Large / locks an enum, hash, format, grammar, or destructive operation | 3amigo + Critique + Gate |
-| Foundational / cross-RDR producer / spans modules | 3amigo + Critique + Repeatability + CoVe + Gate (+ Stage 8.1 cross-RDR pairwise, post-Final, per cluster) |
+| Foundational / cross-RDR producer / spans modules | 3amigo + Critique + Repeatability + CoVe + Gate (+ Stage 7.1 cross-RDR pairwise, post-Final, per cluster) |
 
 3amigo runs on every non-trivial RDR; Critique on RDRs that lock a surface; Repeatability + CoVe on foundational
 work. The Tooling-pass sweep runs on every RDR as the Gate's mechanical pre-step.
