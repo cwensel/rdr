@@ -23,7 +23,7 @@ the draft, loop to convergence (or flapping). Dispatches into the lens prompts i
 that one run, `diff` compares them. Reject an unknown lens with
 `stopped:bad-lens:<value>`.
 
-**Pick the lens by profile** (`$PROCESS_ROOT/rdr/flow/README.md` matrix): mid → `3amigo`; large →
+**Pick the lens by profile** (`$RDR_FLOW_HOME/flow/README.md` matrix): mid → `3amigo`; large →
 `3amigo` then `critique`; foundational → `3amigo critique repeatability cove`. A
 small RDR runs **no** lens (skip to `/rdr-reconcile`). Run lenses in that cost order.
 

@@ -80,7 +80,7 @@ Technical Design is where most rewrites go. Report nothing else.
 ```
 
 `diff.md` is the file the cycle's fix half
-([`$PROCESS_ROOT/rdr/flow/05-prelock.md`]($PROCESS_ROOT/rdr/flow/05-prelock.md), *Resolve (the fix half)*) reads.
+([`$RDR_FLOW_HOME/flow/05-prelock.md`]($RDR_FLOW_HOME/flow/05-prelock.md), *Resolve (the fix half)*) reads.
 
 ## Expected signal
 

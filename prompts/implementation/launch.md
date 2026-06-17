@@ -15,7 +15,7 @@ code — and so each launch leaves file-backed artifacts the next launch
   before the next starts. Cross-RDR orchestration is out of scope.
 - Each RDR is ≤2k lines × 120 chars (~30k tokens worst case). The full
   spec fits in any modern context; the prompt does not paginate it.
-- RDRs follow the template at `$PROCESS_ROOT/rdr/TEMPLATE.md` (the rdr/ directory
+- RDRs follow the template at `$RDR_FLOW_HOME/TEMPLATE.md` (the rdr/ directory
   containing this prompt). Required sections, with their TEMPLATE
   paths:
   - `## Metadata` (top-level)
@@ -353,9 +353,9 @@ prompt only needs to know which predecessors to gate on.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
   DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
   taxonomy the RDR process uses for post-mortem drift classification
-  (`$PROCESS_ROOT/rdr/README.md`, *Post-Mortem Process*). They are defined inline
+  (`$RDR_FLOW_HOME/README.md`, *Post-Mortem Process*). They are defined inline
   in the prompt above so this file stays standalone-pasteable; keep the
-  two definitions in sync. In the RDR flow ([`$PROCESS_ROOT/rdr/flow/`]($PROCESS_ROOT/rdr/flow/README.md)),
+  two definitions in sync. In the RDR flow ([`$RDR_FLOW_HOME/flow/`]($RDR_FLOW_HOME/flow/README.md)),
   this prompt is **Stage 8 (Implement)** — the flow's terminus.
 
 ## Citations

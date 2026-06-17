@@ -15,17 +15,18 @@ Consumer repos mount these skills through **per-directory symlink farms**
 skill resolves against the farm, not this tree, and breaks. Therefore **every
 support file a skill loads is symlinked beside its SKILL.md** (sibling name:
 `rdr-common.md`, `<NN>.prompt.md`, `pre-lock/`, …) — read siblings, never reach
-through `..`. Canonical homes stay where they were, in the RDR-process repo:
-stage docs at `<rdr-repo>/flow/<NN-stage>.md` (human operating manual) and prompt
-bodies under `<rdr-repo>/prompts/`. A skill runs the **prompt file**,
-never re-parses the stage doc.
+through `..`. Canonical homes stay where they were, in the RDR engine repo
+(`$RDR_FLOW_HOME`, exported by §seam-bind): stage docs at
+`$RDR_FLOW_HOME/flow/<NN-stage>.md` (human operating manual) and prompt bodies
+under `$RDR_FLOW_HOME/prompts/`. A skill runs the **prompt file**, never
+re-parses the stage doc.
 
 ## §seam-bind — resolve the workspace marker (worktree-invariant)
 
 **Fast path — pre-resolved seam.** If the session context already carries an
 `RDR seam pre-resolved` block (a consumer's `SessionStart` hook emits one, if it
 installs one), take its paths verbatim: substitute the **literal values** for
-`$PROCESS_ROOT` / `$RDR_ENV` / `$RDR_DIR` etc. in the snippets below and skip the
+`$PROCESS_ROOT` / `$RDR_FLOW_HOME` / `$RDR_ENV` / `$RDR_DIR` etc. in the snippets below and skip the
 resolver block entirely. Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
 
@@ -100,7 +101,7 @@ template and leaks the neighbor's solution into a Draft that must have none).
 ```sh
 # 1. CLAIM — first thing, before authoring. Atomic copy of TEMPLATE.md; retry-on-collision.
 RDR_DIR="$PROCESS_ROOT/rdr/cli"
-TEMPLATE="$PROCESS_ROOT/rdr/TEMPLATE.md"
+TEMPLATE="$RDR_FLOW_HOME/TEMPLATE.md"
 while :; do
   max=$(ls "$RDR_DIR" | grep -oE '^[0-9]{4}' | sort -n | tail -1)
   printf -v NNNN '%04d' "$((10#${max:-0} + 1))"
@@ -136,8 +137,8 @@ lens ran — this is what `/rdr-status` reads. Bind `{FLOW_DIR}` / `{SPIKE_DIR}`
 ## §run-prompt — run the stage's prompt file
 
 Load the stage prompt **symlinked beside the skill's SKILL.md** — `<NN>.prompt.md`,
-or for the dispatch stages 5/8.1/9 the sibling `pre-lock/` dir / gate file /
-`launch.md` (canonical homes under `$PROCESS_ROOT/rdr/prompts/`). The prompt body
+or for the dispatch stages 5/7.1/8 the sibling `pre-lock/` dir / gate file /
+`launch.md` (canonical homes under `$RDR_FLOW_HOME/prompts/`). The prompt body
 uses `{RDR_PATH}` / `{RDR_RESOURCES}` / `{RDR_ENV}` / `{FLOW_DIR}` / `{SPIKE_DIR}` /
 `{ARTIFACT_DIR}` — bind each from §seam-bind + §rdr-resolve before running. Do
 **not** also read the stage `.md` doc; its Goal/gate/advance prose is for the human
@@ -187,14 +188,14 @@ Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens �
 session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
 The branch after `resolve` reads the RDR's **`Profile` field** (the latch Stage 4
 writes), not a fresh size inference: `small` skips prelock (resolve→reconcile);
-`mid`+ runs the profile's lenses (`$PROCESS_ROOT/rdr/flow/README.md` matrix). The
-Stage 7 Gate re-validates the field before lock, so a wrong value cannot
+`mid`+ runs the profile's lenses (`$RDR_FLOW_HOME/flow/README.md` matrix). The
+finalize Gate re-validates the field before lock, so a wrong value cannot
 silently route past the lenses.
 
 ## Brevity & doctrine
 
 Be brief without being lossy (the flow's standing doctrine —
-`$PROCESS_ROOT/rdr/flow/README.md` *Doctrine*). Spend tokens on load-bearing or
+`$RDR_FLOW_HOME/flow/README.md` *Doctrine*). Spend tokens on load-bearing or
 complex design; terse everywhere else. Delegate heavy reads (corpus, source,
 several round-output files) to a sub-agent that returns verdict + evidence
 pointer — the read-heavy stages (4, 6, 7) and `/rdr-status` rely on this. Defer

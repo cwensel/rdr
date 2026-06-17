@@ -12,7 +12,7 @@ next command. It is the answer to "I lost my place — what do I run next?"
 
 **Read-only. It writes nothing.** State is *derived*, never stored — there is no
 ledger. This is deliberate (the flow's resources-vs-memory doctrine,
-`$PROCESS_ROOT/rdr/flow/README.md`): a position computed from the artifacts can't drift from them,
+`$RDR_FLOW_HOME/flow/README.md`): a position computed from the artifacts can't drift from them,
 and it stays correct even when a stage was driven by hand or in another session.
 
 ## Usage
@@ -66,7 +66,7 @@ per-lens evidence folders, `reconcile/<slug>/`, `spikes/<slug>/`,
    apply: `small`'s next after Resolve is **Reconcile**, not Pre-Lock. A Profile on
    a `Draft` is a provisional estimate (Seed's, or a back-fill) — Resolve has not
    yet earned it, so treat it as a hint and never certify a lens-skip off it. If
-   absent, infer from the `$PROCESS_ROOT/rdr/flow/README.md` matrix. Flag either
+   absent, infer from the `$RDR_FLOW_HOME/flow/README.md` matrix. Flag either
    case (Caveats).
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the

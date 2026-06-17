@@ -6,7 +6,7 @@ outputs is heavy, delegate to a sub-agent that returns per-round "findings
 closed? y/n + residue", not the raw round files.
 
 FIRST run the mechanical sweep — the Tooling pass: open
-$PROCESS_ROOT/rdr/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
+$RDR_FLOW_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
 every RDR as a post-mutation regression check, since the rounds and the Stage 6
 reconcile just rewrote this draft. If the sweep returns BLOCK, the RDR is NOT
 READY — fix the regressions before the written responses below.

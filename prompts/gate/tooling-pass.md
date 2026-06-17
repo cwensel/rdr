@@ -1,7 +1,7 @@
 # Tooling Pass — RDR Mechanical Adherence Sweep
 
 **Use when**: the **mechanical pre-step of the Finalization Gate**
-([Stage 7]($PROCESS_ROOT/rdr/flow/07.0-finalize.md)), run on **every** RDR just before the
+([Stage 7]($RDR_FLOW_HOME/flow/07.0-finalize.md)), run on **every** RDR just before the
 Gate's written responses — after whatever pre-lock rounds the RDR's profile
 called for (a small RDR runs none) and after the Stage 6 spike/assumption
 reconcile. It is a *post-mutation regression sweep*: the lenses and fix-passes

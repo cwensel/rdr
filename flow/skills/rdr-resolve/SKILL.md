@@ -49,7 +49,7 @@ front-half stage. Running a pre-lock round before this one wastes the round.
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
   field** (the routing latch) from the contract count; the next pointer reads
-  that field — it does not re-derive size (`$PROCESS_ROOT/rdr/flow/README.md` matrix):
+  that field — it does not re-derive size (`$RDR_FLOW_HOME/flow/README.md` matrix):
   - `Profile: small` → skip Pre-Lock: `Next: /rdr-reconcile NNNN`.
   - `Profile: mid`+ → `Next: /rdr-prelock NNNN 3amigo` (then more lenses per profile).
 - `/rdr-status NNNN` to re-orient.
