@@ -23,8 +23,8 @@ a single RDR**. If only one RDR is Final-and-unimplemented, there is no cluster;
 say so and point at `/rdr-implement NNNN`.
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** to bind `$RDR_ENV`,
-   `$RDR_RESOURCES`. Bind `{RDR_DIR}` (the cluster's RDR directory, from `$RDR_ENV`)
-   and the output base `<FLOW_DIR>/cluster-reconcile/<cluster>/`.
+   `$RDR_RESOURCES`, and `$RDR_DIR` (the consumer's RDR directory, exported by the
+   marker) plus the output base `<FLOW_DIR>/cluster-reconcile/<cluster>/`.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_DIR}`;
    form the peer pairs to compare.
 3. **Dispatch into the gate prompts** (Stage `07.1-cluster-reconcile.md` owns the

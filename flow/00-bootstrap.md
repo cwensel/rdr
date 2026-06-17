@@ -1,4 +1,4 @@
-# Stage 0 — Bootstrap (one-time per project)
+# Stage 0 — Bootstrap (one-time per project; `/rdr-init`)
 
 **Goal**: set a project up to run the RDR flow **without the project knowing
 about RDR** — no versioned footprint, no `CLAUDE.md` edits, nothing in the
@@ -39,9 +39,11 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      _rdr/3amigo/0038-policies/ holds persona-1-pm.md, persona-2-implementer.md,
      persona-3-qa.md, consolidation.md). Each lens fills <lens> with its own
      name and writes its element files there; both gitignored scratch.
-     {ARTIFACT_DIR}= wherever this project keeps RDRs,
-     beside the RDR (tracked). Find the RDR directory by locating existing RDR
-     files or asking me if none exist yet.
+     {ARTIFACT_DIR}= the per-RDR artifact subdir, i.e. **`<RDR_DIR>/<rdr-slug>/`**
+     (tracked, beside the RDR). It MUST sit directly under the same `RDR_DIR` the
+     marker exports (step 4) — that is the single source of truth for where RDRs
+     live, and `{ARTIFACT_DIR}`'s parent is exactly it. Find the RDR directory by
+     locating existing RDR files or asking me if none exist yet.
    - Reuse-audit source paths: inspect the source tree and list the
      highest-traffic / most-central modules to check first for a "does the code
      already do this?" reuse audit (Stage 4 reads these).
@@ -71,20 +73,31 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
 4. Install the WORKSPACE MARKER so every repo/worktree resolves the seam without
    probing _rdr/. Find the workspace parent (the dir holding this project) with
    `WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd
-   -P)")")`. If `$WS/.rdr-workspace` already exists, leave it. Otherwise **copy
-   the tracked template** `flow/context/workspace.example` (in this workspace's
-   flow repo — resolve via `$WS/flow/context/workspace.example`) to
-   `$WS/.rdr-workspace`, then fill its repo-root and seam blocks for this
-   machine: keep the repo roots that exist, point `RDR_ENV` / `RDR_RESOURCES` at
-   the seam files just written (the `_rdr/` ones, or the pinned location if this
-   project pins one). If no flow repo / template is reachable, hand-write an
-   equivalent sourceable file exporting at least `RDR_ENV` / `RDR_RESOURCES`
-   anchored on `$WS`. The marker lives ABOVE the repos (not inside one) so it
-   survives worktrees; it is per-machine working config, not tracked.
+   -P)")")`. If `$WS/.rdr-workspace` already exists, leave it (but verify it
+   exports `RDR_FLOW_HOME` — see below — and add it if missing). Otherwise **copy
+   the tracked template** `workspace.example` (symlinked beside this skill, or in
+   the RDR engine / seam repo) to `$WS/.rdr-workspace`, then fill its blocks for
+   this machine:
+   Fill the **four-var engine contract** (all required — the skills read only these):
+   - **`RDR_FLOW_HOME`** — the RDR engine repo (holds `flow/`, `prompts/`,
+     `skills/`, `TEMPLATE.md`). Point it at the sibling RDR-process repo (e.g. `$WS/rdr`).
+   - **`RDR_DIR`** — this project's RDR-instances directory (where `NNNN-slug.md`
+     RDRs + their artifact subdirs live). This is the single source of truth for
+     "where do my RDRs live" — the same directory `{ARTIFACT_DIR}` in `rdr-env.md`
+     sits under. A default `_rdr/` project sets it under its own root; a pinned
+     project points at its tracked RDR tree (e.g. `<repo>/rdr/cli`).
+   - **`RDR_ENV` / `RDR_RESOURCES`** → the seam files just written (the `_rdr/`
+     ones, or the pinned location if this project pins one).
+   Plus any per-consumer repo-root conveniences this workspace has (not
+   load-bearing). If no template is reachable, hand-write an equivalent sourceable
+   file exporting at least those four contract vars anchored on `$WS`. The marker
+   lives ABOVE the repos (not inside one) so it survives worktrees; it is
+   per-machine working config, not tracked.
 
 Report: which ignore path was taken (already-ignored vs wrote _rdr/.gitignore),
-the two files written, whether a workspace marker was created or already present,
-and any TODO I must resolve.
+the two files written, whether a workspace marker was created or already present
+(and whether it exports the four contract vars `RDR_FLOW_HOME` / `RDR_DIR` /
+`RDR_ENV` / `RDR_RESOURCES`), and any TODO I must resolve.
 ```
 
 ## Review gate

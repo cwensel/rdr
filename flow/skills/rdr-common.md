@@ -25,15 +25,15 @@ re-parses the stage doc.
 
 **Fast path — pre-resolved seam.** If the session context already carries an
 `RDR seam pre-resolved` block (a consumer's `SessionStart` hook emits one, if it
-installs one), take its paths verbatim: substitute the **literal values** for
-`$PROCESS_ROOT` / `$RDR_FLOW_HOME` / `$RDR_ENV` / `$RDR_DIR` etc. in the snippets below and skip the
-resolver block entirely. Harnesses and sessions without that block (other agents,
+installs one), take its paths verbatim: substitute the **literal values** for the
+contract vars (`$RDR_FLOW_HOME` / `$RDR_DIR` / `$RDR_ENV` / `$RDR_RESOURCES`) in
+the snippets below and skip the resolver block entirely. Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
 
 Run this first. It keys off git topology, so it resolves the same from a consumer
 cwd, a consumer worktree, or the flow repo. Shell state dies between Bash tool calls — run
 §seam-bind and §rdr-resolve **in one call** (or re-run this block first in any later
-call), else `$PROCESS_ROOT`/`$RDR_ENV` are empty when the glob runs (the classic
+call), else `$RDR_DIR`/`$RDR_ENV` are empty when the glob runs (the classic
 empty-`RDR_PATH` miss). Source the marker **only** via this block: a direct
 `. .rdr-workspace` exits 1 (it needs `$WS` preset above).
 
@@ -43,29 +43,41 @@ WS=$(dirname "$(dirname "$GIT_COMMON")")          # workspace root (holds the si
 [ -f "$WS/.rdr-workspace" ] || { echo "stopped:no-workspace-marker:$WS" >&2; exit 1; }
 . "$WS/.rdr-workspace"                             # ONLY sourcing path: $WS must be preset (above) or it exits 1
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || { echo "stopped:no-rdr-env:$RDR_ENV" >&2; exit 1; }
+[ -n "$RDR_FLOW_HOME" ] || { echo "stopped:no-rdr-flow-home (marker pre-dates the engine split — run /rdr-init to refresh it)" >&2; exit 1; }
+# $RDR_DIR is required for every stage except /rdr-seed-into-a-fresh-dir; resolve/claim assert it themselves.
 ```
 
-`$RDR_ENV` is the path map (`{ARTIFACT_DIR}`, `{SPIKE_DIR}`, `{FLOW_DIR}`, the RDR
-directory, source-path roots); `$RDR_RESOURCES` is the evidence index. Read
-`$RDR_ENV` to bind the concrete paths below. These resolve per-consumer — e.g. a
-pinned-seam project keeps RDRs under `$PROCESS_ROOT/rdr/cli/`, evidence under
-`$FLOW_ROOT/rdr/evidence/`, artifacts under `$PROCESS_ROOT/rdr/cli/<slug>/`; a
-default `_rdr/` project keeps them under its project root. Always read the values
-from `$RDR_ENV` — never hardcode these.
+The marker exports the **four-var engine contract** every skill may read:
+- `$RDR_FLOW_HOME` — the RDR engine repo (`flow/`, `prompts/`, `skills/`, `TEMPLATE.md`).
+- `$RDR_DIR` — **this consumer's RDR-instances directory** (absolute path; the
+  parent of `{ARTIFACT_DIR}`). The one place the "where do my RDRs live" decision
+  is recorded. `/rdr-init` writes it; resolve/claim read it.
+- `$RDR_ENV` — the path-map data file (`{ARTIFACT_DIR}`, `{SPIKE_DIR}`, `{FLOW_DIR}`,
+  source-path roots for the reuse audit).
+- `$RDR_RESOURCES` — the evidence index data file.
+
+These resolve per-consumer — e.g. a pinned-seam project records
+`RDR_DIR=<its-repo>/rdr/cli`, a default `_rdr/` project records `RDR_DIR` under
+its own root. Read `$RDR_ENV` for the staging paths; read `$RDR_DIR` directly for
+the RDR directory. **Never** hardcode a repo root or a `/rdr/cli` path shape, and
+never parse `$RDR_ENV`'s cwd-relative strings — the marker already gives you
+absolute values.
 
 ## §rdr-resolve — RDR number → file path
 
 Every stage skill except `/rdr-seed` takes a 4-digit number `NNNN`. Resolve it
-against the **canonical RDR directory** — `$PROCESS_ROOT/rdr/cli` (the parent of
-`{ARTIFACT_DIR}`; `$PROCESS_ROOT` is exported by §seam-bind). Use the concrete
-path, **not** a relative `../process/...` parse of `$RDR_ENV` — that string is
-cwd-relative and brittle. Glob **only** that dir so the many decoy `NNNN-*` entries
+against the **canonical RDR directory** — `$RDR_DIR`, the absolute path the marker
+exports (this consumer's RDR-instances dir; the parent of `{ARTIFACT_DIR}`).
+`$RDR_DIR` is bound by §seam-bind — read it, **never** recompute it from a repo
+root or parse it out of `$RDR_ENV`'s cwd-relative strings (brittle). Glob **only**
+that dir so the many decoy `NNNN-*` entries
 under `$FLOW_ROOT/rdr/evidence/` (per-lens, tooling-pass, spikes — e.g. a real
 `evidence/tooling-pass/0039-*.md` is **not** an RDR) can never be picked:
 
 ```sh
 printf -v NNNN '%04d' "$arg"            # when $arg is all-digits; else treat as slug/path
-RDR_DIR="$PROCESS_ROOT/rdr/cli"          # canonical; NOT evidence/ or tooling-pass/
+# $RDR_DIR is exported by §seam-bind (the marker). Do NOT recompute it here.
+[ -n "$RDR_DIR" ] && [ -d "$RDR_DIR" ] || { echo "stopped:no-rdr-dir:$RDR_DIR" >&2; exit 1; }
 # A no-match glob is a hard error under zsh (nomatch on by default) and aborts the
 # line before the guard runs; under bash it stays literal. Enable nullglob per-shell
 # so a no-match yields an EMPTY array in both, and the count guard below decides.
@@ -100,7 +112,8 @@ template and leaks the neighbor's solution into a Draft that must have none).
 
 ```sh
 # 1. CLAIM — first thing, before authoring. Atomic copy of TEMPLATE.md; retry-on-collision.
-RDR_DIR="$PROCESS_ROOT/rdr/cli"
+# $RDR_DIR is exported by §seam-bind (the marker); do NOT recompute it.
+[ -n "$RDR_DIR" ] && [ -d "$RDR_DIR" ] || { echo "stopped:no-rdr-dir:$RDR_DIR" >&2; exit 1; }
 TEMPLATE="$RDR_FLOW_HOME/TEMPLATE.md"
 while :; do
   max=$(ls "$RDR_DIR" | grep -oE '^[0-9]{4}' | sort -n | tail -1)

@@ -464,6 +464,7 @@ holds only its own stage's state.
 
 | Skill | Param | Stage |
 | --- | --- | --- |
+| `/rdr-init` | none (run at project root) | 0 — **one-time seam bootstrap**; writes `rdr-env`/`rdr-resources` + the workspace marker. The only skill that does *not* run §seam-bind (it creates the seam) |
 | `/rdr-status` | `NNNN` (or none) | **navigator** — read-only, derives position from disk |
 | `/rdr-seed` | `"<idea>"` / kata id | 1 (allocates the next number) |
 | `/rdr-propose` | `NNNN` | 2 |
