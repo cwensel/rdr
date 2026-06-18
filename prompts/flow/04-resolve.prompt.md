@@ -79,7 +79,10 @@ matrix):
 With the assumptions just verified, the count is evidence-grounded here, not
 guessed. ≥2 independent contracts → the RDR spans more than one seam: flag for
 splitting (back to Stage 2/3) rather than picking a profile. Report the profile
-+ the contract count behind it.
++ the contract count behind it. The field holds the value + one clause naming
+the contract(s); strip any matrix/provenance prose the template or Seed left
+behind — that guidance lives in the template comment and `rdr/flow/README.md`,
+not the instance.
 
 Be brief in results; ultrathink for complex design or any load-bearing
 assumption; never trade brevity for a weaker verification. Report per

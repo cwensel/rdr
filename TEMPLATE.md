@@ -34,25 +34,21 @@
     not conflate.)
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture
-- **Profile**: small | mid | large | foundational
-  - The flow's routing latch — which Stage 5 lenses run
-    (applicability matrix in `rdr/flow/README.md`). Sized
-    by **contract count, not word count**: count the
-    *independent* load-bearing contracts this RDR is sole
-    author of (per the Normative Contracts split signal).
-    One contract, no user-facing surface → `small` (skips
-    Stage 5: Resolve → Reconcile → Finalize); one contract
-    + user-facing surface, OR locks a contract → `mid`;
-    locks an enum/hash/format/grammar/destructive-op →
-    `large`; cross-RDR producer / spans modules →
-    `foundational`.
-  - **Provenance is the `Status`, not a qualifier.** Seed
-    writes a provisional estimate from the design shape;
-    Stage 4 (Resolve) overwrites it from the verified
-    contract count; the Stage 8 Gate re-validates it and
-    it becomes authoritative at the `Draft → Final` flip.
-    A Profile on a `Draft` is an estimate — **never skip
-    lenses off it until Resolve has run.**
+- **Profile**: small | mid | large | foundational — value
+  only, plus one clause naming the contract(s) behind it.
+  Do not paste the matrix below into the field; it is the
+  Stage 5 routing latch, provisional on `Draft`, made
+  authoritative by Resolve.
+  <!-- Sized by contract count, not word count: count the
+  independent load-bearing contracts this RDR is sole author
+  of. small = one contract, no user-facing surface (skips
+  Stage 5); mid = one contract + user-facing surface OR locks
+  a contract; large = locks an enum/hash/format/grammar/
+  destructive-op; foundational = cross-RDR producer / spans
+  modules. Matrix: rdr/flow/README.md. Seed estimates from
+  the design shape; Resolve overwrites from the verified
+  count; Stage 8 Gate locks it at Draft → Final. Never skip
+  lenses off a Draft Profile until Resolve has run. -->
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
 - **Predecessors**: [Comma-separated `NNNN-slug` of
@@ -496,7 +492,10 @@ a contract that warranted `mid`+ lenses, or the lenses
 were skipped on a wrong `small`), correct the field and
 do not lock until the missing lenses have run. This is
 the latch's backstop — a wrong Profile cannot route
-past the lens battery undetected.]
+past the lens battery undetected. Also confirm form:
+value + one clause naming the contract(s); strip any
+matrix/provenance prose left from the template or Seed
+(it belongs in the template comment, not the instance).]
 
 ## References
 
