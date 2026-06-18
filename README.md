@@ -8,6 +8,31 @@ statement becomes more refined through research and exploration and alternatives
 **Core Purpose**: Capture both the final recommendation and supporting evidence to prevent purpose drift during
 implementation.
 
+## Install
+
+This repo is a Claude Code plugin (and a self-hosted marketplace). Two ways to
+get the `/rdr-*` skills into a project:
+
+- **Marketplace plugin** — add the marketplace, install, then bind your project:
+
+  ```
+  /plugin marketplace add cwensel/rdr
+  /plugin install rdr@rdr
+  /rdr:rdr-init        # run once at the project root to bootstrap the seam
+  ```
+
+  The engine ships inside the plugin; `/rdr-init` records its path
+  (`$CLAUDE_PLUGIN_ROOT`) in the workspace marker, so re-run it after a plugin
+  upgrade to refresh that path.
+
+- **Sibling checkout** — clone this repo beside the consumer repos and link the
+  skills into each consumer's `.claude/skills/`; `/rdr-init` then resolves the
+  engine as the sibling `$WS/rdr`.
+
+Either way, `/rdr-init` writes the seam files + workspace marker, scaffolds the
+RDR home and its index README, and offers the optional SessionStart seam hook.
+Then `/rdr:rdr-seed <idea>` starts the first record.
+
 ## Indexes
 
 RDRs are indexed per project. Each consumer keeps its RDR instances in its own

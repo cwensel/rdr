@@ -1,0 +1,21 @@
+{
+  "name": "rdr",
+  "description": "Recommendation Decisioning Records — a repeatable, skill-driven flow from idea to spec-verified implementation. Ships the /rdr-* skills (init, seed, propose, refine, resolve, prelock, reconcile, finalize, implement, status, cluster-reconcile) plus the engine (flow/, prompts/, TEMPLATE.md) they read in place.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Chris K Wensel",
+    "email": "chris@wensel.net"
+  },
+  "homepage": "https://github.com/cwensel/rdr",
+  "repository": "https://github.com/cwensel/rdr",
+  "license": "MIT",
+  "keywords": [
+    "rdr",
+    "adr",
+    "design-records",
+    "spec-driven",
+    "workflow",
+    "implementation"
+  ],
+  "skills": "./flow/skills/"
+}

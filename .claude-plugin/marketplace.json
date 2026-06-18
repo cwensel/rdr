@@ -1,0 +1,16 @@
+{
+  "name": "rdr",
+  "description": "Self-hosted marketplace for the RDR flow plugin.",
+  "owner": {
+    "name": "Chris K Wensel",
+    "email": "chris@wensel.net"
+  },
+  "plugins": [
+    {
+      "name": "rdr",
+      "source": "./",
+      "description": "Recommendation Decisioning Records — the /rdr-* skill suite + engine. Run /rdr:rdr-init once to bind a project, then /rdr:rdr-seed to start the first record.",
+      "category": "workflow"
+    }
+  ]
+}

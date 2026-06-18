@@ -27,8 +27,9 @@ MYPROJECT_ROOT="$WS/<your-project>"
 # Everything below is required. The skills read ONLY these; they never recompute
 # a repo root or assume a /rdr/cli path shape.
 
-# RDR_FLOW_HOME — the reusable RDR engine repo (flow/, prompts/, skills/, TEMPLATE.md).
-#                 Shared across projects; point it at the sibling RDR-process repo.
+# RDR_FLOW_HOME — the reusable RDR engine (flow/, prompts/, skills/, TEMPLATE.md).
+#                 /rdr-init fills this: the installed plugin dir ($CLAUDE_PLUGIN_ROOT)
+#                 for a plugin install, else a sibling engine checkout ($WS/rdr).
 RDR_FLOW_HOME="$WS/rdr"
 
 # RDR_DIR — THIS consumer's RDR-instances directory: where the NNNN-slug.md RDRs
