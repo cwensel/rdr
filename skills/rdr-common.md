@@ -45,8 +45,8 @@ empty when the glob runs (the classic empty-`RDR_PATH` miss). Source the marker
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
 GIT_COMMON=$(cd "$GC" && pwd -P)
 PROJECT=$(dirname "$GIT_COMMON")                  # this repo's root (worktree-invariant: git-common-dir is the main .git)
-WS=$(dirname "$PROJECT")                           # workspace root (holds the sibling repos); export so a marker :? guard passes
-export WS
+WS=$(dirname "$PROJECT")                            # workspace root (holds the sibling repos)
+export PROJECT WS                                   # both exported so a marker can anchor on either ($PROJECT repo-local, $WS workspace)
 # Nearest marker wins: a repo-local marker overrides / replaces the shared workspace one.
 # Repo-local lives INSIDE .rdr/ (already gitignored — no project-level .gitignore edit).
 if   [ -f "$PROJECT/.rdr/workspace" ]; then RDR_MARKER="$PROJECT/.rdr/workspace"  # repo-local scope (default)

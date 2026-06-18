@@ -1,6 +1,6 @@
 .claude
 
-# The per-project flow seam (rdr-resources.md, rdr-env.md). Created by
-# stages/00-bootstrap.md in the project that runs the flow; never versioned.
-# See stages/README.md.
+# The per-project flow seam (.rdr/env.md, .rdr/resources.md, repo-local marker).
+# Created by stages/00-bootstrap.md in the project that runs the flow; never
+# versioned. See stages/README.md.
 .rdr/

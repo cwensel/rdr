@@ -305,8 +305,8 @@ resolver, **worktree-invariant** because it keys off git topology rather than
 cwd:
 
 ```sh
-PROJECT=$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")
-WS=$(dirname "$PROJECT")
+GC=$(git rev-parse --git-common-dir) && GC=$(cd "$GC" && pwd -P)   # split: empty capture would make cd a no-op
+PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")
 # nearest wins: a repo-local marker (inside .rdr/) overrides the shared workspace one
 if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace"   # repo-local scope (default)
 elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"        # workspace scope (shared)

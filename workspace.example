@@ -1,21 +1,20 @@
-# .rdr-workspace — RDR/flow workspace path map (TEMPLATE).
+# RDR seam marker (TEMPLATE). /rdr-init (rdr/stages/00-bootstrap.md) copies + fills it.
+# Two scopes — nearest wins (see rdr/stages/README.md *Where the seam lives*):
+#   repo-local (default): $PROJECT/.rdr/workspace  — anchor paths on $PROJECT
+#   workspace (--workspace): $WS/.rdr-workspace    — anchor paths on $WS (shared by siblings)
+# Per-machine working config: untracked at install, versioned only here as the template.
 #
-# /rdr-init (rdr/stages/00-bootstrap.md) copies this to `.rdr-workspace` at the
-# WORKSPACE PARENT (the dir holding the sibling repos, not itself a repo) and
-# fills the blocks below for the machine. Per-machine working config: untracked
-# at install, versioned only here as the template.
-#
-# Rationale — why it lives at the parent, why not an env var: see
-# rdr/stages/README.md *Where the seam lives*.
-#
-# Consume it (worktree-invariant resolver):
-#   WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")")
-#   FLOW_ROOT="$WS/flow"; [ -f "$WS/.rdr-workspace" ] && . "$WS/.rdr-workspace"
-# git-common-dir resolves the main repo's .git even from a worktree, so $WS is
-# the workspace root from anywhere; sourcing this binds every path below.
+# Consume it (worktree-invariant; the canonical resolver is rdr-common §seam-bind):
+#   GC=$(git rev-parse --git-common-dir) && GC=$(cd "$GC" && pwd -P)
+#   PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
+#   if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace"
+#   elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"; fi
+# git-common-dir resolves the main repo's .git even from a worktree, so both anchors
+# resolve from anywhere; sourcing the nearest marker binds every path below.
 
-# $WS is exported by the resolver above as the workspace root.
-: "${WS:?source this file via the canonical resolver so \$WS is set}"
+# $PROJECT and $WS are exported by the resolver above. A repo-local marker uses
+# $PROJECT; a workspace marker uses $WS. Guard on whichever this marker anchors on:
+: "${WS:?source this file via the canonical resolver so \$WS / \$PROJECT are set}"
 
 # --- per-consumer repo roots (FILL: keep the ones this workspace has) ---
 # These name the sibling repos in YOUR workspace. They are conveniences for

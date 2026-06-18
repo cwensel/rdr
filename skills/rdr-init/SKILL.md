@@ -67,8 +67,9 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    # the git exit first, then the cd.
    GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project — cd into the project that will use the flow, then /rdr-init"; exit 1; }
    GIT_COMMON=$(cd "$GC" && pwd -P) || { echo "stopped:not-in-a-project — git dir unreadable"; exit 1; }
-   WS=$(dirname "$(dirname "$GIT_COMMON")")        # workspace root (holds sibling repos)
    PROJECT=$(dirname "$GIT_COMMON")                # this project's root
+   WS=$(dirname "$PROJECT")                         # workspace root (holds sibling repos)
+   export PROJECT WS                                # so a sourced marker can anchor on either
    # Guard 2 — refuse to run inside the engine itself (it is not a consumer).
    if [ -d "$PROJECT/stages" ] && [ -d "$PROJECT/skills" ] && [ -f "$PROJECT/TEMPLATE.md" ]; then
      echo "stopped:in-engine-repo — /rdr-init binds a CONSUMER project, not the RDR engine; cd into your project"; exit 1

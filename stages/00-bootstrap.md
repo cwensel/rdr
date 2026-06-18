@@ -83,14 +83,21 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    project; leave a clearly-marked TODO only where a value needs my judgment.
    Flag the filled files for my review at the end.
 
-4. Install the WORKSPACE MARKER so every repo/worktree resolves the seam without
-   probing .rdr/. Find the workspace parent (the dir holding this project) with
-   `WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd
-   -P)")")`. If `$WS/.rdr-workspace` already exists, leave it (but verify it
-   exports `RDR_HOME` — see below — and add it if missing). Otherwise **copy
-   the tracked template** `workspace.example` (symlinked beside this skill, or in
-   the RDR engine / seam repo) to `$WS/.rdr-workspace`, then fill its blocks for
-   this machine:
+4. Install the SEAM MARKER so every cwd/worktree resolves the seam. Resolve topology
+   first (split form — never `cd "$(git …)"`, an empty capture makes `cd` a silent
+   no-op):
+   `GC=$(git rev-parse --git-common-dir) || stop; GC=$(cd "$GC" && pwd -P);`
+   `PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")`.
+   **Pick the marker by scope (default repo-local):**
+   - **repo-local (default)** → `$PROJECT/.rdr/workspace`. Inside the already
+     gitignored `.rdr/`, so no project-level `.gitignore` edit; anchored at
+     `$PROJECT` so worktrees resolve it. Anchor the marker's paths on `$PROJECT`.
+   - **workspace (`--workspace`)** → `$WS/.rdr-workspace`, shared above the repos,
+     anchored on `$WS`. If it already exists, leave it (just verify it exports
+     `RDR_HOME`; add a missing var rather than rewriting).
+   **Copy the tracked template** `workspace.example` (symlinked beside this skill) to
+   the chosen path and fill its blocks (set `WS`/`PROJECT` at the top to match the
+   anchor). A repo-local marker **never reads or writes** the shared one.
    Fill the **five-var engine contract** (all required — the skills read only these):
    - **`RDR_HOME`** — the RDR engine (holds `stages/`, `prompts/`, `skills/`,
      `TEMPLATE.md`). Resolve by install shape, first that binds:
@@ -111,11 +118,11 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      explicit.
    - **`RDR_ENV` / `RDR_RESOURCES`** → the seam files just written (the `.rdr/`
      ones, or the pinned location if this project pins one).
-   Plus any per-consumer repo-root conveniences this workspace has (not
-   load-bearing). If no template is reachable, hand-write an equivalent sourceable
-   file exporting at least those five contract vars anchored on `$WS`. The marker
-   lives ABOVE the repos (not inside one) so it survives worktrees; it is
-   per-machine working config, not tracked.
+   Plus any per-consumer repo-root conveniences (not load-bearing). If no template is
+   reachable, hand-write an equivalent sourceable file exporting at least those five
+   contract vars, anchored on the scope's root (`$PROJECT` repo-local, `$WS`
+   workspace). Both are per-machine working config, untracked: repo-local under the
+   gitignored `.rdr/`; workspace above the repos (a worktree-surviving location).
 
 5. Scaffold the RDR home. The marker's `RDR_RECORDS` is where the `NNNN-slug.md`
    RDRs live and is the single source of truth for it; a brand-new consumer has
