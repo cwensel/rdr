@@ -39,16 +39,26 @@
   Do not paste the matrix below into the field; it is the
   Stage 5 routing latch, provisional on `Draft`, made
   authoritative by Resolve.
-  <!-- Sized by contract count, not word count: count the
-  independent load-bearing contracts this RDR is sole author
-  of. small = one contract, no user-facing surface (skips
-  Stage 5); mid = one contract + user-facing surface OR locks
-  a contract; large = locks an enum/hash/format/grammar/
-  destructive-op; foundational = cross-RDR producer / spans
-  modules. Matrix: rdr/flow/README.md. Seed estimates from
-  the design shape; Resolve overwrites from the verified
-  count; Stage 8 Gate locks it at Draft → Final. Never skip
-  lenses off a Draft Profile until Resolve has run. -->
+  <!-- Sized by BLAST RADIUS — the MAX of two axes, not
+  contract count or word count.
+  (1) contract axis: small = one contract, no user-facing
+  surface (skips Stage 5); mid = one contract + user-facing
+  surface OR locks a contract; large = locks an enum/hash/
+  format/grammar/destructive-op; foundational = cross-RDR
+  producer / spans modules.
+  (2) accretion axis (HARD floor): if `Seam Lineage` below
+  carries ≥2 closed prior point-fixes at this locus, Profile
+  is floored at FOUNDATIONAL regardless of the contract axis
+  — a seam with prior point-fixes is never small/mid (it
+  spans the prior RDRs/patches = the matrix's cross-RDR
+  trigger). The only escape is a written accretion disposition
+  in the Seam Lineage field. This floor is what stops a
+  "one contract → mid" sizing from under-gating an accreting
+  seam.
+  Matrix: rdr/flow/README.md. Seed estimates from the design
+  shape; Resolve overwrites from the verified count; Stage 8
+  Gate locks it at Draft → Final. Never skip lenses off a
+  Draft Profile until Resolve has run. -->
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
 - **Predecessors**: [Comma-separated `NNNN-slug` of
@@ -57,6 +67,24 @@
   `status.md` reading `COMPLETE`.]
 - **Overrides**: [Prior RDR contracts intentionally
   replaced or narrowed by this RDR, or omit if none.]
+- **Seam Lineage**: [The code locus (`path::Symbol` or
+  `area:*`) this RDR locks, its accretion count, and the
+  prior-fix trail — **copied verbatim from the
+  `kata-scope-review §seam-accretion` emission at Seed, never
+  re-derived** (re-deriving drifts: a hand-carried count has
+  flapped within a single RDR's own Refine pass). Form:
+  `<seam> — Nth point-fix; trail: <sha> + <kata-ids>`. If the
+  seam has no prior closed point-fixes, state "no prior
+  accretion" and omit the rest.
+  - If the count is ≥2 the Profile is floored at
+    `foundational` (see Profile). The floor is a HARD gate;
+    the only escape is an **accretion disposition** written
+    here, of the form: `Accretion disposition: the N
+    point-fixes at <seam> are NOT one missing design decision
+    because <one-sentence reason>; cite: <kata-id/RDR-id
+    establishing the distinct seams>.` Absent that line, the
+    floor stands. Co-locating count and escape keeps the
+    override reviewable beside its evidence.]
 
 ## Problem Statement
 

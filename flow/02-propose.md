@@ -28,6 +28,14 @@ Assumptions list, written into the draft.
   fixed, and any "retained as history"/"Refinement Context" note from a prior
   pass acted on and deleted. A proposal on a stale premise is wrong even if
   internally sound.
+- **Did the accretion gate run?** If `Seam Lineage` carries ≥2 prior point-fixes,
+  the *undecided contract* must be named **before** any mechanism is chosen and the
+  profile floored to `foundational` (unless a written accretion disposition escapes
+  it). Proposing an Nth mechanism without naming the missing decision is the failure
+  this gate exists to stop — re-run.
+- **Was the sibling-path check exhibited?** For any new discriminator, heuristic,
+  switch case, or identity rule, confirm a grep for an existing sibling path was
+  *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Were real alternatives weighed?** One option, or strawmen, means the
   choice isn't earned — re-run asking for distinct, defensible options.
 - **Does the chosen approach solve the *user's* problem**, not an adjacent
@@ -52,6 +60,7 @@ fix inline — don't re-run.
 One approach is chosen, alternatives are recorded with rejection reasons, the
 Critical Assumptions list exists (Pending is fine), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
-left in those two sections.
+left in those two sections. If the accretion gate fired (≥2 prior point-fixes),
+the undecided contract is named and the profile is floored to `foundational`.
 
 → Next: [03-refine.md](03-refine.md)

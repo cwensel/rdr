@@ -171,6 +171,79 @@ check is [`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md).
   Repeatability lens (3 runs, ≥1 on a different base model, then diff).
   <https://martinfowler.com/articles/exploring-gen-ai/sdd-3-tools.html>
 
+### Grounding lens & cove-as-codebase-oracle
+
+**Drives**: [`prompts/pre-lock/0-grounding.md`](prompts/pre-lock/0-grounding.md)
+(the Mid/Large grounding sweep) and Step 0 of
+[`prompts/pre-lock/4-cove.md`](prompts/pre-lock/4-cove.md) (cove leads with it at
+Foundational). The grounding lens checks an RDR's codebase claims against *source*
+— catching a frame that is internally coherent but false against the code, which a
+self-referential review cannot see.
+
+- **Stroebl, Kapoor & Narayanan (2024), *The Limits of Inference Scaling Through
+  Resampling*** (formerly *Inference Scaling fLaws*) — the verifier dichotomy:
+  resampling against an *imperfect* verifier (an LLM opining) has a finite accuracy
+  ceiling set by its false-positive rate, while an **oracle** (a deterministic
+  check, false-positive rate ≈ 0) has no such ceiling. This is why the grounding
+  pass must *read code* (oracle-class) rather than ask a model whether a claim
+  "seems grounded" (imperfect). arXiv 2411.17501 —
+  <https://arxiv.org/abs/2411.17501>
+- **Cemri et al. (2025), *Why Do Multi-Agent LLM Systems Fail?* (MAST)** — the
+  failure taxonomy in which system-design / specification issues are the largest
+  category, and adding one high-level grounding/verification step was the single
+  largest intervention measured; the empirical case for grounding early rather
+  than relying on late, low-level checks. arXiv 2503.13657 —
+  <https://arxiv.org/abs/2503.13657>
+- **Zhu et al. (2025), *Where LLM Agents Fail and How They Can Learn From
+  Failures*** — early, root-cause errors dominate and cascade downstream; fixing
+  the earliest critical step yields far more than patching surface symptoms. The
+  reason grounding keys off "locks a contract" (where a wrong frame is set), and
+  the reason the accretion gate forces the root design decision before the next
+  patch. arXiv 2509.25370 — <https://arxiv.org/abs/2509.25370>
+
+### Accretion floor & blast-radius profile sizing
+
+**Drives**: the **Seam Lineage** Metadata field and the accretion-floor Profile
+rule in [`TEMPLATE.md`](TEMPLATE.md); the deterministic floor in the
+[Stage 5 matrix](flow/05-prelock.md) and [README matrix](README.md); the Seed
+fill ([`prompts/flow/01-seed.prompt.md`](prompts/flow/01-seed.prompt.md)) and the
+Propose accretion gate ([`prompts/flow/02-propose.prompt.md`](prompts/flow/02-propose.prompt.md)).
+Profile sized by contract count alone lets an RDR self-scope to one contract and
+under-gate a seam that already carries prior point-fixes; the accretion axis floors
+it instead.
+
+- **Rabanser (2026), *Towards a Science of AI Agent Reliability*** — consistency /
+  determinism is a first-class reliability axis ("an agent that fails predictably
+  is more manageable than one that succeeds unpredictably"), and scrutiny should
+  be allocated by consequence / blast-radius. The basis for making the accretion
+  count a *mechanical* gate (read from a field, not re-judged each stage) and for
+  sizing the profile by blast radius rather than contract count. arXiv 2602.16666 —
+  <https://arxiv.org/abs/2602.16666>
+- **Provenance-as-durable-artifact** — the accretion count is copied once from the
+  `kata-scope-review §seam-accretion` emission into Seam Lineage, never re-derived:
+  a hand-carried count drifts across re-derivations. This is the same
+  "durable disposition, written once" principle the pre-lock loop already follows.
+
+### Cost discipline — why grounding is breadth, not added volume
+
+**Drives**: the choice to run a *lightweight* grounding Step-0 at Mid (not the full
+cove persona pass), and the budget intent behind concentrating gates on
+high-accretion loci.
+
+- **Chen, Davis, Hanin, Bailis, Stoica, Zaharia & Zou (2024), *Are More LLM Calls
+  All You Need? Towards the Scaling Properties of Compound AI Systems*, NeurIPS
+  2024** — aggregating more *redundant* calls over a fixed task has non-monotone
+  returns; the caution against uniformly piling review passes onto the common
+  profile. (Grounding sidesteps it by adding verification *breadth* — running a
+  check the RDR already requires — not redundant depth.) arXiv 2403.02419 —
+  <https://arxiv.org/abs/2403.02419>
+- **Demirer, Musolff & Yang (2026), *Writing Code vs. Shipping Code: Productivity
+  Effects Across Generations of AI Coding Tools*, NBER w35275 / SSRN** — AI gains
+  attenuate up the production chain (human review is the bottleneck), so heavier
+  *upstream* gating pays only when concentrated where the risk is. The budget
+  rationale for the accretion floor as a concentrator rather than blanket
+  escalation. <https://www.nber.org/papers/w35275>
+
 ### Pairwise / cross-RDR consistency (Stage 7.1)
 
 **Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at

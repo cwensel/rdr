@@ -35,15 +35,18 @@ skills live beside the stage docs at [`../flow/skills/`](../flow/skills/).
 
 The analytical lenses of the [Pre-Lock Review](../README.md#pre-lock-review)
 process. Run between Decide and Lock; the Finalization Gate is the final check.
-The four **single-RDR** lenses are numbered for run order; each is one file, one
-paste block, reading only `{RDR_PATH}`.
+The **single-RDR** lenses are numbered for run order; each is one file, one
+paste block, reading only `{RDR_PATH}` (grounding also reads the source the RDR
+cites). Grounding runs first wherever a contract is locked — standalone at
+Mid/Large, embedded as CoVe's Step 0 at Foundational.
 
 | # | Lens | File | Cost | Skip when |
 | --- | --- | --- | --- | --- |
+| 0 | Grounding | [pre-lock/0-grounding.md](pre-lock/0-grounding.md) | ~5–10 min | RDR locks no contract (small) — or it is run inside CoVe (foundational) |
 | 1 | 3amigo | [pre-lock/1-3amigo.md](pre-lock/1-3amigo.md) | ~30 min | trivial single-file RDRs |
 | 2 | Critique | [pre-lock/2-critique.md](pre-lock/2-critique.md) | ~20–30 min, dual-model | RDR is purely additive — locks no enum/hash/format/grammar |
 | 3 | Repeatability | [pre-lock/3-repeatability.md](pre-lock/3-repeatability.md) | 3 runs + diff | RDR locks no public API/signature/data model |
-| 4 | CoVe | [pre-lock/4-cove.md](pre-lock/4-cove.md) | ~15–20 min | trivial single-file RDRs |
+| 4 | CoVe | [pre-lock/4-cove.md](pre-lock/4-cove.md) | ~20–30 min | trivial single-file RDRs |
 
 See the parent README's *Pre-Lock Review* section for the applicability matrix
 that says which lenses to run on which RDR profile.

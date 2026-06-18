@@ -21,14 +21,22 @@ placeholders. Do NOT invent a solution, assumptions, or research findings; those
 are later stages. Once the slug is settled,
 `git mv <rdr-dir>/NNNN-RESERVED.md <rdr-dir>/NNNN-slug.md`.
 
+Fill the **Seam Lineage** Metadata field from the `kata-scope-review
+§seam-accretion` emission on the originating kata (the locus `path::Symbol`/
+`area:*`, the point-fix count, and the prior-id trail) — copy it verbatim, do
+not re-derive (a re-derived count drifts). If the seam has no prior closed
+point-fixes, write "no prior accretion".
+
 For the **Profile** Metadata field, write a one-line provisional estimate from
 the same design shape you judged to seed this as one RDR (`rdr/flow/README.md`
 matrix: one internal contract → small; user-facing or locks a contract → mid;
 locks an enum/hash/format/grammar/destructive-op → large; cross-RDR / spans
-modules → foundational). It is an early budget signal, provisional because the
-RDR is `Draft`; Stage 4 (Resolve) overwrites it from the verified count. Don't
-labor over it. ≥2 independent contracts across separate seams → flag a split,
-don't pick a profile.
+modules → foundational). **Floor it: if Seam Lineage carries ≥2 prior
+point-fixes, the profile is `foundational` regardless** (the accretion floor —
+escapable only by a written accretion disposition in Seam Lineage). It is an
+early budget signal, provisional because the RDR is `Draft`; Stage 4 (Resolve)
+overwrites it from the verified count. Don't labor over it. ≥2 independent
+contracts across separate seams → flag a split, don't pick a profile.
 
 State the Problem Statement as a USER OUTCOME first (who runs this, what they
 want to accomplish, how they discover they need it), then the system-internal

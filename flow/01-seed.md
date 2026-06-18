@@ -33,7 +33,9 @@ project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status: 
   Metadata, Problem Statement, Context). Neighbor-copied structure drifts the
   template and smuggles in the neighbor's solution — send it back.
 - **Metadata is honest**: Status Draft; Type/Priority set; Predecessors listed
-  if the kata names dependencies.
+  if the kata names dependencies; **Seam Lineage** copied from
+  `kata-scope-review` (count + trail, or "no prior accretion"), and the Profile
+  floored to `foundational` if that count is ≥2.
 - **Is it RDR-shaped at all?** If the {IDEA} carries no real design fork —
   there is one obvious implementation and nothing to weigh — it is not an RDR.
   Refile it as a plain issue and set `Status: Demoted [→ <issue link>]` (record

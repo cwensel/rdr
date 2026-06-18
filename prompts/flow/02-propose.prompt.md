@@ -15,6 +15,15 @@ Read the Problem Statement and Context, then:
    rewrite in place). If this invalidates the Problem Statement itself, stop and
    flag it — don't propose onto a false premise.
 
+0.5 **Accretion gate.** Read the `Seam Lineage` field (filled at Seed from
+   `kata-scope-review` — do not re-derive). If it carries ≥2 closed prior
+   point-fixes at this locus, this is a *missing design decision, not a missing
+   patch*: before proposing any mechanism, write one sentence naming the
+   **undecided contract** the prior point-fixes all danced around, and set
+   Profile to `foundational` (the grounding lens then runs). Enumerate approaches
+   as answers to that contract question, not as the next patch. (Escape only via
+   a written accretion disposition in `Seam Lineage`; count <2 → skip this step.)
+
 1. Enumerate the 2–4 genuinely distinct approaches that solve the stated USER
    OUTCOME (not just the mechanism). For each: one-paragraph description,
    Pros, Cons. Where prior art exists (the competitors {RDR_RESOURCES} names),
@@ -29,7 +38,11 @@ Read the Problem Statement and Context, then:
    to switch approaches here than after Resolve has spent its spike budget. This
    is the approach-level gut-check, distinct from the lock-time hostile
    premortem in Stage 5 Critique; it runs on every profile because Propose
-   always does.
+   always does. **Sibling-path check:** if the chosen approach adds a new
+   discriminator, heuristic, switch case, or identity rule, grep whether an
+   adjacent/sibling path already makes that decision, and *exhibit* the result
+   in the RDR (a pasted `path::Symbol`, or "searched, none exists") — reusing an
+   existing signal beats inventing a parallel one.
 4. Write the recommended approach into Proposed Solution and the alternatives
    into Alternatives Considered. Keep Technical Design at the level the
    problem needs — do NOT over-specify signatures yet; that sharpens during

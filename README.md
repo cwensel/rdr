@@ -185,7 +185,9 @@ The three analytical rounds, in order of cost. Each links to its prompt file und
 
 3. **Repeatability** ([prompts/pre-lock/3-repeatability.md](prompts/pre-lock/3-repeatability.md), codegen × 3 + diff)
    and **CoVe** ([prompts/pre-lock/4-cove.md](prompts/pre-lock/4-cove.md)) — the single-RDR implementation-prompt
-   lenses: under-specified signatures the implementer can't grip on, and internal silences/contradictions. Cross-RDR
+   lenses: under-specified signatures the implementer can't grip on, and internal silences/contradictions. CoVe leads
+   with a [grounding sweep](prompts/pre-lock/0-grounding.md) (Step 0) that verifies the RDR's codebase claims against
+   source — also run standalone at Mid/Large where a contract is locked. Cross-RDR
    contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs two settled
    (Final) RDRs, so the [`flow/`](flow/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at Stage 7.1
    (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier peer.
@@ -207,15 +209,19 @@ Finalization Gate run on every profile, so they are folded into "Gate" below:
 | RDR profile | Rounds to apply |
 | --- | --- |
 | Small / single-file / non-user-facing | Gate (sweep + written responses; no analytical rounds) |
-| Mid / has user-facing surface OR locks a contract | 3amigo + Gate |
-| Large / locks an enum, hash, format, grammar, or destructive operation | 3amigo + Critique + Gate |
-| Foundational / cross-RDR producer / spans modules | 3amigo + Critique + Repeatability + CoVe + Gate (+ Stage 7.1 cross-RDR pairwise, post-Final, per cluster) |
+| Mid / has user-facing surface OR locks a contract | Grounding + 3amigo + Gate |
+| Large / locks an enum, hash, format, grammar, or destructive operation | Grounding + 3amigo + Critique + Gate |
+| Foundational / cross-RDR producer / spans modules | CoVe + 3amigo + Critique + Repeatability + Gate (+ Stage 7.1 cross-RDR pairwise, post-Final, per cluster) |
 
-3amigo runs on every non-trivial RDR; Critique on RDRs that lock a surface; Repeatability + CoVe on foundational
-work. The Tooling-pass sweep runs on every RDR as the Gate's mechanical pre-step.
+Grounding (a cheap codebase-claim sweep) runs first wherever a contract is locked — standalone at Mid/Large, embedded
+as CoVe's Step 0 at Foundational (so CoVe leads there); 3amigo runs on every non-trivial RDR; Critique on RDRs that lock
+a surface; Repeatability on foundational work. The Tooling-pass sweep runs on every RDR as the Gate's mechanical
+pre-step.
 
-The profile is recorded in the RDR's `Profile` Metadata field (classified by contract count) rather than re-inferred
-each stage — Seed estimates it, Resolve overwrites it from the verified count, the Gate re-validates it. See the
+The profile is the RDR's `Profile` Metadata field, sized by **blast radius** (the max of the contract axis and the
+accretion axis) rather than contract count alone: a `Seam Lineage` carrying ≥2 closed prior point-fixes floors the
+profile at Foundational (a deterministic count, escapable only by a written accretion disposition in that field). Seed
+estimates it, Resolve overwrites it from the verified count, the Gate re-validates it. See the
 [flow README](flow/README.md#applicability--which-stages-a-given-rdr-needs) for the field's lifecycle.
 
 After each round, the author makes a fix pass on the draft. The Finalization Gate is the *last* check, not a

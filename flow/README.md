@@ -206,9 +206,9 @@ on every profile:
 | RDR profile | Stages |
 | --- | --- |
 | Small / single-file / non-user-facing | 1·2·3·4 → *(skip 5)* → 6 → 7 → 8 |
-| Mid / user-facing OR locks a contract | 1·2·3·4 → 5(3amigo) → 6 → 7 → 8 |
-| Large / locks enum·hash·format·grammar·destructive op | 1·2·3·4 → 5(3amigo+Critique) → 6 → 7 → 8 |
-| Foundational / cross-RDR producer / spans modules | 1·2·3·4 → 5(3amigo+critique+repeatability+cove) → 6 → 7 → [7.1]† → 8 |
+| Mid / user-facing OR locks a contract | 1·2·3·4 → 5(grounding+3amigo) → 6 → 7 → 8 |
+| Large / locks enum·hash·format·grammar·destructive op | 1·2·3·4 → 5(grounding+3amigo+critique) → 6 → 7 → 8 |
+| Foundational / cross-RDR producer / spans modules | 1·2·3·4 → 5(cove+3amigo+critique+repeatability) → 6 → 7 → [7.1]† → 8 |
 
 † **Stage 7.1 Cluster Reconcile** is *per cluster, not per RDR* — the `[7.1]†`
 marker only flags that a foundational RDR's cross-RDR Pairwise happens there,
@@ -216,10 +216,15 @@ not in Stage 5. Single-RDR profiles skip it (7 → 8). See
 [Cross-RDR drift](#cross-rdr-drift-stage-71).
 
 **The profile is a recorded latch, not re-inferred each stage.** It lives in the
-RDR's `Profile` Metadata field, classified by **contract count, not word count**
-(the count of *independent* load-bearing contracts the RDR is sole author of —
-the Normative Contracts section is the seam detector; ≥2 across separate seams
-is a split signal, not a profile). Its lifecycle is three-tier, with provenance
+RDR's `Profile` Metadata field, sized by **blast radius, not word count** — the
+max of two axes: the *contract* axis (the count of independent load-bearing
+contracts the RDR is sole author of — the Normative Contracts section is the seam
+detector; ≥2 across separate seams is a split signal, not a profile) and the
+*accretion* axis (the **Seam Lineage** field's prior-point-fix count: ≥2 floors
+the profile at `foundational`, a deterministic gate escapable only by a written
+accretion disposition). The accretion floor is what stops a "one contract → mid"
+sizing from under-gating an accreting seam. Its lifecycle is three-tier, with
+provenance
 carried by `Status` rather than any qualifier: **Seed** writes a provisional
 estimate (an early budget signal — trust it only as a hint); **Resolve** (Stage
 4) overwrites it from the now-verified contracts; the **Stage 7 Gate**
@@ -470,7 +475,7 @@ holds only its own stage's state.
 | `/rdr-propose` | `NNNN` | 2 |
 | `/rdr-refine` | `NNNN` | 3 |
 | `/rdr-resolve` | `NNNN` | 4 |
-| `/rdr-prelock` | `NNNN <lens>` | 5+6 — reviews **and** resolves one lens, looping to convergence (`lens ∈ 3amigo·critique·repeatability·cove`; repeatability also resolves its `diff.md`) |
+| `/rdr-prelock` | `NNNN <lens>` | 5+6 — reviews **and** resolves one lens, looping to convergence (`lens ∈ grounding·3amigo·critique·repeatability·cove`; repeatability also resolves its `diff.md`) |
 | `/rdr-reconcile` | `NNNN` | 6 |
 | `/rdr-finalize` | `NNNN` | 7 (one gated prompt — READY locks, NOT READY flips nothing) |
 | `/rdr-cluster-reconcile` | cluster / RDR list | 7.1 (per cluster, not per RDR) |

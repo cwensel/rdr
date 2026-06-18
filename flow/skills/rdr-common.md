@@ -139,7 +139,7 @@ see its SKILL.md.
 ## §evidence — where the lens/spike/reconcile output lives
 
 `{FLOW_DIR}` is **lens-first, then per-RDR**: `<FLOW_DIR>/<lens>/<RDR_SLUG>/`
-(`3amigo`, `critique`, `repeatability`, `cove`), plus siblings `reconcile/`,
+(`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), plus siblings `reconcile/`,
 `spikes/`, `tooling-pass/`, `action-items/`, and the per-cluster
 `cluster-reconcile/<cluster>/`. A re-entry pass appends `iter-N/`
 (`<lens>/<RDR_SLUG>/iter-2/`); loose files directly under `<lens>/<RDR_SLUG>/` are

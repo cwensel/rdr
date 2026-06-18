@@ -1,7 +1,7 @@
 ---
 name: rdr-prelock
-argument-hint: "<NNNN> <lens> [run]   # lens ∈ {3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
-description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "/rdr-prelock 0046 critique"). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with /rdr-resolve; follow with /rdr-reconcile.
+argument-hint: "<NNNN> <lens> [run]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
+description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "/rdr-prelock 0046 critique"). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is grounding | 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with /rdr-resolve; follow with /rdr-reconcile.
 ---
 
 # rdr-prelock — Stage 5+6 (Pre-Lock Review **and** Resolve, per lens)
@@ -16,16 +16,19 @@ the draft, loop to convergence (or flapping). Dispatches into the lens prompts i
 ## Usage
 
 ```
-/rdr-prelock <NNNN> <lens> [run]        # lens ∈ {3amigo, critique, repeatability, cove}
+/rdr-prelock <NNNN> <lens> [run]        # lens ∈ {grounding, 3amigo, critique, repeatability, cove}
 ```
 
 `run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates
 that one run, `diff` compares them. Reject an unknown lens with
 `stopped:bad-lens:<value>`.
 
-**Pick the lens by profile** (`$RDR_FLOW_HOME/flow/README.md` matrix): mid → `3amigo`; large →
-`3amigo` then `critique`; foundational → `3amigo critique repeatability cove`. A
-small RDR runs **no** lens (skip to `/rdr-reconcile`). Run lenses in that cost order.
+**Pick the lens by profile** (`$RDR_FLOW_HOME/flow/README.md` matrix): mid →
+`grounding 3amigo`; large → `grounding 3amigo critique`; foundational →
+`cove 3amigo critique repeatability` (cove embeds the grounding sweep as its
+Step 0, so it leads and `grounding` is not run separately). A small RDR runs
+**no** lens (skip to `/rdr-reconcile`). Run lenses in that order — grounding/cove
+first (ground the frame before the personas debate it).
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a
@@ -40,7 +43,8 @@ One invocation runs the full loop for one lens:
    self-detected: a `Status: Draft [revised from Final …; re-verify <IDs>]`
    qualifier → write to `iter-N/` (N = 1 + highest existing; loose files = iter-1)
    and delta-scope to `<IDs>`.
-2. **Run the lens prompt** (`pre-lock/1-3amigo.md` · `2-critique.md` · `4-cove.md`)
+2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
+   `2-critique.md` · `4-cove.md`)
    → it writes element files to `{FLOW_DIR}`. Heavy/dual-model → sub-agent returns
    the findings list, not a re-dump. **This first run's findings are the origin
    ledger** for the loop.

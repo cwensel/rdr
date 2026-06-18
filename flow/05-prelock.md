@@ -36,24 +36,41 @@ draft and a mechanical sweep is only meaningful *after* the last mutation.
 | RDR profile | Lenses (in order) |
 | --- | --- |
 | Small / single-file / non-user-facing | *(none — straight to Stage 6, then the Stage 7 sweep + Gate)* |
-| Mid / user-facing OR locks a contract | 3amigo |
-| Large / locks enum·hash·format·grammar·destructive | 3amigo → critique |
-| Foundational / cross-RDR / spans modules | 3amigo → critique → repeatability → cove |
+| Mid / user-facing OR locks a contract | grounding → 3amigo |
+| Large / locks enum·hash·format·grammar·destructive | grounding → 3amigo → critique |
+| Foundational / cross-RDR / spans modules | cove → 3amigo → critique → repeatability |
+
+**Grounding runs first** (whenever present). It is the only lens that checks the
+RDR against *source*; running it ahead of the personas keeps them from ratifying
+a frame that's false against the codebase. At `mid`/`large` it is the standalone
+[grounding Step-0](../prompts/pre-lock/0-grounding.md) (a cheap deterministic
+sweep); at `foundational` it is Step 0 *inside* [cove](../prompts/pre-lock/4-cove.md)
+(which subsumes it), so cove leads. The cost-order cascade still holds for the
+remaining 3amigo → critique → repeatability.
+
+**Accretion floor (deterministic).** Profile is blast-radius, not local diff
+size. If the RDR's `Seam Lineage` (Metadata) carries **≥2 closed prior
+point-fixes** at the locus, the profile is floored at **Foundational** — a seam
+with prior point-fixes is the matrix's `cross-RDR` trigger. This is a mechanical
+count read from the field (filled at Seed from `kata-scope-review`), not a
+judgment; the only escape is the written accretion disposition in that field. It
+is the lever that pulls an accreting `small`/`mid` RDR up to the grounding lens.
 
 | Lens | Prompt file | What it uniquely catches |
 | --- | --- | --- |
+| grounding | [`../prompts/pre-lock/0-grounding.md`](../prompts/pre-lock/0-grounding.md) | Codebase claims false against source; new rules a sibling path already makes |
 | 3amigo | [`../prompts/pre-lock/1-3amigo.md`](../prompts/pre-lock/1-3amigo.md) | PM/UX gaps, first-hour implementer questions, untestable clauses |
 | critique | [`../prompts/pre-lock/2-critique.md`](../prompts/pre-lock/2-critique.md) | Time-shifted failures, frozen-at-lock invariants. **Dual-model.** |
 | repeatability | [`../prompts/pre-lock/3-repeatability.md`](../prompts/pre-lock/3-repeatability.md) | Under-specified signatures/APIs (generate ×3, diff) |
-| cove | [`../prompts/pre-lock/4-cove.md`](../prompts/pre-lock/4-cove.md) | Internal silences + contradictions (verify-independently) |
+| cove | [`../prompts/pre-lock/4-cove.md`](../prompts/pre-lock/4-cove.md) | Grounding (Step 0) + internal silences/contradictions (verify-independently) |
 
-All four are **single-RDR** lenses — each reads only `{RDR_PATH}`, independent
-of the others, so they are peer files (numbered 1–4 for run order), not a
-composite round. Cross-RDR contradiction is *not* a pre-lock lens — it needs
-two settled (Final) RDRs, so it lives at
-[Stage 7.1 Cluster-reconcile](07.1-cluster-reconcile.md). A small/single-file
-RDR runs no lens (no PM/UX or time-shifted surface); the Stage 7 sweep is its
-only pre-lock check.
+All are **single-RDR** lenses — each reads only `{RDR_PATH}` (grounding also
+reads the source the RDR cites), independent of the others, so they are peer
+files (numbered 0–4 for run order), not a composite round. Cross-RDR
+contradiction is *not* a pre-lock lens — it needs two settled (Final) RDRs, so
+it lives at [Stage 7.1 Cluster-reconcile](07.1-cluster-reconcile.md). A
+small/single-file RDR runs no lens (no contract to ground, no PM/UX or
+time-shifted surface); the Stage 7 sweep is its only pre-lock check.
 
 **Output convention.** `{FLOW_DIR}` is **lens-first, then per-RDR**
 (`_rdr/<lens>/<rdr-slug>/`); each lens writes its *element* files there, shape
