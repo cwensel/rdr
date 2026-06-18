@@ -1,6 +1,6 @@
 {
   "name": "rdr",
-  "description": "Recommendation Decisioning Records — a repeatable, skill-driven flow from idea to spec-verified implementation. Ships the /rdr-* skills (init, seed, propose, refine, resolve, prelock, reconcile, finalize, implement, status, cluster-reconcile) plus the engine (flow/, prompts/, TEMPLATE.md) they read in place.",
+  "description": "Recommendation Decisioning Records — a repeatable, skill-driven flow from idea to spec-verified implementation. Ships the /rdr-* skills (init, doctor, seed, propose, refine, resolve, prelock, reconcile, finalize, implement, status, cluster-reconcile) plus the engine (stages/, prompts/, TEMPLATE.md) they read in place.",
   "version": "0.1.0",
   "author": {
     "name": "Chris K Wensel",
@@ -17,5 +17,5 @@
     "workflow",
     "implementation"
   ],
-  "skills": "./flow/skills/"
+  "skills": "./skills/"
 }

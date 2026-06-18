@@ -1,7 +1,7 @@
 # RESEARCH — The Evidence Base Behind the RDR Process
 
 The citation record for the RDR process — the template
-([`TEMPLATE.md`](TEMPLATE.md)), the flow ([`flow/`](flow/README.md)), and the
+([`TEMPLATE.md`](TEMPLATE.md)), the flow ([`stages/`](stages/README.md)), and the
 prompts ([`prompts/`](prompts/README.md)). Read here *why* each part is shaped
 the way it is, and follow the links to the primary sources.
 
@@ -32,7 +32,7 @@ provenances:
   ([`prompts/pre-lock/`](prompts/README.md)) and review gates draw on. §2 maps
   each lens to its source.
 
-- **The front half** (Seed → Propose → Refine → Resolve, [`flow/`](flow/README.md)
+- **The front half** (Seed → Propose → Refine → Resolve, [`stages/`](stages/README.md)
   stages 1–4) was mined from a real multi-RDR project's own AI session history:
   the recurring shape of how the author drove RDRs from idea to locked spec, and
   the ordering constraints (Resolve before Pre-Lock; Reconcile between rounds and
@@ -97,7 +97,7 @@ one of these elements, this is the reasoning you are changing.
 ### Overall shape — filter cascade, few phases, gate-method-not-phase-count
 
 **Drives**: the [`prompts/`](prompts/README.md) lens set and the
-[Stage 5 risk-profile matrix](flow/05-prelock.md); the written-response gate in [`TEMPLATE.md`](TEMPLATE.md).
+[Stage 5 risk-profile matrix](stages/05-prelock.md); the written-response gate in [`TEMPLATE.md`](TEMPLATE.md).
 
 - **Piskala (2026), *Spec-Driven Development: From Code to Contract in the Age of
   AI Coding Assistants*** — the "few phases, each producing an artifact that
@@ -118,7 +118,7 @@ one of these elements, this is the reasoning you are changing.
 
 ### Resolve-before-review ordering, and the 3amigo lens
 
-**Drives**: [`flow/04-resolve-assumptions.md`](flow/04-resolve-assumptions.md) (resolve-before-review ordering) and the
+**Drives**: [`stages/04-resolve-assumptions.md`](stages/04-resolve-assumptions.md) (resolve-before-review ordering) and the
 [`prompts/pre-lock/1-3amigo.md`](prompts/pre-lock/1-3amigo.md) lens.
 
 - **Basili, Green, Laitenberger, Lanubile, Shull, Sørumgård & Zelkowitz (1996),
@@ -205,9 +205,9 @@ self-referential review cannot see.
 
 **Drives**: the **Seam Lineage** Metadata field and the accretion-floor Profile
 rule in [`TEMPLATE.md`](TEMPLATE.md); the deterministic floor in the
-[Stage 5 matrix](flow/05-prelock.md) and [README matrix](README.md); the Seed
-fill ([`prompts/flow/01-seed.prompt.md`](prompts/flow/01-seed.prompt.md)) and the
-Propose accretion gate ([`prompts/flow/02-propose.prompt.md`](prompts/flow/02-propose.prompt.md)).
+[Stage 5 matrix](stages/05-prelock.md) and [README matrix](README.md); the Seed
+fill ([`prompts/stages/01-seed.prompt.md`](prompts/stages/01-seed.prompt.md)) and the
+Propose accretion gate ([`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md)).
 Profile sized by contract count alone lets an RDR self-scope to one contract and
 under-gate a seam that already carries prior point-fixes; the accretion axis floors
 it instead.
@@ -247,7 +247,7 @@ high-accretion loci.
 ### Pairwise / cross-RDR consistency (Stage 7.1)
 
 **Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at
-[`flow/07.1-cluster-reconcile.md`](flow/07.1-cluster-reconcile.md).
+[`stages/07.1-cluster-reconcile.md`](stages/07.1-cluster-reconcile.md).
 
 - **Finkelstein, Gabbay, Hunter, Kramer & Nuseibeh (1994), *Inconsistency
   Handling in Multiperspective Specifications*, IEEE TSE 20(8)** — the viewpoints
@@ -270,7 +270,7 @@ high-accretion loci.
 
 ### Reconcile gate (Stage 6) — residual-risk closure
 
-**Drives**: [`flow/06-reconcile.md`](flow/06-reconcile.md).
+**Drives**: [`stages/06-reconcile.md`](stages/06-reconcile.md).
 
 - **Letier & van Lamsweerde (2025), *Obstacle Analysis in Requirements
   Engineering: Retrospective and Emerging Challenges*, IEEE TSE 51(3)** —
@@ -307,7 +307,7 @@ high-accretion loci.
 ### Implementation launch (Stage 8)
 
 **Drives**: [`prompts/implementation/launch.md`](prompts/implementation/launch.md), dispatched at
-[`flow/08-implement.md`](flow/08-implement.md).
+[`stages/08-implement.md`](stages/08-implement.md).
 
 - **Fakhoury, Naik, Sakkas, Chakraborty & Lahiri (2024), *LLM-based Test-driven
   Interactive Code Generation* (TiCoder), IEEE TSE** — tests-from-spec-first and

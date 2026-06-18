@@ -1,7 +1,7 @@
 # Tooling Pass — RDR Mechanical Adherence Sweep
 
 **Use when**: the **mechanical pre-step of the Finalization Gate**
-([Stage 7]($RDR_FLOW_HOME/flow/07.0-finalize.md)), run on **every** RDR just before the
+([Stage 7]($RDR_HOME/stages/07.0-finalize.md)), run on **every** RDR just before the
 Gate's written responses — after whatever pre-lock rounds the RDR's profile
 called for (a small RDR runs none) and after the Stage 6 spike/assumption
 reconcile. It is a *post-mutation regression sweep*: the lenses and fix-passes
@@ -103,7 +103,7 @@ matching heuristic is reliable.
 
 The four checks are the mechanical share of the implementation-prompt review
 lens, isolated from the analytical share so a script can absorb them — see
-`_rdr/RDR-PROCESS-IMPROVEMENT.md` §D.2, which places this sweep
+`.rdr/RDR-PROCESS-IMPROVEMENT.md` §D.2, which places this sweep
 last, immediately before the Gate. CHECK 3 originates in the X4 triage
 (`action-items/X4-triage-report.md`), which found 24/54 assumptions
 self-referencing across RDRs 0001–0010 — RDRs authored *before* the structured

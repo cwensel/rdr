@@ -41,7 +41,7 @@ internal contradiction; (d) a "RDR is silent" revealing a missing requirement.
 A false-against-codebase assumption is the highest-value finding — surface it
 even if it reopens the chosen approach.
 
-Write the findings to {FLOW_DIR}/findings.md (the dispatcher binds {FLOW_DIR} —
+Write the findings to {EVIDENCE_DIR}/findings.md (the dispatcher binds {EVIDENCE_DIR} —
 do not re-derive it). Report nothing else.
 ```
 

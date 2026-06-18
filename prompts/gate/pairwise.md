@@ -1,7 +1,7 @@
 # Pairwise — Cross-RDR Contradiction Scan (S-07)
 
 **Use when**: the **cluster** gate, not single-RDR pre-lock. In the flow it runs
-at [Stage 7.1 Cluster-reconcile]($RDR_FLOW_HOME/flow/07.1-cluster-reconcile.md), over a
+at [Stage 7.1 Cluster-reconcile]($RDR_HOME/stages/07.1-cluster-reconcile.md), over a
 cluster of related RDRs that are all Final-and-unimplemented — *not* during a
 single RDR's Stage 5. A per-RDR pass can only compare an RDR to peers that
 already exist; running it at the cluster level is what catches drift a *later*
@@ -64,7 +64,7 @@ models on "do these two contradict?" is itself a signal.
 A `blocks-impl` or `risks-impl` cross-RDR contradiction is a **SPEC-DEFECT**
 against the *less foundational* RDR of the pair — it does not get edited in
 place. The cluster gate drops that RDR from Final back to Draft and re-enters
-the flow; see [Stage 7.1]($RDR_FLOW_HOME/flow/07.1-cluster-reconcile.md) for the
+the flow; see [Stage 7.1]($RDR_HOME/stages/07.1-cluster-reconcile.md) for the
 disposition rules and the literature behind tolerating cross-RDR inconsistency
 until this gate.
 

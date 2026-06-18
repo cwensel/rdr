@@ -1,1 +1,0 @@
-../../../prompts/pre-lock/2-critique.md

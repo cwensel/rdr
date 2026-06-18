@@ -15,13 +15,14 @@ WS=$(dirname "$(dirname "$GC")")
 [ -f "$WS/.rdr-workspace" ] || exit 0
 . "$WS/.rdr-workspace" 2>/dev/null || exit 0
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || exit 0
-# Emit only the four-var engine contract the skills read. (A consumer may add its
+# Emit only the five-var engine contract the skills read. (A consumer may add its
 # own *_ROOT lines below if its sessions reference them; they are not load-bearing.)
 cat <<EOF
 RDR seam pre-resolved (SessionStart hook; rdr-common §seam-bind fast path applies —
 substitute these literal paths, skip the resolver block):
-RDR_FLOW_HOME=$RDR_FLOW_HOME
-RDR_DIR=$RDR_DIR
+RDR_HOME=$RDR_HOME
+RDR_RECORDS=$RDR_RECORDS
+RDR_EVIDENCE=$RDR_EVIDENCE
 RDR_ENV=$RDR_ENV
 RDR_RESOURCES=$RDR_RESOURCES
 EOF

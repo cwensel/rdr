@@ -28,7 +28,7 @@ command to the user** — don't write the extra run yourself. Relaunch on the al
 model between runs (e.g. `ollama launch claude --model kimi-k2.6:cloud`); if
 `{RDR_RESOURCES}` lists an alt-model roster, use one of its commands for run N.
 
-`{RDR_PATH}`, `{FLOW_DIR}` (this lens's `repeatability/<rdr-slug>/` folder
+`{RDR_PATH}`, `{EVIDENCE_DIR}` (this lens's `repeatability/<rdr-slug>/` folder
 under the base `{RDR_ENV}` defines), and `<N>` (this run's number, 1–3) are
 bound by the Stage 5 arg header — paste verbatim. Running standalone (outside
 the flow)? Read `{RDR_ENV}` for the base and fill them yourself first.
@@ -46,7 +46,7 @@ Do not ask clarifying questions. Do not say "it depends." Make your best
 guess where the RDR is silent, and *mark each guess explicitly as a GUESS*.
 
 Begin run-<N>.md with one line: `model: <base model you are running on>`.
-Write your output to {FLOW_DIR}/run-<N>.md. Report nothing else.
+Write your output to {EVIDENCE_DIR}/run-<N>.md. Report nothing else.
 ```
 
 ## Diff prompt
@@ -56,13 +56,13 @@ fresh session that authored none of the three runs**. The analysis is pure, but 
 authoring session isn't neutral — it diffs toward the interpretation it already
 wrote — so the diff is a fourth pass, not a tail on the last generation (and a
 sub-agent of an authoring session can't stand in either). Once all three runs
-exist and this session wrote none, paste this once. `{RDR_PATH}`/`{FLOW_DIR}` bind
+exist and this session wrote none, paste this once. `{RDR_PATH}`/`{EVIDENCE_DIR}` bind
 from the Stage 5 arg header — paste verbatim, or fill them if standalone.
 
 ```text
-Read the three repeatability runs at {FLOW_DIR}/run-1.md, run-2.md, run-3.md
+Read the three repeatability runs at {EVIDENCE_DIR}/run-1.md, run-2.md, run-3.md
 (each starts with its `model:` line). Compare them against the RDR at
-{RDR_PATH} and write {FLOW_DIR}/diff.md with:
+{RDR_PATH} and write {EVIDENCE_DIR}/diff.md with:
 
   1. Disagreements — every interface, type, error mode, data-model field, or
      pseudo-code step where the three runs differ. For each: the contract in
@@ -80,7 +80,7 @@ Technical Design is where most rewrites go. Report nothing else.
 ```
 
 `diff.md` is the file the cycle's fix half
-([`$RDR_FLOW_HOME/flow/05-prelock.md`]($RDR_FLOW_HOME/flow/05-prelock.md), *Resolve (the fix half)*) reads.
+([`$RDR_HOME/stages/05-prelock.md`]($RDR_HOME/stages/05-prelock.md), *Resolve (the fix half)*) reads.
 
 ## Expected signal
 

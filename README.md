@@ -59,7 +59,7 @@ below apply to every project's RDRs regardless of which index lists them.
 
 **If implementation reveals RDR is wrong**: Abandon implementation, iterate on RDR with lessons learned, start fresh.
 
-**Driving the workflow**: [`flow/`](flow/README.md) is a runnable recipe for steps 1–6 — one parameterized prompt
+**Driving the workflow**: [`stages/`](stages/README.md) is a runnable recipe for steps 1–6 — one parameterized prompt
 per stage (seed → propose → refine → resolve-assumptions → pre-lock → reconcile → finalize → implement), each with a
 review gate and an advance-when condition (the implement stage terminates at COMPLETE/INCOMPLETE instead), so an RDR can
 be driven from idea to implemented code without reconstructing the prompts from memory, then handed to step 7 (Close).
@@ -189,7 +189,7 @@ The three analytical rounds, in order of cost. Each links to its prompt file und
    with a [grounding sweep](prompts/pre-lock/0-grounding.md) (Step 0) that verifies the RDR's codebase claims against
    source — also run standalone at Mid/Large where a contract is locked. Cross-RDR
    contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs two settled
-   (Final) RDRs, so the [`flow/`](flow/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at Stage 7.1
+   (Final) RDRs, so the [`stages/`](stages/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at Stage 7.1
    (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier peer.
 
 The **[Tooling pass](prompts/gate/tooling-pass.md)** (~5 min, seconds when scripted) is *not* a fourth round — it is
@@ -222,7 +222,7 @@ The profile is the RDR's `Profile` Metadata field, sized by **blast radius** (th
 accretion axis) rather than contract count alone: a `Seam Lineage` carrying ≥2 closed prior point-fixes floors the
 profile at Foundational (a deterministic count, escapable only by a written accretion disposition in that field). Seed
 estimates it, Resolve overwrites it from the verified count, the Gate re-validates it. See the
-[flow README](flow/README.md#applicability--which-stages-a-given-rdr-needs) for the field's lifecycle.
+[flow README](stages/README.md#applicability--which-stages-a-given-rdr-needs) for the field's lifecycle.
 
 After each round, the author makes a fix pass on the draft. The Finalization Gate is the *last* check, not a
 substitute for these rounds — its written-response items are sharper when the rounds have already absorbed the gaps a

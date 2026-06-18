@@ -55,7 +55,7 @@ Structure:
 Hostile critique is the assignment. If you find yourself softening,
 restart.
 
-Write the critique to {FLOW_DIR}/critique.md ({FLOW_DIR} is already bound
+Write the critique to {EVIDENCE_DIR}/critique.md ({EVIDENCE_DIR} is already bound
 by the dispatcher to this lens's `critique/<rdr-slug>/` folder under the
 base {RDR_ENV} defines — do not re-derive it). On a dual-model run, the
 second model writes critique-modelB.md alongside it, and you diff the two.
@@ -70,7 +70,7 @@ batched for review:
 ```text
 Fresh context. You are a senior engineer who has seen many projects like
 this one fail. You have been asked to review the RDR set under
-{RDR_DIR}, and you believe the project will fail.
+{RDR_RECORDS}, and you believe the project will fail.
 
 [Same five-step structure as above, but Step 1 names the most likely
 inter-RDR failure mode; Step 2 names the one RDR that will be rewritten;

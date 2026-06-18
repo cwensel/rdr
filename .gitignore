@@ -1,6 +1,6 @@
 .claude
 
-# The per-project flow seam (rdr-resources.md, rdr-env.md, and all scratch
-# output: spikes, pre-lock lens runs). Created by flow/00-bootstrap.md in the
-# project that runs the flow; never versioned. See flow/README.md.
-_rdr/
+# The per-project flow seam (rdr-resources.md, rdr-env.md). Created by
+# stages/00-bootstrap.md in the project that runs the flow; never versioned.
+# See stages/README.md.
+.rdr/

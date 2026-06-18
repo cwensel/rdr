@@ -55,7 +55,7 @@
   in the Seam Lineage field. This floor is what stops a
   "one contract → mid" sizing from under-gating an accreting
   seam.
-  Matrix: rdr/flow/README.md. Seed estimates from the design
+  Matrix: rdr/stages/README.md. Seed estimates from the design
   shape; Resolve overwrites from the verified count; Stage 8
   Gate locks it at Draft → Final. Never skip lenses off a
   Draft Profile until Resolve has run. -->

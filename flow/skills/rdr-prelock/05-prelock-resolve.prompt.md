@@ -1,1 +1,0 @@
-../../../prompts/flow/05-prelock-resolve.prompt.md

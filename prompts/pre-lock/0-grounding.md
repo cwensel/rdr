@@ -30,7 +30,7 @@ sibling/adjacent path already makes that decision — name it (`path::Symbol`) o
 record "searched, none exists".
 
 Write each REFUTED / NOT-FOUND, and each new-rule-with-an-existing-sibling, as a
-finding to {FLOW_DIR}/findings.md (the dispatcher binds {FLOW_DIR} — do not
+finding to {EVIDENCE_DIR}/findings.md (the dispatcher binds {EVIDENCE_DIR} — do not
 re-derive it). A CONFIRMED claim needs no finding. Report nothing else.
 ```
 

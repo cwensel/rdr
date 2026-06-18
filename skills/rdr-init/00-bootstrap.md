@@ -1,0 +1,1 @@
+../../stages/00-bootstrap.md

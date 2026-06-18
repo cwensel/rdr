@@ -1,1 +1,0 @@
-../../../RDR-HOME-README.template.md
