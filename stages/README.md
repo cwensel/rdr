@@ -23,8 +23,8 @@ adapted from prompts actually run against RDRs 0011–0039.
 
 **This flow is standalone and project-agnostic.** It carries no project
 specifics — no domain, no paths, no corpora. A project plugs in through one
-seam: an `.rdr/` folder at its root holding `rdr-resources.md` (the evidence
-index) and `rdr-env.md` (the path map). The project itself stays
+seam: an `.rdr/` folder at its root holding `resources.md` (the evidence
+index) and `env.md` (the path map). The project itself stays
 RDR-ignorant — `.rdr/` is gitignored, and nothing is written to the project's
 `CLAUDE.md` or root `.gitignore`. **Run [Stage 0 — Bootstrap](00-bootstrap.md)
 once** to create that folder; after that, the flow runs against any project.
@@ -263,8 +263,8 @@ filled (or wrapped by a skill that supplies them):
 | Param | Meaning | Default |
 | --- | --- | --- |
 | `{RDR_PATH}` | the RDR file being driven | — (required) |
-| `{RDR_RESOURCES}` | the per-project **evidence index** (corpora, doc contracts, anchors, domain priors) | exported by the workspace marker `.rdr-workspace` (`$RDR_RESOURCES`); `.rdr/rdr-resources.md` only as the no-marker fallback — see *Where the seam lives* |
-| `{RDR_ENV}` | the per-project **path map** (output staging + source-path roots) | exported by the workspace marker (`$RDR_ENV`); `.rdr/rdr-env.md` only as the no-marker fallback |
+| `{RDR_RESOURCES}` | the per-project **evidence index** (corpora, doc contracts, anchors, domain priors) | exported by the seam marker (`$RDR_RESOURCES`); `.rdr/resources.md` only as the no-marker fallback — see *Where the seam lives* |
+| `{RDR_ENV}` | the per-project **path map** (output staging + source-path roots) | exported by the seam marker (`$RDR_ENV`); `.rdr/env.md` only as the no-marker fallback |
 | `{SPIKE_DIR}` · `{EVIDENCE_DIR}` · `{ARTIFACT_DIR}` | output staging — may point anywhere (in-project scratch, or a tracked sibling repo) | defined in `{RDR_ENV}` |
 | `{IDEA}` | the seed idea — a kata id or one-line description (Stage 1) | — |
 | `{RDR_RECORDS}` · `{RDR_A_PATH}` · `{RDR_B_PATH}` | local to [Stage 7.1 Cluster Reconcile](07.1-cluster-reconcile.md) (whole-set Critique + Pairwise), *not* Stage 5 — the cluster directory and the peer pair being compared; *not* the project RDR directory, which Seed derives from `{RDR_ENV}` | supplied per run |
@@ -293,8 +293,8 @@ what it needs:
 
 **All project-specific context — corpus names and domain priors in
 `{RDR_RESOURCES}`, paths in `{RDR_ENV}` — lives in those two files, not in any stage
-prompt.** A different project runs this flow by writing its own
-`rdr-resources.md` and `rdr-env.md` (default location `.rdr/`).
+prompt.** A different project runs this flow by writing its own seam data files
+(`.rdr/resources.md` and `.rdr/env.md` by default).
 
 **Where the seam lives — read this.** The seam location is resolved from a
 single **workspace marker**, never guessed and never hardcoded in a stage
@@ -305,12 +305,12 @@ resolver, **worktree-invariant** because it keys off git topology rather than
 cwd:
 
 ```sh
-WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")")
-if [ -f "$WS/.rdr-workspace" ]; then
-  . "$WS/.rdr-workspace"          # exports $RDR_ENV / $RDR_RESOURCES / $FLOW_ROOT / $PROCESS_ROOT / ...
-else
-  echo "no workspace marker at $WS — run 00-bootstrap, or use the .rdr/ default" >&2
-fi
+PROJECT=$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd -P)")
+WS=$(dirname "$PROJECT")
+# nearest wins: a repo-local marker (inside .rdr/) overrides the shared workspace one
+if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace"   # repo-local scope (default)
+elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"        # workspace scope (shared)
+else echo "no marker in $PROJECT/.rdr or $WS — run /rdr-init" >&2; fi
 ```
 
 `git rev-parse --git-common-dir` resolves to the **main** repo's `.git` even
@@ -340,6 +340,13 @@ So `.rdr/` is only the **no-marker fallback** — the zero-footprint default for
 project that has not bootstrapped a workspace marker. With a marker present, no
 stage ever probes `.rdr/`. Either way, do not rewrite stage prompts as `../`
 hops back into wherever the flow docs sit.
+
+**Two scopes, nearest wins.** The **default** is a repo-local marker at
+`$PROJECT/.rdr/workspace` (inside the gitignored `.rdr/`, so no project-level
+`.gitignore` edit) — each repo runs its own RDR process. §seam-bind prefers it over a
+shared `$WS/.rdr-workspace`, which several sibling repos opt into with
+`/rdr-init --workspace` (the `newcoinc/` setup: retrofit/process/flow share one seam).
+A repo-local marker overrides the shared one for that repo without re-pointing it.
 
 > **Worked example — a pinned-seam consumer.** A consumer may pin its seam this
 > way and **retire `.rdr/` entirely** — no gitignored scratch seam at all.

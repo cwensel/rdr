@@ -24,17 +24,19 @@ under bash (Linux) and zsh (macOS).
 sh -c '
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "[FAIL] not in a git repo - run /rdr-doctor inside a workspace repo"; exit 0; }
 GIT_COMMON=$(cd "$GC" && pwd -P) || { echo "[FAIL] git dir unreadable"; exit 0; }
-WS=$(dirname "$(dirname "$GIT_COMMON")"); export WS          # export so the marker :? guard passes
-PROJ=$(dirname "$GIT_COMMON")
-echo "rdr-doctor - workspace: $WS"
+PROJ=$(dirname "$GIT_COMMON"); WS=$(dirname "$PROJ"); export WS   # export so the marker :? guard passes
+echo "rdr-doctor - project: $PROJ"
 nf=0; nw=0
 fail(){ echo "  [FAIL] $1"; nf=$((nf+1)); }
 warn(){ echo "  [WARN] $1"; nw=$((nw+1)); }
 pass(){ echo "  [PASS] $1"; }
 
-[ -f "$WS/.rdr-workspace" ] || { fail "1 marker absent - run /rdr-init from the consumer repo root"; echo "Verdict: 1 FAIL - no marker."; exit 0; }
-pass "1 marker present - $WS/.rdr-workspace"
-. "$WS/.rdr-workspace" 2>/tmp/rdrdoc.err && pass "2 marker sources clean" || fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
+# nearest marker wins: repo-local (inside .rdr/) overrides shared workspace
+if   [ -f "$PROJ/.rdr/workspace" ]; then MARKER="$PROJ/.rdr/workspace"; SCOPE="repo-local"
+elif [ -f "$WS/.rdr-workspace" ];   then MARKER="$WS/.rdr-workspace";  SCOPE="workspace (shared)"
+else fail "1 no marker - run /rdr-init in this repo (looked in $PROJ/.rdr and $WS)"; echo "Verdict: 1 FAIL - no marker."; exit 0; fi
+pass "1 marker present - $MARKER  [$SCOPE]"
+. "$MARKER" 2>/tmp/rdrdoc.err && pass "2 marker sources clean" || fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
 m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval "[ -n \"\$$v\" ]" || m="$m $v"; done
 [ -z "$m" ] && pass "3 five-var contract set" || fail "3 unset:$m - re-run /rdr-init to write the marker"
 [ -d "$RDR_HOME/stages" ] && [ -d "$RDR_HOME/skills" ] && [ -d "$RDR_HOME/prompts" ] && [ -f "$RDR_HOME/TEMPLATE.md" ] && pass "4 engine resolves - $RDR_HOME" || fail "4 RDR_HOME is not an engine root ($RDR_HOME) - re-run /rdr-init"

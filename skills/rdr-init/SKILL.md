@@ -1,14 +1,14 @@
 ---
 name: rdr-init
-argument-hint: "[--interactive | --defaults | --reconfigure]   # run from the consumer project root"
-description: Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the RDR flow here"). Stage 0 — writes the rdr-env.md / rdr-resources.md seam files, the worktree-invariant workspace marker, and the RDR home's index README (creating RDR_RECORDS if absent). Bare run is smart: infers seam/records/evidence locations, asks only when it genuinely can't, and discloses the choices + how to change them; `--interactive` forces the location questions, `--defaults` forces silent defaults, `--reconfigure` changes an existing seam's locations. Non-invasive to the consumer's source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it adds is the index README inside RDR_RECORDS. Pairs with /rdr-seed (next).
+argument-hint: "[--interactive | --defaults | --workspace | --reconfigure]   # run from the consumer project root"
+description: Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the RDR flow here"). Stage 0 — writes the seam data files (default .rdr/env.md / .rdr/resources.md), the seam marker, and the RDR home's index README (creating RDR_RECORDS if absent). Defaults to a repo-local seam (this repo's own RDR env); `--workspace` writes/joins a shared seam several sibling repos inherit. Bare run is smart: infers locations, asks only when it genuinely can't, discloses the choices; `--interactive` forces the questions, `--defaults` is silent, `--reconfigure` changes an existing seam. Non-invasive to the consumer's source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it adds is the index README inside RDR_RECORDS. Pairs with /rdr-seed (next).
 ---
 
 # rdr-init — Stage 0 (Bootstrap)
 
 One-time seam setup the other `/rdr-*` skills depend on, leaving the consumer's
-**source tree** ignorant of RDR. Writes the path map (`rdr-env.md`), evidence
-index (`rdr-resources.md`), the workspace marker (lets every skill resolve the
+**source tree** ignorant of RDR. Writes the path map + evidence index (default
+`.rdr/env.md` / `.rdr/resources.md`), the seam marker (lets every skill resolve the
 engine + paths from any cwd/worktree), and the RDR home's index `README.md`.
 
 **Scope.** Creates the untracked seam + marker, the RDR home, and its index
@@ -20,24 +20,32 @@ symlink farm (consumer-owned) and never copies the engine's `TEMPLATE.md`/prompt
 ## Usage
 
 ```
-/rdr-init                 # smart: infer locations, ask only if ambiguous, disclose choices
-/rdr-init --interactive   # force the location questions (records/evidence, tracked vs gitignored)
-/rdr-init --defaults      # force pure silent defaults — no questions (scripted / "set it up, I'll tune later")
+/rdr-init                 # repo-local (default); smart — infer locations, ask only if ambiguous, disclose
+/rdr-init --interactive   # force the questions (records/evidence, tracked vs gitignored)
+/rdr-init --defaults      # silent: repo-local defaults, no questions (scripted)
+/rdr-init --workspace     # write/join the SHARED $WS seam several sibling repos inherit
 /rdr-init --reconfigure   # seam already exists: change its location choices (interactive; migrates if RDRs exist)
 ```
+
+**Scope is repo-local by default** — `$PROJECT/.rdr/workspace`, this repo's own RDR env.
+That's the common single-repo case. `--workspace` instead writes/joins a shared
+`$WS/.rdr-workspace` that every sibling repo under `$WS` inherits (the multi-repo
+arrangement, e.g. `newcoinc/`'s retrofit/process/flow). Repo-local **overrides** a
+shared marker via §seam-bind's nearest-wins, and **never touches** it.
 
 **Modes** — the no-flag run is the common path; flags override its prompting:
 
 | Mode | When it asks | Use for |
 | --- | --- | --- |
-| *(bare)* **smart** | only when a location can't be inferred (e.g. no existing RDR dir to anchor `RDR_RECORDS`) | the default — fast, but never guesses silently on a genuine fork |
-| `--interactive` | always — poses the records location, evidence placement, tracked-vs-gitignored choices | a user who wants to set placement deliberately on first run |
-| `--defaults` | never — takes every default, no ambiguity prompt | CI / scripted setup; accepts a possible later migration |
+| *(bare)* **smart** | only on a genuine fork — a location it can't infer, **or** a shared workspace marker already covers this repo (offer to inherit vs keep repo-local) | the default — repo-local, fast, never guesses silently |
+| `--interactive` | always — records/evidence/tracked placement | deliberate first-run setup |
+| `--defaults` | never | CI / scripted setup |
+| `--workspace` | only an un-inferable location | sibling repos that deliberately **share** one seam |
 | `--reconfigure` | always, against the **existing** marker | changing placement after the fact (see *Reconfigure* below) |
 
-**Defaults** (what smart/`--defaults` pick): seam at gitignored `.rdr/`; `RDR_RECORDS` under the
-project; `RDR_EVIDENCE=$RDR_RECORDS` (evidence beside records). Every mode **discloses** the
-chosen locations + the one-line override in its closing report, so the choice is never silent.
+**Location defaults**: seam at gitignored `.rdr/`; `RDR_RECORDS` under the project;
+`RDR_EVIDENCE=$RDR_RECORDS`. Every mode **discloses** the resolved scope + locations +
+overrides in its closing report.
 
 **Run from inside the project that will use the flow** — never globally. `/rdr-init`
 writes a *per-project* seam (the marker + `.rdr/` files), so it requires a consumer
@@ -68,26 +76,34 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    # Guard 3 — refuse if cwd is the installed plugin dir (engine shipped via marketplace).
    case "$PROJECT" in *"/.claude/plugins/"*) echo "stopped:in-plugin-dir — /rdr-init runs in your project, not the installed engine"; exit 1;; esac
 
-   if [ -f "$WS/.rdr-workspace" ]; then
-     . "$WS/.rdr-workspace"
-     # Marker present. Verify the five-var contract is complete; if any var is
-     # missing, ADD it and re-export rather than rewriting the whole marker.
-     for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do
-       eval "[ -n \"\$$v\" ]" || echo "marker missing: $v"
-     done
-   fi
+   # Detect BOTH scopes — repo-local (inside .rdr/, this repo's own env) and workspace.
+   [ -f "$PROJECT/.rdr/workspace" ] && LOCAL_MARKER=1 || LOCAL_MARKER=
+   [ -f "$WS/.rdr-workspace" ]      && WS_MARKER=1    || WS_MARKER=
    ```
 
-   **Branch on marker state × mode:**
-   - **Marker complete (all five vars), no `--reconfigure`** → the seam is already set
-     up; **stop** and report it (don't overwrite). This is true for bare,
-     `--interactive`, and `--defaults` alike — none re-decides an existing seam.
-   - **Marker missing, or a contract var missing** → proceed to write/amend (the normal
-     first-run path). Prompting follows the mode: `--interactive` asks the location
-     questions; `--defaults` takes defaults silently; bare asks **only** for a location
-     it can't infer.
-   - **`--reconfigure`** → see *Reconfigure* below; it deliberately re-decides an
-     existing marker's locations.
+   **Branch on marker state × mode** (scope defaults to **repo-local**):
+   - **A repo-local marker already exists** (`$PROJECT/.rdr/workspace`), no
+     `--reconfigure` → this repo's own seam is set up; **stop** and report it.
+   - **`--workspace`** → write/join the shared `$WS/.rdr-workspace` (create it, or if it
+     exists and is complete, stop and report this repo inherits it). For sharing siblings.
+   - **No repo-local marker, but a shared workspace marker exists** (the `intrastate`
+     case) → the **scope fork**. Default is still repo-local, but a shared seam already
+     covers this repo, so surface it:
+     - **`--defaults`** → take the repo-local default silently (own seam).
+     - **bare / `--interactive`** → **ask once**: *"A shared workspace seam at
+       `$WS/.rdr-workspace` already covers this repo. Give `<repo>` its own repo-local
+       RDR env (default), or inherit the shared one?"* Own = write the repo-local marker;
+       inherit = write nothing, stop, report it binds to the shared seam.
+   - **Neither marker exists** → normal first-run: write a **repo-local** marker
+     (`--workspace` overrides to shared). Prompting for *locations* follows the mode (step 2).
+   - **`--reconfigure`** → see *Reconfigure* below.
+
+   **Where the new marker goes, by scope:** repo-local (default) →
+   `$PROJECT/.rdr/workspace` — **inside the already gitignored `.rdr/`**, so no
+   project-level `.gitignore` edit, anchored at `$PROJECT` so worktrees resolve it.
+   Workspace (`--workspace`) → `$WS/.rdr-workspace`, shared above the repos. A repo-local
+   marker **overrides** a shared one via §seam-bind's nearest-wins — it never reads or
+   rewrites the shared marker.
 
    **Resolve `RDR_HOME`** (the engine root: `stages/`, `prompts/`, `skills/`,
    `TEMPLATE.md`) — first that binds, else `stopped:` and ask:
@@ -109,14 +125,14 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    Once decided, **run** [`00-bootstrap.md`](00-bootstrap.md) — its *Paste this* block
    is the authoring contract. In order, it:
    - keeps `.rdr/` out of git (touching no project-level file),
-   - writes `.rdr/rdr-env.md` (the PATH MAP) inferred from this project,
-   - writes `.rdr/rdr-resources.md` (the EVIDENCE INDEX), **probing which named arc
+   - writes `.rdr/env.md` (the PATH MAP) inferred from this project,
+   - writes `.rdr/resources.md` (the EVIDENCE INDEX), **probing which named arc
      corpora actually resolve** — missing ones get a degraded-mode TODO (research
      stages run hollow until built; Propose/Refine still work on doc priors),
-   - installs the WORKSPACE MARKER at `$WS/.rdr-workspace` from
-     [`workspace.example`](workspace.example), filling the five contract vars
-     (`RDR_HOME` resolved per step 1; `RDR_EVIDENCE` defaults to `$RDR_RECORDS`
-     unless the consumer stages evidence elsewhere),
+   - installs the MARKER from [`workspace.example`](workspace.example), filling the
+     five contract vars (`RDR_HOME` per step 1; `RDR_EVIDENCE` defaults to
+     `$RDR_RECORDS`) — at `$PROJECT/.rdr/workspace` (repo-local default, auto-ignored by
+     `.rdr/.gitignore`) or `$WS/.rdr-workspace` (`--workspace`, shared),
    - scaffolds the RDR home: `mkdir -p "$RDR_RECORDS"` and, if no index yet, copies
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
@@ -134,7 +150,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    skill's §seam-bind will check:
 
    ```sh
-   . "$WS/.rdr-workspace"
+   . "${RDR_MARKER:-$WS/.rdr-workspace}"   # the marker just written (repo-local or workspace)
    [ -n "$RDR_HOME" ]      && [ -d "$RDR_HOME/stages" ]     || echo "stopped:RDR_HOME-unset-or-missing"
    [ -n "$RDR_RECORDS" ]   && [ -d "$RDR_RECORDS" ]         || echo "stopped:RDR_RECORDS-unset-or-missing"
    [ -n "$RDR_EVIDENCE" ]                                   || echo "stopped:RDR_EVIDENCE-unset"
@@ -146,10 +162,11 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    (`/rdr-doctor` runs this same contract check, plus symlink/layout checks, anytime
    after — point the user there if a later skill reports a `stopped:` seam error.)
 
-4. **Disclose the choices** (every mode, even `--defaults`). End by stating the three
-   resolved locations and the one-line override, so the decision is never silent:
+4. **Disclose the choices** (every mode, even `--defaults`). End by stating the scope,
+   the three resolved locations, and the one-line override, so the decision is never silent:
 
    ```text
+   Scope:    repo-local | workspace (shared) — marker at <RDR_MARKER>
    Seam:     .rdr/  (gitignored)            — to track: point RDR_ENV/RDR_RESOURCES at a tracked dir
    Records:  <RDR_RECORDS>                  — change: /rdr-init --reconfigure
    Evidence: <RDR_EVIDENCE> (= records)     — change: /rdr-init --reconfigure
@@ -180,7 +197,10 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
   `$RDR_RECORDS`) and, if accepted, the opt-in `.claude/` seam hook + settings entry.
 - **Inferred values real?** Source paths exist; named docs/corpora present (missing
   corpora carry the degraded-mode TODO, not a silent dead reference).
-- **Marker binds?** A fresh `. .rdr-workspace` exports the five contract vars;
+- **Scope honored?** Repo-local (default) wrote `$PROJECT/.rdr/workspace` and **left any
+  shared `$WS/.rdr-workspace` untouched**; `--workspace` wrote/kept `$WS`'s. The report
+  names which.
+- **Marker binds?** Sourcing the resolved marker exports the five contract vars;
   `RDR_HOME` resolved plugin-first, else sibling; `RDR_EVIDENCE` set (defaults to
   `$RDR_RECORDS`).
 - **RDR home scaffolded?** `$RDR_RECORDS` holds an index `README.md`; no other engine

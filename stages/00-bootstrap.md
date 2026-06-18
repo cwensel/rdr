@@ -2,10 +2,12 @@
 
 **Goal**: set a project up to run the RDR flow **without the project knowing
 about RDR** — no versioned footprint, no `CLAUDE.md` edits, nothing in the
-project's own `.gitignore`. The flow expects two files: `rdr-resources.md` (the
-evidence index) and `rdr-env.md` (the path map), defaulting to an `.rdr/` folder
-at the project root. This stage creates them, filled from the project itself,
-and ensures `.rdr/` stays out of git. Run once; re-run only to refresh values.
+project's own `.gitignore`. The flow expects two data files — the evidence index
+and the path map — defaulting to `.rdr/resources.md` and `.rdr/env.md` (no `rdr-`
+prefix: the `.rdr/` dir already scopes them; a *pinned* seam in a shared dir uses
+`rdr-resources.md` / `rdr-env.md` so the names stay self-describing). This stage
+creates them, filled from the project itself, and ensures `.rdr/` stays out of git.
+Run once; re-run only to refresh values.
 
 > **Already have a pinned seam?** A project may keep its seam (and evidence) in
 > a tracked external directory instead of gitignored `.rdr/` — e.g. a consumer
@@ -32,7 +34,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    `.rdr/.gitignore` containing a single line `*` — this ignores .rdr's own
    contents from inside, touching no project-level file.
 
-2. Write `.rdr/rdr-env.md` — the PATH MAP — inferring values from this project:
+2. Write `.rdr/env.md` — the PATH MAP — inferring values from this project:
    - Output staging keys {SPIKE_DIR}, {EVIDENCE_DIR}, {ARTIFACT_DIR}. Both evidence
      and artifacts are **per-RDR-first and same-shaped** — each RDR owns one folder,
      evidence keyed by lens inside it:
@@ -52,7 +54,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      highest-traffic / most-central modules to check first for a "does the code
      already do this?" reuse audit (Stage 4 reads these).
 
-3. Write `.rdr/rdr-resources.md` — the EVIDENCE INDEX — inferring from this
+3. Write `.rdr/resources.md` — the EVIDENCE INDEX — inferring from this
    project:
    - Domain priors: the product principles doc, the feature/scope surface, the
      user-mental-model docs, and any prior-art/competitor set this project
@@ -99,7 +101,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      `$WS/rdr/stages`). If neither binds, stop and ask for the engine path.
    - **`RDR_RECORDS`** — this project's RDR-instances directory (where `NNNN-slug.md`
      RDRs + their artifact subdirs live). This is the single source of truth for
-     "where do my RDRs live" — the same directory `{ARTIFACT_DIR}` in `rdr-env.md`
+     "where do my RDRs live" — the same directory `{ARTIFACT_DIR}` in `{RDR_ENV}`
      sits under. A default `.rdr/` project sets it under its own root; a pinned
      project points at its tracked RDR tree (e.g. `<repo>/rdr/cli`).
    - **`RDR_EVIDENCE`** — this project's evidence root (the base `{EVIDENCE_DIR}` /
@@ -154,7 +156,7 @@ SessionStart hook was offered/installed/declined, and any TODO I must resolve.
   may add is the RDR-home index `README.md`, and it lives inside `$RDR_RECORDS` (the
   RDR directory), never in the consumer's source.
 - **Are the inferred values real?** Spot-check that source paths exist and the
-  named docs/corpora are present — an inferred `rdr-env.md` pointing at a
+  named docs/corpora are present — an inferred `{RDR_ENV}` pointing at a
   missing module is worse than a TODO.
 - **Both seam files present and structured** per the README keys; `$RDR_RECORDS`
   exists and holds an index `README.md` (scaffolded from the engine template or
@@ -162,7 +164,7 @@ SessionStart hook was offered/installed/declined, and any TODO I must resolve.
 
 ## Advance when
 
-`.rdr/rdr-resources.md` and `.rdr/rdr-env.md` exist at the project root, are
+`.rdr/resources.md` and `.rdr/env.md` exist at the project root, are
 gitignored, and carry project-appropriate values (or explicit TODOs you accept);
 `$RDR_RECORDS` exists and holds an index `README.md` (scaffolded from the engine
 template, or already present).

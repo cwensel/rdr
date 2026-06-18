@@ -55,8 +55,17 @@ Flags:
 | --- | --- |
 | `/rdr-init` | smart default — infer seam/records/evidence locations, ask only on a genuine fork, disclose the choices |
 | `/rdr-init --interactive` | force the location questions (records, evidence, tracked vs gitignored) |
+| `/rdr-init` | smart default — **repo-local** seam; infer locations, ask only on a genuine fork, disclose |
+| `/rdr-init --interactive` | force the location questions (records, evidence, tracked vs gitignored) |
 | `/rdr-init --defaults` | take all defaults silently (scripted setup) |
+| `/rdr-init --workspace` | write/join a **shared** seam (`$WS/.rdr-workspace`) several sibling repos inherit |
 | `/rdr-init --reconfigure` | change an existing project's locations (migrates existing RDRs or stops for a manual move) |
+
+**Scope.** `/rdr-init` defaults to a **repo-local** seam — `$PROJECT/.rdr/workspace`,
+this repo's own RDR env (the common single-repo case). When several repos under one
+parent should **share** one RDR process, run `--workspace` to write a shared
+`$WS/.rdr-workspace` they all inherit. A repo-local seam takes precedence over a shared
+one (nearest-wins) without touching it, so a repo can opt out of a shared setup anytime.
 
 ### 3. Verify, then start
 

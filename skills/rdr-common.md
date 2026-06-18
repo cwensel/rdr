@@ -31,18 +31,28 @@ the snippets below and skip the resolver block entirely. Harnesses and sessions 
 headless runs) run the resolver as written — same bindings either way.
 
 Run this first. It keys off git topology, so it resolves the same from a consumer
-cwd, a consumer worktree, or the flow repo. Shell state dies between Bash tool calls — run
-§seam-bind and §rdr-resolve **in one call** (or re-run this block first in any later
-call), else `$RDR_RECORDS`/`$RDR_ENV` are empty when the glob runs (the classic
-empty-`RDR_PATH` miss). Source the marker **only** via this block: a direct
-`. .rdr-workspace` exits 1 (it needs `$WS` preset above).
+cwd, a consumer worktree, or the flow repo. **Nearest marker wins**: a repo-local
+`$PROJECT/.rdr/workspace` (this repo's own RDR env, inside its gitignored `.rdr/` — the
+default) takes precedence over the shared `$WS/.rdr-workspace` (a workspace seam siblings
+opt into via `--workspace`) — like `.git` or `.editorconfig`, the closest one governs. `$PROJECT`
+is `dirname` of the git-common-dir, so a worktree still resolves its main repo's local marker. Shell
+state dies between Bash tool calls — run §seam-bind and §rdr-resolve **in one call**
+(or re-run this block first in any later call), else `$RDR_RECORDS`/`$RDR_ENV` are
+empty when the glob runs (the classic empty-`RDR_PATH` miss). Source the marker
+**only** via this block; `$RDR_MARKER` records which one resolved.
 
 ```sh
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
 GIT_COMMON=$(cd "$GC" && pwd -P)
-WS=$(dirname "$(dirname "$GIT_COMMON")")          # workspace root (holds the sibling repos)
-[ -f "$WS/.rdr-workspace" ] || { echo "stopped:no-workspace-marker:$WS" >&2; exit 1; }
-. "$WS/.rdr-workspace"                             # ONLY sourcing path: $WS must be preset (above) or it exits 1
+PROJECT=$(dirname "$GIT_COMMON")                  # this repo's root (worktree-invariant: git-common-dir is the main .git)
+WS=$(dirname "$PROJECT")                           # workspace root (holds the sibling repos); export so a marker :? guard passes
+export WS
+# Nearest marker wins: a repo-local marker overrides / replaces the shared workspace one.
+# Repo-local lives INSIDE .rdr/ (already gitignored — no project-level .gitignore edit).
+if   [ -f "$PROJECT/.rdr/workspace" ]; then RDR_MARKER="$PROJECT/.rdr/workspace"  # repo-local scope (default)
+elif [ -f "$WS/.rdr-workspace" ];      then RDR_MARKER="$WS/.rdr-workspace"       # workspace scope (shared, --workspace)
+else echo "stopped:no-marker — run /rdr-init in this repo (looked in $PROJECT/.rdr and $WS)" >&2; exit 1; fi
+. "$RDR_MARKER"                                     # ONLY sourcing path
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || { echo "stopped:no-rdr-env:$RDR_ENV" >&2; exit 1; }
 [ -n "$RDR_HOME" ] || { echo "stopped:no-rdr-home — run /rdr-init to write the marker" >&2; exit 1; }
 # $RDR_RECORDS is required for every stage except /rdr-seed-into-a-fresh-dir; resolve/claim assert it themselves.

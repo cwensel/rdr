@@ -46,11 +46,12 @@ RDR_RECORDS="$MYPROJECT_ROOT/rdr/cli"
 RDR_EVIDENCE="$RDR_RECORDS"
 
 # RDR_ENV / RDR_RESOURCES — the path-map and evidence-index data files.
-#   Default (gitignored .rdr/ seam at the project root):
-#     RDR_ENV="$MYPROJECT_ROOT/.rdr/rdr-env.md"
-#     RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/rdr-resources.md"
-#   Pinned seam (tracked sibling repo): point there instead.
-RDR_ENV="$MYPROJECT_ROOT/.rdr/rdr-env.md"
-RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/rdr-resources.md"
+#   Default (gitignored .rdr/ seam at the project root; no rdr- prefix — .rdr/ scopes them):
+#     RDR_ENV="$MYPROJECT_ROOT/.rdr/env.md"
+#     RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/resources.md"
+#   Pinned seam (tracked sibling repo): point there, where rdr-env.md / rdr-resources.md
+#   keep the prefix to stay self-describing.
+RDR_ENV="$MYPROJECT_ROOT/.rdr/env.md"
+RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/resources.md"
 
 export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES
