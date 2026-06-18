@@ -1,0 +1,38 @@
+{
+  "name": "rdr",
+  "version": "0.1.0",
+  "description": "Recommendation Decisioning Records — a repeatable, skill-driven flow from idea to spec-verified implementation.",
+  "author": {
+    "name": "Chris K Wensel",
+    "email": "chris@wensel.net",
+    "url": "https://github.com/cwensel"
+  },
+  "homepage": "https://github.com/cwensel/rdr",
+  "repository": "https://github.com/cwensel/rdr",
+  "license": "MIT",
+  "keywords": [
+    "rdr",
+    "adr",
+    "design-records",
+    "spec-driven",
+    "workflow",
+    "implementation"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "RDR",
+    "shortDescription": "Skill-driven recommendation decisioning records.",
+    "longDescription": "Recommendation Decisioning Records provide a repeatable workflow from idea to researched recommendation to spec-verified implementation using the /rdr-* skill suite.",
+    "developerName": "Chris K Wensel",
+    "category": "Productivity",
+    "capabilities": [
+      "Write"
+    ],
+    "defaultPrompt": [
+      "Set up RDR for this project.",
+      "Start an RDR for this idea.",
+      "Show the current RDR status."
+    ],
+    "brandColor": "#3B82F6"
+  }
+}

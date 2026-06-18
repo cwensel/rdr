@@ -22,8 +22,11 @@ two ways §seam-bind does (the doctor can't use the seam to find itself), then r
 ```sh
 GC=$(git rev-parse --git-common-dir 2>/dev/null) && GC=$(cd "$GC" && pwd -P)
 WS=$(dirname "$(dirname "$GC")")
-for H in "$CLAUDE_PLUGIN_ROOT" "$WS/rdr"; do [ -f "$H/skills/rdr-doctor/doctor.sh" ] && { sh "$H/skills/rdr-doctor/doctor.sh"; break; }; done
+for H in "$CLAUDE_PLUGIN_ROOT" "$CODEX_PLUGIN_ROOT" "$WS/rdr"; do [ -f "$H/skills/rdr-doctor/doctor.sh" ] && { sh "$H/skills/rdr-doctor/doctor.sh"; break; }; done
 ```
+
+Under Codex, if `$CODEX_PLUGIN_ROOT` is unset, use this skill's filesystem-backed
+source locator instead: run the `doctor.sh` that sits beside this `SKILL.md`.
 
 That is the whole invocation — one `sh <file>`, no embedded quoting to mistranscribe.
 It prints the full report (pure ASCII, one line per check + a Verdict). POSIX `sh`, so

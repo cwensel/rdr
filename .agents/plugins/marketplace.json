@@ -1,0 +1,20 @@
+{
+  "name": "rdr",
+  "interface": {
+    "displayName": "RDR"
+  },
+  "plugins": [
+    {
+      "name": "rdr",
+      "source": {
+        "source": "local",
+        "path": "./plugins/rdr"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

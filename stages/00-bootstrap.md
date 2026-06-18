@@ -98,13 +98,21 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    **Copy the tracked template** `workspace.example` (symlinked beside this skill) to
    the chosen path and fill its blocks (set `WS`/`PROJECT` at the top to match the
    anchor). A repo-local marker **never reads or writes** the shared one.
+   If the selected marker already exists and this is not `--reconfigure`, do not
+   rewrite it; verify + report the five-var contract, then continue to the optional
+   hook offer.
    Fill the **five-var engine contract** (all required — the skills read only these):
    - **`RDR_HOME`** — the RDR engine (holds `stages/`, `prompts/`, `skills/`,
      `TEMPLATE.md`). Resolve by install shape, first that binds:
-     **(a) plugin** — if `$CLAUDE_PLUGIN_ROOT` is set and `$CLAUDE_PLUGIN_ROOT/stages`
-     exists, the engine ships inside the plugin: use that resolved absolute path
-     (the cache dir is version-stamped — re-run `/rdr-init` after a plugin upgrade);
-     **(b) cloned beside your repos** — else the `rdr` repo sits next to this one:
+     **(a) Claude plugin** — if `$CLAUDE_PLUGIN_ROOT` is set and
+     `$CLAUDE_PLUGIN_ROOT/stages` exists, use that resolved absolute path (the cache
+     dir is version-stamped — re-run `/rdr-init` after a plugin upgrade);
+     **(b) Codex plugin** — if `$CODEX_PLUGIN_ROOT` is set and
+     `$CODEX_PLUGIN_ROOT/stages` exists, use that; otherwise, when the active skill
+     source locator is filesystem-backed, walk up from this `SKILL.md` to the plugin
+     root and accept it only if `stages/`, `prompts/`, `skills/`, and `TEMPLATE.md`
+     exist there;
+     **(c) cloned beside your repos** — else the `rdr` repo sits next to this one:
      `$WS/rdr` (assert `$WS/rdr/stages`). If neither binds, stop and ask for the engine path.
    - **`RDR_RECORDS`** — this project's RDR-instances directory (where `NNNN-slug.md`
      RDRs + their artifact subdirs live). This is the single source of truth for
@@ -138,13 +146,34 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
 
 6. OFFER (do not auto-install) the SessionStart seam hook. The `/rdr-*` skills
    work without it — they run §seam-bind each call — but a consumer can pre-resolve
-   the seam once per session so they take the fast path. This adds a `.claude/`
-   footprint (a hook script + a `settings.json` entry), so it is opt-in: DESCRIBE
-   it and let me say yes, don't write it silently. If I accept, copy the engine
-   template `$RDR_HOME/rdr-seam-context.sh.template` to the consumer's
-   `.claude/hooks/rdr-seam-context.sh` (`chmod +x`), and add a `SessionStart` entry
-   to `.claude/settings.json` that runs it (use the update-config skill for the
-   settings edit). If I decline, note it as an available later step and move on.
+   the seam once per session. Opt-in only; do not write it silently.
+   - Claude Code: copy `$RDR_HOME/rdr-seam-context.sh.template` to
+     `.claude/hooks/rdr-seam-context.sh` (`chmod +x`) and add `SessionStart` to
+     `.claude/settings.json`.
+   - Codex: copy the same template to `.codex/hooks/rdr-seam-context.sh`
+     (`chmod +x`) and merge this into `.codex/hooks.json`:
+
+   ```json
+   {
+     "hooks": {
+       "SessionStart": [
+         {
+           "matcher": "startup|resume|clear|compact",
+           "hooks": [
+             {
+               "type": "command",
+               "command": "\"$(git rev-parse --show-toplevel)/.codex/hooks/rdr-seam-context.sh\"",
+               "statusMessage": "Loading RDR seam"
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+   For Codex, report that `/hooks` trust review is required before the hook runs.
+   If I decline, note it as an available later step and move on.
 
 Report: which ignore path was taken (already-ignored vs wrote .rdr/.gitignore),
 the two files written, whether a workspace marker was created or already present

@@ -4,11 +4,9 @@
 # resolver round-trip). OPTIONAL ergonomics: the skills work without it (they run
 # §seam-bind themselves); installing it just removes a per-call resolver.
 #
-# Install (offered by /rdr-init, never auto-installed): copy this to the
-# consumer's `.claude/hooks/rdr-seam-context.sh` (chmod +x) and add a SessionStart
-# entry to `.claude/settings.json` that runs it. Fail-quiet by design: if the
-# workspace marker isn't reachable it emits nothing and the skills fall back.
-# Claude Code-only by construction; other harnesses never see it.
+# Install (offered by /rdr-init, never auto-installed): copy to the active
+# harness hook dir (`.claude/hooks/` or `.codex/hooks/`), chmod +x, then add a
+# SessionStart hook entry. Fail-quiet: if the marker is missing, emit nothing.
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
 GC=$(cd "$GC" 2>/dev/null && pwd -P) || exit 0
 PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export WS

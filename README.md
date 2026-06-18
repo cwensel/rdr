@@ -10,14 +10,13 @@ implementation.
 
 ## Install
 
-This repo is a Claude Code plugin (and a self-hosted marketplace). Installation has
-**two parts**: get the engine (the `/rdr-*` skills + `stages/`, `prompts/`,
-`TEMPLATE.md`), then bind each project that will use it. The engine is shared; the
-binding is per-project.
+This repo is a Claude Code and Codex plugin. Installation has **two parts**: get
+the engine (the `/rdr-*` skills + `stages/`, `prompts/`, `TEMPLATE.md`), then bind
+each project that will use it. The engine is shared; the binding is per-project.
 
 ### 1. Get the engine
 
-- **Marketplace plugin** (recommended):
+- **Claude marketplace plugin**:
 
   ```
   /plugin marketplace add cwensel/rdr
@@ -30,11 +29,41 @@ binding is per-project.
   `$CLAUDE_PLUGIN_ROOT`, which `/rdr-init` records in the marker — so re-run
   `/rdr-init` after a plugin upgrade to refresh that (version-stamped) path.
 
+- **Codex marketplace plugin**:
+
+  ```
+  codex plugin marketplace add /path/to/rdr
+  codex plugin add rdr@rdr
+  ```
+
+  The Codex marketplace metadata lives in `.agents/plugins/marketplace.json`; the
+  plugin manifest lives in `.codex-plugin/plugin.json`. Codex installs plugins into
+  a versioned cache; restart Codex after install/upgrade. During local development,
+  reinstall after edits:
+
+  ```
+  codex plugin remove rdr@rdr
+  codex plugin add rdr@rdr
+  ```
+
+- **Codex live local skills** (recommended while editing this repo) — clone this repo
+  locally, then symlink the skill folders into each consumer project's
+  `.agents/skills/`. Codex follows symlinked skill folders here, so edits in the RDR
+  checkout are picked up after restarting Codex:
+
+  ```
+  cd /path/to/consumer-project
+  RDR_HOME=/path/to/rdr
+  mkdir -p .agents/skills
+  for d in "$RDR_HOME"/skills/rdr-*; do
+    ln -sfn "$d" ".agents/skills/$(basename "$d")"
+  done
+  ```
+
 - **Cloned beside your repos** (no plugin) — `git clone` this repo so it sits next to
-  the projects that use it (e.g. `~/code/rdr` alongside `~/code/myproject`), and
-  symlink the skills into each project's `.claude/skills/`; `/rdr-init` finds the
-  engine at `$WS/rdr`. Use this for non-Claude-Code harnesses (e.g. `.codex/skills/`),
-  which don't see `$CLAUDE_PLUGIN_ROOT`.
+  the projects that use it (e.g. `~/code/rdr` alongside `~/code/myproject`).
+  `/rdr-init` finds the engine at `$WS/rdr`; pair this with Claude symlinks
+  (`.claude/skills/`) or Codex live local skills (`.agents/skills/`) as needed.
 
 ### 2. Bind a project — `/rdr-init`
 

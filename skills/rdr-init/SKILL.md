@@ -1,7 +1,18 @@
 ---
 name: rdr-init
 argument-hint: "[--interactive | --defaults | --workspace | --reconfigure]   # run from the consumer project root"
-description: Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the RDR flow here"). Stage 0 — writes the seam data files (default .rdr/env.md / .rdr/resources.md), the seam marker, and the RDR home's index README (creating RDR_RECORDS if absent). Defaults to a repo-local seam (this repo's own RDR env); `--workspace` writes/joins a shared seam several sibling repos inherit. Bare run is smart: infers locations, asks only when it genuinely can't, discloses the choices; `--interactive` forces the questions, `--defaults` is silent, `--reconfigure` changes an existing seam. Non-invasive to the consumer's source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it adds is the index README inside RDR_RECORDS. Pairs with /rdr-seed (next).
+description: >
+  Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve
+  their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the
+  RDR flow here"). Stage 0 — writes the seam data files (default .rdr/env.md /
+  .rdr/resources.md), the seam marker, and the RDR home's index README (creating
+  RDR_RECORDS if absent). Defaults to a repo-local seam (this repo's own RDR env);
+  `--workspace` writes/joins a shared seam several sibling repos inherit. Bare
+  run is smart: infers locations, asks only when it genuinely can't, discloses
+  the choices; `--interactive` forces the questions, `--defaults` is silent,
+  `--reconfigure` changes an existing seam. Non-invasive to the consumer's
+  source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it
+  adds is the index README inside RDR_RECORDS. Pairs with /rdr-seed (next).
 ---
 
 # rdr-init — Stage 0 (Bootstrap)
@@ -75,7 +86,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      echo "stopped:in-engine-repo — /rdr-init binds a CONSUMER project, not the RDR engine; cd into your project"; exit 1
    fi
    # Guard 3 — refuse if cwd is the installed plugin dir (engine shipped via marketplace).
-   case "$PROJECT" in *"/.claude/plugins/"*) echo "stopped:in-plugin-dir — /rdr-init runs in your project, not the installed engine"; exit 1;; esac
+   case "$PROJECT" in *"/.claude/plugins/"*|*"/.codex/plugins/"*|*"/.agents/plugins/"*) echo "stopped:in-plugin-dir — /rdr-init runs in your project, not the installed engine"; exit 1;; esac
 
    # Detect BOTH scopes — repo-local (inside .rdr/, this repo's own env) and workspace.
    [ -f "$PROJECT/.rdr/workspace" ] && LOCAL_MARKER=1 || LOCAL_MARKER=
@@ -84,7 +95,9 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
 
    **Branch on marker state × mode** (scope defaults to **repo-local**):
    - **A repo-local marker already exists** (`$PROJECT/.rdr/workspace`), no
-     `--reconfigure` → this repo's own seam is set up; **stop** and report it.
+     `--reconfigure` → do not rewrite seam/env/resources. Verify + report the
+     existing five-var contract, then still offer the SessionStart seam hook if
+     the active harness hook config is absent.
    - **`--workspace`** → write/join the shared `$WS/.rdr-workspace` (create it, or if it
      exists and is complete, stop and report this repo inherits it). For sharing siblings.
    - **No repo-local marker, but a shared workspace marker exists** (the `intrastate`
@@ -108,8 +121,13 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
 
    **Resolve `RDR_HOME`** (the engine root: `stages/`, `prompts/`, `skills/`,
    `TEMPLATE.md`) — first that binds, else `stopped:` and ask:
-   - **plugin install** — `[ -d "$CLAUDE_PLUGIN_ROOT/stages" ]` → `$CLAUDE_PLUGIN_ROOT`
-     (write the resolved absolute path; the cache dir is version-stamped, so re-run
+   - **Claude plugin install** — `[ -d "$CLAUDE_PLUGIN_ROOT/stages" ]` →
+     `$CLAUDE_PLUGIN_ROOT` (write the resolved absolute path; the cache dir is
+     version-stamped, so re-run `/rdr-init` after a plugin upgrade);
+   - **Codex plugin install** — use `$CODEX_PLUGIN_ROOT` if the harness provides it;
+     otherwise use the filesystem-backed source locator for this `SKILL.md`, walk up
+     to the plugin root, and accept it only if it contains `stages/`, `prompts/`,
+     `skills/`, and `TEMPLATE.md` (write that resolved absolute path; re-run
      `/rdr-init` after a plugin upgrade);
    - **cloned beside your repos** — else `[ -d "$WS/rdr/stages" ]` → `$WS/rdr` (the
      `rdr` repo sits next to this one).
@@ -139,9 +157,11 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
    - **offers** (never auto-installs) the SessionStart seam hook
-     [`rdr-seam-context.sh.template`](rdr-seam-context.sh.template) — on yes: copy
-     to `.claude/hooks/rdr-seam-context.sh` (`chmod +x`) + add a `SessionStart`
-     entry to `.claude/settings.json`; opt-in (adds a `.claude/` footprint).
+     [`rdr-seam-context.sh.template`](rdr-seam-context.sh.template) — on yes:
+     Claude Code uses `.claude/hooks/rdr-seam-context.sh` + `.claude/settings.json`;
+     Codex uses `.codex/hooks/rdr-seam-context.sh` + `.codex/hooks.json`
+     (`SessionStart`, matcher `startup|resume|clear|compact`) and requires `/hooks`
+     trust review.
 
    Fill concrete values where verifiable from the project; leave a marked TODO only
    where a value needs the user's judgment. **Author in the main context** — do not
@@ -195,9 +215,9 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
 - **Ran inside a consumer project?** Step-1 preflight passed — a git repo cwd, not
   the engine repo, not the installed plugin dir. If any guard tripped, nothing was
   written; that is correct.
-- **No footprint on the consumer's source?** No change to `CLAUDE.md` or the root
-  `.gitignore`; `.rdr/` ignored. Only tracked adds: the RDR-home `README.md` (in
-  `$RDR_RECORDS`) and, if accepted, the opt-in `.claude/` seam hook + settings entry.
+- **No footprint on the consumer's source?** No change to `CLAUDE.md`, `AGENTS.md`,
+  or root `.gitignore`; `.rdr/` ignored. Only tracked adds: the RDR-home
+  `README.md` and, if accepted, the opt-in `.claude/` or `.codex/` hook config.
 - **Inferred values real?** Source paths exist; named docs/corpora present (missing
   corpora carry the degraded-mode TODO, not a silent dead reference).
 - **Scope honored?** Repo-local (default) wrote `$PROJECT/.rdr/workspace` and **left any
@@ -218,5 +238,6 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
 - `Next: /rdr-seed <idea>` — start the first RDR now that the seam resolves.
 - `/rdr-doctor` — verify the full five-var contract + engine layout in one read-only
   pass (use it if any later skill reports a `stopped:` seam error).
-- A bare re-run on an existing seam is a no-op (reports + stops); use `--reconfigure`
-  to change where records/evidence/seam live.
+- A bare re-run on an existing seam is idempotent: it verifies + reports and may
+  offer missing SessionStart hook setup, but does not rewrite seam/env/resources.
+  Use `--reconfigure` to change where records/evidence/seam live.
