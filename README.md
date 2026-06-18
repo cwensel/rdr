@@ -10,28 +10,66 @@ implementation.
 
 ## Install
 
-This repo is a Claude Code plugin (and a self-hosted marketplace). Two ways to
-get the `/rdr-*` skills into a project:
+This repo is a Claude Code plugin (and a self-hosted marketplace). Installation has
+**two parts**: get the engine (the `/rdr-*` skills + `stages/`, `prompts/`,
+`TEMPLATE.md`), then bind each project that will use it. The engine is shared; the
+binding is per-project.
 
-- **Marketplace plugin** — add the marketplace, install, then bind your project:
+### 1. Get the engine
+
+- **Marketplace plugin** (recommended):
 
   ```
   /plugin marketplace add cwensel/rdr
   /plugin install rdr@rdr
-  /rdr:rdr-init        # run once at the project root to bootstrap the seam
   ```
 
-  The engine ships inside the plugin; `/rdr-init` records its path
-  (`$CLAUDE_PLUGIN_ROOT`) in the workspace marker, so re-run it after a plugin
-  upgrade to refresh that path.
+  Works at **either scope** — install to your user config (`~/.claude`, available in
+  every project) or to a single project (`.claude/`). Scope only changes *where the
+  engine lives*; binding is identical either way. The engine is read in place from
+  `$CLAUDE_PLUGIN_ROOT`, which `/rdr-init` records in the marker — so re-run
+  `/rdr-init` after a plugin upgrade to refresh that (version-stamped) path.
 
-- **Sibling checkout** — clone this repo beside the consumer repos and link the
-  skills into each consumer's `.claude/skills/`; `/rdr-init` then resolves the
-  engine as the sibling `$WS/rdr`.
+- **Sibling checkout** (no plugin) — clone this repo beside the consumer repos and
+  symlink the skills into each consumer's `.claude/skills/`; `/rdr-init` resolves the
+  engine as the sibling `$WS/rdr`. Use this for non-Claude-Code harnesses (e.g.
+  `.codex/skills/`), which don't see `$CLAUDE_PLUGIN_ROOT`.
 
-Either way, `/rdr-init` writes the seam files + workspace marker, scaffolds the
-RDR home and its index README, and offers the optional SessionStart seam hook.
-Then `/rdr:rdr-seed <idea>` starts the first record.
+### 2. Bind a project — `/rdr-init`
+
+```
+cd your-project          # a git repo; NOT $HOME, the engine, or the plugin dir
+/rdr:rdr-init            # smart: infers locations, asks only if it can't, discloses them
+```
+
+**Run `/rdr-init` from inside the consumer project, once per project — never
+globally.** It writes a *per-project* seam (the gitignored `.rdr/` data files + a
+worktree-invariant `.rdr-workspace` marker), scaffolds the RDR home + its index
+README, and offers the optional SessionStart seam hook. A preflight **enforces**
+this: it hard-stops if cwd isn't a git repo, is the engine repo, or is the installed
+plugin dir. Installing the plugin alone does **not** set up a project — init does.
+
+Flags:
+
+| | |
+| --- | --- |
+| `/rdr-init` | smart default — infer seam/records/evidence locations, ask only on a genuine fork, disclose the choices |
+| `/rdr-init --interactive` | force the location questions (records, evidence, tracked vs gitignored) |
+| `/rdr-init --defaults` | take all defaults silently (scripted setup) |
+| `/rdr-init --reconfigure` | change an existing project's locations (migrates existing RDRs or stops for a manual move) |
+
+### 3. Verify, then start
+
+```
+/rdr:rdr-doctor          # read-only health check: seam binds, engine resolves, no broken links
+/rdr:rdr-seed <idea>     # start the first record
+```
+
+`/rdr-doctor` is the go-to whenever a skill reports a `stopped:` seam error or after a
+plugin upgrade. The per-project marker exports a **five-var contract** the skills
+read: `RDR_HOME` (engine), `RDR_RECORDS` (the RDR instances), `RDR_EVIDENCE` (lens/
+spike output — defaults beside records, can point at its own dir/repo), and `RDR_ENV`
+/ `RDR_RESOURCES` (the path-map + evidence-index data files).
 
 ## Indexes
 
