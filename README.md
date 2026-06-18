@@ -30,10 +30,11 @@ binding is per-project.
   `$CLAUDE_PLUGIN_ROOT`, which `/rdr-init` records in the marker — so re-run
   `/rdr-init` after a plugin upgrade to refresh that (version-stamped) path.
 
-- **Sibling checkout** (no plugin) — clone this repo beside the consumer repos and
-  symlink the skills into each consumer's `.claude/skills/`; `/rdr-init` resolves the
-  engine as the sibling `$WS/rdr`. Use this for non-Claude-Code harnesses (e.g.
-  `.codex/skills/`), which don't see `$CLAUDE_PLUGIN_ROOT`.
+- **Cloned beside your repos** (no plugin) — `git clone` this repo so it sits next to
+  the projects that use it (e.g. `~/code/rdr` alongside `~/code/myproject`), and
+  symlink the skills into each project's `.claude/skills/`; `/rdr-init` finds the
+  engine at `$WS/rdr`. Use this for non-Claude-Code harnesses (e.g. `.codex/skills/`),
+  which don't see `$CLAUDE_PLUGIN_ROOT`.
 
 ### 2. Bind a project — `/rdr-init`
 

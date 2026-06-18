@@ -104,8 +104,8 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      **(a) plugin** — if `$CLAUDE_PLUGIN_ROOT` is set and `$CLAUDE_PLUGIN_ROOT/stages`
      exists, the engine ships inside the plugin: use that resolved absolute path
      (the cache dir is version-stamped — re-run `/rdr-init` after a plugin upgrade);
-     **(b) sibling repo** — else the engine is a sibling checkout: `$WS/rdr` (assert
-     `$WS/rdr/stages`). If neither binds, stop and ask for the engine path.
+     **(b) cloned beside your repos** — else the `rdr` repo sits next to this one:
+     `$WS/rdr` (assert `$WS/rdr/stages`). If neither binds, stop and ask for the engine path.
    - **`RDR_RECORDS`** — this project's RDR-instances directory (where `NNNN-slug.md`
      RDRs + their artifact subdirs live). This is the single source of truth for
      "where do my RDRs live" — the same directory `{ARTIFACT_DIR}` in `{RDR_ENV}`

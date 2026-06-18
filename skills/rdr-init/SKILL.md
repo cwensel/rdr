@@ -49,9 +49,9 @@ overrides in its closing report.
 
 **Run from inside the project that will use the flow** — never globally. `/rdr-init`
 writes a *per-project* seam (the marker + `.rdr/` files), so it requires a consumer
-git repo as cwd. It is the same skill whether the engine is installed as a
-marketplace plugin (user or project scope) or checked out as a sibling — install
-scope changes only where the *engine* lives, never that init runs **in the project**.
+git repo as cwd. It is the same skill whether the engine is a marketplace plugin
+(user or project scope) or a clone sitting beside your repos — that only changes
+where the *engine* lives, never that init runs **in the project**.
 The Step-1 preflight enforces this: it hard-stops outside a git repo, inside the
 engine repo, or inside the installed plugin dir. Not a worktree; the project root.
 
@@ -108,10 +108,11 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
 
    **Resolve `RDR_HOME`** (the engine root: `stages/`, `prompts/`, `skills/`,
    `TEMPLATE.md`) — first that binds, else `stopped:` and ask:
-   - **plugin** — `[ -d "$CLAUDE_PLUGIN_ROOT/stages" ]` → `$CLAUDE_PLUGIN_ROOT`
+   - **plugin install** — `[ -d "$CLAUDE_PLUGIN_ROOT/stages" ]` → `$CLAUDE_PLUGIN_ROOT`
      (write the resolved absolute path; the cache dir is version-stamped, so re-run
      `/rdr-init` after a plugin upgrade);
-   - **sibling repo** — else `[ -d "$WS/rdr/stages" ]` → `$WS/rdr`.
+   - **cloned beside your repos** — else `[ -d "$WS/rdr/stages" ]` → `$WS/rdr` (the
+     `rdr` repo sits next to this one).
 
 2. **Decide the three locations, per mode**, then run the stage. The choices are:
    *seam* (`RDR_ENV`/`RDR_RESOURCES` — gitignored `.rdr/` vs a tracked dir),
@@ -168,6 +169,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
 
    ```text
    Scope:    repo-local | workspace (shared) — marker at <RDR_MARKER>
+   Engine:   <RDR_HOME>                      — plugin, or the rdr repo cloned beside your repos
    Seam:     .rdr/  (gitignored)            — to track: point RDR_ENV/RDR_RESOURCES at a tracked dir
    Records:  <RDR_RECORDS>                  — change: /rdr-init --reconfigure
    Evidence: <RDR_EVIDENCE> (= records)     — change: /rdr-init --reconfigure

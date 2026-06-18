@@ -28,7 +28,7 @@ MYPROJECT_ROOT="$WS/<your-project>"
 
 # RDR_HOME — the reusable RDR engine (stages/, prompts/, skills/, TEMPLATE.md).
 #   /rdr-init fills this: the installed plugin dir ($CLAUDE_PLUGIN_ROOT) for a
-#   plugin install, else a sibling engine checkout ($WS/rdr).
+#   plugin install, else the rdr repo cloned beside your repos ($WS/rdr).
 RDR_HOME="$WS/rdr"
 
 # RDR_RECORDS — THIS consumer's RDR-instances directory: where the NNNN-slug.md RDRs
