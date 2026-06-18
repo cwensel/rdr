@@ -1,7 +1,7 @@
 ---
 name: rdr-implement
-argument-hint: <NNNN>
-description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "/rdr-implement 0045"). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with /rdr-finalize (must precede it).
+argument-hint: <NNNN> | --launch-prompt-path
+description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "/rdr-implement 0045"). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with /rdr-finalize (must precede it). Also exposes `--launch-prompt-path` so wrappers get the orchestrator prompt's location from the engine instead of reconstructing its internal layout.
 ---
 
 # rdr-implement — Stage 8 (Implement)
@@ -17,7 +17,28 @@ do. Do not loosen those orchestrator rules.
 
 ```
 /rdr-implement <NNNN>
+/rdr-implement --launch-prompt-path    # print the orchestrator prompt path, then stop
 ```
+
+## `--launch-prompt-path` — the prompt-location contract (query mode)
+
+A consumer that orchestrates Stage 8 itself (e.g. `/rdr-implement-triage`) needs
+`launch.md`'s location but must **not** hardcode the engine's internal layout.
+This flag is that contract: the engine owns where its prompt lives and reports it.
+
+Short-circuit — run **only** `rdr-common §seam-bind`, then print and stop. Take
+**no** RDR argument; run **none** of the entry-contract gates below (no Final /
+predecessor / resume checks — nothing is implemented):
+
+```sh
+# §seam-bind has bound $RDR_FLOW_HOME (fast path or resolver — see rdr-common)
+echo "$RDR_FLOW_HOME/prompts/implementation/launch.md"
+```
+
+That canonical path is stable even though this skill references `launch.md` as a
+sibling symlink. The prompt body still carries `{RDR_PATH}` / `{RDR_RESOURCES}`
+placeholders — the caller fills them per run. If `$RDR_FLOW_HOME` is unbound
+(stale marker) → `stopped:no-rdr-flow-home` (`/rdr-init` to refresh).
 
 ## Entry contract (what Stage 7 must have left true)
 
