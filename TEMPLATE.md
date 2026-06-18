@@ -8,6 +8,7 @@
 - **Date**: YYYY-MM-DD
 - **Status**: Draft | Final | Implemented | Reverted |
   Abandoned | Superseded | Demoted
+  <!--
   - `Demoted` is the terminal status for an RDR judged
     *not RDR-shaped* — the decision was never a real
     design fork, so it leaves the RDR lifecycle and is
@@ -32,14 +33,15 @@
     conflate the two. (`Reverted` above is the unrelated
     terminal "implementation rolled back" status — also do
     not conflate.)
+  -->
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture
 - **Profile**: small | mid | large | foundational — value
   only, plus one clause naming the contract(s) behind it.
-  Do not paste the matrix below into the field; it is the
+  <!-- Do not paste the matrix below into the field; it is the
   Stage 5 routing latch, provisional on `Draft`, made
   authoritative by Resolve.
-  <!-- Sized by BLAST RADIUS — the MAX of two axes, not
+  Sized by BLAST RADIUS — the MAX of two axes, not
   contract count or word count.
   (1) contract axis: small = one contract, no user-facing
   surface (skips Stage 5); mid = one contract + user-facing
