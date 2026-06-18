@@ -55,7 +55,14 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      compares itself against. (Propose/Refine read this section.)
    - Search corpora: any arc corpora available for this project (run
      `arc:config` / list corpora) tagged by purpose (docs/standards, dependency
-     source, peer-tool source, literature, market).
+     source, peer-tool source, literature, market). **Probe what actually
+     resolves**, don't just copy a peer project's list: list the corpora arc
+     reports present, and for any you name in this section, confirm it exists. If
+     few/none exist (the common case for a fresh consumer), say so plainly and
+     record a **degraded-mode TODO**: the research-touching stages (Resolve /
+     Reconcile / Finalize) will run hollow until these corpora are built; Propose /
+     Refine still work (they read only the doc-based Domain-priors section). Name
+     the missing corpora so the user knows what to build.
    - Design docs: the authoritative contract docs every fix is checked against.
    - External anchors: standards / canonical references cited by name.
    - (Optional) Alt-model roster: alternate base models for the dual-model
@@ -79,8 +86,13 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    the RDR engine / seam repo) to `$WS/.rdr-workspace`, then fill its blocks for
    this machine:
    Fill the **four-var engine contract** (all required — the skills read only these):
-   - **`RDR_FLOW_HOME`** — the RDR engine repo (holds `flow/`, `prompts/`,
-     `skills/`, `TEMPLATE.md`). Point it at the sibling RDR-process repo (e.g. `$WS/rdr`).
+   - **`RDR_FLOW_HOME`** — the RDR engine (holds `flow/`, `prompts/`, `skills/`,
+     `TEMPLATE.md`). Resolve by install shape, first that binds:
+     **(a) plugin** — if `$CLAUDE_PLUGIN_ROOT` is set and `$CLAUDE_PLUGIN_ROOT/flow`
+     exists, the engine ships inside the plugin: use that resolved absolute path
+     (the cache dir is version-stamped — re-run `/rdr-init` after a plugin upgrade);
+     **(b) sibling repo** — else the engine is a sibling checkout: `$WS/rdr` (assert
+     `$WS/rdr/flow`). If neither binds, stop and ask for the engine path.
    - **`RDR_DIR`** — this project's RDR-instances directory (where `NNNN-slug.md`
      RDRs + their artifact subdirs live). This is the single source of truth for
      "where do my RDRs live" — the same directory `{ARTIFACT_DIR}` in `rdr-env.md`
@@ -94,25 +106,56 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    lives ABOVE the repos (not inside one) so it survives worktrees; it is
    per-machine working config, not tracked.
 
+5. Scaffold the RDR home. The marker's `RDR_DIR` is where the `NNNN-slug.md`
+   RDRs live and is the single source of truth for it; a brand-new consumer has
+   no such directory and, crucially, no index README — the file the flow reads as
+   the index + Status/Priority table (`/rdr-finalize` adds/updates each RDR's row
+   and keeps its Status column current). Nothing else creates it, so
+   do it here: `mkdir -p "$RDR_DIR"`, then if `$RDR_DIR/README.md` is absent, copy
+   the engine template `$RDR_FLOW_HOME/RDR-HOME-README.template.md` to it and fill
+   `{PROJECT}`. This is the ONLY engine file vendored into the consumer —
+   `TEMPLATE.md` and the prompts stay read-in-place from `$RDR_FLOW_HOME` (copying
+   them would drift; see `flow/skills/rdr-common.md`). Leave an existing
+   `README.md` untouched.
+
+6. OFFER (do not auto-install) the SessionStart seam hook. The `/rdr-*` skills
+   work without it — they run §seam-bind each call — but a consumer can pre-resolve
+   the seam once per session so they take the fast path. This adds a `.claude/`
+   footprint (a hook script + a `settings.json` entry), so it is opt-in: DESCRIBE
+   it and let me say yes, don't write it silently. If I accept, copy the engine
+   template `$RDR_FLOW_HOME/rdr-seam-context.sh.template` to the consumer's
+   `.claude/hooks/rdr-seam-context.sh` (`chmod +x`), and add a `SessionStart` entry
+   to `.claude/settings.json` that runs it (use the update-config skill for the
+   settings edit). If I decline, note it as an available later step and move on.
+
 Report: which ignore path was taken (already-ignored vs wrote _rdr/.gitignore),
 the two files written, whether a workspace marker was created or already present
 (and whether it exports the four contract vars `RDR_FLOW_HOME` / `RDR_DIR` /
-`RDR_ENV` / `RDR_RESOURCES`), and any TODO I must resolve.
+`RDR_ENV` / `RDR_RESOURCES`), whether `$RDR_DIR` and its `README.md` index were
+created or already present, how `RDR_FLOW_HOME` resolved (plugin vs sibling),
+which named corpora exist vs are missing (the degraded-mode TODO), whether the
+SessionStart hook was offered/installed/declined, and any TODO I must resolve.
 ```
 
 ## Review gate
 
-- **Zero project footprint?** Confirm no change to `CLAUDE.md`, the project's
-  root `.gitignore`, or any tracked file. `git status` should show nothing
-  staged (the `_rdr/` tree is ignored).
+- **Zero footprint on the consumer's source tree?** Confirm no change to
+  `CLAUDE.md`, the project's root `.gitignore`, or any tracked file in the
+  consumer's code. The seam (`_rdr/`) is ignored; the one tracked file Stage 0
+  may add is the RDR-home index `README.md`, and it lives inside `$RDR_DIR` (the
+  RDR directory), never in the consumer's source.
 - **Are the inferred values real?** Spot-check that source paths exist and the
   named docs/corpora are present — an inferred `rdr-env.md` pointing at a
   missing module is worse than a TODO.
-- **Both files present and structured** per the README keys.
+- **Both seam files present and structured** per the README keys; `$RDR_DIR`
+  exists and holds an index `README.md` (scaffolded from the engine template or
+  already present).
 
 ## Advance when
 
 `_rdr/rdr-resources.md` and `_rdr/rdr-env.md` exist at the project root, are
-gitignored, and carry project-appropriate values (or explicit TODOs you accept).
+gitignored, and carry project-appropriate values (or explicit TODOs you accept);
+`$RDR_DIR` exists and holds an index `README.md` (scaffolded from the engine
+template, or already present).
 
 → Next: [01-seed.md](01-seed.md) — start the first RDR.

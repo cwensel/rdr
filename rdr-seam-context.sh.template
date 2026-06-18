@@ -1,0 +1,27 @@
+#!/bin/sh
+# SessionStart hook — pre-resolve the RDR seam once per session so the /rdr-*
+# skills can take rdr-common §seam-bind's fast path (literal paths, no per-run
+# resolver round-trip). OPTIONAL ergonomics: the skills work without it (they run
+# §seam-bind themselves); installing it just removes a per-call resolver.
+#
+# Install (offered by /rdr-init, never auto-installed): copy this to the
+# consumer's `.claude/hooks/rdr-seam-context.sh` (chmod +x) and add a SessionStart
+# entry to `.claude/settings.json` that runs it. Fail-quiet by design: if the
+# workspace marker isn't reachable it emits nothing and the skills fall back.
+# Claude Code-only by construction; other harnesses never see it.
+GC=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
+GC=$(cd "$GC" 2>/dev/null && pwd -P) || exit 0
+WS=$(dirname "$(dirname "$GC")")
+[ -f "$WS/.rdr-workspace" ] || exit 0
+. "$WS/.rdr-workspace" 2>/dev/null || exit 0
+[ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || exit 0
+# Emit only the four-var engine contract the skills read. (A consumer may add its
+# own *_ROOT lines below if its sessions reference them; they are not load-bearing.)
+cat <<EOF
+RDR seam pre-resolved (SessionStart hook; rdr-common §seam-bind fast path applies —
+substitute these literal paths, skip the resolver block):
+RDR_FLOW_HOME=$RDR_FLOW_HOME
+RDR_DIR=$RDR_DIR
+RDR_ENV=$RDR_ENV
+RDR_RESOURCES=$RDR_RESOURCES
+EOF

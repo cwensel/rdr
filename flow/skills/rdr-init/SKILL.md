@@ -1,21 +1,21 @@
 ---
 name: rdr-init
 argument-hint: (none — run from the root of the project that will use the flow)
-description: Use ONCE to bind a project to the RDR flow — bootstrap the seam so the /rdr-* skills can resolve their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the RDR flow here"). Runs Stage 0 — writes the project's rdr-env.md / rdr-resources.md seam files and installs the worktree-invariant workspace marker. Non-invasive: no CLAUDE.md edits, no tracked files, nothing in the project's .gitignore. Pairs with /rdr-seed (next — start the first RDR).
+description: Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the RDR flow here"). Stage 0 — writes the rdr-env.md / rdr-resources.md seam files, the worktree-invariant workspace marker, and the RDR home's index README (creating RDR_DIR if absent). Non-invasive to the consumer's source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it adds is the index README inside RDR_DIR. Pairs with /rdr-seed (next).
 ---
 
 # rdr-init — Stage 0 (Bootstrap)
 
-Bind a project to the RDR flow **without the project knowing about RDR**. This is
-the one-time seam setup the other `/rdr-*` skills depend on: it writes the path
-map (`rdr-env.md`), the evidence index (`rdr-resources.md`), and the workspace
-marker that lets every skill resolve `$RDR_FLOW_HOME` (the engine) and `$RDR_ENV`
-(this project's paths) from any cwd or worktree.
+One-time seam setup the other `/rdr-*` skills depend on, leaving the consumer's
+**source tree** ignorant of RDR. Writes the path map (`rdr-env.md`), evidence
+index (`rdr-resources.md`), the workspace marker (lets every skill resolve the
+engine + paths from any cwd/worktree), and the RDR home's index `README.md`.
 
-**Scope: seam-binding only.** This skill does **not** install the `/rdr-*` skill
-symlink farm under the consumer's `.claude/skills/` — that is a separate, tracked
-step the consumer owns (it would add a versioned footprint, which Stage 0 avoids).
-`/rdr-init` only creates the (untracked) seam + marker.
+**Scope.** Creates the untracked seam + marker, the RDR home, and its index
+README (the one tracked file it adds — inside `$RDR_DIR`, not the consumer's code;
+the flow needs it as its index/Status table). Does **not** install the `/rdr-*`
+symlink farm (consumer-owned) and never copies the engine's `TEMPLATE.md`/prompts
+(read live from `$RDR_FLOW_HOME`).
 
 ## Usage
 
@@ -50,15 +50,30 @@ the engine repo).
    up — report it and **stop** rather than overwrite. Only write/amend when the seam
    (or one of the contract vars) is missing.
 
+   **Resolve `RDR_FLOW_HOME`** (the engine: `flow/`, `prompts/`, `skills/`,
+   `TEMPLATE.md`) — first that binds, else `stopped:` and ask:
+   - **plugin** — `[ -d "$CLAUDE_PLUGIN_ROOT/flow" ]` → `$CLAUDE_PLUGIN_ROOT`
+     (write the resolved absolute path; the cache dir is version-stamped, so re-run
+     `/rdr-init` after a plugin upgrade);
+   - **sibling repo** — else `[ -d "$WS/rdr/flow" ]` → `$WS/rdr`.
+
 2. **Run the stage** [`00-bootstrap.md`](00-bootstrap.md) — its *Paste this* block
    is the authoring contract. In order, it:
    - keeps `_rdr/` out of git (touching no project-level file),
    - writes `_rdr/rdr-env.md` (the PATH MAP) inferred from this project,
-   - writes `_rdr/rdr-resources.md` (the EVIDENCE INDEX) inferred from this project,
-   - installs the WORKSPACE MARKER at `$WS/.rdr-workspace` from the template
-     [`workspace.example`](workspace.example) (symlinked beside this skill),
-     filling `RDR_FLOW_HOME` (**required** — the engine repo), the consumer repo
-     root(s), and `RDR_ENV` / `RDR_RESOURCES`.
+   - writes `_rdr/rdr-resources.md` (the EVIDENCE INDEX), **probing which named arc
+     corpora actually resolve** — missing ones get a degraded-mode TODO (research
+     stages run hollow until built; Propose/Refine still work on doc priors),
+   - installs the WORKSPACE MARKER at `$WS/.rdr-workspace` from
+     [`workspace.example`](workspace.example), filling the four contract vars
+     (`RDR_FLOW_HOME` resolved per step 1),
+   - scaffolds the RDR home: `mkdir -p "$RDR_DIR"` and, if no index yet, copies
+     [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
+     `$RDR_DIR/README.md` (the only engine file vendored in),
+   - **offers** (never auto-installs) the SessionStart seam hook
+     [`rdr-seam-context.sh.template`](rdr-seam-context.sh.template) — on yes: copy
+     to `.claude/hooks/rdr-seam-context.sh` (`chmod +x`) + add a `SessionStart`
+     entry to `.claude/settings.json`; opt-in (adds a `.claude/` footprint).
 
    Fill concrete values where verifiable from the project; leave a marked TODO only
    where a value needs the user's judgment. **Author in the main context** — do not
@@ -75,18 +90,20 @@ the engine repo).
    [ -n "$RDR_ENV" ]       && [ -f "$RDR_ENV" ]            || echo "stopped:RDR_ENV-unset-or-missing"
    [ -n "$RDR_RESOURCES" ] && [ -f "$RDR_RESOURCES" ]      || echo "stopped:RDR_RESOURCES-unset-or-missing"
    ```
-   (`$RDR_DIR` may legitimately not exist yet for a brand-new project — if so,
-   create it, or note it as the dir `/rdr-seed` will populate.)
+   `$RDR_DIR` is created by step 2's scaffold (with the index `README.md`), so it
+   must bind here as a dir holding that README — unless you deliberately deferred it.
 
 ## Review gate (Stage `00-bootstrap.md`)
 
-- **Zero project footprint?** No change to `CLAUDE.md`, the project's root
-  `.gitignore`, or any tracked file (`git status` shows nothing staged — `_rdr/`
-  is ignored).
-- **Are the inferred values real?** Source paths exist; named docs/corpora are
-  present. An `rdr-env.md` pointing at a missing module is worse than a TODO.
-- **Marker complete?** `$WS/.rdr-workspace` exports `RDR_FLOW_HOME` (engine),
-  `RDR_ENV`, `RDR_RESOURCES`; a fresh `. .rdr-workspace` binds them.
+- **No footprint on the consumer's source?** No change to `CLAUDE.md` or the root
+  `.gitignore`; `_rdr/` ignored. Only tracked adds: the RDR-home `README.md` (in
+  `$RDR_DIR`) and, if accepted, the opt-in `.claude/` seam hook + settings entry.
+- **Inferred values real?** Source paths exist; named docs/corpora present (missing
+  corpora carry the degraded-mode TODO, not a silent dead reference).
+- **Marker binds?** A fresh `. .rdr-workspace` exports the four contract vars;
+  `RDR_FLOW_HOME` resolved plugin-first, else sibling.
+- **RDR home scaffolded?** `$RDR_DIR` holds an index `README.md`; no other engine
+  file vendored in.
 
 ## Next step (rdr-common §next-step)
 
