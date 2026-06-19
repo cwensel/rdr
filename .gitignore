@@ -1,5 +1,8 @@
 .claude
 
+# macOS finder metadata
+.DS_Store
+
 # The per-project flow seam (.rdr/env.md, .rdr/resources.md, repo-local marker).
 # Created by stages/00-bootstrap.md in the project that runs the flow; never
 # versioned. See stages/README.md.

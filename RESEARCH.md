@@ -29,7 +29,7 @@ provenances:
   practitioner blogs). The survey converged on a handful of high-ROI techniques
   — **premortem, perspective-based reading, example mapping, chain-of-verification,
   adversarial review, obstacle analysis** — that the pre-lock lenses
-  ([`prompts/pre-lock/`](prompts/README.md)) and review gates draw on. §2 maps
+  ([`prompts/pre-lock/`](prompts/pre-lock/)) and review gates draw on. §2 maps
   each lens to its source.
 
 - **The front half** (Seed → Propose → Refine → Resolve, [`stages/`](stages/README.md)

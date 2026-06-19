@@ -97,7 +97,7 @@ resumable gate.
 
 → Close (workflow step 7 in [`../README.md`](../README.md#workflow)): set the
 RDR's status (Implemented | Reverted | Abandoned | Superseded) and write the
-post-mortem ([`../prompts/post-mortem/`](../prompts/post-mortem/)).
+post-mortem ([`../post-mortem/TEMPLATE.md`](../post-mortem/TEMPLATE.md)).
 
 **Also drain the kata tracker.** Close every open `kind:rdr-tracked` kata whose
 `tracks: cli/NNNN` comment names this RDR (`kata close <id> --reason done`) —

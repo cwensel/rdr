@@ -38,11 +38,14 @@ symlink farm (consumer-owned) and never copies the engine's `TEMPLATE.md`/prompt
 /rdr-init --reconfigure   # seam already exists: change its location choices (interactive; migrates if RDRs exist)
 ```
 
-**Scope is repo-local by default** — `$PROJECT/.rdr/workspace`, this repo's own RDR env.
-That's the common single-repo case. `--workspace` instead writes/joins a shared
-`$WS/.rdr-workspace` that every sibling repo under `$WS` inherits (the multi-repo
-arrangement, e.g. `newcoinc/`'s retrofit/process/flow). Repo-local **overrides** a
-shared marker via §seam-bind's nearest-wins, and **never touches** it.
+**Scope is repo-local by default** — binds **only this repo**: `$PROJECT/.rdr/workspace`,
+with records + evidence inside it. That's the common single-repo case. `--workspace`,
+run from the **parent**, instead writes/joins a shared `$WS/.rdr-workspace` that every
+sibling repo under `$WS` inherits (the multi-repo arrangement, e.g. `newcoinc/`'s
+retrofit/process/flow). Because the seam is a path map, the shared scope also lets
+`RDR_RECORDS` / `RDR_EVIDENCE` point at **their own repos**, separate from the code repo.
+Repo-local **overrides** a shared marker via §seam-bind's nearest-wins, and **never
+touches** it.
 
 **Modes** — the no-flag run is the common path; flags override its prompting:
 

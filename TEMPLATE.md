@@ -155,7 +155,8 @@ before marking this RDR Final.]
   and the alternative explicitly rejected.
 - **Peer RDR** — relies on a property defined in
   another RDR. Evidence: RDR ID + section.
-- **MVV Test** — the property is testable and the test
+- **MVV Test** — the property is testable via the
+  Minimum Viable Validation, and the test
   is named in this RDR's Validation section (pending
   implementation at lock time). Evidence: test name.
 - **Docs Only** — documentation reading alone.
@@ -167,7 +168,7 @@ A `Method: Source Search` whose Evidence cites this
 same RDR file — or any path under the RDR's artifact
 directory — is self-reference and not Verified. The
 cited proof must also support **the specific claim**,
-not an adjacent one: confirming a neighbouring fact and
+not an adjacent one: confirming a neighboring fact and
 stamping the assumption `Verified` is not verification.
 The cited symbol must resolve on `main` (a renamed,
 deleted, or never-built symbol fails the check).

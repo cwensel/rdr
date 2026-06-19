@@ -8,6 +8,9 @@ statement becomes more refined through research and exploration and alternatives
 **Core Purpose**: Capture both the final recommendation and supporting evidence to prevent purpose drift during
 implementation.
 
+**New here?** [SKILLS.md](SKILLS.md) is the user-facing overview — a one-line blurb for every `/rdr-*` skill and how
+each maps to the stages of this process.
+
 ## Install
 
 This repo is a Claude Code and Codex plugin. Installation has **two parts**: get
@@ -16,59 +19,35 @@ each project that will use it. The engine is shared; the binding is per-project.
 
 ### 1. Get the engine
 
-- **Claude marketplace plugin**:
+- **Claude marketplace plugin** — installs to your user config (`~/.claude`) or a
+  single project (`.claude/`); scope only changes where the engine lives.
 
   ```
   /plugin marketplace add cwensel/rdr
   /plugin install rdr@rdr
   ```
 
-  Works at **either scope** — install to your user config (`~/.claude`, available in
-  every project) or to a single project (`.claude/`). Scope only changes *where the
-  engine lives*; binding is identical either way. The engine is read in place from
-  `$CLAUDE_PLUGIN_ROOT`, which `/rdr-init` records in the marker — so re-run
-  `/rdr-init` after a plugin upgrade to refresh that (version-stamped) path.
+  Remove with `/plugin uninstall rdr@rdr`.
 
-- **Codex marketplace plugin**:
+- **Codex marketplace plugin** — metadata lives in `.agents/plugins/marketplace.json`,
+  the manifest in `.codex-plugin/plugin.json`; Codex installs into a versioned cache.
 
   ```
   codex plugin marketplace add /path/to/rdr
   codex plugin add rdr@rdr
   ```
 
-  The Codex marketplace metadata lives in `.agents/plugins/marketplace.json`; the
-  plugin manifest lives in `.codex-plugin/plugin.json`. Codex installs plugins into
-  a versioned cache; restart Codex after install/upgrade. During local development,
-  reinstall after edits:
+  Remove with `codex plugin remove rdr@rdr`.
 
-  ```
-  codex plugin remove rdr@rdr
-  codex plugin add rdr@rdr
-  ```
-
-- **Codex live local skills** (recommended while editing this repo) — clone this repo
-  locally, then symlink the skill folders into each consumer project's
-  `.agents/skills/`. Codex follows symlinked skill folders here, so edits in the RDR
-  checkout are picked up after restarting Codex:
-
-  ```
-  cd /path/to/consumer-project
-  RDR_HOME=/path/to/rdr
-  mkdir -p .agents/skills
-  for d in "$RDR_HOME"/skills/rdr-*; do
-    ln -sfn "$d" ".agents/skills/$(basename "$d")"
-  done
-  ```
-
-- **Cloned beside your repos** (no plugin) — `git clone` this repo so it sits next to
-  the projects that use it (e.g. `~/code/rdr` alongside `~/code/myproject`).
-  `/rdr-init` finds the engine at `$WS/rdr`; pair this with Claude symlinks
-  (`.claude/skills/`) or Codex live local skills (`.agents/skills/`) as needed.
+After any install or upgrade, re-run `/rdr-init` to refresh the version-stamped engine
+path recorded in the marker.
 
 ### 2. Bind a project — `/rdr-init`
 
+Open the consumer project (a git repo; **not** `$HOME`, the engine, or the plugin
+dir) in your harness, then run the skill:
+
 ```
-cd your-project          # a git repo; NOT $HOME, the engine, or the plugin dir
 /rdr:rdr-init            # smart: infers locations, asks only if it can't, discloses them
 ```
 
@@ -83,17 +62,24 @@ Flags:
 
 | | |
 | --- | --- |
-| `/rdr-init` | smart default — **repo-local** seam; infer locations, ask only on a genuine fork, disclose |
-| `/rdr-init --interactive` | force the location questions (records, evidence, tracked vs gitignored) |
+| `/rdr-init` | smart default — bind **this repo only** (repo-local seam); infer locations, ask only on a genuine fork, disclose |
+| `/rdr-init --interactive` | force the location questions (records, evidence — each can point at its own repo — tracked vs gitignored) |
 | `/rdr-init --defaults` | take all defaults silently (scripted setup) |
-| `/rdr-init --workspace` | write/join a **shared** seam (`$WS/.rdr-workspace`) several sibling repos inherit |
+| `/rdr-init --workspace` | run from the parent to bind **all sibling repos** into one shared seam (`$WS/.rdr-workspace`) they inherit |
 | `/rdr-init --reconfigure` | change an existing project's locations (migrates existing RDRs or stops for a manual move) |
 
-**Scope.** `/rdr-init` defaults to a **repo-local** seam — `$PROJECT/.rdr/workspace`,
-this repo's own RDR env (the common single-repo case). When several repos under one
-parent should **share** one RDR process, run `--workspace` to write a shared
-`$WS/.rdr-workspace` they all inherit. A repo-local seam takes precedence over a shared
-one (nearest-wins) without touching it, so a repo can opt out of a shared setup anytime.
+**Scope — local by default, workspace by choice.** By default `/rdr-init` binds
+**just the current repo**: the seam (`$PROJECT/.rdr/`), records, and evidence all
+live inside it. This is the common single-repo case — run it and you're done.
+
+Optionally, run it from the **parent** with `--workspace` to bind every folder
+under that parent into one shared RDR process. It writes a shared marker at the
+parent (`$WS/.rdr-workspace`) that all sibling repos inherit, so they author RDRs
+against the same flow. Because the seam is just a path map, the workspace also lets
+the **records and evidence live in their own repos** — separate from the code repo
+you're working in — rather than being pinned to the current repo. A repo-local seam
+still wins over a shared one (nearest-wins) without touching it, so any repo can opt
+out of the shared setup at any time.
 
 ### 3. Verify, then start
 
@@ -179,6 +165,10 @@ API signatures, constraints, and defaults assumed from documentation are frequen
 the dependency repo and search its source to verify method signatures, parameter constraints, default values, error
 conditions, and version availability (5-10 min per dependency).
 
+[Arcaneum](https://github.com/cwensel/arcaneum) is a useful tool for this `Source Search` work: it indexes dependency
+source, framework docs, and technical papers for semantic and full-text search, so you can locate the symbol or contract
+behind a claim without reading the whole tree. It ships Claude Code plugins and pairs directly with this flow.
+
 Every load-bearing claim in an RDR — API behavior, peer-RDR contract, byte layout, scoping decision — is recorded as a
 **Critical Assumption Evidence Record** with one of the eight Methods (Source Search | Spike | Prior Art | Derivation
 | Design Decision | Peer RDR | MVV Test | Docs Only) and a concrete Evidence pointer. The full vocabulary and the
@@ -192,7 +182,7 @@ self-reference rule live in [TEMPLATE.md](TEMPLATE.md) under *Critical Assumptio
   ("verified something adjacent and called it the thing" is the same failure in a subtler form).
 - **Anchor by symbol, not by line.** Cite source as a greppable `path::Symbol`, never a bare `file:line`; a commit-SHA
   permalink only for audit/traceability. The only mechanical anchor check worth running is *does the cited symbol still
-  resolve on `main`?* Write fewer, durable anchors rather than many volatile ones. (Rationale: flow `README` *Doctrine*.)
+  resolve on `main`?* Write fewer, durable anchors rather than many volatile ones. (Rationale: [`stages/` README *Doctrine*](stages/README.md#doctrine-applies-to-every-stage).)
 - **Exactness words are claims, not emphasis.** If the RDR says all/every, first/nearest, byte-identical, lossless,
   canonical, deterministic, or stable order, back it with an Evidence Record or with the Minimum Viable Validation.
 - **Examples are contracts only when labeled Normative.** Fixtures, sample inputs/outputs, numeric counts, platform
@@ -248,7 +238,7 @@ template — heterogeneous PM/UX gaps, time-shifted failures invisible at lock t
 a review *activity*, not a *slot*. Run the appropriate rounds between Decide and Lock, then re-run the Finalization
 Gate on the fixed draft.
 
-The three analytical rounds, in order of cost. Each links to its prompt file under [`prompts/`](prompts/):
+The four analytical rounds, in order of cost. Each links to its prompt file under [`prompts/`](prompts/):
 
 1. **[3amigo](prompts/pre-lock/1-3amigo.md)** (~30 min) — Read the draft three times as PM / Implementer / QA personas;
    consolidate items flagged by ≥2 personas. Uniquely catches heterogeneous PM/UX gaps, first-hour implementer questions,
@@ -258,23 +248,26 @@ The three analytical rounds, in order of cost. Each links to its prompt file und
    fails in 6 weeks; the section rewritten first; the assumption that won't survive first user contact. Uniquely catches
    frozen-at-lock invariants without version markers and destructive operations whose policy was implicit.
 
-3. **Repeatability** ([prompts/pre-lock/3-repeatability.md](prompts/pre-lock/3-repeatability.md), codegen × 3 + diff)
-   and **CoVe** ([prompts/pre-lock/4-cove.md](prompts/pre-lock/4-cove.md)) — the single-RDR implementation-prompt
-   lenses: under-specified signatures the implementer can't grip on, and internal silences/contradictions. CoVe leads
-   with a [grounding sweep](prompts/pre-lock/0-grounding.md) (Step 0) that verifies the RDR's codebase claims against
-   source — also run standalone at Mid/Large where a contract is locked. Cross-RDR
-   contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs two settled
-   (Final) RDRs, so the [`stages/`](stages/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at Stage 7.1
-   (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier peer.
+3. **[Repeatability](prompts/pre-lock/3-repeatability.md)** (codegen × 3 + diff) — a single-RDR implementation-prompt
+   lens: catches under-specified signatures the implementer can't grip on. Generates code from the RDR three times in
+   fresh sessions and diffs the results; divergence marks where the spec under-determines the implementation.
 
-The **[Tooling pass](prompts/gate/tooling-pass.md)** (~5 min, seconds when scripted) is *not* a fourth round — it is
-the mechanical pre-step of the Finalization Gate, run on every RDR after the rounds (and after spike/assumption
-reconcile) as a post-mutation regression sweep: TEMPLATE section coverage, Method-label vocabulary, `Source Search`
-self-reference, `Docs Only` on load-bearing claims. The rounds rewrite the draft; this sweep confirms none of them
-hollowed a section or disturbed an evidence record before the Gate's written responses. It is also the conformance
-backstop for RDRs whose earlier passes were skimped. (Placed last per `_spec_validation/RDR-PROCESS-IMPROVEMENT.md`
-§D.2; the assumption-evidence checks it runs are the mechanical share of what Resolve and the Repeatability/CoVe lenses
-verify analytically.)
+4. **[CoVe](prompts/pre-lock/4-cove.md)** (Chain-of-Verification) — the other single-RDR implementation-prompt lens:
+   catches internal silences and contradictions. It leads with a [grounding sweep](prompts/pre-lock/0-grounding.md)
+   (Step 0) that verifies the RDR's codebase claims against source — also run standalone at Mid/Large where a contract
+   is locked. Cross-RDR contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs
+   two settled (Final) RDRs, so the [`stages/`](stages/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at
+   Stage 7.1 (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier
+   peer.
+
+The **[Tooling pass](prompts/gate/tooling-pass.md)** (~5 min, seconds when scripted) is *not* a fifth round — it is
+the mechanical pre-step of the Finalization Gate. Run on every RDR after the rounds, it sweeps for regressions the
+rounds may have introduced: TEMPLATE section coverage, Method-label vocabulary, `Source Search` self-reference, and
+`Docs Only` on load-bearing claims. It confirms no round hollowed a section or disturbed an evidence record before the
+Gate's written responses, and is the conformance backstop for RDRs whose earlier passes were skimped.[^tooling-pass]
+
+[^tooling-pass]: It runs last, after spike/assumption reconcile; the assumption-evidence checks it performs are the
+mechanical share of what Resolve and the Repeatability/CoVe lenses verify analytically.
 
 ### Applicability matrix
 
@@ -338,3 +331,16 @@ implementation prompt ([`prompts/implementation/launch.md`](prompts/implementati
 - **DEPENDENCY-LIMIT** — an existing or predecessor capability could not satisfy the contract as written.
 - **TEST-FIXTURE** — an example, fixture, generated test, count, or platform path was wrong.
 - **IMPL-DECISION** — valid implementation latitude; record only when it affects future interpretation.
+
+## License
+
+Copyright © 2025–2026 Chris K Wensel. This repository is **dual-licensed**:
+
+- The **RDR methodology and all documentation** (this README, [SKILLS.md](SKILLS.md), [TEMPLATE.md](TEMPLATE.md),
+  [RESEARCH.md](RESEARCH.md), `prompts/`, `stages/`, `post-mortem/`, and the prose in each skill) are licensed under
+  **[CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/)** — see [LICENSE-DOCS](LICENSE-DOCS). Use and adapt
+  it freely with attribution to Chris K Wensel, sharing adaptations under the same license.
+- The **code** (shell scripts, `*.sh.template`, plugin/marketplace JSON) is licensed under **MIT** — see
+  [LICENSE-CODE](LICENSE-CODE).
+
+See [LICENSE](LICENSE) for the full split and suggested attribution wording.

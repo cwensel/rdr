@@ -468,7 +468,7 @@ there rather than one flat file — e.g. `…/0038-policies/evidence/3amigo/` ho
 Each stage is wrapped by a **`/rdr-*` skill** that supplies its params and runs
 its prompt — so driving an RDR is `/rdr-<stage> NNNN`, not hand-pasting a block.
 The skills are thin: each runs §seam-bind + §rdr-resolve (shared bones in
-[`skills/rdr-common.md`](skills/rdr-common.md)), runs its stage's prompt file under
+[`skills/rdr-common.md`](../skills/rdr-common.md)), runs its stage's prompt file under
 [`../prompts/stages/`](../prompts/stages/), then prints the gate + the next command.
 
 **One skill per stage. No orchestrator.** A `/rdr-flow` walker was considered and
@@ -501,7 +501,7 @@ themselves. **`/rdr-status` tracks position from disk** — the evidence folder,
 doctrine: a derived position can't drift from the artifacts).
 
 **Homing.** The skill sources live here in this RDR-process repo at
-[`skills/`](skills/), next to these stage docs and the prompts they run — the RDR
+[`skills/`](../skills/), next to these stage docs and the prompts they run — the RDR
 flow is this repo's deliverable, so its skills version with it. A consumer makes
 them invocable through a **discovery farm** under its own `.claude/skills/`, via
 relative symlinks `<consumer>/.claude/skills/rdr-* -> <…>/rdr/skills/rdr-*`
