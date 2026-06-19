@@ -81,12 +81,21 @@ Be brief. Print:
 
 1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`.
 2. **Stage checklist** — one line per stage 1–9 with `✓` (evidence present),
-   `–` (not started), or `~` (human-judged; can't certify from disk), and the
-   one-token evidence it keyed on (e.g. `5 Pre-Lock  ✓ 3amigo  ✓ critique  – repeatability  – cove`).
+   `–` (not started), or `~` (no durable artifact by design — certified from a
+   downstream signal, not forgotten), and the one-token evidence it keyed on
+   (e.g. `5 Pre-Lock  ✓ 3amigo  ✓ critique  – repeatability  – cove`). For a `~`
+   stage, name the downstream signal that satisfies it, not just the verdict —
+   `3 Refine  ~ judged done (Stage-4 evidence present; Refine edits the draft, no
+   folder of its own)` — so the `~` reads as certified-by-downstream, never as an
+   omission. If the downstream signal is **absent**, then the `~` is genuinely
+   open: say so (`3 Refine  ~ unverified — no Stage-4 evidence yet`).
 3. **Next** — the exact command to run, e.g. `Next: /rdr-prelock 0046 critique`.
    If terminal, say so and name the disposition.
-4. **Caveats** — name any `~` human-judged gate it could not certify (Refine,
-   Resolve-findings), flag a re-entry qualifier, and flag the Profile basis when
+4. **Caveats** — only for a `~` gate whose downstream signal is **absent** (the
+   genuinely-open case — e.g. Refine with no Stage-4 evidence yet). A `~` that a
+   downstream artifact already certifies is **not** a caveat — it belongs in the
+   checklist line, not here, so the human isn't nudged to re-run a done stage.
+   Also flag a re-entry qualifier, and flag the Profile basis when
    it is not yet earned: an **absent** field you inferred ("no Profile; inferred
    mid"), or a **Draft** Profile still provisional ("Profile mid is Seed's
    estimate — Resolve to confirm"). A `Final` Profile is earned → no caveat.
