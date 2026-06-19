@@ -32,12 +32,24 @@ The **evidence folder is the primary signal.** For `RDR_SLUG`, check existence a
 combine with the RDR's own header. All reads are cheap; delegate nothing unless an
 evidence folder is large.
 
+**Two artifact shapes — they nest differently; don't reuse one join for both:**
+- **Lenses:** `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` — slug, then a literal
+  `evidence/`, then the lens. (The `evidence/` segment is the one most-missed; a
+  check at `<slug>/<lens>/` finds nothing and falsely reports the lens un-run.)
+- **Spikes:** `<RDR_EVIDENCE>/spikes/<slug>/` — `spikes/` is a top-level sibling,
+  slug underneath, **no `evidence/` segment.**
+
+There is no `<round>/<slug>` shape — don't invent one and flag the real tree as
+deviating. Stale top-level lens folders may sit loose under `<RDR_EVIDENCE>/`
+(e.g. `<RDR_EVIDENCE>/3amigo/`) from an older layout — ignore them; only the
+per-slug paths above count.
+
 | Stage | Done-signal on disk |
 | --- | --- |
 | 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
 | 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending) |
 | 3 Refine | *human-judged* — infer done if Stage-4 evidence exists or assumptions carry Method/Evidence |
-| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan; `<RDR_EVIDENCE>/<slug>/evidence/spikes/` present when spikes were named |
+| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan; `<RDR_EVIDENCE>/spikes/<slug>/` present when spikes were named (spike shape, not lens shape) |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/` |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; the Finalization Gate's five responses present in the RDR; README index row updated |
@@ -45,9 +57,9 @@ evidence folder is large.
 | 9 Implement | `{ARTIFACT_DIR}/<slug>/status.md` reads `COMPLETE` or `INCOMPLETE` |
 
 Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
-its Critical Assumptions section (count Verified vs Pending), then `ls` the
-per-lens evidence folders, `reconcile/<slug>/`, `spikes/<slug>/`,
-`cluster-reconcile/`, and `{ARTIFACT_DIR}/<slug>/status.md`.
+its Critical Assumptions (count Verified vs Pending), then `ls` each folder at the
+exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes under
+`spikes/<slug>/`, plus `cluster-reconcile/` and `{ARTIFACT_DIR}/<slug>/status.md`.
 
 ## How it decides "next"
 
@@ -61,13 +73,22 @@ per-lens evidence folders, `reconcile/<slug>/`, `spikes/<slug>/`,
      this is a **scoped backward-edge**; next is `/rdr-resolve NNNN` (it self-scopes
      to the listed IDs). Surface the qualifier so the human knows the run is a delta.
    - bare `Draft` → front-half; use the evidence signals to find the furthest stage.
-2. **Within the front half**, the furthest stage with its done-signal present sets
-   the next stage. Read the RDR's **`Profile` field** for which Stage 5 lenses
-   apply: `small`'s next after Resolve is **Reconcile**, not Pre-Lock. A Profile on
-   a `Draft` is a provisional estimate (Seed's, or a back-fill) — Resolve has not
-   yet earned it, so treat it as a hint and never certify a lens-skip off it. If
-   absent, infer from the `$RDR_HOME/stages/README.md` matrix. Flag either
-   case (Caveats).
+2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
+   footnote.** It maps to an exact lens-set (the `$RDR_HOME/stages/README.md`
+   matrix is the sole authority — never reconstruct it from memory):
+
+   | Profile | Stage-5 lens-set (in order) | After Resolve, next is |
+   | --- | --- | --- |
+   | `small` | *(none)* | `/rdr-reconcile` (skip Pre-Lock) |
+   | `mid` | grounding → 3amigo | `/rdr-prelock NNNN grounding` |
+   | `large` | grounding → 3amigo → critique | `/rdr-prelock NNNN grounding` |
+   | `foundational` | cove → 3amigo → critique → repeatability | `/rdr-prelock NNNN cove` |
+
+   The Pre-Lock row lists **only this profile's lenses**; off-profile lenses are
+   absent, not `–`. Converged = every lens in *this* set ran; the first un-run one
+   is the next command. A `Draft` Profile is provisional (Resolve earns it, Stage 8
+   latches it) — a hint, never a basis for certifying a lens-skip; flag the basis
+   when unearned. If the field is absent, infer from the matrix and flag it (Caveats).
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
    lens *and* resolves its findings (review + fix are one cycle now). For
@@ -80,25 +101,25 @@ per-lens evidence folders, `reconcile/<slug>/`, `spikes/<slug>/`,
 Be brief. Print:
 
 1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`.
-2. **Stage checklist** — one line per stage 1–9 with `✓` (evidence present),
-   `–` (not started), or `~` (no durable artifact by design — certified from a
-   downstream signal, not forgotten), and the one-token evidence it keyed on
-   (e.g. `5 Pre-Lock  ✓ 3amigo  ✓ critique  – repeatability  – cove`). For a `~`
-   stage, name the downstream signal that satisfies it, not just the verdict —
-   `3 Refine  ~ judged done (Stage-4 evidence present; Refine edits the draft, no
-   folder of its own)` — so the `~` reads as certified-by-downstream, never as an
-   omission. If the downstream signal is **absent**, then the `~` is genuinely
-   open: say so (`3 Refine  ~ unverified — no Stage-4 evidence yet`).
+2. **Stage checklist** — one line per row of the signal table above, verbatim in
+   name and order; never invent, split, or rename a row. **Pre-Lock is the single
+   `5+6` row** (review+resolve are one cycle) — no separate "Resolve-findings"
+   stage; a lens shows `✓` when its folder exists, its resolution certified by the
+   next lens's folder or `evidence/reconcile/` in that same row. Mark `✓` (present),
+   `–` (not started), or `~` (no durable artifact by design — certified downstream,
+   not forgotten), naming the evidence keyed on
+   (e.g. `5+6 Pre-Lock  ✓ grounding  ✓ 3amigo` for a mid RDR). For `~`, name the
+   downstream signal, not just the verdict
+   (`3 Refine  ~ judged done — Stage-4 evidence present`); if that signal is absent
+   the `~` is genuinely open — say so (`~ unverified — no Stage-4 evidence yet`).
 3. **Next** — the exact command to run, e.g. `Next: /rdr-prelock 0046 critique`.
    If terminal, say so and name the disposition.
-4. **Caveats** — only for a `~` gate whose downstream signal is **absent** (the
-   genuinely-open case — e.g. Refine with no Stage-4 evidence yet). A `~` that a
-   downstream artifact already certifies is **not** a caveat — it belongs in the
-   checklist line, not here, so the human isn't nudged to re-run a done stage.
-   Also flag a re-entry qualifier, and flag the Profile basis when
-   it is not yet earned: an **absent** field you inferred ("no Profile; inferred
-   mid"), or a **Draft** Profile still provisional ("Profile mid is Seed's
-   estimate — Resolve to confirm"). A `Final` Profile is earned → no caveat.
+4. **Caveats** — only genuinely-open items: a `~` gate whose downstream signal is
+   **absent** (a `~` already certified downstream stays in the checklist, never
+   here — don't nudge a re-run of a done stage); a re-entry qualifier; and an
+   unearned Profile basis (absent → "no Profile; inferred mid"; `Draft` →
+   "Profile mid is Seed's estimate — Resolve to confirm"). A `Final` Profile is
+   earned → no caveat.
 
 No writes. Confirm `git status` would be unchanged (you ran only reads).
 
