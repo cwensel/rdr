@@ -51,5 +51,9 @@ front-half stage. Running a pre-lock round before this one wastes the round.
   field** (the routing latch) from the contract count; the next pointer reads
   that field — it does not re-derive size (`$RDR_HOME/stages/README.md` matrix):
   - `Profile: small` → skip Pre-Lock: `Next: /rdr-reconcile NNNN`.
-  - `Profile: mid`+ → `Next: /rdr-prelock NNNN 3amigo` (then more lenses per profile).
+  - `Profile: mid`+ → the **first lens of the profile's set** (grounding runs
+    first whenever present): `mid`/`large` → `Next: /rdr-prelock NNNN grounding`;
+    `foundational` → `Next: /rdr-prelock NNNN cove` (cove subsumes grounding as
+    its Step 0). Then the remaining lenses in matrix order
+    (`$RDR_HOME/stages/README.md`).
 - `/rdr-status NNNN` to re-orient.
