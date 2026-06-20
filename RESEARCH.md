@@ -159,6 +159,56 @@ one of these elements, this is the reasoning you are changing.
   diff rather than asking one model to critique its own draft).
   <https://conf.researchr.org/details/icse-2025/raie-2025-papers/6/>
 
+### Propose selection — read prior art first, compare before committing
+
+**Drives**: the **retrieval-first prior-art read + cite-check** and the
+**scored Questions-Options-Criteria matrix** (`large`/`foundational`) in
+[`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md). The
+design treats Propose as owning *selection* (which approach wins, read from prior
+art) and Resolve as owning *verification* (the expensive spikes) — a split of
+depth, not stage. The case that forced it: a corpus run where a chosen approach
+was overturned three stages late by a Resolve spike, root-caused to **prior art
+misread at Propose** (citations inverted, not merely unread) — verification
+working as designed, but firing far past the cheapest point to switch. Four
+independent literatures converge on doing the alternatives-comparison early while
+deferring only the irreversible *commitment*:
+
+- **Boehm & Basili (2001), *Software Defect Reduction Top 10 List*, IEEE Computer
+  34(1)** — the cost-of-change direction: defects caught after delivery cost
+  ~100× a requirements/design-time catch, and ~40–50% of effort is avoidable
+  rework. The magnitude is softenable under agile practice (Kuppuswami et al.
+  2003, *XP and the Cost-of-Change Curve*, LNCS, DOI 10.1007/3-540-44870-5_8), but
+  the direction — earlier is cheaper — holds. DOI 10.1109/2.962984 —
+  <https://doi.org/10.1109/2.962984>
+- **Jansson & Smith (1991), *Design Fixation*, Design Studies 12(1)** — committing
+  to one early idea makes designers reproduce its features (even bad ones) and
+  generate worse alternatives; the hazard the enumerate-2–4 rule and the matrix
+  counter. DOI 10.1016/0142-694X(91)90003-F —
+  <https://doi.org/10.1016/0142-694X(91)90003-F>
+- **Dow, Glassco, Kass, Schwarz, Schwartz & Klemmer (2010), *Parallel Prototyping
+  Leads to Better Design Results*, ACM TOCHI 17(4)** — controlled evidence that
+  creating and comparing *multiple* options in parallel yields objectively better,
+  more diverse outcomes than serial single-option iteration. Justifies the scored
+  matrix over prose. DOI 10.1145/1879831.1879836 —
+  <https://doi.org/10.1145/1879831.1879836>
+- **Sobek & Ward (1996), *Principles from Toyota's Set-Based Concurrent
+  Engineering*, ASME DTM** (with Ford & Sobek 2005, real-options framing, IEEE
+  TEM 52(2), DOI 10.1109/TEM.2005.844466) — keep alternatives alive and converge
+  *late*; the lean "last responsible moment" (Poppendieck & Cusumano 2012, IEEE
+  Software 29(5), DOI 10.1109/MS.2012.107) is not a counter-argument but its basis:
+  explore the set early, lock the irreversible choice late. DOI
+  10.1115/96-DETC/DTM-1510 — <https://doi.org/10.1115/96-DETC/DTM-1510>
+- **Deng, Brucks & Toubia (2026), *Examining and Addressing Barriers to Diversity
+  in LLM-Generated Ideas*** — the load-bearing LLM finding: **LLMs fixate like
+  humans, early outputs constrain later ideation**, and self-evaluation is
+  unreliable (cf. Huang et al. 2023, *LLMs Cannot Self-Correct Reasoning Yet*,
+  arXiv 2310.01798). The fix is grounding *before* generation: Nova (Hu et al.
+  2024, arXiv 2410.14255) got 3.4× more novel ideas from retrieval-first ideation,
+  and *Premise Order Matters* (Chen et al. 2024, arXiv 2402.08939) shows
+  context-before-reasoning ordering is itself load-bearing. This is the direct
+  justification for reading prior art **before** enumerating, not after. arXiv
+  2602.20408 — <https://arxiv.org/abs/2602.20408>
+
 ### Repeatability lens
 
 **Drives**: [`prompts/pre-lock/3-repeatability.md`](prompts/pre-lock/3-repeatability.md); the paired internal-silence

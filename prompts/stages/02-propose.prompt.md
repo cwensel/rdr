@@ -1,8 +1,14 @@
 Make a proposal for the RDR at {RDR_PATH}. See the rdr README for what an RDR
 is and the process. Read {RDR_RESOURCES} — its *Domain priors* section
 (principles, feature surface, user mental model, prior-art/competitor bias) —
-to ground WHICH approaches are on the table; do NOT load the full verification
-corpora or source paths, Resolve does that.
+to ground WHICH approaches are on the table.
+
+This stage owns **selection** (which approach wins, read from prior art), not
+**verification** (live spikes, exactness, full corpora — Resolve's, deliberately:
+batch the expensive spikes once). The split is *depth, not avoidance*: read prior
+art deeply enough to pick right, but stop short of the spike budget. A chosen
+approach overturned three stages late on misread (inverted) citations is the
+documented failure this guards — so read prior art *correctly and first*, here.
 
 Read the Problem Statement and Context, then:
 
@@ -24,31 +30,35 @@ Read the Problem Statement and Context, then:
    as answers to that contract question, not as the next patch. (Escape only via
    a written accretion disposition in `Seam Lineage`; count <2 → skip this step.)
 
-1. Enumerate the 2–4 genuinely distinct approaches that solve the stated USER
-   OUTCOME (not just the mechanism). For each: one-paragraph description,
-   Pros, Cons. Where prior art exists (the competitors {RDR_RESOURCES} names),
-   weigh against how they treat it — align or deliberately diverge, and say
-   which in the rationale.
-   **Breadth bias (do not enumerate from training prior alone).** The candidate
-   set is the most expensive thing to get wrong here — a missing approach is one
-   Resolve can never recover, because it only verifies the approaches that made
-   the list. So before enumerating, check whether the Domain priors actually
-   *cover* this problem class (name a competitor, prior system, or standard for
-   it). If they do, ground the options in that prior art. If they do **not**:
-   - profile `small`/`mid` → **warn**: enumerate from the model prior, but write
-     one line into Investigation — `⚠ approaches enumerated from model prior; no
-     prior-art coverage in Domain priors for <problem class>` — so the gap is
-     visible to Refine and the user, not silent.
-   - profile `large`/`foundational` → **forced bounded search**: do a bounded
-     external prior-art search (the corpora, or a web/literature pass) for how
-     this problem is solved elsewhere *before* fixing the option set, and cite
-     what you found in Investigation. The stakes justify the read; do not skip to
-     the model prior. If the search genuinely returns nothing, say so explicitly
-     and fall back to the warn line above.
-   (Profile is the Seed estimate at this point — use it; Resolve recounts later.)
-2. Recommend ONE. State the decision rationale — the key factors and why each
-   rejected alternative was rejected (one sentence for trivial ones).
-3. **Premortem the chosen approach (one paragraph).** Assume this approach
+1. **Read prior art FIRST — before naming any approach.** An LLM that enumerates
+   first anchors on its training prior and won't reliably self-correct, so read
+   before the candidate set exists, not as a bias applied after. Read the Domain
+   priors' competitors/prior systems/standards for THIS problem class; on a
+   `large`/`foundational` RDR, also do a bounded external pass (corpora or
+   web/literature) — a read, not a spike. **Coverage:** found nothing? Write one
+   Investigation line (`⚠ no prior-art coverage for <problem class>; approaches
+   below are from the model prior`) — never leave the gap silent. **Cite-check:**
+   every prior-art claim the choice will *rest on* must be quoted/anchored from
+   source (named system + section, or `path::Symbol`), not paraphrased — a misread
+   or inverted citation is the exact defect that overturned an approach three
+   stages late. A claim you can't open and quote isn't load-bearing: demote it to a
+   Resolve assumption rather than leaning the choice on it.
+2. **Now enumerate — grounded in step 1.** Name the 2–4 genuinely distinct
+   approaches solving the stated USER OUTCOME (not the mechanism); for each: a
+   one-paragraph description, Pros, Cons, and how it aligns with or diverges from
+   the prior art. A missing approach is the costliest error here — Resolve only
+   verifies approaches that made the list.
+   - **`large`/`foundational` → scored matrix, not prose.** Build a
+     Questions-Options-Criteria matrix (approaches × deciding criteria —
+     correctness fit, prior-art alignment, reversibility, blast radius, cost; one
+     clause per cell); the choice falls out of it. This is the multi-axis re-score
+     the corpus only reached *at rework* — do it here, where switching is cheap.
+   - **`small`/`mid` → prose Pros/Cons** suffices; the premortem is the backstop.
+   (Profile is the Seed estimate here — use it; Resolve recounts later.)
+3. Recommend ONE. State the decision rationale — the key factors and why each
+   rejected alternative was rejected (one sentence for trivial ones); for a scored
+   matrix, the rationale references the deciding rows.
+4. **Premortem the chosen approach (one paragraph).** Assume this approach
    shipped and failed in production; write the one-paragraph post-mortem, then
    confirm the recommendation survives it. If the post-mortem exposes a failure
    the chosen approach can't answer, revise the choice now — it is far cheaper
@@ -60,11 +70,11 @@ Read the Problem Statement and Context, then:
    adjacent/sibling path already makes that decision, and *exhibit* the result
    in the RDR (a pasted `path::Symbol`, or "searched, none exists") — reusing an
    existing signal beats inventing a parallel one.
-4. Write the recommended approach into Proposed Solution and the alternatives
+5. Write the recommended approach into Proposed Solution and the alternatives
    into Alternatives Considered. Keep Technical Design at the level the
    problem needs — do NOT over-specify signatures yet; that sharpens during
    Resolve and Pre-Lock.
-5. Author the **design-body** (replace its `_Draft placeholder._`s):
+6. Author the **design-body** (replace its `_Draft placeholder._`s):
    - **Investigation**: the prior art, code paths, and constraints that
      shaped the choice — one paragraph; deep evidence lands at Resolve.
    - **Implementation Plan**: Prerequisites, the MVV, and Phase 1…N as

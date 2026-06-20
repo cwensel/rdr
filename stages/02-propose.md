@@ -38,13 +38,17 @@ Assumptions list, written into the draft.
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Were real alternatives weighed?** One option, or strawmen, means the
   choice isn't earned — re-run asking for distinct, defensible options.
-- **Was the breadth bias honored?** Approaches must be grounded in the Domain
-  priors' prior art, not invented from the model's training prior. If the priors
-  name no competitor for this problem class, confirm the response either carried
-  the `⚠ no prior-art coverage` line into Investigation (`small`/`mid`) or did the
-  forced bounded prior-art search and cited it (`large`/`foundational`). A clean
-  option set with no prior art *and* no warning is the silent-invention failure
-  this gate stops — re-run.
+- **Was prior art read *before* the approaches?** Order matters — an LLM that
+  enumerates first anchors on its training prior. Confirm the Investigation shows a
+  prior-art read that *grounds* the set, with a `⚠ no prior-art coverage` line if
+  none was found. Approaches grounded in nothing, unmarked, is the silent-invention
+  failure this gate stops — re-run.
+- **Did the cite-check hold?** Every prior-art claim the choice rests on is
+  quoted/anchored from source (named system + section, or `path::Symbol`), not
+  paraphrased — an inverted citation is what overturned a chosen approach three
+  stages late. Unanchored load-bearing claim → re-run or demote to a Resolve assumption.
+- **`large`/`foundational`: scored matrix, not prose?** The choice falls out of an
+  explicit Q-O-C matrix (approaches × deciding criteria). Prose-only → re-run.
 - **Does the chosen approach solve the *user's* problem**, not an adjacent
   one? (The PM lens, surfaced early.)
 - **Did the premortem run, and did the choice survive it?** A premortem that

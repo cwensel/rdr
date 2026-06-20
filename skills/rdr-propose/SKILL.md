@@ -20,23 +20,28 @@ re-validates a seed that sat idle and went stale.
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `RDR_PATH`.
 2. **Run the prompt** [`02-propose.prompt.md`](02-propose.prompt.md).
-   It reads only the **Domain priors** section of `$RDR_RESOURCES` (which approaches
-   are on the table) — not the full verification corpora; Resolve does that. It runs
-   the freshness check (step 0), enumerates 2–4 distinct approaches, recommends one,
+   Propose owns **selection** (which approach wins, read from prior art), not
+   **verification** (deep spikes / full corpora) — that stays at Resolve, by
+   design. The split is depth, not avoidance. It runs the freshness check (step 0),
+   then reads prior art, enumerates 2–4 grounded approaches, recommends one,
    premortems it, and writes Proposed Solution / Alternatives / Decision Rationale +
-   a `Pending` Critical Assumptions list into the draft. **Breadth bias:** approaches
-   are grounded in the priors' prior art, not the model's training prior — if the
-   priors name no competitor for the problem class, a `small`/`mid` RDR carries a
-   `⚠ no prior-art coverage` line into Investigation and a `large`/`foundational`
-   one does a forced bounded prior-art search before fixing the option set.
+   a `Pending` Critical Assumptions list into the draft. **Retrieval-first:** prior
+   art is read *before* approaches are named (an LLM that enumerates first anchors
+   on its training prior), with a **cite-check** — every prior-art claim the choice
+   rests on is quoted/anchored from source, not paraphrased (the guard against the
+   inverted-citation defect that overturned an approach three stages late). No prior
+   art found → an explicit `⚠ no prior-art coverage` line. **`large`/`foundational`
+   also build a scored Questions-Options-Criteria matrix** so the choice falls out
+   of an explicit comparison, not prose.
 
 ## Review gate (Stage `02-propose.md`)
 
 - The seed was still current (step 0 ran; stale refs/scope fixed; any prior "retained
   as history" note acted on and deleted).
 - Real alternatives weighed (not one option or strawmen).
-- Breadth bias honored — approaches grounded in prior art, or the thin-priors gap
-  marked (`⚠` line on `small`/`mid`, forced search cited on `large`/`foundational`).
+- Prior art read *before* the approaches (grounds the set; `⚠ no prior-art coverage`
+  if none), and the choice's prior-art claims are quoted/anchored, not paraphrased.
+- `large`/`foundational`: the choice falls out of a scored Q-O-C matrix, not prose.
 - The chosen approach solves the *user's* problem; the premortem ran and the choice
   survived it.
 - Load-bearing assumptions named (Pending is fine) — Stage 4's worklist.
