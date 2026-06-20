@@ -41,6 +41,16 @@ if a line says FAIL, surface its fix as-is, don't improvise a repair.
 named corpora in `$RDR_RESOURCES` and note any that don't resolve as `[WARN]`
 (degraded mode — research stages run hollow until built). Never a FAIL; skip if no `arc`.
 
+**Domain priors (optional, after a clean structural run).** Read `$RDR_RESOURCES`
+and check its *Domain priors* section: if it is absent, empty, or names no
+competitor/prior-art/standard for the project's problem space, report `[WARN]
+domain priors thin — Propose enumerates approaches from the model prior, not
+prior art`. This is the breadth gap: with no priors to reach for, Propose invents
+candidate approaches from training memory and Resolve can only verify the winner
+of a race the strongest alternatives may have sat out. Never a FAIL (the priors
+are the user's to populate); the one fix is "populate Domain priors in
+`$RDR_RESOURCES` with the competitors/prior art for this domain."
+
 ## Review gate
 
 - **Read-only?** No file/symlink written, nothing installed — the doctor diagnoses;

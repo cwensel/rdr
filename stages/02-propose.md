@@ -38,6 +38,13 @@ Assumptions list, written into the draft.
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Were real alternatives weighed?** One option, or strawmen, means the
   choice isn't earned — re-run asking for distinct, defensible options.
+- **Was the breadth bias honored?** Approaches must be grounded in the Domain
+  priors' prior art, not invented from the model's training prior. If the priors
+  name no competitor for this problem class, confirm the response either carried
+  the `⚠ no prior-art coverage` line into Investigation (`small`/`mid`) or did the
+  forced bounded prior-art search and cited it (`large`/`foundational`). A clean
+  option set with no prior art *and* no warning is the silent-invention failure
+  this gate stops — re-run.
 - **Does the chosen approach solve the *user's* problem**, not an adjacent
   one? (The PM lens, surfaced early.)
 - **Did the premortem run, and did the choice survive it?** A premortem that

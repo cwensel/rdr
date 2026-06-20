@@ -29,6 +29,23 @@ Read the Problem Statement and Context, then:
    Pros, Cons. Where prior art exists (the competitors {RDR_RESOURCES} names),
    weigh against how they treat it — align or deliberately diverge, and say
    which in the rationale.
+   **Breadth bias (do not enumerate from training prior alone).** The candidate
+   set is the most expensive thing to get wrong here — a missing approach is one
+   Resolve can never recover, because it only verifies the approaches that made
+   the list. So before enumerating, check whether the Domain priors actually
+   *cover* this problem class (name a competitor, prior system, or standard for
+   it). If they do, ground the options in that prior art. If they do **not**:
+   - profile `small`/`mid` → **warn**: enumerate from the model prior, but write
+     one line into Investigation — `⚠ approaches enumerated from model prior; no
+     prior-art coverage in Domain priors for <problem class>` — so the gap is
+     visible to Refine and the user, not silent.
+   - profile `large`/`foundational` → **forced bounded search**: do a bounded
+     external prior-art search (the corpora, or a web/literature pass) for how
+     this problem is solved elsewhere *before* fixing the option set, and cite
+     what you found in Investigation. The stakes justify the read; do not skip to
+     the model prior. If the search genuinely returns nothing, say so explicitly
+     and fall back to the warn line above.
+   (Profile is the Seed estimate at this point — use it; Resolve recounts later.)
 2. Recommend ONE. State the decision rationale — the key factors and why each
    rejected alternative was rejected (one sentence for trivial ones).
 3. **Premortem the chosen approach (one paragraph).** Assume this approach
