@@ -20,13 +20,12 @@ base model**. The cross-model run is the point: it surfaces where the RDR reads
 differently to a different model, not just a different temperature draw.
 
 **One session writes exactly one run.** A context window that authored a run
-anchors to that interpretation, so the rest are paraphrases of it — which is why a
-sub-agent **cannot** stand in (self-consistency check) and this session must not
-write a second `run-*.md`. If you can't relaunch the CLI for the next run on a
-fresh session (and, for the cross-model run, on the alt base), **stop and hand the
-command to the user** — don't write the extra run yourself. Relaunch on the alt
-model between runs (e.g. `ollama launch claude --model kimi-k2.6:cloud`); if
-`{RDR_RESOURCES}` lists an alt-model roster, use one of its commands for run N.
+must not write a second `run-*.md` — the next run goes in a fresh session so
+each draw is independent. A sub-agent **cannot** stand in (self-consistency
+check). After writing `run-<N>.md`, stop — the next invocation in a fresh
+session writes the next one. Relaunch on the alt model between runs (e.g.
+`ollama launch claude --model kimi-k2.6:cloud`); if `{RDR_RESOURCES}` lists
+an alt-model roster, use one of its commands for run N.
 
 `{RDR_PATH}`, `{EVIDENCE_DIR}` (this lens's `<rdr-slug>/evidence/repeatability/`
 folder under `$RDR_EVIDENCE` — `{RDR_ENV}` defines), and `<N>` (this run's
