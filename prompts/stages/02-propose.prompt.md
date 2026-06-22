@@ -26,7 +26,8 @@ Read the Problem Statement and Context, then:
    point-fixes at this locus, this is a *missing design decision, not a missing
    patch*: before proposing any mechanism, write one sentence naming the
    **undecided contract** the prior point-fixes all danced around, and set
-   Profile to `foundational` (the grounding lens then runs). Enumerate approaches
+   Profile to `foundational` (the cove lens then runs — it subsumes grounding as
+   its Step 0). Enumerate approaches
    as answers to that contract question, not as the next patch. (Escape only via
    a written accretion disposition in `Seam Lineage`; count <2 → skip this step.)
 
