@@ -30,6 +30,11 @@ contract vars (`$RDR_HOME` / `$RDR_RECORDS` / `$RDR_EVIDENCE` / `$RDR_ENV` / `$R
 the snippets below and skip the resolver block entirely. Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
 
+**Run the block below verbatim — do not abbreviate, paraphrase, or source the
+marker file directly.** The marker guards against direct sourcing: it exits 1 if
+`$WS` is unset, and `$WS` is only produced by the `git rev-parse` lines that come
+before the source call. Skipping those lines is the failure mode.
+
 Run this first. It keys off git topology, so it resolves the same from a consumer
 cwd, a consumer worktree, or the flow repo. **Nearest marker wins**: a repo-local
 `$PROJECT/.rdr/workspace` (this repo's own RDR env, inside its gitignored `.rdr/` — the
@@ -42,17 +47,19 @@ empty when the glob runs (the classic empty-`RDR_PATH` miss). Source the marker
 **only** via this block; `$RDR_MARKER` records which one resolved.
 
 ```sh
+# §seam-bind — copy/run verbatim; do NOT source the marker file directly (exits 1 without $WS).
+# $WS must be derived from git topology first — the three lines below do that.
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
 GIT_COMMON=$(cd "$GC" && pwd -P)
 PROJECT=$(dirname "$GIT_COMMON")                  # this repo's root (worktree-invariant: git-common-dir is the main .git)
-WS=$(dirname "$PROJECT")                            # workspace root (holds the sibling repos)
+WS=$(dirname "$PROJECT")                            # workspace root — required by the marker; set here, not by sourcing it
 export PROJECT WS                                   # both exported so a marker can anchor on either ($PROJECT repo-local, $WS workspace)
 # Nearest marker wins: a repo-local marker overrides / replaces the shared workspace one.
 # Repo-local lives INSIDE .rdr/ (already gitignored — no project-level .gitignore edit).
 if   [ -f "$PROJECT/.rdr/workspace" ]; then RDR_MARKER="$PROJECT/.rdr/workspace"  # repo-local scope (default)
 elif [ -f "$WS/.rdr-workspace" ];      then RDR_MARKER="$WS/.rdr-workspace"       # workspace scope (shared, --workspace)
 else echo "stopped:no-marker — run /rdr-init in this repo (looked in $PROJECT/.rdr and $WS)" >&2; exit 1; fi
-. "$RDR_MARKER"                                     # ONLY sourcing path
+. "$RDR_MARKER"                                     # source ONLY via this path (never directly)
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || { echo "stopped:no-rdr-env:$RDR_ENV" >&2; exit 1; }
 [ -n "$RDR_HOME" ] || { echo "stopped:no-rdr-home — run /rdr-init to write the marker" >&2; exit 1; }
 # $RDR_RECORDS is required for every stage except /rdr-seed-into-a-fresh-dir; resolve/claim assert it themselves.
