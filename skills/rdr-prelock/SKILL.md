@@ -67,7 +67,10 @@ Not an in-skill loop — cross-context independence can't be faked in one sessio
 - **One run per invocation; never substitute in-session** (a session that wrote a
   run anchors to its own reading). Next run needs a fresh session you can't
   relaunch (esp. the cross-model run) → stop
-  `stopped:repeatability-needs-fresh-session:run-<N>`, hand over the command.
+  `stopped:repeatability-needs-fresh-session:run-<N>`, then emit the fully-bound
+  generation prompt (`3-repeatability.md` with `{RDR_PATH}`, `{EVIDENCE_DIR}`, and
+  `<N>` substituted) as a paste block. The user pastes it raw into a fresh session —
+  no `/rdr-prelock` invocation needed for that run.
 - **Diff only when complete + clean** — once `run-1/2/3` exist and this session
   wrote none; else `stopped:repeatability-incomplete:<missing>`. ≥1 run on a
   different model.
@@ -87,9 +90,10 @@ Not an in-skill loop — cross-context independence can't be faked in one sessio
 ## Next step (rdr-common §next-step)
 
 - **3amigo | critique | cove** converged → next lens: `Next: /rdr-prelock NNNN <next-lens>`.
-- **repeatability** — runs missing → `Next: /rdr-prelock NNNN repeatability <next-run>`
-  (fresh session); third run exists → `Next: /rdr-prelock NNNN repeatability diff`
-  (fresh session, authored no run; it also resolves `diff.md`).
+- **repeatability** — runs missing → paste the emitted prompt block into a fresh
+  session (no `/rdr-prelock` — the invocation anchors the session); third run
+  exists → `Next: /rdr-prelock NNNN repeatability diff` (fresh session that
+  authored no run; it also resolves `diff.md`).
 - **All profile lenses done** → `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
 - **`stopped:verdict-flapping`** → resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces

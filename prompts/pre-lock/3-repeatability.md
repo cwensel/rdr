@@ -28,10 +28,11 @@ command to the user** — don't write the extra run yourself. Relaunch on the al
 model between runs (e.g. `ollama launch claude --model kimi-k2.6:cloud`); if
 `{RDR_RESOURCES}` lists an alt-model roster, use one of its commands for run N.
 
-`{RDR_PATH}`, `{EVIDENCE_DIR}` (this lens's `repeatability/<rdr-slug>/` folder
-under the base `{RDR_ENV}` defines), and `<N>` (this run's number, 1–3) are
-bound by the Stage 5 arg header — paste verbatim. Running standalone (outside
-the flow)? Read `{RDR_ENV}` for the base and fill them yourself first.
+`{RDR_PATH}`, `{EVIDENCE_DIR}` (this lens's `<rdr-slug>/evidence/repeatability/`
+folder under `$RDR_EVIDENCE` — `{RDR_ENV}` defines), and `<N>` (this run's
+number, 1–3) are bound by the Stage 5 arg header — paste verbatim. Running
+standalone (outside the flow)? Read `{RDR_ENV}` for the base and fill them
+yourself first.
 
 ```text
 Based only on the RDR at {RDR_PATH}, produce:
