@@ -173,7 +173,12 @@ and symmetric with the per-RDR `{ARTIFACT_DIR}` under `$RDR_RECORDS`: every RDR 
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/spikes/`. A re-entry pass appends `iter-N/`
 (`…/evidence/<lens>/iter-2/`); loose files directly under `…/evidence/<lens>/` are
 iteration 1. The existence of `…/evidence/<lens>/` is the disk signal that that
-lens ran — this is what `/rdr-status` reads. Bind the concrete `{EVIDENCE_DIR}` /
+lens ran — this is what `/rdr-status` reads. **Not every stage leaves a disk
+signal:** Stage 4 Resolve writes an evidence folder only when it names spikes;
+a pure source-search resolve records its verdicts inline in the RDR (CAs flip to
+`Verified`) and creates no `<RDR_SLUG>/` dir. So a missing per-RDR folder means
+"no lens/spike artifact yet," **not** "Resolve hasn't run" — the CA verdicts in
+the RDR body are the authority for Resolve-done. Bind the concrete `{EVIDENCE_DIR}` /
 `{SPIKE_DIR}` from `$RDR_ENV`, which resolves them against `$RDR_EVIDENCE`. When
 `$RDR_EVIDENCE` defaults to `$RDR_RECORDS`, an RDR's `evidence/` and `artifacts/`
 sit as siblings under one `<RDR_SLUG>/` folder; when a consumer points

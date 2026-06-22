@@ -49,7 +49,7 @@ per-slug paths above count.
 | 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
 | 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending) |
 | 3 Refine | *human-judged* — infer done if Stage-4 evidence exists or assumptions carry Method/Evidence |
-| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan; `<RDR_EVIDENCE>/spikes/<slug>/` present when spikes were named (spike shape, not lens shape) |
+| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `<RDR_EVIDENCE>/spikes/<slug>/` present when spikes were named (spike shape, not lens shape). A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/` |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; the Finalization Gate's five responses present in the RDR; README index row updated |
@@ -73,6 +73,15 @@ exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes unde
      this is a **scoped backward-edge**; next is `/rdr-resolve NNNN` (it self-scopes
      to the listed IDs). Surface the qualifier so the human knows the run is a delta.
    - bare `Draft` → front-half; use the evidence signals to find the furthest stage.
+     **Read the in-record signals, not just folders.** Some stages prove "done" in
+     the RDR body, not on disk: Stage 4 Resolve is done when the Critical
+     Assumptions are all `Verified`/`Pending`-with-plan **even if no evidence folder
+     exists** — a pure source-search resolve (no spikes, no lenses) writes its
+     verdicts inline and creates no `<RDR_EVIDENCE>/<slug>/` dir at all. A missing
+     evidence folder therefore does **not** mean Resolve hasn't run; check the CA
+     verdicts first. Never recommend re-running a stage whose done-signal (folder
+     **or** record) is already satisfied — if CAs are all `Verified`, Resolve is
+     behind you and next is the first Pre-Lock lens, not `/rdr-resolve`.
 2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
    footnote.** It maps to an exact lens-set (the `$RDR_HOME/stages/README.md`
    matrix is the sole authority — never reconstruct it from memory):
