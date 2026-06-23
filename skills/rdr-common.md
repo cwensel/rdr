@@ -3,7 +3,8 @@
 Not a skill. Shared preamble the per-stage RDR skills cite by `§<anchor>` so the
 seam-bind, number→path resolve, and evidence-glob logic live in one place. Every
 `/rdr-*` SKILL.md runs §seam-bind and (except `/rdr-seed`) §rdr-resolve first,
-then runs its stage prompt, then prints §next-step.
+then runs its stage prompt, then (when autocommit is on) runs §commit on its own
+files, then prints §next-step.
 
 These skills **do not use a worktree** and **do not edit the consumer project's
 source** — they author/inspect RDR documents and write flow evidence. The only writes are to the
@@ -242,6 +243,120 @@ writes), not a fresh size inference: `small` skips prelock (resolve→reconcile)
 `mid`+ runs the profile's lenses (`$RDR_HOME/stages/README.md` matrix). The
 finalize Gate re-validates the field before lock, so a wrong value cannot
 silently route past the lenses.
+
+## §commit — optionally commit this run's *own* files, fast, no exploration
+
+A writing stage already knows the exact files it wrote — `$RDR_PATH`,
+`$RDR_RECORDS/README.md`, and its `$RDR_EVIDENCE/$RDR_SLUG/evidence/<subdir>` — bound by
+§seam-bind + §rdr-resolve. So it can commit *those paths and nothing else* without ever
+running `git status` / `git add -A` / inspecting "what's dirty". This is the whole point:
+**no reconnaissance, no round-trip, and no confusion about what this session owns** —
+the owned set is a property of the stage, not a discovery. It also makes parallel
+`/rdr-*` runs safe **without a worktree**: each run commits through its *own* private
+index and advances the branch with a compare-and-swap, so concurrent runs never fight
+over `index.lock` and never clobber each other's commits.
+
+**Records and evidence may live in DIFFERENT repos.** `$RDR_RECORDS` and `$RDR_EVIDENCE`
+are independent absolute paths the marker exports — a consumer can stage records in one
+repo (e.g. `process/rdr/cli`) and evidence in a sibling (e.g. `flow/rdr/evidence`). So
+`rdr_commit` is **repo-aware**: it derives the owning repo from the paths themselves and
+commits there via `git -C` — it does **not** assume cwd's repo, and the doc commit and the
+evidence commit may land in two different repos. Pass paths that all live in ONE repo per
+call (records paths together, evidence paths together); the helper asserts this.
+
+**When it runs (autocommit gate).** The gate var is `RDR_AUTOCOMMIT`, exported by the
+marker (§seam-bind sources it) — add `RDR_AUTOCOMMIT=true` beside the other `RDR_*`
+exports in the workspace/`.rdr` marker to default-on a project; unset/false = off. A
+`--commit` arg forces on for this run, `--no-commit` forces off. Precedence:
+`--no-commit` > `--commit` > `RDR_AUTOCOMMIT` > off. Resolve it with `rdr_autocommit_on`
+below and skip §commit entirely when it returns false (the human commits manually).
+
+**Run the functions below verbatim** (same doctrine as §seam-bind — do not paraphrase or
+abbreviate; weaker models must run them literally). Call `rdr_commit` once per logical
+commit, passing the subject then the owned absolute paths:
+
+```sh
+# §commit — commit an EXACT owned path-set to its OWN repo. No staging churn, no
+# git-status read, repo-aware, parallel-safe (private index + compare-and-swap ref update).
+# Usage:  rdr_autocommit_on "$@" && rdr_commit "docs(rdr): … cli/$NNNN — <summary>" "$RDR_PATH" "$RDR_RECORDS/README.md"
+# Preconditions: §seam-bind ran (RDR_AUTOCOMMIT + paths bound). Paths are ABSOLUTE; all in one repo per call.
+
+rdr_autocommit_on() {                                  # reads the gate; "$@" = the skill's own args
+  case " $* " in *" --no-commit "*) return 1;; *" --commit "*) return 0;; esac
+  [ "$RDR_AUTOCOMMIT" = "true" ]                        # marker var; unset/anything-else = off
+}
+
+rdr_commit() {
+  SUBJECT="$1"; shift                                  # remaining args = the owned ABSOLUTE paths
+  [ "$#" -ge 1 ] || return 0
+  # Derive the owning repo from the FIRST path; assert every path lives in that same repo.
+  REPO=$(cd "$(dirname "$1")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null) || {
+    echo "stopped:commit-no-repo:$1" >&2; return 1; }
+  for p in "$@"; do
+    r=$(cd "$(dirname "$p")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
+    [ "$r" = "$REPO" ] || { echo "stopped:commit-cross-repo:$p not in $REPO" >&2; return 1; }
+  done
+  TMPIDX="$REPO/.git/rdr-skillidx-$$-${NNNN:-x}"        # per-run PRIVATE index in the TARGET repo
+  n=0
+  while [ "$n" -lt 50 ]; do                            # CAS retry cap — generous; the retry is cheap
+    PARENT=$(git -C "$REPO" rev-parse HEAD)
+    GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" read-tree "$PARENT"        # seed full tree from HEAD
+    GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" add -- "$@"                # stage ONLY my paths, in MY index
+    TREE=$(GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" write-tree)
+    if [ "$TREE" = "$(git -C "$REPO" rev-parse "$PARENT^{tree}")" ]; then  # no-op guard: my paths unchanged
+      rm -f "$TMPIDX"; return 0                                            # → no empty commit, silent
+    fi
+    COMMIT=$(GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" commit-tree "$TREE" -p "$PARENT" -m "$SUBJECT")
+    if git -C "$REPO" update-ref HEAD "$COMMIT" "$PARENT" 2>/dev/null; then   # CAS: only if HEAD unmoved
+      # Reconcile ONLY my paths in the REAL index so `git status` is clean afterward,
+      # without disturbing the user's own staged work. `git reset -- <pathspec>` handles
+      # both file and DIRECTORY args (evidence is passed as a dir); retry if index.lock is busy.
+      r=0; while [ "$r" -lt 20 ]; do git -C "$REPO" reset -q HEAD -- "$@" 2>/dev/null && break; r=$((r+1)); done
+      rm -f "$TMPIDX"
+      echo "committed $(git -C "$REPO" rev-parse --short HEAD)  $SUBJECT"
+      return 0
+    fi
+    n=$((n+1))                                          # CAS lost (a parallel run advanced HEAD): retry
+    sleep "0.0$((n % 9))"                               # brief jittered backoff so racers don't re-collide
+  done
+  rm -f "$TMPIDX"
+  echo "stopped:commit-contended — HEAD moved 50×; the paths are written, commit manually" >&2
+  return 1
+}
+```
+
+**What each stage commits** (owned path-set + subject — never `git add -A`):
+
+| Stage | Doc commit (`$RDR_PATH` [+ `$RDR_RECORDS/README.md`]) | Evidence commit (separate) |
+|-------|---|---|
+| seed | `docs(rdr): seed cli/NNNN <slug>` (`$RDR_PATH` only; README untouched here) | — |
+| propose | `docs(rdr): propose cli/NNNN — <summary>` | — |
+| refine | `docs(rdr): refine cli/NNNN — <summary>` | — |
+| resolve | `docs(rdr): resolve cli/NNNN — <summary>` | `chore(rdr): cli/NNNN spike evidence` (if a spike wrote) |
+| prelock (non-repeatability lens) | `docs(rdr): prelock cli/NNNN — <lens> pass` | `chore(rdr): cli/NNNN <lens> evidence` |
+| reconcile | `docs(rdr): reconcile cli/NNNN — <summary>` | `chore(rdr): cli/NNNN reconcile evidence` |
+| finalize | `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` | — |
+| cluster-reconcile | (commits at finalize) | `chore(rdr): cli/NNNN cluster-reconcile <cluster>` |
+| implement | (code-repo `feat(...)` commit — its own contract) | artifact files only, if gated on |
+
+Two commits, never one: the doc/README commit is the **design history** (`docs(rdr):`,
+real subject — *never* `fixup!`; per the no-fixup doctrine, RDR commits ARE the history);
+the evidence subtree is a separate `chore(rdr):` commit so the `docs(rdr)` log stays
+readable. Match the subject grammar already in the consumer's log
+(`docs(rdr): <stage> cli/NNNN — <one-line>`).
+
+**The `repeatability` lens is the one exception to "commit at the lens."** Its `run-1/2/3`
+each run in a *fresh* session that writes only `evidence/repeatability/run-N.md` and does
+**not** touch the RDR doc. So each run session commits just its own run file
+(`chore(rdr): cli/NNNN repeatability run-N`) — that keeps the loop tight (a fresh session's
+owned set is one file, unambiguous). The **doc commit is deferred to the diff session**,
+the first point the RDR doc actually changes (`docs(rdr): prelock cli/NNNN — repeatability`).
+**The diff session's evidence commit covers the whole `repeatability/` dir**, not just
+`diff.md` (`chore(rdr): cli/NNNN repeatability evidence`) — so it is **self-healing**: any
+run whose own session did not commit it (autocommit was off then, or the runs predate
+enabling it) is swept in here, alongside `diff.md`. The no-op guard makes this idempotent —
+already-committed runs add nothing. So however the per-run commits went, the lens lands
+fully committed at the diff, never leaving a straggler for the human to chase.
 
 ## Brevity & doctrine
 

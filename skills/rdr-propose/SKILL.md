@@ -1,6 +1,6 @@
 ---
 name: rdr-propose
-argument-hint: <NNNN>
+argument-hint: <NNNN> [--commit | --no-commit]
 description: Use to move a seeded RDR from problem statement to a chosen approach with alternatives weighed and premortemed (e.g. "propose an approach for RDR 46", "/rdr-propose 0046"). Runs Stage 2 of the RDR flow. Also the front-half resume point — its freshness check re-validates a seed that sat idle. Pairs with /rdr-refine (next) and /rdr-seed (back).
 ---
 
@@ -49,6 +49,7 @@ re-validates a seed that sat idle and went stale.
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for `propose` first (see the rdr-common table).
 - `Next: /rdr-refine NNNN` — remove contradiction, redundancy, bloat.
 - A surfaced contradiction is a real design hole → iterate this stage (re-run
   `/rdr-propose NNNN`) before refining.

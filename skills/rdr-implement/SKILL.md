@@ -1,6 +1,6 @@
 ---
 name: rdr-implement
-argument-hint: <NNNN> | --launch-prompt-path
+argument-hint: (<NNNN> [--commit | --no-commit]) | --launch-prompt-path
 description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "/rdr-implement 0045"). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with /rdr-finalize (must precede it). Also exposes `--launch-prompt-path` so wrappers get the orchestrator prompt's location from the engine instead of reconstructing its internal layout.
 ---
 
@@ -80,6 +80,8 @@ Refuse with the named code if any is false (the RDR is not ready — return to
 
 ## Next step (rdr-common §next-step)
 
+- §commit here is **artifact files only** (`<slug>/{req-list,coverage,verification,deviations,status}.md`),
+  if autocommit is on. **Code** commits stay with the orchestrator's `feat(...)` contract — §commit never touches source.
 - COMPLETE → Close (post-mortem); the flow is done.
 - INCOMPLETE → fix the named blocker, re-run `/rdr-implement NNNN`.
 - Spec defect → re-enter the flow at the named stage, then re-lock and re-run.

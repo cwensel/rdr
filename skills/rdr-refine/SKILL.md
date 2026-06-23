@@ -1,6 +1,6 @@
 ---
 name: rdr-refine
-argument-hint: <NNNN>
+argument-hint: <NNNN> [--commit | --no-commit]
 description: Use to remove internal contradiction, redundancy, change-history narration, and bloat from an RDR draft (e.g. "refine RDR 46", "/rdr-refine 0046"). Runs Stage 3 of the RDR flow — fixes the document so it is internally consistent before its claims are verified. Pairs with /rdr-resolve (next) and /rdr-propose (back, if a contradiction is a real design hole).
 ---
 
@@ -38,6 +38,7 @@ verify the world (that's Stage 4).
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for `refine` first (see the rdr-common table).
 - `Next: /rdr-resolve NNNN` — verify the Critical Assumptions against reality.
 - A contradiction that's a real design hole → `/rdr-propose NNNN` (the approach is
   underspecified).

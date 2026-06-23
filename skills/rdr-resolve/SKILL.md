@@ -1,6 +1,6 @@
 ---
 name: rdr-resolve
-argument-hint: <NNNN>
+argument-hint: <NNNN> [--commit | --no-commit]
 description: Use to verify an RDR's critical assumptions against reality before any pre-lock review (e.g. "resolve assumptions for RDR 46", "/rdr-resolve 0046"). Runs Stage 4 of the RDR flow — research + spikes + reuse audit, flipping assumptions to Verified with Method + Evidence. Self-detects scoped re-entry from the RDR Status line. Pairs with /rdr-prelock (next) and /rdr-propose (back, if research refutes the approach).
 ---
 
@@ -45,6 +45,7 @@ front-half stage. Running a pre-lock round before this one wastes the round.
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for `resolve` first (+ a separate spike-evidence commit if a spike wrote; see the rdr-common table).
 - Research refuted the approach or surfaced existing capability → **back** to
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata

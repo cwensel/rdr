@@ -1,6 +1,6 @@
 ---
 name: rdr-cluster-reconcile
-argument-hint: <cluster-name | NNNN NNNN [NNNN…]>
+argument-hint: <cluster-name | NNNN NNNN [NNNN…]> [--commit | --no-commit]
 description: Use to reconcile cross-RDR drift across a cluster of related RDRs that are all Final and none yet implemented (e.g. "cluster-reconcile the import RDRs", "/rdr-cluster-reconcile import"). Runs Stage 7.1 of the RDR flow — whole-set critique + pairwise contradiction scan before any of the cluster implements. Per cluster, NOT per RDR — most RDRs skip it. Pairs with /rdr-finalize (before) and /rdr-implement (after), and routes Final→Draft on a defect.
 ---
 
@@ -46,6 +46,7 @@ say so and point at `/rdr-implement NNNN`.
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for the cluster-reconcile *evidence* (`chore(rdr): cli/NNNN cluster-reconcile <cluster>`); the doc/lock commit lands at finalize, not here.
 - Reconciled, no demotion → `Next: /rdr-implement NNNN` for each cluster member.
 - A peer demoted to Draft → re-enter it at the scoped stage (`/rdr-propose` /
   `/rdr-refine` / `/rdr-resolve` per the scope), re-lock via `/rdr-finalize NNNN`,

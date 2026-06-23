@@ -1,6 +1,6 @@
 ---
 name: rdr-seed
-argument-hint: <kata-id | "one-line idea">
+argument-hint: <kata-id | "one-line idea"> [--commit | --no-commit]
 description: Use to start a brand-new RDR from an idea, kata, or one-line description (e.g. "seed an RDR for constraint identity", "/rdr-seed v06p", "/rdr-seed 'import should exit non-zero on parse error'"). Runs Stage 1 of the RDR flow — allocates the next number and writes a template-conformant Draft skeleton. Pairs with /rdr-propose (next).
 ---
 
@@ -51,6 +51,7 @@ no research at seed time.
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for `seed` first (`$RDR_PATH` only — README untouched here).
 - `Next: /rdr-propose NNNN` — enumerate approaches, choose one, premortem it.
 - Demoted → done (refiled as an issue).
 - `/rdr-status NNNN` to re-orient.

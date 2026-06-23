@@ -1,6 +1,6 @@
 ---
 name: rdr-reconcile
-argument-hint: <NNNN>
+argument-hint: <NNNN> [--commit | --no-commit]
 description: Use to close every open spike and round-disturbed assumption before an RDR can lock (e.g. "reconcile RDR 46 before lock", "/rdr-reconcile 0046"). Runs Stage 6 of the RDR flow — forces every open item to a terminal state (VERIFIED / DOWNGRADED / ACCEPTED / BLOCKER) and writes it into the RDR. Gates the lock. Pairs with /rdr-finalize (next) and routes back to /rdr-resolve|propose|refine on a refutation.
 ---
 
@@ -50,6 +50,7 @@ forcing every open spike and every round-disturbed assumption to a terminal stat
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on, run **§commit** for `reconcile` first (+ a separate reconcile-evidence commit; see the rdr-common table).
 - Verdict **RECONCILED** → `Next: /rdr-finalize NNNN`.
 - Verdict **NOT RECONCILED** → back to the named stage: `/rdr-propose NNNN` (approach),
   `/rdr-refine NNNN`, or `/rdr-resolve NNNN` (re-resolve).

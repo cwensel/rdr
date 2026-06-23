@@ -1,6 +1,6 @@
 ---
 name: rdr-prelock
-argument-hint: "<NNNN> <lens> [run]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
+argument-hint: "<NNNN> <lens> [run] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
 description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "/rdr-prelock 0046 critique"). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is grounding | 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with /rdr-resolve; follow with /rdr-reconcile.
 ---
 
@@ -64,7 +64,9 @@ One invocation runs the full loop for one lens:
 
 Not an in-skill loop — independence comes from separate sessions between runs,
 not from the invoking session being RDR-naive (the generation prompt reads the
-RDR anyway).
+RDR anyway). **Commit cadence is the §commit exception**: each run session commits
+only its own `run-<N>.md` (`chore(rdr): cli/NNNN repeatability run-N`); the doc commit
+defers to the diff session — see rdr-common §commit.
 
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
@@ -77,7 +79,11 @@ RDR anyway).
   wrote none; else `stopped:repeatability-incomplete:<missing>`. ≥1 run on a
   different model.
 - **Resolve once `diff.md` lands** — this same skill runs the resolve prompt on
-  `diff.md`; its REPEATABILITY DIFF clause governs each divergence.
+  `diff.md`; its REPEATABILITY DIFF clause governs each divergence. If autocommit is on,
+  the diff session does the doc commit (`docs(rdr): prelock cli/NNNN — repeatability`) and
+  **one evidence commit over the whole `repeatability/` dir** (`chore(rdr): … repeatability
+  evidence`) — self-healing: it sweeps any run files an earlier session left uncommitted
+  (no-op guard skips ones already in). See rdr-common §commit.
 
 ## Review gate (Stage `05-prelock.md`)
 
@@ -91,6 +97,10 @@ RDR anyway).
 
 ## Next step (rdr-common §next-step)
 
+- If autocommit is on: **non-repeatability lenses** run **§commit** for `prelock <lens>`
+  here (doc + a separate `<lens>` evidence commit). **repeatability** follows its own
+  cadence — run files commit per session, the doc commit + a whole-`repeatability/`-dir
+  (self-healing) evidence commit land at the diff (see above / §commit).
 - **3amigo | critique | cove** converged → next lens: `Next: /rdr-prelock NNNN <next-lens>`.
 - **repeatability** — runs missing → `Next: /rdr-prelock NNNN repeatability <N+1>`
   (fresh session); third run exists → `Next: /rdr-prelock NNNN repeatability diff`

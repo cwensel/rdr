@@ -38,9 +38,10 @@ not a human pause:
   returns to. Flip NOTHING. Stop here.
 - READY — lock immediately: set Status to Final, write the gate's five
   responses into the Finalization Gate section, update the status/title row for
-  this RDR in the RDR README index, and commit as a fixup to the RDR's existing
-  commit (we never amend RDRs as documentation — this is a status flip with the
-  gate record).
+  this RDR in the RDR README index. If autocommit is on (rdr-common §commit),
+  commit it as a **standalone** `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`
+  over the RDR + README — **never** a `fixup!` (RDR commits ARE the design history;
+  we record the lock as its own real subject, not a deferred-squash).
 - A single gate item genuinely in doubt (not a clear pass or fail) — stop and
   surface it per §stop-packet rather than guessing the lock.
 
