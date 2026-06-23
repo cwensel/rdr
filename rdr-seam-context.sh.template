@@ -16,14 +16,17 @@ elif [ -f "$WS/.rdr-workspace" ];      then MARKER="$WS/.rdr-workspace"
 else exit 0; fi
 . "$MARKER" 2>/dev/null || exit 0
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || exit 0
-# Emit only the five-var engine contract the skills read. (A consumer may add its
-# own *_ROOT lines below if its sessions reference them; they are not load-bearing.)
+# Emit the five-var engine contract + the RDR_AUTOCOMMIT gate the skills read. (A
+# consumer may add its own *_ROOT lines below if its sessions reference them; they
+# are not load-bearing.) RDR_AUTOCOMMIT MUST be emitted: the fast path skips the
+# resolver, so a skill that doesn't see it here reads the §commit gate as off.
 cat <<EOF
 RDR seam pre-resolved (SessionStart hook; rdr-common §seam-bind fast path applies —
-substitute these literal paths, skip the resolver block):
+substitute these literal values, skip the resolver block):
 RDR_HOME=$RDR_HOME
 RDR_RECORDS=$RDR_RECORDS
 RDR_EVIDENCE=$RDR_EVIDENCE
 RDR_ENV=$RDR_ENV
 RDR_RESOURCES=$RDR_RESOURCES
+RDR_AUTOCOMMIT=$RDR_AUTOCOMMIT
 EOF

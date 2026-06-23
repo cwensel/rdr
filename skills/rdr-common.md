@@ -27,8 +27,11 @@ re-parses the stage doc.
 **Fast path — pre-resolved seam.** If the session context already carries an
 `RDR seam pre-resolved` block (a consumer's `SessionStart` hook emits one, if it
 installs one), take its paths verbatim: substitute the **literal values** for the
-contract vars (`$RDR_HOME` / `$RDR_RECORDS` / `$RDR_EVIDENCE` / `$RDR_ENV` / `$RDR_RESOURCES`) in
-the snippets below and skip the resolver block entirely. Harnesses and sessions without that block (other agents,
+contract vars (`$RDR_HOME` / `$RDR_RECORDS` / `$RDR_EVIDENCE` / `$RDR_ENV` / `$RDR_RESOURCES`,
+plus the `$RDR_AUTOCOMMIT` gate var §commit reads) in the snippets below and skip the
+resolver block entirely. The block carries `RDR_AUTOCOMMIT` precisely so the fast path
+doesn't blind §commit's gate — if the block omits it, treat `RDR_AUTOCOMMIT` as unset
+(autocommit off). Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
 
 **Run the block below verbatim — do not abbreviate, paraphrase, or source the
