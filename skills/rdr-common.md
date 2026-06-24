@@ -339,7 +339,7 @@ rdr_commit() {
 
 | Stage | Doc commit (`$RDR_PATH` [+ `$RDR_RECORDS/README.md`]) | Evidence commit (separate) |
 |-------|---|---|
-| seed | `docs(rdr): seed cli/NNNN <slug>` (`$RDR_PATH` only; README untouched here) | — |
+| seed | `docs(rdr): seed cli/NNNN <slug>` (`$RDR_PATH` + `$RDR_RECORDS/README.md` — the new index row) | — |
 | propose | `docs(rdr): propose cli/NNNN — <summary>` | — |
 | refine | `docs(rdr): refine cli/NNNN — <summary>` | — |
 | resolve | `docs(rdr): resolve cli/NNNN — <summary>` | `chore(rdr): cli/NNNN spike evidence` (if a spike wrote) |

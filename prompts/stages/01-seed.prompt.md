@@ -45,4 +45,11 @@ requirement. Do not solve it here.
 If {IDEA} is a plain description rather than a kata id, synthesize a
 one-paragraph problem statement from it, flagged for my review.
 
+Once the Draft file is at its final `<rdr-dir>/NNNN-slug.md` path, **add its row
+to the RDR README index** (`$RDR_RECORDS/README.md`, the authoritative status
+table): append `| [NNNN](NNNN-slug.md) | <Title> | Draft | <Priority> |` to the
+`## Index` table, Title/Priority from the RDR's own H1/Metadata. Replace the
+first-RDR placeholder comment if present; touch no other row. (A `Demoted` seed
+adds no row — it runs no further stages.)
+
 This is a skeleton, not a finished document. No ultrathink at seed time.

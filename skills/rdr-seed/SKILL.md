@@ -33,6 +33,9 @@ Claude: /rdr-seed <kata-id | "one-line idea">
    section as the template ships it. **Do not copy a neighbor RDR for style** — that
    drifts the template and leaks its solution. Then `git mv` to `<rdr-dir>/NNNN-slug.md`
    once the slug is known (the artifact dir `<rdr-dir>/NNNN-slug/` is its sibling).
+   Finally **add the new RDR's row to the README index** (`$RDR_RECORDS/README.md`,
+   the authoritative Status table) at `Draft` — the prompt spells out the format;
+   finalize later flips this same row to `Final`.
 3. **Kata-sourced seed? Re-route the kata** once the Draft exists: remove
    `kind:rdr-seed`, strip every `batch:*`, add `kind:rdr-tracked`, and
    `kata comment <id>` with **first line `tracks: cli/NNNN`** (the RDR number
@@ -53,7 +56,7 @@ Claude: /rdr-seed <kata-id | "one-line idea">
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `seed` first (`$RDR_PATH` only — README untouched here).
+- If autocommit is on, run **§commit** for `seed` first over `$RDR_PATH` + `$RDR_RECORDS/README.md` (the new index row).
 - `Next: /rdr-propose NNNN` — enumerate approaches, choose one, premortem it.
 - Demoted → done (refiled as an issue).
 - `/rdr-status NNNN` to re-orient.

@@ -25,7 +25,9 @@ Claude: /rdr-finalize <NNNN>
    Tooling sweep, confirms no cluster re-entry note survives, writes the
    Finalization Gate's five responses, then acts on the verdict:
    - **READY** → set Status → Final, write the gate's five responses into the RDR,
-     update the README index row. Then, if the autocommit gate is on (§commit), run
+     and **flip this RDR's README index row to Final** (seed created the row at
+     Draft; finalize updates that same row in place — add it only if a pre-seed
+     RDR has none). Then, if the autocommit gate is on (§commit), run
      **§commit** with subject `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` over
      `$RDR_PATH` + `$RDR_RECORDS/README.md` — a **standalone** commit, never a `fixup!`
      (RDR commits ARE the design history; per the no-fixup doctrine we record the lock
@@ -48,8 +50,9 @@ Claude: /rdr-finalize <NNNN>
   locking).
 - Any `## Refinement Context (cluster re-entry)` note is gone.
 - The five gate responses are *written*, not rubber-stamped.
-- Readiness says READY, no open blockers; MVV genuinely in scope; README index
-  updated. On NOT READY the prompt flips nothing — return to the named stage.
+- Readiness says READY, no open blockers; MVV genuinely in scope; the RDR's
+  README index row flipped to Final (the row seed created). On NOT READY the
+  prompt flips nothing — return to the named stage.
 
 ## Next step (rdr-common §next-step)
 

@@ -15,7 +15,8 @@ beside this file.
 its body by hand if driving without the skill.
 
 **Run when**: starting a brand-new RDR. **Produces**: a new RDR file in the
-project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status: Draft.
+project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status:
+Draft, **plus a Draft row for it in the RDR home's README index**.
 
 ## Review gate
 
@@ -36,6 +37,8 @@ project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status: 
   if the kata names dependencies; **Seam Lineage** copied from
   `kata-scope-review` (count + trail, or "no prior accretion"), and the Profile
   floored to `foundational` if that count is ≥2.
+- **README index row added.** A Draft row for this RDR exists in the RDR home's
+  index table, Title/Priority matching its H1/Metadata (a Demoted seed adds none).
 - **Is it RDR-shaped at all?** If the {IDEA} carries no real design fork —
   there is one obvious implementation and nothing to weigh — it is not an RDR.
   Refile it as a plain issue and set `Status: Demoted [→ <issue link>]` (record
@@ -62,7 +65,8 @@ seam-accretion tripwire in `kata-scope-review`.)
 
 ## Advance when
 
-The Draft exists, conforms to the template skeleton, and its Problem Statement
-is a reviewable user-outcome statement with no solution baked in.
+The Draft exists, conforms to the template skeleton, its Problem Statement
+is a reviewable user-outcome statement with no solution baked in, and the RDR
+home's README index carries a Draft row for it.
 
 → Next: [02-propose.md](02-propose.md)

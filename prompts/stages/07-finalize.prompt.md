@@ -37,8 +37,11 @@ not a human pause:
 - NOT READY (any blocker) — report the named blockers and the stage each
   returns to. Flip NOTHING. Stop here.
 - READY — lock immediately: set Status to Final, write the gate's five
-  responses into the Finalization Gate section, update the status/title row for
-  this RDR in the RDR README index. If autocommit is on (rdr-common §commit),
+  responses into the Finalization Gate section, and **flip this RDR's README
+  index row to Final** (the row seed added at Draft, updated in place; correct
+  Title/Priority only if drifted). If the row is missing (a pre-seed RDR), add
+  it: `| [NNNN](NNNN-slug.md) | <Title> | Final | <Priority> |`. If autocommit is
+  on (rdr-common §commit),
   commit it as a **standalone** `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`
   over the RDR + README — **never** a `fixup!` (RDR commits ARE the design history;
   we record the lock as its own real subject, not a deferred-squash).

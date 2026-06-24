@@ -6,10 +6,11 @@
   on TEMPLATE drift). After the copy this is a project-local file: edit it freely;
   it does not track the engine.
 
-  Fill {PROJECT} below. /rdr-finalize adds/updates the index row for an RDR and
-  keeps its Status column current (this file is the authoritative status table —
-  see stages/07.0-finalize.md). Leave the table header + legend in place; the flow
-  reads this file as the index + Status/Priority table.
+  Fill {PROJECT} below. /rdr-seed adds the index row for a new RDR (at Draft);
+  /rdr-finalize flips that row's Status to Final at lock; intermediate stages keep
+  the Status/Priority columns current (this file is the authoritative status table
+  — see stages/07.0-finalize.md). Leave the table header + legend in place; the
+  flow reads this file as the index + Status/Priority table.
 -->
 # {PROJECT} — Recommendation Decisioning Records
 
@@ -22,7 +23,7 @@ engine README — this file is only the per-project index.
 
 | ID | Title | Status | Priority |
 | --- | --- | --- | --- |
-<!-- /rdr-finalize adds a row per RDR here; first finalized RDR replaces this comment. -->
+<!-- /rdr-seed adds a row per RDR here (at Draft); first seeded RDR replaces this comment. -->
 
 ## Status legend
 
