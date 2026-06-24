@@ -1,7 +1,8 @@
 ---
 name: rdr-reconcile
-argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to close every open spike and round-disturbed assumption before an RDR can lock (e.g. "reconcile RDR 46 before lock", "/rdr-reconcile 0046"). Runs Stage 6 of the RDR flow — forces every open item to a terminal state (VERIFIED / DOWNGRADED / ACCEPTED / BLOCKER) and writes it into the RDR. Gates the lock. Pairs with /rdr-finalize (next) and routes back to /rdr-resolve|propose|refine on a refutation.
+metadata:
+  argument-hint: <NNNN> [--commit | --no-commit]
+description: Use to close every open spike and round-disturbed assumption before an RDR can lock (e.g. "reconcile RDR 46 before lock", "$rdr-reconcile 0046" in Codex, "/rdr-reconcile 0046" in Claude). Runs Stage 6 of the RDR flow — forces every open item to a terminal state (VERIFIED / DOWNGRADED / ACCEPTED / BLOCKER) and writes it into the RDR. Gates the lock. Pairs with $rdr-finalize in Codex or /rdr-finalize in Claude (next) and routes back to $rdr-resolve|propose|refine or /rdr-resolve|propose|refine on a refutation.
 ---
 
 # rdr-reconcile — Stage 6 (Reconcile Spikes & Assumptions)
@@ -14,7 +15,8 @@ forcing every open spike and every round-disturbed assumption to a terminal stat
 ## Usage
 
 ```
-/rdr-reconcile <NNNN>
+Codex: $rdr-reconcile <NNNN>
+Claude: /rdr-reconcile <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**

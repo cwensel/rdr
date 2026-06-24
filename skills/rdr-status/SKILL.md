@@ -1,7 +1,8 @@
 ---
 name: rdr-status
-argument-hint: "[NNNN]   # omit to list in-flight RDRs"
-description: Use to find out where an RDR is in the flow and what to run next (e.g. "where is RDR 46", "/rdr-status 0046", "what's the next step for the import RDR"). Read-only navigator — derives flow position purely from disk (the evidence folder, the RDR Status line, the artifact dir); never writes. Pairs with the per-stage /rdr-* skills it points you at.
+metadata:
+  argument-hint: "[NNNN]   # omit to list in-flight RDRs"
+description: Use to find out where an RDR is in the flow and what to run next (e.g. "where is RDR 46", "$rdr-status 0046" in Codex, "/rdr-status 0046" in Claude, "what's the next step for the import RDR"). Read-only navigator — derives flow position purely from disk (the evidence folder, the RDR Status line, the artifact dir); never writes. Pairs with the per-stage $rdr-* skills in Codex or /rdr-* skills in Claude that it points you at.
 ---
 
 # rdr-status
@@ -18,8 +19,10 @@ and it stays correct even when a stage was driven by hand or in another session.
 ## Usage
 
 ```
-/rdr-status <NNNN>
-/rdr-status            # no arg: list in-flight RDRs (Draft/not-yet-Final) + their next step
+Codex: $rdr-status <NNNN>
+Claude: /rdr-status <NNNN>
+Codex: $rdr-status            # no arg: list in-flight RDRs (Draft/not-yet-Final) + their next step
+Claude: /rdr-status           # no arg: list in-flight RDRs (Draft/not-yet-Final) + their next step
 ```
 
 Read the shared bones in [`rdr-common.md`](rdr-common.md): run **§seam-bind**

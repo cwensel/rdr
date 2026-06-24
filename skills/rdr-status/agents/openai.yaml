@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Status"
+  short_description: "Find the next step for an RDR"
+  default_prompt: "Use $rdr-status to find where an RDR is in the flow and what to run next."

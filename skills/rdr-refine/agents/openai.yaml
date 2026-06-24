@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Refine"
+  short_description: "Clean contradictions from an RDR draft"
+  default_prompt: "Use $rdr-refine to remove contradictions and bloat from an RDR draft."

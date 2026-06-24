@@ -1,7 +1,8 @@
 ---
 name: rdr-propose
-argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to move a seeded RDR from problem statement to a chosen approach with alternatives weighed and premortemed (e.g. "propose an approach for RDR 46", "/rdr-propose 0046"). Runs Stage 2 of the RDR flow. Also the front-half resume point — its freshness check re-validates a seed that sat idle. Pairs with /rdr-refine (next) and /rdr-seed (back).
+metadata:
+  argument-hint: <NNNN> [--commit | --no-commit]
+description: Use to move a seeded RDR from problem statement to a chosen approach with alternatives weighed and premortemed (e.g. "propose an approach for RDR 46", "$rdr-propose 0046" in Codex, "/rdr-propose 0046" in Claude). Runs Stage 2 of the RDR flow. Also the front-half resume point — its freshness check re-validates a seed that sat idle. Pairs with $rdr-refine in Codex or /rdr-refine in Claude (next) and $rdr-seed or /rdr-seed (back).
 ---
 
 # rdr-propose — Stage 2 (Propose)
@@ -14,7 +15,8 @@ re-validates a seed that sat idle and went stale.
 ## Usage
 
 ```
-/rdr-propose <NNNN>
+Codex: $rdr-propose <NNNN>
+Claude: /rdr-propose <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**

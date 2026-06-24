@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Implement"
+  short_description: "Implement a locked Final RDR"
+  default_prompt: "Use $rdr-implement to implement a locked Final RDR."

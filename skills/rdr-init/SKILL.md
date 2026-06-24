@@ -1,10 +1,12 @@
 ---
 name: rdr-init
-argument-hint: "[--interactive | --defaults | --workspace | --reconfigure]   # run from the consumer project root"
+metadata:
+  argument-hint: "[--interactive | --defaults | --workspace | --reconfigure]   # run from the consumer project root"
 description: >
-  Use ONCE to bind a project to the RDR flow so the /rdr-* skills can resolve
-  their paths (e.g. "set up RDR for this project", "/rdr-init", "bootstrap the
-  RDR flow here"). Stage 0 — writes the seam data files (default .rdr/env.md /
+  Use ONCE to bind a project to the RDR flow so the $rdr-* skills in Codex and
+  /rdr-* skills in Claude can resolve their paths (e.g. "set up RDR for this
+  project", "$rdr-init" in Codex, "/rdr-init" in Claude, "bootstrap the RDR flow
+  here"). Stage 0 — writes the seam data files (default .rdr/env.md /
   .rdr/resources.md), the seam marker, and the RDR home's index README (creating
   RDR_RECORDS if absent). Defaults to a repo-local seam (this repo's own RDR env);
   `--workspace` writes/joins a shared seam several sibling repos inherit. Bare
@@ -12,7 +14,8 @@ description: >
   the choices; `--interactive` forces the questions, `--defaults` is silent,
   `--reconfigure` changes an existing seam. Non-invasive to the consumer's
   source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it
-  adds is the index README inside RDR_RECORDS. Pairs with /rdr-seed (next).
+  adds is the index README inside RDR_RECORDS. Pairs with $rdr-seed in Codex or
+  /rdr-seed in Claude (next).
 ---
 
 # rdr-init — Stage 0 (Bootstrap)
@@ -31,11 +34,16 @@ symlink farm (consumer-owned) and never copies the engine's `TEMPLATE.md`/prompt
 ## Usage
 
 ```
-/rdr-init                 # repo-local (default); smart — infer locations, ask only if ambiguous, disclose
-/rdr-init --interactive   # force the questions (records/evidence, tracked vs gitignored)
-/rdr-init --defaults      # silent: repo-local defaults, no questions (scripted)
-/rdr-init --workspace     # write/join the SHARED $WS seam several sibling repos inherit
-/rdr-init --reconfigure   # seam already exists: change its location choices (interactive; migrates if RDRs exist)
+Codex: $rdr-init                 # repo-local (default); smart — infer locations, ask only if ambiguous, disclose
+Claude: /rdr-init                # repo-local (default); smart — infer locations, ask only if ambiguous, disclose
+Codex: $rdr-init --interactive   # force the questions (records/evidence, tracked vs gitignored)
+Claude: /rdr-init --interactive  # force the questions (records/evidence, tracked vs gitignored)
+Codex: $rdr-init --defaults      # silent: repo-local defaults, no questions (scripted)
+Claude: /rdr-init --defaults     # silent: repo-local defaults, no questions (scripted)
+Codex: $rdr-init --workspace     # write/join the SHARED $WS seam several sibling repos inherit
+Claude: /rdr-init --workspace    # write/join the SHARED $WS seam several sibling repos inherit
+Codex: $rdr-init --reconfigure   # seam already exists: change its location choices (interactive; migrates if RDRs exist)
+Claude: /rdr-init --reconfigure  # seam already exists: change its location choices (interactive; migrates if RDRs exist)
 ```
 
 **Scope is repo-local by default** — binds **only this repo**: `$PROJECT/.rdr/workspace`,

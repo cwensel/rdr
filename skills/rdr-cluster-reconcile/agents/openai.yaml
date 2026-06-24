@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Cluster Reconcile"
+  short_description: "Reconcile drift across Final RDRs"
+  default_prompt: "Use $rdr-cluster-reconcile to scan related Final RDRs for cross-RDR drift."

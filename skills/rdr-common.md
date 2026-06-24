@@ -11,6 +11,13 @@ source** — they author/inspect RDR documents and write flow evidence. The only
 RDR file, the evidence dirs, and (Stage 8) the artifact dir, all named via the
 seam. `/rdr-status` writes **nothing**.
 
+## Invocation syntax
+
+These skills are invoked as `$rdr-*` in Codex and `/rdr-*` in Claude. Treat them
+as the same operation with different UI prefixes. When printing a next command or
+a one-command fix, prefer the active harness prefix; if unknown, print both forms:
+`Next: $rdr-status NNNN in Codex, or /rdr-status NNNN in Claude`.
+
 Consumer repos mount these skills through **per-directory symlink farms**
 (e.g. `<consumer>/.claude/skills/<name>` → here), so a `../` reference inside a
 skill resolves against the farm, not this tree, and breaks. Therefore **every
@@ -235,7 +242,7 @@ not to remove the human.
 End every stage skill (not `/rdr-status`) by printing, briefly:
 1. the **Review gate** the human checks (one line, from the stage `.md` — quote it,
    don't re-derive), and
-2. `Next: /rdr-<next-stage> NNNN [lens]`, plus `/rdr-status NNNN` to re-orient.
+2. `Next: $rdr-<next-stage> NNNN [lens]` in Codex, or `/rdr-<next-stage> NNNN [lens]` in Claude, plus `$rdr-status NNNN` or `/rdr-status NNNN` to re-orient.
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
 `/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;

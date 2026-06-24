@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Doctor"
+  short_description: "Check RDR seam and engine health"
+  default_prompt: "Use $rdr-doctor to verify the RDR seam and engine setup."

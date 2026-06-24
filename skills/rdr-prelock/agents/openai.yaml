@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Prelock"
+  short_description: "Run and resolve a pre-lock lens"
+  default_prompt: "Use $rdr-prelock to run and resolve a pre-lock review lens for an RDR."

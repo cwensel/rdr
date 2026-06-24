@@ -1,7 +1,8 @@
 ---
 name: rdr-resolve
-argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to verify an RDR's critical assumptions against reality before any pre-lock review (e.g. "resolve assumptions for RDR 46", "/rdr-resolve 0046"). Runs Stage 4 of the RDR flow — research + spikes + reuse audit, flipping assumptions to Verified with Method + Evidence. Self-detects scoped re-entry from the RDR Status line. Pairs with /rdr-prelock (next) and /rdr-propose (back, if research refutes the approach).
+metadata:
+  argument-hint: <NNNN> [--commit | --no-commit]
+description: Use to verify an RDR's critical assumptions against reality before any pre-lock review (e.g. "resolve assumptions for RDR 46", "$rdr-resolve 0046" in Codex, "/rdr-resolve 0046" in Claude). Runs Stage 4 of the RDR flow — research + spikes + reuse audit, flipping assumptions to Verified with Method + Evidence. Self-detects scoped re-entry from the RDR Status line. Pairs with $rdr-prelock in Codex or /rdr-prelock in Claude (next) and $rdr-propose or /rdr-propose (back, if research refutes the approach).
 ---
 
 # rdr-resolve — Stage 4 (Resolve Assumptions)
@@ -13,7 +14,8 @@ front-half stage. Running a pre-lock round before this one wastes the round.
 ## Usage
 
 ```
-/rdr-resolve <NNNN>
+Codex: $rdr-resolve <NNNN>
+Claude: /rdr-resolve <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**

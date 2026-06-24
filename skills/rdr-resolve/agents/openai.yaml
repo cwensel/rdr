@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Resolve"
+  short_description: "Verify critical RDR assumptions"
+  default_prompt: "Use $rdr-resolve to verify an RDR's critical assumptions."

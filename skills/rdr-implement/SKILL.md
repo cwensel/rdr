@@ -1,7 +1,8 @@
 ---
 name: rdr-implement
-argument-hint: (<NNNN> [--commit | --no-commit]) | --launch-prompt-path
-description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "/rdr-implement 0045"). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with /rdr-finalize (must precede it). Also exposes `--launch-prompt-path` so wrappers get the orchestrator prompt's location from the engine instead of reconstructing its internal layout.
+metadata:
+  argument-hint: (<NNNN> [--commit | --no-commit]) | --launch-prompt-path
+description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "$rdr-implement 0045" in Codex, "/rdr-implement 0045" in Claude). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with $rdr-finalize in Codex or /rdr-finalize in Claude (must precede it). Also exposes `--launch-prompt-path` so wrappers get the orchestrator prompt's location from the engine instead of reconstructing its internal layout.
 ---
 
 # rdr-implement — Stage 8 (Implement)
@@ -16,8 +17,10 @@ do. Do not loosen those orchestrator rules.
 ## Usage
 
 ```
-/rdr-implement <NNNN>
-/rdr-implement --launch-prompt-path    # print the orchestrator prompt path, then stop
+Codex: $rdr-implement <NNNN>
+Claude: /rdr-implement <NNNN>
+Codex: $rdr-implement --launch-prompt-path    # print the orchestrator prompt path, then stop
+Claude: /rdr-implement --launch-prompt-path   # print the orchestrator prompt path, then stop
 ```
 
 ## `--launch-prompt-path` — the prompt-location contract (query mode)

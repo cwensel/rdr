@@ -1,7 +1,8 @@
 ---
 name: rdr-prelock
-argument-hint: "<NNNN> <lens> [run] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
-description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "/rdr-prelock 0046 critique"). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is grounding | 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with /rdr-resolve; follow with /rdr-reconcile.
+metadata:
+  argument-hint: "<NNNN> <lens> [run] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
+description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "$rdr-prelock 0046 critique" in Codex, "/rdr-prelock 0046 critique" in Claude). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is grounding | 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with $rdr-resolve or /rdr-resolve; follow with $rdr-reconcile or /rdr-reconcile.
 ---
 
 # rdr-prelock — Stage 5+6 (Pre-Lock Review **and** Resolve, per lens)
@@ -16,7 +17,8 @@ the draft, loop to convergence (or flapping). Dispatches into the lens prompts i
 ## Usage
 
 ```
-/rdr-prelock <NNNN> <lens> [run]        # lens ∈ {grounding, 3amigo, critique, repeatability, cove}
+Codex: $rdr-prelock <NNNN> <lens> [run]        # lens in {grounding, 3amigo, critique, repeatability, cove}
+Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, critique, repeatability, cove}
 ```
 
 `run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates

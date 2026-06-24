@@ -1,7 +1,8 @@
 ---
 name: rdr-doctor
-argument-hint: (none — run from any repo/worktree in the workspace)
-description: Use to verify the RDR seam and engine are wired correctly (e.g. "check my RDR setup", "/rdr-doctor", "is the RDR flow installed right", "diagnose rdr"). Read-only health check — confirms the five-var contract binds, the engine layout resolves (stages/, prompts/, skills/, TEMPLATE.md), the evidence root is reachable, and no consumer/skill symlink is broken. Writes nothing; reports PASS/WARN/FAIL + the one fix per failure. Run after /rdr-init, after an engine upgrade, or when a skill reports a `stopped:` seam error.
+metadata:
+  argument-hint: (none — run from any repo/worktree in the workspace)
+description: Use to verify the RDR seam and engine are wired correctly (e.g. "check my RDR setup", "$rdr-doctor" in Codex, "/rdr-doctor" in Claude, "is the RDR flow installed right", "diagnose rdr"). Read-only health check — confirms the five-var contract binds, the engine layout resolves (stages/, prompts/, skills/, TEMPLATE.md), the evidence root is reachable, and no consumer/skill symlink is broken. Writes nothing; reports PASS/WARN/FAIL + the one fix per failure. Run after $rdr-init or /rdr-init, after an engine upgrade, or when a skill reports a `stopped:` seam error.
 ---
 
 # rdr-doctor — verify the seam + engine

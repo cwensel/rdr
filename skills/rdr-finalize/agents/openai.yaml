@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Finalize"
+  short_description: "Run the final gate and lock an RDR"
+  default_prompt: "Use $rdr-finalize to run the final gate and lock an RDR."

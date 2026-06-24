@@ -1,7 +1,8 @@
 ---
 name: rdr-finalize
-argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to run the Finalization Gate and lock an RDR to Final (e.g. "finalize RDR 46", "lock RDR 46", "/rdr-finalize 0046"). Runs Stage 7 of the RDR flow as one gated prompt — mechanical sweep + five written gate responses; READY locks (Status → Final) in the same pass, NOT READY flips nothing and names the return stage. Pairs with /rdr-implement (next) and /rdr-reconcile (back).
+metadata:
+  argument-hint: <NNNN> [--commit | --no-commit]
+description: Use to run the Finalization Gate and lock an RDR to Final (e.g. "finalize RDR 46", "lock RDR 46", "$rdr-finalize 0046" in Codex, "/rdr-finalize 0046" in Claude). Runs Stage 7 of the RDR flow as one gated prompt — mechanical sweep + five written gate responses; READY locks (Status → Final) in the same pass, NOT READY flips nothing and names the return stage. Pairs with $rdr-implement in Codex or /rdr-implement in Claude (next) and $rdr-reconcile or /rdr-reconcile (back).
 ---
 
 # rdr-finalize — Stage 7 (Finalize / Lock)
@@ -14,7 +15,8 @@ READY locks in the same pass, NOT READY flips nothing.
 ## Usage
 
 ```
-/rdr-finalize <NNNN>
+Codex: $rdr-finalize <NNNN>
+Claude: /rdr-finalize <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**

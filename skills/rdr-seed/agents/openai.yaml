@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Seed"
+  short_description: "Start a new RDR draft from input"
+  default_prompt: "Use $rdr-seed to start a new RDR from an idea or kata."

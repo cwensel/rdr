@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Init"
+  short_description: "Bind a project to the RDR flow"
+  default_prompt: "Use $rdr-init to bind this project to the RDR flow."

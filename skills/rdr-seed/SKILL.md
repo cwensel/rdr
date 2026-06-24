@@ -1,7 +1,8 @@
 ---
 name: rdr-seed
-argument-hint: <kata-id | "one-line idea"> [--commit | --no-commit]
-description: Use to start a brand-new RDR from an idea, kata, or one-line description (e.g. "seed an RDR for constraint identity", "/rdr-seed v06p", "/rdr-seed 'import should exit non-zero on parse error'"). Runs Stage 1 of the RDR flow — allocates the next number and writes a template-conformant Draft skeleton. Pairs with /rdr-propose (next).
+metadata:
+  argument-hint: <kata-id | "one-line idea"> [--commit | --no-commit]
+description: Use to start a brand-new RDR from an idea, kata, or one-line description (e.g. "seed an RDR for constraint identity", "$rdr-seed v06p" in Codex, "/rdr-seed v06p" in Claude, "$rdr-seed 'import should exit non-zero on parse error'" in Codex). Runs Stage 1 of the RDR flow — allocates the next number and writes a template-conformant Draft skeleton. Pairs with $rdr-propose in Codex or /rdr-propose in Claude (next).
 ---
 
 # rdr-seed — Stage 1 (Seed)
@@ -13,7 +14,8 @@ no research at seed time.
 ## Usage
 
 ```
-/rdr-seed <kata-id | "one-line idea">
+Codex: $rdr-seed <kata-id | "one-line idea">
+Claude: /rdr-seed <kata-id | "one-line idea">
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** to bind `$RDR_ENV`.

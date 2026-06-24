@@ -1,7 +1,8 @@
 ---
 name: rdr-refine
-argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to remove internal contradiction, redundancy, change-history narration, and bloat from an RDR draft (e.g. "refine RDR 46", "/rdr-refine 0046"). Runs Stage 3 of the RDR flow — fixes the document so it is internally consistent before its claims are verified. Pairs with /rdr-resolve (next) and /rdr-propose (back, if a contradiction is a real design hole).
+metadata:
+  argument-hint: <NNNN> [--commit | --no-commit]
+description: Use to remove internal contradiction, redundancy, change-history narration, and bloat from an RDR draft (e.g. "refine RDR 46", "$rdr-refine 0046" in Codex, "/rdr-refine 0046" in Claude). Runs Stage 3 of the RDR flow — fixes the document so it is internally consistent before its claims are verified. Pairs with $rdr-resolve in Codex or /rdr-resolve in Claude (next) and $rdr-propose or /rdr-propose (back, if a contradiction is a real design hole).
 ---
 
 # rdr-refine — Stage 3 (Refine)
@@ -13,7 +14,8 @@ verify the world (that's Stage 4).
 ## Usage
 
 ```
-/rdr-refine <NNNN>
+Codex: $rdr-refine <NNNN>
+Claude: /rdr-refine <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**

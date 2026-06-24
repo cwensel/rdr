@@ -1,7 +1,8 @@
 ---
 name: rdr-cluster-reconcile
-argument-hint: <cluster-name | NNNN NNNN [NNNN…]> [--commit | --no-commit]
-description: Use to reconcile cross-RDR drift across a cluster of related RDRs that are all Final and none yet implemented (e.g. "cluster-reconcile the import RDRs", "/rdr-cluster-reconcile import"). Runs Stage 7.1 of the RDR flow — whole-set critique + pairwise contradiction scan before any of the cluster implements. Per cluster, NOT per RDR — most RDRs skip it. Pairs with /rdr-finalize (before) and /rdr-implement (after), and routes Final→Draft on a defect.
+metadata:
+  argument-hint: <cluster-name | NNNN NNNN [NNNN…]> [--commit | --no-commit]
+description: Use to reconcile cross-RDR drift across a cluster of related RDRs that are all Final and none yet implemented (e.g. "cluster-reconcile the import RDRs", "$rdr-cluster-reconcile import" in Codex, "/rdr-cluster-reconcile import" in Claude). Runs Stage 7.1 of the RDR flow — whole-set critique + pairwise contradiction scan before any of the cluster implements. Per cluster, NOT per RDR — most RDRs skip it. Pairs with $rdr-finalize or /rdr-finalize (before) and $rdr-implement or /rdr-implement (after), and routes Final→Draft on a defect.
 ---
 
 # rdr-cluster-reconcile — Stage 7.1 (Cluster Reconcile)
@@ -15,7 +16,8 @@ producers).
 ## Usage
 
 ```
-/rdr-cluster-reconcile <cluster-name | NNNN NNNN [NNNN ...]>
+Codex: $rdr-cluster-reconcile <cluster-name | NNNN NNNN [NNNN ...]>
+Claude: /rdr-cluster-reconcile <cluster-name | NNNN NNNN [NNNN ...]>
 ```
 
 Takes a cluster (a name you give the set, or the list of RDR numbers in it) — **not

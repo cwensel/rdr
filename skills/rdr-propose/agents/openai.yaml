@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Propose"
+  short_description: "Choose and premortem an RDR approach"
+  default_prompt: "Use $rdr-propose to turn an RDR problem statement into a chosen approach."

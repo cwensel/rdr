@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Reconcile"
+  short_description: "Close open assumptions before lock"
+  default_prompt: "Use $rdr-reconcile to close open assumptions before locking an RDR."
