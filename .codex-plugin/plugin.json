@@ -1,6 +1,6 @@
 {
   "name": "rdr",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Recommendation Decisioning Records — a repeatable, skill-driven flow from idea to spec-verified implementation.",
   "author": {
     "name": "Chris K Wensel",
