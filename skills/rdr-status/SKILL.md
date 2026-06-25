@@ -2,7 +2,7 @@
 name: rdr-status
 metadata:
   argument-hint: "[NNNN]   # omit to list in-flight RDRs"
-description: Use to find out where an RDR is in the flow and what to run next (e.g. "where is RDR 46", "$rdr-status 0046" in Codex, "/rdr-status 0046" in Claude, "what's the next step for the import RDR"). Read-only navigator — derives flow position purely from disk (the evidence folder, the RDR Status line, the artifact dir); never writes. Pairs with the per-stage $rdr-* skills in Codex or /rdr-* skills in Claude that it points you at.
+description: 'Use to find the current stage and next command for an RDR. Read-only navigator over status, evidence, and artifacts. Trigger for where is RDR, next RDR step, $rdr-status, or /rdr-status.'
 ---
 
 # rdr-status

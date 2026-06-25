@@ -2,7 +2,7 @@
 name: rdr-reconcile
 metadata:
   argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to close every open spike and round-disturbed assumption before an RDR can lock (e.g. "reconcile RDR 46 before lock", "$rdr-reconcile 0046" in Codex, "/rdr-reconcile 0046" in Claude). Runs Stage 6 of the RDR flow — forces every open item to a terminal state (VERIFIED / DOWNGRADED / ACCEPTED / BLOCKER) and writes it into the RDR. Gates the lock. Pairs with $rdr-finalize in Codex or /rdr-finalize in Claude (next) and routes back to $rdr-resolve|propose|refine or /rdr-resolve|propose|refine on a refutation.
+description: 'Use to close open spikes and round-disturbed assumptions before lock. Runs Stage 6 and routes back if evidence refutes the draft. Trigger for reconcile RDR, $rdr-reconcile, or /rdr-reconcile.'
 ---
 
 # rdr-reconcile — Stage 6 (Reconcile Spikes & Assumptions)

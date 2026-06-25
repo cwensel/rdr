@@ -2,7 +2,7 @@
 name: rdr-seed
 metadata:
   argument-hint: <kata-id | "one-line idea"> [--commit | --no-commit]
-description: Use to start a brand-new RDR from an idea, kata, or one-line description (e.g. "seed an RDR for constraint identity", "$rdr-seed v06p" in Codex, "/rdr-seed v06p" in Claude, "$rdr-seed 'import should exit non-zero on parse error'" in Codex). Runs Stage 1 of the RDR flow — allocates the next number and writes a template-conformant Draft skeleton. Pairs with $rdr-propose in Codex or /rdr-propose in Claude (next).
+description: 'Use to start a new RDR from an idea, kata, or one-line prompt. Runs Stage 1, allocates the next number, and writes a Draft skeleton. Trigger for seed/create RDR, $rdr-seed, or /rdr-seed.'
 ---
 
 # rdr-seed — Stage 1 (Seed)

@@ -2,7 +2,7 @@
 name: rdr-implement
 metadata:
   argument-hint: (<NNNN> [--commit | --no-commit]) | --launch-prompt-path
-description: Use to implement a locked (Final) RDR into working, spec-verified code (e.g. "implement RDR 45", "$rdr-implement 0045" in Codex, "/rdr-implement 0045" in Claude). Runs Stage 8 of the RDR flow — dispatches into prompts/implementation/launch.md as the orchestrator. Re-entrant across days from status.md. Terminates at COMPLETE/INCOMPLETE; a contract-level spec defect routes back to the RDR, never patches the code. Pairs with $rdr-finalize in Codex or /rdr-finalize in Claude (must precede it). Also exposes `--launch-prompt-path` so wrappers get the orchestrator prompt's location from the engine instead of reconstructing its internal layout.
+description: 'Use to implement a locked Final RDR into working, spec-verified code. Runs Stage 8 via the launch prompt and is re-entrant from status.md. Trigger for implement RDR, $rdr-implement, or /rdr-implement.'
 ---
 
 # rdr-implement — Stage 8 (Implement)

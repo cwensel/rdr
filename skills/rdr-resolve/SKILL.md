@@ -2,7 +2,7 @@
 name: rdr-resolve
 metadata:
   argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to verify an RDR's critical assumptions against reality before any pre-lock review (e.g. "resolve assumptions for RDR 46", "$rdr-resolve 0046" in Codex, "/rdr-resolve 0046" in Claude). Runs Stage 4 of the RDR flow — research + spikes + reuse audit, flipping assumptions to Verified with Method + Evidence. Self-detects scoped re-entry from the RDR Status line. Pairs with $rdr-prelock in Codex or /rdr-prelock in Claude (next) and $rdr-propose or /rdr-propose (back, if research refutes the approach).
+description: 'Use to verify critical RDR assumptions against source, spikes, prior art, and reuse audits. Runs Stage 4 before pre-lock review. Trigger for resolve assumptions, $rdr-resolve, or /rdr-resolve.'
 ---
 
 # rdr-resolve — Stage 4 (Resolve Assumptions)

@@ -2,7 +2,7 @@
 name: rdr-refine
 metadata:
   argument-hint: <NNNN> [--commit | --no-commit]
-description: Use to remove internal contradiction, redundancy, change-history narration, and bloat from an RDR draft (e.g. "refine RDR 46", "$rdr-refine 0046" in Codex, "/rdr-refine 0046" in Claude). Runs Stage 3 of the RDR flow — fixes the document so it is internally consistent before its claims are verified. Pairs with $rdr-resolve in Codex or /rdr-resolve in Claude (next) and $rdr-propose or /rdr-propose (back, if a contradiction is a real design hole).
+description: 'Use to remove contradiction, redundancy, change-history narration, and bloat from an RDR draft. Runs Stage 3 before assumption verification. Trigger for refine RDR, $rdr-refine, or /rdr-refine.'
 ---
 
 # rdr-refine — Stage 3 (Refine)

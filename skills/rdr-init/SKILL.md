@@ -2,20 +2,7 @@
 name: rdr-init
 metadata:
   argument-hint: "[--interactive | --defaults | --workspace | --reconfigure]   # run from the consumer project root"
-description: >
-  Use ONCE to bind a project to the RDR flow so the $rdr-* skills in Codex and
-  /rdr-* skills in Claude can resolve their paths (e.g. "set up RDR for this
-  project", "$rdr-init" in Codex, "/rdr-init" in Claude, "bootstrap the RDR flow
-  here"). Stage 0 — writes the seam data files (default .rdr/env.md /
-  .rdr/resources.md), the seam marker, and the RDR home's index README (creating
-  RDR_RECORDS if absent). Defaults to a repo-local seam (this repo's own RDR env);
-  `--workspace` writes/joins a shared seam several sibling repos inherit. Bare
-  run is smart: infers locations, asks only when it genuinely can't, discloses
-  the choices; `--interactive` forces the questions, `--defaults` is silent,
-  `--reconfigure` changes an existing seam. Non-invasive to the consumer's
-  source tree (no CLAUDE.md or root .gitignore edits); the only tracked file it
-  adds is the index README inside RDR_RECORDS. Pairs with $rdr-seed in Codex or
-  /rdr-seed in Claude (next).
+description: 'Use to set up or reconfigure RDR for a consumer repo: create/refresh the seam, env/resources files, records index, and optional workspace marker. Trigger for set up RDR, bootstrap RDR, $rdr-init, or /rdr-init.'
 ---
 
 # rdr-init — Stage 0 (Bootstrap)
@@ -49,8 +36,8 @@ Claude: /rdr-init --reconfigure  # seam already exists: change its location choi
 **Scope is repo-local by default** — binds **only this repo**: `$PROJECT/.rdr/workspace`,
 with records + evidence inside it. That's the common single-repo case. `--workspace`,
 run from the **parent**, instead writes/joins a shared `$WS/.rdr-workspace` that every
-sibling repo under `$WS` inherits (the multi-repo arrangement, e.g. `newcoinc/`'s
-retrofit/process/flow). Because the seam is a path map, the shared scope also lets
+sibling repo under `$WS` inherits (for example, several sibling service repos
+sharing one RDR home). Because the seam is a path map, the shared scope also lets
 `RDR_RECORDS` / `RDR_EVIDENCE` point at **their own repos**, separate from the code repo.
 Repo-local **overrides** a shared marker via §seam-bind's nearest-wins, and **never
 touches** it.

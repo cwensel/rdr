@@ -2,7 +2,7 @@
 name: rdr-prelock
 metadata:
   argument-hint: "<NNNN> <lens> [run] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
-description: Use to run one pre-lock review lens against an RDR draft AND resolve its findings in the same pass (e.g. "run the 3amigo lens on RDR 46", "$rdr-prelock 0046 critique" in Codex, "/rdr-prelock 0046 critique" in Claude). Runs Stage 5+6 of the RDR flow for a given lens — dispatches into the prompts/pre-lock/ battery, then grounds and fixes the findings, looping until the lens converges or flapping is declared. Lens is grounding | 3amigo | critique | repeatability | cove, picked by the RDR's risk profile. Precede with $rdr-resolve or /rdr-resolve; follow with $rdr-reconcile or /rdr-reconcile.
+description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding, 3amigo, critique, repeatability, cove. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
 ---
 
 # rdr-prelock — Stage 5+6 (Pre-Lock Review **and** Resolve, per lens)
