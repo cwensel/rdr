@@ -103,7 +103,16 @@ defers to the diff session — see rdr-common §commit.
   here (doc + a separate `<lens>` evidence commit). **repeatability** follows its own
   cadence — run files commit per session, the doc commit + a whole-`repeatability/`-dir
   (self-healing) evidence commit land at the diff (see above / §commit).
-- **3amigo | critique | cove** converged → next lens: `Next: /rdr-prelock NNNN <next-lens>`.
+- **Before printing `Next:` re-read the RDR's current `Profile` field and bind the
+  full lens-set from the matrix above.** Treat that set as the required checklist,
+  then subtract only the lens evidence folders that already exist under
+  `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/`. This is mandatory after a reset,
+  demotion, or escalation: an RDR that became `foundational` still owes
+  `cove 3amigo critique repeatability` even if it previously ran the `mid` or
+  `large` subset, and a completed `critique` is **not** the end of Stage 5 unless
+  `repeatability` is also complete.
+- **3amigo | critique | cove** converged → next lens is the first missing lens in
+  the current profile's full set: `Next: /rdr-prelock NNNN <next-lens>`.
 - **repeatability** — runs missing → `Next: /rdr-prelock NNNN repeatability <N+1>`
   (fresh session); third run exists → `Next: /rdr-prelock NNNN repeatability diff`
   (fresh session that authored no run; it also resolves `diff.md`).

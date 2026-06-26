@@ -107,6 +107,12 @@ exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes unde
    `repeatability`, point at the next missing piece: `/rdr-prelock NNNN
    repeatability <run>` until `run-1/2/3` exist, then `/rdr-prelock NNNN
    repeatability diff` (which also resolves the `diff.md`).
+   Profile changes are additive until the current profile's checklist is satisfied:
+   if the RDR was reset/escalated from `mid` or `large` to `foundational`, keep the
+   existing lower-profile lens folders as done, but require the missing
+   foundational lenses (`cove` and/or `repeatability`) before recommending
+   `/rdr-reconcile`. Never infer "all lenses done" from the last lens in an older
+   or smaller profile.
 
 ## Output
 

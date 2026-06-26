@@ -254,6 +254,13 @@ writes), not a fresh size inference: `small` skips prelock (resolve→reconcile)
 finalize Gate re-validates the field before lock, so a wrong value cannot
 silently route past the lenses.
 
+For any `prelock` close-out, compute the next pointer from the **current**
+`Profile` field and the full matrix row, not from the lens just run or a stale
+profile remembered earlier in the session. Existing evidence folders satisfy
+their matching lenses, but they do not shrink the row: when a reset/escalation
+makes the RDR `foundational`, `cove 3amigo critique repeatability` is the required
+set until all four are present/resolved.
+
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 
 A writing stage already knows the exact files it wrote — `$RDR_PATH`,
