@@ -6,10 +6,14 @@ seam-bind, number→path resolve, and evidence-glob logic live in one place. Eve
 then runs its stage prompt, then (when autocommit is on) runs §commit on its own
 files, then prints §next-step.
 
-These skills **do not use a worktree** and **do not edit the consumer project's
-source** — they author/inspect RDR documents and write flow evidence. The only writes are to the
-RDR file, the evidence dirs, and (Stage 8) the artifact dir, all named via the
-seam. `/rdr-status` writes **nothing**.
+These skills **stay on the current branch** — never `git branch`/`switch -c`/
+`checkout -b`, never a worktree (the "branch before feature work" reflex is wrong
+here). Many sessions share one branch on the instance folder; the §commit
+compare-and-swap *is* the isolation, so branching hides work from siblings and a
+worktree swaps the branch out from under them. They also **do not edit the consumer
+project's source** — they author/inspect RDR documents and write flow evidence. The
+only writes are to the RDR file, the evidence dirs, and (Stage 8) the artifact dir,
+all named via the seam. `/rdr-status` writes **nothing**.
 
 ## Invocation syntax
 
@@ -270,8 +274,10 @@ running `git status` / `git add -A` / inspecting "what's dirty". This is the who
 **no reconnaissance, no round-trip, and no confusion about what this session owns** —
 the owned set is a property of the stage, not a discovery. It also makes parallel
 `/rdr-*` runs safe **without a worktree**: each run commits through its *own* private
-index and advances the branch with a compare-and-swap, so concurrent runs never fight
-over `index.lock` and never clobber each other's commits.
+index and advances **the current branch** with a compare-and-swap, so concurrent runs
+never fight over `index.lock` and never clobber each other's commits. **Never branch
+first** (`git branch`/`switch -c`/`checkout -b`) — that lands commits where siblings
+can't see them and defeats the CAS; stay on the branch as found.
 
 **Records and evidence may live in DIFFERENT repos.** `$RDR_RECORDS` and `$RDR_EVIDENCE`
 are independent absolute paths the marker exports — a consumer can stage records in one

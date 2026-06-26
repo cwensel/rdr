@@ -5,6 +5,10 @@ Read {RDR_ENV} for the project's RDR directory — the parent of {ARTIFACT_DIR}
 artifacts `<rdr-dir>/NNNN-slug/`). If {RDR_ENV} names no RDR directory yet, ask me
 before writing.
 
+**Stay on the current branch** — never `git branch`/`switch -c`/`checkout -b` or a
+worktree: sessions share this branch, so branching hides the new RDR and breaks the
+§rdr-claim number lock.
+
 **Claim the number atomically FIRST** (rdr-common §rdr-claim), before authoring
 anything: in a retry-on-collision loop, take `max(NNNN)+1` and materialize
 `<rdr-dir>/NNNN-RESERVED.md` **as a copy of TEMPLATE.md** under `set -C`
