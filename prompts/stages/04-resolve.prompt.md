@@ -19,6 +19,18 @@ spelunk, delegate to a sub-agent that returns the verdict + evidence pointer
 (file:line, or spike command + output path) as a §return-packet (rdr-common) — NOT raw hits or whole files.
 Hold only the verdicts here.
 
+**Per-assumption search budget (in the sub-agent brief).** Each delegated search
+is bounded: ≤4 corpus queries per assumption, ≤6 opened hits; stop on the first
+hit that verifies or falsifies — sufficiency, not exhaustiveness, is the bar.
+Invoke `arc search semantic --corpus <C> --limit N --json "<q>"` (flag is
+`--corpus`; an obsolete-flag retry counts against the budget). The sub-agent
+returns query strings + accepted evidence pointers in its §return-packet
+(rdr-common) — do not define a competing shape — and a `negative: <assumption> —
+no corpus evidence in <corpora>` line when nothing lands. Persist accepted
+citations + rejected branches to {EVIDENCE_DIR}research/; a SCOPED RE-ENTRY or
+Draft re-run reuses that file and re-searches ONLY assumptions not already cited
+there.
+
 SCOPED RE-ENTRY: if the Status reads `Draft [revised from Final …; re-verify
 <IDs>]`, this RDR was lock-audited and demoted by the 07.1 cluster gate for a
 named defect. Re-verify ONLY the listed assumption IDs (plus any whose Evidence

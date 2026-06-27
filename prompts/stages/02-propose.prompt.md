@@ -44,6 +44,16 @@ Read the Problem Statement and Context, then:
    or inverted citation is the exact defect that overturned an approach three
    stages late. A claim you can't open and quote isn't load-bearing: demote it to a
    Resolve assumption rather than leaning the choice on it.
+   - **Prior-art search budget.** Stay bounded: ≤3 corpus queries per candidate
+     problem-class claim, ≤5 opened hits total per claim; stop the moment a hit
+     confirms or refutes the claim — do not sweep for completeness. Search via
+     `arc search semantic --corpus <C> --limit N --json "<q>"` (current flag is
+     `--corpus`, not the obsolete `--collection`); a flag-retry on the same query
+     counts against the budget. Found nothing? Write a `⚠ no prior-art coverage`
+     line — a negative result is a result, not a reason to widen. Record accepted
+     citations + the queries that found them, and rejected branches, to
+     {EVIDENCE_DIR}research/ (see Resolve); a re-run reads that file instead of
+     re-searching.
 2. **Now enumerate — grounded in step 1.** Name the 2–4 genuinely distinct
    approaches solving the stated USER OUTCOME (not the mechanism); for each: a
    one-paragraph description, Pros, Cons, and how it aligns with or diverges from
