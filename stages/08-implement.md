@@ -53,7 +53,9 @@ strongest form: the orchestrator never reads the RDR, source, or test files —
 phase sub-agents do, returning ≤200–300-word summaries + artifact paths. Do
 not loosen those orchestrator rules to match a looser stage; they are stricter
 on purpose, and that is what keeps the implementation context small enough to
-resume.
+resume. The one bounded opt-out is launch.md's **Size gate**: a `small`-profile
+RDR under hard caps may run the phases inline (no sub-agent), falling back to
+delegated on any cap breach — same five artifacts, same completion gate.
 
 ## Review gate (terminate or halt — this stage does not "advance")
 

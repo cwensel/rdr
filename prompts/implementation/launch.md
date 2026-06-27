@@ -109,6 +109,25 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   `Cargo.toml`, …) and existing test files in the source tree. Pick
   the dominant one and record it. Only escalate as a user question
   if there is no detectable framework at all.
+- Size gate (route Phase 0–3): the **delegated** orchestrator below is the
+  default. Take the **inline fast-path** (run the phases in this session,
+  no sub-agent spawn) ONLY when ALL hold — read from signals already on hand:
+  `Profile` (Metadata) is `small`; RDR ≤ 400 lines; ≤ 10 `REQ-N`; ≤ 3 source
+  files touched; the test suite is quick (≤ ~200 lines output). `Profile`
+  is the gate latch — the same `small` field that already skips prelock; any
+  non-`small` profile stays delegated, no exceptions. Print the decision:
+  `STAGE-8 ROUTE: inline fast-path — profile=small, <N> lines, ~<R> REQ, <F> files`
+  or `STAGE-8 ROUTE: delegated — <first failing signal>`.
+  FALLBACK (the inline path stays armed): if mid-run the work touches a 4th
+  source file, req-list exceeds 10 REQ-N, a suite run exceeds the output cap,
+  or context pressure approaches the orchestrator limit — do **not** unwind.
+  Keep every artifact already written and the `status.md` capsule, print
+  `STAGE-8 ESCALATE: fast-path aborted at <cause> — resuming delegated from <phase>`,
+  and re-enter delegated from the next phase via the Resume precheck above.
+  The fast-path writes the same five artifacts and passes the same completion
+  gate; it is "the delegated phases run inline until a cap trips, then handed
+  off on disk." Foundational/large/mid never qualify — they hit the 1M-context
+  blowup the delegation exists to prevent.
 
 PHASE 0 — Spec audit [DELEGATE to sub-agent: "Phase 0 auditor"]
 Brief the sub-agent with:
@@ -368,9 +387,10 @@ prompt only needs to know which predecessors to gate on.
   Phase transitions, framework inference, mechanical deviation
   resolution, and precondition failures (which become INCOMPLETE
   halts) never ask.
-- **Sub-RDR fixes** (one-line bug fixes, mechanical extensions) can
-  run Phase 1 inline without a sub-agent if the orchestrator judges
-  the surface area trivial. The red-before-green gate still applies.
+- **Inline fast-path for small RDRs** is the PRECHECKS **Size gate**
+  above — a thresholded route (profile=`small` + hard caps), not an
+  ad-hoc "trivial surface" judgment, and it falls back to delegated on
+  any cap breach. The red-before-green gate still applies inline.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
   DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
   taxonomy the RDR process uses for post-mortem drift classification

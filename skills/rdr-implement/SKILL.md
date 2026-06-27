@@ -12,7 +12,9 @@ Implementation is the last filter: tests built from the spec prove the design ho
 or surface the contract defect that sends it back. **Dispatches into the
 orchestrator prompt `launch.md`** — it does not redefine
 it. The orchestrator never reads the RDR, source, or test files; phase sub-agents
-do. Do not loosen those orchestrator rules.
+do. Do not loosen those orchestrator rules — except launch.md's own **Size gate**,
+which lets a `small`-profile RDR under hard caps run the phases inline (falling
+back to delegated on any breach), with identical artifacts and completion gate.
 
 ## Usage
 
