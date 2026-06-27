@@ -31,8 +31,17 @@ corresponding section as: Present-substantive | Present-hollow | Missing.
 Hollow = TBD, "see above," single-sentence placeholder (`_Draft placeholder._`),
 or copy-paste of the template instructional text. A surviving `this is a seed
 skeleton` header is an automatic Present-hollow on the Finalization Gate section
-— name it. List every Present-hollow and Missing entry by section name. (This is
-where post-rewrite regressions show up most.)
+— name it. A surviving verbatim template bracket — `[Conditional — …]`,
+`[Resource]`, `[Capability]`, or any bracketed template instruction — in a
+non-Draft (non-locking) RDR is a BLOCK: the section is Present-hollow, the
+bracket was meant to be filled or the section deleted. List every Present-hollow
+and Missing entry by section name. (This is where post-rewrite regressions show
+up most.)
+
+FALSE-POSITIVE GUARD: a **Conditional** section (per TEMPLATE.md's section-class
+legend) that has been cleanly DELETED is PASS, not Missing — legitimate omission
+is the design. Only a missing **Required** (spine) section is a BLOCK. Do not
+fire on a legitimately-omitted Conditional section.
 
 CHECK 2 — Method label vocabulary
 For every Critical Assumption Evidence Record, confirm the Method is exactly

@@ -3,6 +3,11 @@
 > Revise during planning; lock at implementation.
 > If wrong, abandon code and iterate RDR.
 
+<!-- Section classes: **Required** (never omit). **Conditional**
+(delete the whole section if N/A — do NOT leave it blank or
+N/A-bulleted). **Reference-only** (guidance; never copy into the
+instance body). -->
+
 ## Metadata
 
 - **Date**: YYYY-MM-DD
@@ -63,7 +68,9 @@
   Draft Profile until Resolve has run. -->
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
-- **Predecessors**: [Comma-separated `NNNN-slug` of
+- **Predecessors**: [Required field (the value may be
+  empty — omit the line if there are no predecessors).
+  Comma-separated `NNNN-slug` of
   load-bearing prior RDRs, or omit if none. The
   implementation prompt gates on each predecessor's
   `status.md` reading `COMPLETE`.]
@@ -122,9 +129,9 @@ standards. Cite specific locations.]
 
 ### Critical Assumptions
 
-[Load-bearing assumptions — if wrong, the approach
-fails. Each must have a complete Evidence Record
-before marking this RDR Final.]
+[Required — never omit. Load-bearing assumptions — if
+wrong, the approach fails. Each must have a complete
+Evidence Record before marking this RDR Final.]
 
 - **A1 [Statement]**
   - **Status**: Verified | Pending | Unverified
@@ -135,7 +142,9 @@ before marking this RDR Final.]
     it surfaces to a user or test]
 - **A2 [Statement]** — (same shape)
 
-**Method vocabulary** (pick exactly one per assumption):
+**Method vocabulary** (Reference-only — guidance for
+filling the **Method** field; do NOT copy this list into
+the instance body. Pick exactly one per assumption):
 
 - **Source Search** — verified against dependency
   source code. Evidence: a greppable `path::Symbol`
@@ -191,7 +200,7 @@ extension points.]
 
 #### Normative Contracts
 
-[Load-bearing — implementers must match exactly.
+[Required — never omit. Load-bearing — implementers must match exactly.
 The implementation prompt extracts REQ-N quotes from
 this section. This section is also the **authoritative
 list of the contracts this RDR owns**: a surface not
@@ -330,6 +339,10 @@ ruled out.]
 [Full analysis for seriously evaluated alternatives.
 One-sentence rejection for trivially eliminated options.]
 
+[Conditional scaffold — omit (don't N/A-bullet) the
+`Alternative 1` block below if no alternative warranted
+full analysis; the `Briefly Rejected` list alone is fine.]
+
 ### Alternative 1: [Name]
 
 **Description**: [Brief description]
@@ -365,8 +378,9 @@ approach.]
 
 ### Failure Modes
 
-[What breaks visibly? What fails silently? Recovery
-path? How does a developer diagnose the problem?]
+[Required — never omit. What breaks visibly? What fails
+silently? Recovery path? How does a developer diagnose
+the problem?]
 
 ## Implementation Plan
 
@@ -377,8 +391,8 @@ path? How does a developer diagnose the problem?]
 
 ### Minimum Viable Validation
 
-[The single end-to-end proof that the approach works.
-Must be in scope — not deferred.]
+[Required — never omit. The single end-to-end proof that
+the approach works. Must be in scope — not deferred.]
 
 ### Phase 1: Code Implementation
 
@@ -401,9 +415,10 @@ Omit if not applicable.]
 
 ### Day 2 Operations
 
-[For every persistent resource this RDR creates
-(collection, index, data store, config entry),
-address management operations:]
+[Conditional — omit (don't N/A-bullet) this whole section
+if this RDR creates no persistent resource. For every
+persistent resource this RDR creates (collection, index,
+data store, config entry), address management operations:]
 
 | Resource | List | Info | Delete | Verify | Backup |
 | --- | --- | --- | --- | --- | --- |
@@ -414,14 +429,16 @@ it is not needed for initial usability.]
 
 ### New Dependencies
 
-[Dependencies to add/update. For third-party: note
-license and whether legal review is required.]
+[Conditional — omit (don't N/A-bullet) this section if no
+dependency is added or updated. Dependencies to add/update.
+For third-party: note license and whether legal review is
+required.]
 
 ## Validation
 
 ### Testing Strategy
 
-[Test scenarios and coverage goals — what to test and
+[Required — never omit. Test scenarios and coverage goals — what to test and
 what constitutes "done." For non-functional concerns
 (performance, security): state measurement strategy,
 not estimates.]
@@ -431,7 +448,9 @@ not estimates.]
 
 ### Performance Expectations
 
-[Do not include effort estimates or speculative
+[Conditional — omit (don't N/A-bullet) this section unless
+comparing alternatives on empirical performance grounds.
+Do not include effort estimates or speculative
 throughput targets. Rough performance metrics are
 appropriate only when comparing alternatives — note
 empirical data or obvious gains that support the
