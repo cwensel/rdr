@@ -76,6 +76,26 @@ field-ownership ambiguity to diff. Foundational still runs the **full** ×3 lens
 unchanged; the trigger only *adds* mid/large coverage at the lite tier, and the lite
 diff escalates to the full lens on the criteria the lens names.
 
+**Conditional mini-checks (structural triggers).** Four cheap checks that fire only
+on a named cue in the draft — *not* lenses, *not* profile-tiered, *not* always-on.
+Each fires when its cue is present and writes a **compact table into the RDR** (the
+decision belongs in the spec); a draft with no cue gets no table and no note. They
+surface, before lock, defect classes that otherwise escape to implementation/triage.
+
+| Mini-check | Fires when the draft has… | Table the RDR must carry |
+|---|---|---|
+| source-authority census | a fallback path, derived/propagated output, or ≥2 source-of-truth candidates (`fallback`, `derived`, `propagate`, "source of truth", dispatcher/resolver/classifier, sibling/parallel arm) | `authority`: input/decision × writer · readers · call sites · sibling arms · which is canonical |
+| test-discriminability | an MVV/oracle that passes by absence-of-error, no-op, or fixture-name match ("did not error", exit-0, substring/absence oracle) | `oracle`: each MVV row × "fails if X is wrong because Y" + the negative/failing control |
+| round-trip / fidelity | import/export, parse/deparse, compose/decompose, serialize, snapshot/drift, migrate/rollback, inverse | `fidelity`: operation × byte/value-equality invariant OR the justified weaker invariant + named lossy-exemption sites |
+| disposition | drop / ignore / filter / skip over input classes, or set exit/op outcomes | `disposition`: input class × exit code · event/error · artifact/op minted · silent-vs-loud |
+
+Fire **only** on the named cue — do not add these tables to an RDR that lacks it.
+Each is distinct from the Stage 8 impl-time gates: those catch the defect *during*
+implementation (an unnamed surface, a green-against-stub test, a declared round-trip),
+whereas these force the RDR to *specify* the class before lock so it never reaches
+implementation. The grounding lens's "inverse sibling path" grep is a different check —
+the authority census is the *named-arm census*, not the inverse-rule sweep.
+
 | Lens | Prompt file | What it uniquely catches |
 | --- | --- | --- |
 | grounding | [`../prompts/pre-lock/0-grounding.md`](../prompts/pre-lock/0-grounding.md) | Codebase claims false against source; new rules a sibling path already makes |
