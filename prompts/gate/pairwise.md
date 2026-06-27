@@ -17,14 +17,16 @@ single-RDR lens reads both sides of.
 
 ## Prompt
 
-Run for every plausibly-interacting pair in the cluster; trim to peer pairs
+Run only on peer pairs
 explicitly listed in a *Critical Assumptions* (Method: Peer RDR) or
 *Cross-Cutting Concerns* entry.
 
 ```text
-Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Find every place they
-could contradict each other, duplicate each other, or leave a gap between
-them (an interaction one mentions that the other does not describe).
+Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report your TOP 3 places
+they contradict, duplicate, or leave a gap (an interaction one mentions that
+the other does not). Escalate to exhaustive enumeration only when a
+blocks-impl finding cannot be fixed without listing the rest; append an
+overflow count otherwise.
 
 ALSO check round-trip / inverse invariants. If the two RDRs describe a pair of
 operations expected to compose to identity (A emits, B consumes; encode/decode,
@@ -43,6 +45,7 @@ For each finding, emit:
   EXPLANATION: one sentence (for round-trip: name the input class that breaks
     identity, and whether it is a fidelity loss or an outright failure)
   SEVERITY: [blocks-impl | risks-impl | cosmetic]
+  BLOCKS: <the decision this blocks or the test it prevents>
 
 Do not paraphrase quotes — use exact wording. If you cannot find a direct
 quote, say "NO DIRECT QUOTE" and explain why you still believe the conflict

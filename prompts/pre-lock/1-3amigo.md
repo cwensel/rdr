@@ -18,19 +18,22 @@ order. Do NOT reuse findings between personas.
 
 Persona 1 — Product Manager
   Question: does this RDR actually deliver the user outcome?
-  Deliverable: list every passage where the user outcome is unclear or the
-    RDR is solving a different problem than the user has.
+  Deliverable: your TOP 5 passages where the user outcome is unclear or the
+    RDR solves a different problem, severity-ranked; for each, name the
+    decision it blocks. Append a one-line count of lower-severity overflow.
 
 Persona 2 — Implementer
   Question: if I started coding this Monday, what would I ask in the first
     hour?
-  Deliverable: list every concrete clarification-request the implementer
-    would raise, with the RDR passage that triggered it.
+  Deliverable: your TOP 5 clarification-requests, severity-ranked, each with
+    the RDR passage that triggered it and the decision it blocks. Append a
+    one-line count of lower-severity overflow.
 
 Persona 3 — QA / Tester
   Question: how do I test this? What are the pass/fail criteria?
-  Deliverable: list every test you cannot write because the RDR does not
-    give enough to decide pass/fail.
+  Deliverable: your TOP 5 tests you cannot write for lack of pass/fail
+    criteria, severity-ranked, each naming the test it prevents. Append a
+    one-line count of lower-severity overflow.
 
 Write each persona's list to {EVIDENCE_DIR} as its own file —
 persona-1-pm.md, persona-2-implementer.md, persona-3-qa.md
@@ -39,8 +42,9 @@ persona-1-pm.md, persona-2-implementer.md, persona-3-qa.md
 re-derive it).
 
 At the end, consolidate: which passages appeared under two or more personas?
-Those are the highest-priority rewrites. Write that to
-{EVIDENCE_DIR}/consolidation.md — the file Stage 6 reads.
+Those are the highest-priority rewrites — list the top 2–4 only, plus an
+overflow count. Write that to {EVIDENCE_DIR}/consolidation.md — the file
+Stage 6 reads.
 ```
 
 ## Expected signal
