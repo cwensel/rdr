@@ -70,6 +70,12 @@ greppable `path::Symbol`, not a bare `file:line`. Grep the symbol: resolves in
 the cited file → ok; elsewhere in the repo → note the move; resolves NOWHERE →
 flag (the phantom / never-built / renamed class). Do NOT check line numbers. A
 bare `file:line` with no symbol is itself a finding (rewrite as `path::Symbol`).
+This generalizes beyond Source Search: ANY RDR-body anchor — source or
+peer-RDR — is judged by symbol/section/ID resolution, never line position. A
+stale line number alone, where the symbol/section/behavior still resolves, is a
+NON-finding, not a re-anchor task, and does not block Final. (Surviving line-only
+/ peer-RDR `~line N` anchors are lint-flagged by the scripted pass — see
+`rdr#cbne`; not this manual check.)
 
 CHECK 6 — Status consistency  (grep-able)
 List any assumption marked `Pending` or `Unverified` whose property is then

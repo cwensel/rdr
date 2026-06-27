@@ -137,7 +137,13 @@ Evidence Record before marking this RDR Final.]
   - **Status**: Verified | Pending | Unverified
   - **Method**: `one of the eight below`
   - **Evidence**: [single sentence — concrete artifact;
-    see method-specific guidance below]
+    see method-specific guidance below. Prefer a stable
+    anchor: `path::Symbol`, section heading,
+    REQ/assumption/test ID, grepable literal snippet, or
+    artifact path. A bare `file:line` or peer-RDR
+    `~line N` is non-normative — drop or rewrite to a
+    stable anchor unless the line number **is** the
+    behavior under test.]
   - **If wrong**: [single sentence — what fails; how
     it surfaces to a user or test]
 - **A2 [Statement]** — (same shape)

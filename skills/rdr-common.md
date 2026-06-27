@@ -230,6 +230,14 @@ property of the RDR's on-disk state, which the prompt already inspects.
   Stage 8 (`launch.md`) is the exception that proves the rule: its orchestrator
   delegates *everything*, by its own stricter contract — do not loosen it.
   Each delegated read returns a **§return-packet**, not prose.
+- **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
+  above (`file:line`) is ephemeral: it exists for the main agent to act on this
+  turn, and is fine as-is. What gets **written into the RDR body** is durable
+  evidence and must use a stable anchor (`path::Symbol`, section heading,
+  REQ/assumption/test ID, grepable snippet, artifact path) — never a bare
+  `file:line` or peer-RDR `~line N`, unless the line number *is* the behavior
+  under test. Stale line numbers on a still-resolving symbol are non-findings,
+  not re-anchor work.
 
 ## §return-packet — fixed subagent→parent contract
 
