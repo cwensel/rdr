@@ -52,6 +52,14 @@ of a race the strongest alternatives may have sat out. Never a FAIL (the priors
 are the user's to populate); the one fix is "populate Domain priors in
 `$RDR_RESOURCES` with the competitors/prior art for this domain."
 
+**Close-summary golden self-test (optional, after a clean structural run).** Run
+`sh close-summary-check.sh --self-test` (beside this SKILL.md): it validates the
+§next-step close-packet contract against golden fixtures — the good ones (both
+`/rdr-*` Claude and `$rdr-*` Codex surfaces) must PASS, the gate-only sample must be
+rejected. A green self-test means the contract guard still binds; a FAIL means a recent
+edit regressed the close packet or the fixtures. Advisory, never a seam FAIL; skip if
+the script is absent.
+
 ## Review gate
 
 - **Read-only?** No file/symlink written, nothing installed — the doctor diagnoses;

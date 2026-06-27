@@ -319,7 +319,9 @@ Next: $rdr-<next-stage> NNNN [lens] (Codex) / /rdr-<next-stage> NNNN [lens] (Cla
 
 `RDR delta` is **mandatory**: name at least one concrete RDR content change, or state
 `none owed because <reason>` for a no-edit verification stage. The old gate-only footer
-(Review gate + Next) is no longer acceptable. The Review gate is **compressed** to the
+(Review gate + Next) is no longer acceptable — regression-guarded by
+`skills/rdr-doctor/close-summary-check.sh` (golden fixtures, both surfaces; run
+`--self-test`). The Review gate is **compressed** to the
 `Gate:` line unless a failed gate item is the reason not to continue (then name it). Keep
 *both* command spellings in `Next` (the dual-surface convention). For what `RDR
 delta` must name per stage, use the table below — it is the single source; SKILLs inherit
