@@ -283,7 +283,9 @@ not to remove the human.
 
 ## §no-heartbeat — resume from state, not a timer
 
-Stages resume from durable on-disk state — `status.md`, evidence folders, the RDR
+Stages resume from durable on-disk state — `status.md` (for Stage 8, the `status.md`
+**capsule header** is that cheap one-pass resume read — phase/next/blocker without
+re-reading the implementation artifacts), evidence folders, the RDR
 `Status:` line — plus `$rdr-status` / `/rdr-status`, or a subagent/task completion
 notification. **Not** from routine scheduled/time-based wakeups (no heartbeat polling
 that just re-reads and restates status). A bounded fallback wakeup is permitted *only*

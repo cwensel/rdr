@@ -39,7 +39,7 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 │   ├── coverage.md              # REQ-N × test-name + REQ-MVV output
 │   ├── verification.md          # Phase 3 CoVe + adversarial findings
 │   ├── deviations.md            # classified deviations
-│   └── status.md                # COMPLETE | INCOMPLETE — current phase
+│   └── status.md                # resume capsule (fixed header) + COMPLETE | INCOMPLETE verdict
 └── NNNN-slug-postmortem.md      # post-mortem (added after close)
 ```
 
@@ -92,9 +92,11 @@ inconsistent, red-before-green gate fails), write
 that is a halt, not a question.
 
 PRECHECKS (orchestrator runs these directly — cheap reads only)
-- Resume: if `<art>/status.md` exists and names a phase, resume at
-  the next phase. If artifacts are inconsistent (e.g., status says
-  Phase 2 but no tests exist), write INCOMPLETE("artifact
+- Resume: read the `<art>/status.md` capsule header (phase/next/blocker)
+  in one pass; if it names a phase, resume at the next phase. Fall through
+  to req-list/coverage/verification only if the header is missing, stale,
+  or contradicts the artifacts. If artifacts are inconsistent (e.g.,
+  status says Phase 2 but no tests exist), write INCOMPLETE("artifact
   inconsistency: <detail>") and halt.
 - Predecessors: read the RDR's `**Predecessors**:` field (one grep is
   fine). For each listed `MMMM-slug`: verify
@@ -269,6 +271,23 @@ and `<art>/deviations.md` — do not re-read full files. Write
   INCOMPLETE — <one-line named blocker, citing the failing condition>.
 
 Do not declare success on INCOMPLETE.
+
+RESUME CAPSULE (orchestrator writes status.md as the cheap one-pass
+resume state). Each phase boundary AND the completion gate overwrite
+`<art>/status.md` with the fixed header block below, then the verdict
+line. Overwrite, never append. This is the ONLY Stage-8 durable read on
+re-entry — keep it ≤12 lines so a new session rehydrates in one read.
+
+```text
+RDR: NNNN-slug | phase: <N — name> | state: COMPLETE | INCOMPLETE | IN-PROGRESS
+last: <last completed phase action, ≤1 line>
+blocker: <named blocker | none>
+changed: <comma-sep paths touched this run | none yet>
+validate: <exact test/suite command>
+next: <exact next phase or $rdr-status NNNN re-entry command>
+session: <ISO8601 ts | session id>
+artifacts: req-list.md coverage.md verification.md deviations.md
+```
 
 GUARDRAILS
 - Phase sub-agents own their own reading. The orchestrator never

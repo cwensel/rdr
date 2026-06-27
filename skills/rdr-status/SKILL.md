@@ -57,12 +57,15 @@ per-slug paths above count.
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; the Finalization Gate's five responses present in the RDR; README index row updated |
 | 8.1 Cluster | `<RDR_EVIDENCE>/<slug>/evidence/cluster-reconcile/<cluster>/` (only when the RDR is in a cluster) |
-| 9 Implement | `{ARTIFACT_DIR}/<slug>/status.md` reads `COMPLETE` or `INCOMPLETE` |
+| 9 Implement | `{ARTIFACT_DIR}/<slug>/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
 its Critical Assumptions (count Verified vs Pending), then `ls` each folder at the
 exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes under
 `spikes/<slug>/`, plus `cluster-reconcile/` and `{ARTIFACT_DIR}/<slug>/status.md`.
+For an in-flight Stage 9, the status.md capsule header is the single authoritative
+resume read — do not open the detailed implementation artifacts unless it is absent
+or contradicts what the tree shows.
 
 ## How it decides "next"
 
