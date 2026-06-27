@@ -108,6 +108,11 @@ an analytical judgment. Verify it during 3amigo (Implementer persona) or
 Action-items (Repeatability Probe). A future CHECK 7 can absorb it once the
 matching heuristic is reliable.
 
+A future CHECK 8 (cheap regex guard, no script yet) can flag any unqualified
+`ScheduleWakeup` / `wakeup` / `heartbeat` phrasing introduced into RDR skills or
+prompts — i.e. a wakeup that does not name the external uncertainty it guards and
+its self-clear (per `rdr-common.md` §no-heartbeat).
+
 ## Source
 
 The four checks are the mechanical share of the implementation-prompt review

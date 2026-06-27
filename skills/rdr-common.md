@@ -241,6 +241,17 @@ This boundary is inherent to the flow (mined: the recurring "I should stop and
 surface this rather than fake it"); the skill's job is to make the stop *crisp*,
 not to remove the human.
 
+## §no-heartbeat — resume from state, not a timer
+
+Stages resume from durable on-disk state — `status.md`, evidence folders, the RDR
+`Status:` line — plus `$rdr-status` / `/rdr-status`, or a subagent/task completion
+notification. **Not** from routine scheduled/time-based wakeups (no heartbeat polling
+that just re-reads and restates status). A bounded fallback wakeup is permitted *only*
+when an external tool emits no completion signal **and** the next action is genuinely
+blocked: it must name the uncertainty it guards, self-clear after one firing, and do no
+already-completed work on wake (read state first, continue from the next incomplete step).
+Echo §stop-packet's "surface, don't fake" — prefer explicit user re-entry over a timer.
+
 ## §next-step — close with a decision packet
 
 End every stage skill (not `/rdr-status`) by printing a compact **close packet** — one
