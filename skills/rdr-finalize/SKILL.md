@@ -39,10 +39,11 @@ Claude: /rdr-finalize <NNNN>
      sanctioned set, CHECK 3 source-search self-reference, CHECK 4 Docs-Only on
      load-bearing). **Run those CHECK blocks verbatim — do not re-derive them.** This
      is where a paraphrased Method label or a placeholder gate response is caught.
-   - If you lint the RDR `.md`, use the repo's `.markdownlint.json` from the repo
-     root (it sets `line_length: 120`, `tables: false`) — running markdownlint from
-     inside the engine repo (`rdr/`) floods spurious MD013. An RDR-`.md`-only status flip usually
-     needs no lint at all.
+   - Linting the RDR `.md` is optional — an RDR-`.md`-only status flip usually
+     needs none. If you do, honor the **consumer repo's** `.markdownlint.json`
+     when it has one (don't impose engine-repo defaults), and never run
+     markdownlint from inside the engine repo (`rdr/`) — with no config there it
+     floods spurious MD013.
 
 ## Review gate (Stage `07.0-finalize.md`)
 
