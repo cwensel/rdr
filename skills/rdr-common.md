@@ -311,8 +311,24 @@ Next: $rdr-<next-stage> NNNN [lens] (Codex) / /rdr-<next-stage> NNNN [lens] (Cla
 `none owed because <reason>` for a no-edit verification stage. The old gate-only footer
 (Review gate + Next) is no longer acceptable. The Review gate is **compressed** to the
 `Gate:` line unless a failed gate item is the reason not to continue (then name it). Keep
-*both* command spellings in `Next` (the dual-surface convention). Do not enumerate
-per-stage delta contents here.
+*both* command spellings in `Next` (the dual-surface convention). For what `RDR
+delta` must name per stage, use the table below — it is the single source; SKILLs inherit
+it via this anchor and do not restate it.
+
+**What `RDR delta` must name, per stage** (≤1 line each; content/decisions, not engine mechanics):
+
+| Stage | RDR delta must name |
+|---|---|
+| seed | user outcome; number/slug; why RDR-shaped or demoted |
+| propose | chosen approach; rejected alternatives; decisive evidence/criteria; new Pending assumptions |
+| refine | contradictions removed; bloat/history cut; changed contract wording |
+| resolve | assumptions verified/downgraded/blocked; evidence basis; recommendation pressure from verification |
+| prelock | lens findings accepted/dismissed/deferred; RDR edits; net-new assumptions/failure modes |
+| reconcile | terminal disposition of open assumptions/spikes (accepted/dismissed/deferred/downgraded — name them); survivable downgrades; blockers/return stage |
+| finalize | READY/NOT READY tied to implementation readiness (not just gate mechanics); lock status; gate-response deltas; reasons impl must wait |
+| cluster-reconcile | cross-RDR drift found/fixed; route-back records; impl-ordering consequences |
+| implement | implemented contracts; RDR deviations; verification result; spec defects routed back |
+| status (read-only) | current state; content reason for it; exact next command |
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
 `/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;
