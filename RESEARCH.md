@@ -102,6 +102,29 @@ published — the commits are the durable record):
   `$rdr-status`, not routine time-based wakeups — a forward guardrail against the
   redundant-wakeup no-op turns observed in the harness/operator layer (the RDR
   skills themselves never instructed wakeups, so this is prevention, not removal).
+- **The per-stage RDR-delta vocabulary** (a compact table in the shared close
+  packet naming what each stage's report must call a content change) was added
+  after a step-summary review found the one shared packet decaying into generic
+  engine-of-the-stage summaries — every stage reporting "ran the lens, advanced"
+  rather than the design delta the next stage actually consumes. The fix keeps
+  the single packet (no per-stage prose to re-bloat what the close packet already
+  trimmed) but gives each flow stage a one-line content rule, so the summary
+  stays decision-bearing as it travels. Driver: the project-internal
+  step-summary-rebias review (project scratch, not published).
+- **The stable-anchor doctrine for RDR-body evidence** — evidence in an RDR body
+  prefers a `path::Symbol`, a section heading, a REQ-ID, a grepable snippet, or an
+  artifact path; a bare `file:line` or a peer-RDR `~line N` is non-normative unless
+  the line *is* the behavior, and a stale line number standing alone is a
+  non-finding rather than a defect. Ephemeral subagent return pointers stay
+  `file:line` (they die with the turn that made them). This is **operational
+  doctrine, not paper-backed**: it was forced by three dated project transcripts —
+  a peer-RDR `~line` cite called out as "a reference that rots" (2026-06-22),
+  edits that shifted lines and forced a re-grep to the current location
+  (2026-06-23), and an allowlist broken by drift that forced an in-scope re-anchor
+  (2026-06-24). Recorded here the same way the audit-driven template changes are:
+  project-internal evidence, no fabricated citation. (Liu 2023, *Lost in the
+  Middle* — §2 — frames only the loose context/cost angle, not anchor stability.)
+  The companion lint and the re-anchor turn measurement are *not yet implemented*.
 
 ---
 
@@ -311,12 +334,58 @@ high-accretion loci.
   rationale for the accretion floor as a concentrator rather than blanket
   escalation. <https://www.nber.org/papers/w35275>
 
+**Bounded review output is the cost lever, not exhaustive findings.** The
+pre-lock 3amigo lens emits a capped set (top-N per persona, severity-ranked, each
+naming the decision it blocks, plus an overflow count) and the pairwise cross-RDR
+check emits top-N per *peer* pair only, exhaustive only when a blocks-implementation
+finding demands it. The case against "list every passage": a transcript where the
+parent already held the relevant RDR sections, then re-read line ranges and
+dispatched a sub-agent to pull precise passages — the repeated scanning an
+unbounded "enumerate all" prompt shape provokes. Capping trades raw recall for
+decision-utility: an unbounded list maximizes findings, not the next decision. The
+same non-monotone-returns caution (Chen et al. above) applies — more redundant
+output past the point a decision is made does not improve it. Finiteness of the
+attention budget is the constraint (Anthropic, *Effective context engineering*, §3).
+
+**Research is bounded by query/hit budgets plus a stop rule and a reused
+citation cache.** Propose runs ≤3 queries / ≤5 hits per claim, Resolve ≤4 / ≤6 per
+assumption, each with a negative-result line, and both write accepted citations to
+a per-RDR artifact reused on re-entry rather than re-searched. This operationalizes
+"bounded" — the named-but-unnumbered external pass that, unmetered, ran dozens of
+corpus searches and parallel per-citation research tasks. The budget+stop+cache is
+the cost lever; it composes with the retrieval-first Propose ordering (read prior
+art *before* enumerating — Propose selection, above): the budget bounds that read
+instead of leaving it open-ended. The curate-a-finite-context discipline is the
+same (Anthropic, *Effective context engineering*, §3).
+
+### Inter-agent return contract — the fixed return packet
+
+**Drives**: the `§return-packet` in [`skills/rdr-common.md`](skills/rdr-common.md)
+and the phase returns in [`prompts/implementation/launch.md`](prompts/implementation/launch.md).
+
+A subagent returns a fixed, machine-checkable packet (verdict / blocking /
+evidence_paths / changed_paths / next_action / 50-word summary) rather than
+free-form prose or a word-count target. The parent rejects a malformed packet by
+re-asking for the packet alone — never by re-running the analysis. The case: a
+sub-agent returned a freeform resolve report instead of a single verdict and left
+shared state dirty, and a large token-heavy run had its verdict header truncated
+and re-fetched by the parent.
+
+- **Cemri et al. (2025), *Why Do Multi-Agent LLM Systems Fail?* (MAST)** — the
+  inter-agent-misalignment and verification failure classes (see *Grounding
+  lens*, above) are precisely what an unspecified return invites; a fixed contract
+  makes the verdict and its evidence machine-checkable at the boundary. The packet
+  is the cost lever against verbose or under-specified returns — rejecting one
+  costs a re-ask, never a second full pass. arXiv 2503.13657 (cited in full above).
+
 ### Instance conditionality & resume cost
 
 **Drives**: the section-class legend (Required / Conditional / Reference-only) and
 delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md), the surviving-bracket BLOCK in
-[`prompts/gate/tooling-pass.md`](prompts/gate/tooling-pass.md) CHECK 1, and the
-[`skills/rdr-common.md`](skills/rdr-common.md) `§no-heartbeat` resume doctrine.
+[`prompts/gate/tooling-pass.md`](prompts/gate/tooling-pass.md) CHECK 1, the
+[`skills/rdr-common.md`](skills/rdr-common.md) `§no-heartbeat` resume doctrine, and
+the fixed `status.md` resume capsule read first by
+[`prompts/implementation/launch.md`](prompts/implementation/launch.md) and `$rdr-status`.
 
 - **Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni & Liang (2023), *Lost in the
   Middle: How Language Models Use Long Contexts*, TACL** — retrieval is highest when
@@ -337,7 +406,14 @@ delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md), the surviving-bracket BLO
   time-based polling, aligned with AgentStop (terminating idle agents to cut overhead) and
   Triggerflow (trigger-based over polled orchestration); both in §3. *(The earlier review's
   two budget-overrun arXiv citations did not resolve in the research corpora and were
-  dropped rather than carried forward.)*
+  dropped rather than carried forward.)* State-driven resume only pays if the read is
+  cheap, so the existing `status.md` carries a fixed ≤12-line capsule header (verdict
+  retained) that is read *first*; the larger detail artifacts (req list, coverage,
+  verification) are opened only when the capsule is missing, stale, or contradictory.
+  This is the smallest-high-signal-token-set discipline (Anthropic, *Effective context
+  engineering*, §3) applied to resume: one capsule pass instead of a full rehydration.
+  The pressure was observed directly — a memory index nearing its read limit, and
+  output-channel degradation that made full-status re-reads expensive.
 
 ### Pairwise / cross-RDR consistency (Stage 7.1)
 
@@ -398,6 +474,12 @@ delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md), the surviving-bracket BLO
   [`prompts/implementation/launch.md`](prompts/implementation/launch.md), which
   classifies implementation divergences so patterns can be analyzed across RDRs.
   DOI 10.1109/32.177364 — <https://doi.org/10.1109/32.177364>
+- **Anchor stability** — for the same reason the Evidence Record demands a
+  *durable* pointer, RDR-body evidence prefers stable anchors (`path::Symbol`,
+  section, REQ-ID, grepable snippet, artifact path) over a bare `file:line` that
+  rots on the next edit; a stale line number alone is treated as a non-finding, not
+  a defect, and the tooling pass no longer blocks on it. This is operational
+  doctrine grounded in project transcripts (§1), not a published source.
 
 ### Implementation launch (Stage 8)
 
