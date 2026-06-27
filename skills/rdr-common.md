@@ -241,12 +241,27 @@ This boundary is inherent to the flow (mined: the recurring "I should stop and
 surface this rather than fake it"); the skill's job is to make the stop *crisp*,
 not to remove the human.
 
-## §next-step — close with a pointer
+## §next-step — close with a decision packet
 
-End every stage skill (not `/rdr-status`) by printing, briefly:
-1. the **Review gate** the human checks (one line, from the stage `.md` — quote it,
-   don't re-derive), and
-2. `Next: $rdr-<next-stage> NNNN [lens]` in Codex, or `/rdr-<next-stage> NNNN [lens]` in Claude, plus `$rdr-status NNNN` or `/rdr-status NNNN` to re-orient.
+End every stage skill (not `/rdr-status`) by printing a compact **close packet** — one
+line per field — so a human or next session can decide whether to continue *without
+re-reading the RDR*:
+
+```
+Outcome: <stage verdict in user terms>
+Gate: PASS / NOT READY / <stopped-code>  (name the failed gate item only if it is the reason not to continue)
+RDR delta: <1-3 bullets naming the changed recommendation/assumptions/contracts/tests/risks — or "none owed because <reason>">
+Deviations: <none | accepted/dismissed/deferred findings, downgraded assumptions, scope changes>
+Continue check: <why the next stage is justified, or what judgment still remains>
+Next: $rdr-<next-stage> NNNN [lens] (Codex) / /rdr-<next-stage> NNNN [lens] (Claude) — or $rdr-status NNNN / /rdr-status NNNN to re-orient
+```
+
+`RDR delta` is **mandatory**: name at least one concrete RDR content change, or state
+`none owed because <reason>` for a no-edit verification stage. The old gate-only footer
+(Review gate + Next) is no longer acceptable. The Review gate is **compressed** to the
+`Gate:` line unless a failed gate item is the reason not to continue (then name it). Keep
+*both* command spellings in `Next` (the dual-surface convention). Do not enumerate
+per-stage delta contents here.
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
 `/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;
