@@ -85,6 +85,23 @@ published — the commits are the durable record):
   work, since only the named cross-RDR defect had changed. The qualifier carries
   the scope on the live Status value (so the change-history scrub can't delete
   it, and the re-lock flip self-clears it).
+- **The section-class legend (Required / Conditional / Reference-only) and the
+  delete-not-blank rule** were added after a process-efficiency review found
+  inert template prose surviving verbatim into late RDR sections (placeholder
+  tables, bracketed instructions, the method-vocabulary block copied wholesale)
+  — paid by every later stage that re-reads the instance. Conditional sections
+  are now *deleted when N/A*, never blanked or N/A-bulleted, and the
+  Finalization Gate's CHECK 1 BLOCKs on a surviving template bracket while
+  treating a cleanly-deleted Conditional section as PASS (only a missing
+  *Required* spine section blocks). The six spine sections the implementation
+  prompt consumes (Normative Contracts, MVV, Failure Modes, Predecessors,
+  Testing Strategy, Critical Assumptions) are hard-pinned Required so the
+  conditionality can never erode the one-shot handoff.
+- **The `§no-heartbeat` resume doctrine** records that stages resume from durable
+  on-disk state (`status.md`, evidence folders, the RDR `Status:` line) and
+  `$rdr-status`, not routine time-based wakeups — a forward guardrail against the
+  redundant-wakeup no-op turns observed in the harness/operator layer (the RDR
+  skills themselves never instructed wakeups, so this is prevention, not removal).
 
 ---
 
@@ -294,6 +311,34 @@ high-accretion loci.
   rationale for the accretion floor as a concentrator rather than blanket
   escalation. <https://www.nber.org/papers/w35275>
 
+### Instance conditionality & resume cost
+
+**Drives**: the section-class legend (Required / Conditional / Reference-only) and
+delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md), the surviving-bracket BLOCK in
+[`prompts/gate/tooling-pass.md`](prompts/gate/tooling-pass.md) CHECK 1, and the
+[`skills/rdr-common.md`](skills/rdr-common.md) `§no-heartbeat` resume doctrine.
+
+- **Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni & Liang (2023), *Lost in the
+  Middle: How Language Models Use Long Contexts*, TACL** — retrieval is highest when
+  relevant content sits at the start, degrading sharply when buried mid-context. Every
+  inert section copied into an instance pushes the load-bearing spine deeper, so cutting
+  conditional prose is a *reliability* gain, not only a token saving. arXiv 2307.03172 —
+  <https://arxiv.org/abs/2307.03172>
+- **Shi, Chen, Misra, Scales, Dohan, Chi, Schärli & Zhou (2023), *Large Language Models
+  Can Be Easily Distracted by Irrelevant Context*, ICML** — irrelevant in-context text
+  measurably drops task accuracy; the implementation prompt must otherwise spend
+  attention separating live contract from scaffolding. The direct evidence that
+  placeholder leakage is a correctness cost. arXiv 2302.00093 —
+  <https://arxiv.org/abs/2302.00093>
+- **Robertson & Robertson, *Volere Requirements Specification Template*** (see §3) is the
+  prior art for delete-unused-sections discipline: "select the sections that apply; delete
+  any that are not relevant" — the conditional/omit pattern, predating its application here.
+- **Resume cost** — the `§no-heartbeat` doctrine prefers event/state-driven resume over
+  time-based polling, aligned with AgentStop (terminating idle agents to cut overhead) and
+  Triggerflow (trigger-based over polled orchestration); both in §3. *(The earlier review's
+  two budget-overrun arXiv citations did not resolve in the research corpora and were
+  dropped rather than carried forward.)*
+
 ### Pairwise / cross-RDR consistency (Stage 7.1)
 
 **Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at
@@ -429,6 +474,17 @@ theme; included so an adopter can go deeper and so the provenance is complete.
 - Rehan (2026), *Test-Driven AI Agent Definition*, arXiv 2603.08806.
 - Taghavi & Bhavani (2026), *Spec Kit Agents: Context-Grounded Agentic
   Workflows*, arXiv 2604.05278.
+
+### Context use, cost & agent orchestration
+
+- Liu et al. (2023), *Lost in the Middle: How Language Models Use Long Contexts*,
+  TACL — arXiv 2307.03172 (load-bearing; see §2 instance conditionality).
+- Shi et al. (2023), *Large Language Models Can Be Easily Distracted by Irrelevant
+  Context*, ICML — arXiv 2302.00093.
+- AgentStop — terminating idle local agents early to cut token/energy overhead;
+  evidence behind preferring state/event-driven resume over routine wakeups.
+- Triggerflow — trigger/event-based orchestration of serverless workflows over
+  polling; the orchestration analogue of `§no-heartbeat`.
 
 ### Verification & adversarial review patterns
 
