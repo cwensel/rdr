@@ -28,7 +28,7 @@ Claude: /rdr-reconcile <NNNN>
    unrun spikes, the exactness-word delta), forces ONE disposition each, and **writes
    it into the RDR's Critical Assumptions section** (not just a report). Delegate
    spike runs / corpus reads to a `Task` sub-agent returning verdict + evidence
-   pointer (rdr-common §delegation).
+   pointer (§return-packet) (rdr-common §delegation).
    - **Absorption-audit delegation (mined — recurs verbatim).** To build source 3 +
      confirm the rounds were folded in, spawn one `Task` sub-agent over the lens
      output dirs that exist for this slug

@@ -20,7 +20,7 @@ Build the open set from FOUR sources:
 
 For heavy work — running a spike against the live target, searching corpora,
 reading captured spike output — delegate to a sub-agent that returns verdict +
-evidence pointer (command + output path, or file:line), not raw dumps.
+evidence pointer (command + output path, or file:line), returned as a §return-packet (rdr-common), not raw dumps.
 
 For each item, force ONE terminal disposition AND write it into the RDR's
 Critical Assumptions section (this is an in-place edit to the draft, not just a

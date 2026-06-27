@@ -2,8 +2,8 @@ Review the RDR at {RDR_PATH}. Verify it against the rdr README and TEMPLATE
 and identify exactly what's required to flip it to Final.
 
 Read {RDR_ENV} for the pre-lock output location ({EVIDENCE_DIR}). If reading those
-outputs is heavy, delegate to a sub-agent that returns per-round "findings
-closed? y/n + residue", not the raw round files.
+outputs is heavy, delegate to a sub-agent that returns a §return-packet
+(rdr-common) — findings-closed in summary_50w, residue in next_action.
 
 FIRST run the mechanical sweep — the Tooling pass: open
 $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on

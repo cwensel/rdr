@@ -23,7 +23,7 @@ Claude: /rdr-resolve <NNNN>
 2. **Run the prompt** [`04-resolve.prompt.md`](04-resolve.prompt.md)
    with those bound. Have a live spike target reachable. The prompt is read-heavy —
    delegate corpus searches / reuse audits / dependency spelunks to a sub-agent that
-   returns *verdict + evidence pointer*, not raw hits (rdr-common §delegation; spawn
+   returns *verdict + evidence pointer* (§return-packet), not raw hits (rdr-common §delegation; spawn
    with the `Task` tool).
    - **Fan-out heuristic (mined):** group the **Source-Search** assumptions into one
      sub-agent (multi-pass, one verdict each) and give each **Spike** assumption its

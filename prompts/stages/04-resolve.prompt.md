@@ -16,7 +16,7 @@ provides it, that is a finding — fold reuse into the design or return to Stage
 
 This stage is read-heavy: for each corpus search, reuse audit, or dependency
 spelunk, delegate to a sub-agent that returns the verdict + evidence pointer
-(file:line, or spike command + output path) — NOT raw hits or whole files.
+(file:line, or spike command + output path) as a §return-packet (rdr-common) — NOT raw hits or whole files.
 Hold only the verdicts here.
 
 SCOPED RE-ENTRY: if the Status reads `Draft [revised from Final …; re-verify

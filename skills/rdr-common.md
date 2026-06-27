@@ -229,6 +229,46 @@ property of the RDR's on-disk state, which the prompt already inspects.
   sub-agent write guard on the primary checkout).
   Stage 8 (`launch.md`) is the exception that proves the rule: its orchestrator
   delegates *everything*, by its own stricter contract — do not loosen it.
+  Each delegated read returns a **§return-packet**, not prose.
+
+## §return-packet — fixed subagent→parent contract
+
+A delegated read/verify sub-agent returns **exactly** this packet — a
+machine-checkable schema, not a word-capped summary (a word cap can still omit
+the one field the parent needs). Distinct from §next-step, which is the parent's
+*human-facing* close packet; this is the subagent→parent handoff.
+
+```text
+verdict: PASS | BLOCK | INCOMPLETE | NEEDS_DECISION
+blocking: yes | no
+evidence_paths: [file:line | spike-cmd→output-path, ...]
+changed_paths: [path, ...]        # files the subagent wrote, or []
+next_action: <imperative the parent runs, or "none">
+summary_50w: <≤50 words; the verdict's reason, not a transcript>
+```
+
+The parent **rejects a malformed packet** (missing/extra field, unlisted verdict
+value) and asks ONLY for a corrected packet — never a fresh analysis pass. Do
+**not** fetch the full subagent transcript unless the packet's evidence_paths
+cite a conflict the parent must adjudicate.
+
+```text
+verdict: PASS
+blocking: no
+evidence_paths: [src/codec.go:212, spike:run-mvv→art/mvv.out]
+changed_paths: []
+next_action: none
+summary_50w: All 7 REQ-N have a green test; REQ-MVV round-trips byte-for-byte.
+```
+
+```text
+verdict: BLOCK
+blocking: yes
+evidence_paths: [art/deviations.md:14]
+changed_paths: [art/deviations.md]
+next_action: ask author to resolve SPEC-UNDER on the new accessor surface.
+summary_50w: New public accessor not in Normative Contracts; no REQ-N, ships untested.
+```
 
 ## §stop-packet — surface, don't fake
 

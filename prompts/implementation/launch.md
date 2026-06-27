@@ -123,8 +123,9 @@ Sub-agent's task:
      materially different behaviour, no precedent in predecessors),
      record it under a `QUESTIONS` section in `req-list.md` and
      surface it in the return summary.
-Sub-agent returns ≤200 words: REQ count, REQ-MVV identifier, any
-QUESTIONS list. If QUESTIONS is non-empty, the orchestrator asks the
+Sub-agent returns a §return-packet (rdr-common); summary_50w carries REQ
+count + REQ-MVV id, QUESTIONS go to next_action if non-empty. If QUESTIONS
+is non-empty, the orchestrator asks the
 user one consolidated question, records the answers as additional
 ASSUMPTION lines in `req-list.md`, and re-briefs the auditor if the
 answers change REQ wording; otherwise advance.
@@ -151,8 +152,9 @@ ALL new tests FAIL (red). Any test green against a missing/stub
 implementation is tautological — the sub-agent rewrites it before
 returning. The sub-agent writes `<art>/coverage.md` (REQ-N × test
 name, orphans flagged both ways).
-Sub-agent returns ≤200 words: test file paths, REQ-N coverage count,
-red-confirmed yes/no, REQ-MVV runner command. If red-confirmed is
+Sub-agent returns a §return-packet; verdict=INCOMPLETE if red-confirmed is
+no, evidence_paths list test files + REQ-MVV runner, changed_paths the
+coverage.md. If red-confirmed is
 no, write INCOMPLETE("Phase 1 red gate failed") and halt — do not
 advance to Phase 2.
 
@@ -209,9 +211,9 @@ Do not record ordinary implementation choices unless they affect
 contract, validation, or future interpretation. After the suite is
 green, it runs REQ-MVV end-to-end and records the actual output in
 `<art>/coverage.md`.
-Sub-agent returns ≤300 words: green yes/no, count of mechanical
-deviations (no action needed), list of needs-author-decision
-deviations (with one-line each), REQ-MVV pass/fail.
+Sub-agent returns a §return-packet; verdict=NEEDS_DECISION if any
+needs-author-decision deviation, summary_50w gives green +
+mechanical-deviation count, evidence_paths cite each open deviation.
 If needs-author-decision deviations are non-empty, the orchestrator
 asks the user one consolidated question listing each gap with the
 sub-agent's recommendation, records the resolutions back to
@@ -228,7 +230,7 @@ those inputs against the actual implementation (the sub-agent has
 the source tree but is forbidden from reading the Phase 1 tests).
 Any actual violation gets appended to `<art>/verification.md` as a
 FAIL-N entry with the failing input and observed behaviour.
-Sub-agent returns ≤200 words: defect count, FAIL-N list (one line each).
+Sub-agent returns a §return-packet (verdict=BLOCK if FAIL-N; summary_50w lists defect count, FAIL-N list one line each).
 
 PHASE 3b [DELEGATE to sub-agent: "Adversarial reviewer"]
 Brief: the RDR's Failure Modes section, `<art>/req-list.md`, and
@@ -240,8 +242,7 @@ any missing tests to the test directory; confirm they fail against
 the current implementation (else they don't actually catch the
 failure mode). Append findings to `<art>/verification.md` as ADV-N
 entries.
-Sub-agent returns ≤200 words: failure modes named, tests added,
-which (if any) currently fail against the implementation.
+Sub-agent returns a §return-packet (verdict=BLOCK if any added test currently fails; summary_50w lists failure modes named, tests added, which currently fail against the implementation).
 
 PHASE 3c — FIXUP [conditional, DELEGATE to sub-agent: "Phase 3 fixup"]
 Run this only if Phase 3a returned FAIL-N entries OR Phase 3b added
@@ -252,8 +253,7 @@ fix each defect with the minimum change; add a regression test if
 not already present. After fixing, run the full suite — must be
 green. New deviations follow Phase 2's classification rules
 (mechanical vs needs-author-decision).
-Sub-agent returns ≤200 words: defects fixed, regression tests
-added, green yes/no, any new deviations needing author decision.
+Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lists defects fixed, regression tests added, green yes/no, any new deviations needing author decision).
 Apply the same escalation rule as Phase 2 if needed.
 
 COMPLETION GATE (orchestrator runs directly)
@@ -275,6 +275,8 @@ GUARDRAILS
   reads the RDR text, implementation files, or test files.
   Re-reading the same files in two contexts is the bug we are
   avoiding.
+- Every phase return is a §return-packet; the orchestrator rejects a
+  malformed packet and re-asks for the packet alone, not a re-run.
 - If a test needs information not in the spec, the sub-agent first
   grounds the gap against `{RDR_RESOURCES}` (the spec's own evidence
   base) and ultrathinks whether that evidence resolves it; only if it

@@ -36,7 +36,7 @@ say so and point at `/rdr-implement NNNN`.
    - **Pairwise contradiction scan** — [`pairwise.md`](pairwise.md)
      run per pair; writes `pairwise-<A>-<B>.md`.
    Delegate the heavy reads (several RDRs, the pairwise runs) to a sub-agent that
-   returns verdict + evidence pointer.
+   returns verdict + evidence pointer (§return-packet).
 
 ## Review gate (Stage `07.1-cluster-reconcile.md`)
 
