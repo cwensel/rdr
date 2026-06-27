@@ -1,10 +1,14 @@
 # Repeatability — Under-Specified Signature Probe (G-08)
 
 **Use when**: single-RDR pre-lock, for RDRs that lock a public API, signature,
-or data model an implementer must reproduce exactly. Apply after the draft is
-complete **and its assumptions are verified** (Stage 4). One of the single-RDR
-lenses; peers with [3amigo](1-3amigo.md), [critique](2-critique.md), and
-[cove](4-cove.md).
+or data model an implementer must reproduce exactly — or when the Stage 5
+**Determinacy trigger** fires on an algorithmic contract (step-ordering,
+parse/deparse, import/export, compose/decompose, hashing, identity, migration,
+multi-step MVV fidelity). Apply after the draft is complete **and its assumptions
+are verified** (Stage 4). One of the single-RDR lenses; peers with
+[3amigo](1-3amigo.md), [critique](2-critique.md), and [cove](4-cove.md). At
+`mid`/`large` the determinacy default is the **lite variant** below (one
+alternate-model run); the full ×3 lens is for Foundational or on escalation.
 
 **What it uniquely catches**: under-specified signatures, types, and APIs.
 Where multiple generation runs disagree, the RDR is silent — that silence is
@@ -12,6 +16,32 @@ the finding.
 
 **Cost**: 15 min × 3 runs (one session each) + 10 min for a 4th `diff` pass in a
 fresh session.
+
+## Repeatability-lite (one alternate-model reconstruction)
+
+The default when the Stage 5 Determinacy trigger fires on a `mid`/`large` RDR —
+the full ×3 lens stays gated to Foundational or escalation.
+
+**Cost**: 15 min × 1 alternate-model run + 10 min focused diff (vs. 55 min full).
+
+**Run**: one reconstruction on a **different base model** (the cross-model draw is
+the whole point — same generation prompt below, a single `run-1.md`), then the diff
+pass against the RDR in a fresh session.
+
+**The lite diff must name concrete RDR silences, not style differences.** A finding
+is admissible only if it points at a specific algorithmic contract the RDR left
+under-determined — a step whose order the RDR doesn't fix, a field whose owner it
+doesn't name, a transform whose tie-break it doesn't state. Naming, wording, or
+helper-decomposition taste is **not** a finding (the full lens's three-way
+disagreement count isn't available at lite, so each silence must be concrete on its
+own).
+
+**Escalate to the full ×3 lens when**: the single alt-model run *agrees* with the
+RDR but you can't tell determinacy from shared-model overfit (suspiciously clean, no
+GUESS markers); **or** the lite diff surfaces a determinacy silence on a
+**load-bearing or cross-RDR** contract (a one-run sample under-powers a contract
+peers depend on); **or** the profile is already Foundational (full is the floor
+there). Otherwise the lite diff is sufficient and feeds Resolve like any lens folder.
 
 ## Generation prompt
 

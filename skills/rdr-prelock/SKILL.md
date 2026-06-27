@@ -30,7 +30,10 @@ that one run, `diff` compares them. Reject an unknown lens with
 `cove 3amigo critique repeatability` (cove embeds the grounding sweep as its
 Step 0, so it leads and `grounding` is not run separately). A small RDR runs
 **no** lens (skip to `/rdr-reconcile`). Run lenses in that order — grounding/cove
-first (ground the frame before the personas debate it).
+first (ground the frame before the personas debate it). `mid`/`large`
+additionally run **repeatability-lite** when the Stage 5 Determinacy trigger fires
+(algorithmic contract — see `$RDR_HOME/stages/05-prelock.md`); foundational runs
+the full ×3 `repeatability` lens.
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a

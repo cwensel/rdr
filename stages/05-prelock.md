@@ -36,9 +36,11 @@ draft and a mechanical sweep is only meaningful *after* the last mutation.
 | RDR profile | Lenses (in order) |
 | --- | --- |
 | Small / single-file / non-user-facing | *(none — straight to Stage 6, then the Stage 7 sweep + Gate)* |
-| Mid / user-facing OR locks a contract | grounding → 3amigo |
-| Large / locks enum·hash·format·grammar·destructive | grounding → 3amigo → critique |
+| Mid / user-facing OR locks a contract | grounding → 3amigo ‡ |
+| Large / locks enum·hash·format·grammar·destructive | grounding → 3amigo → critique ‡ |
 | Foundational / cross-RDR / spans modules | cove → 3amigo → critique → repeatability |
+
+‡ *+ repeatability-lite if the Determinacy trigger fires (below).*
 
 **Grounding runs first** (whenever present). It is the only lens that checks the
 RDR against *source*; running it ahead of the personas keeps them from ratifying
@@ -55,6 +57,24 @@ with prior point-fixes is the matrix's `cross-RDR` trigger. This is a mechanical
 count read from the field (filled at Seed from `kata-scope-review`), not a
 judgment; the only escape is the written accretion disposition in that field. It
 is the lever that pulls an accreting `small`/`mid` RDR up to the grounding lens.
+
+**Determinacy trigger (repeatability-lite).** A second mechanical gate, read from
+the RDR's **Normative Contracts**, not its profile. If a locked contract is
+*algorithmic* — its **output depends on step ordering**, or it defines
+**parse/deparse, import/export, compose/decompose, hashing, identity, or migration**
+behavior, or a **data-model field whose ownership/semantics could be inferred more
+than one way**, or the **MVV rests on multi-step transformation fidelity** — add
+**repeatability-lite** (one alternate-model reconstruction + a focused diff; see
+[the lens](../prompts/pre-lock/3-repeatability.md#repeatability-lite-one-alternate-model-reconstruction))
+to the profile's lenses, down to `mid`. This is a cue read from the contract's
+*kind*, not a fresh judgment: a contract that names one of those verbs fires it; one
+that does not, does not. The escape is a one-line written disposition in the lens
+folder (`determinacy: n/a — <reason>`), mirroring the accretion escape. It does
+**not** fire for CLI-flag/UX/surface changes, additive un-ordered config,
+doc/wording, or pure plumbing with no transform — these have no step-ordering or
+field-ownership ambiguity to diff. Foundational still runs the **full** ×3 lens
+unchanged; the trigger only *adds* mid/large coverage at the lite tier, and the lite
+diff escalates to the full lens on the criteria the lens names.
 
 | Lens | Prompt file | What it uniquely catches |
 | --- | --- | --- |
