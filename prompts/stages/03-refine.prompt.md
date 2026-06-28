@@ -46,4 +46,5 @@ to fix).
 
 Report the contradictions/redundancies found and the triage verdict, then apply
 the fixes. Drop into ultrathink only for a contradiction whose resolution is a
-real design call.
+real design call. Be brief but not lossy in the report — terse findings and
+tight edits; spend tokens only where they change the result.

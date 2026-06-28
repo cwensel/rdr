@@ -48,4 +48,6 @@ not a human pause:
 - A single gate item genuinely in doubt (not a clear pass or fail) — stop and
   surface it per §stop-packet rather than guessing the lock.
 
-Ultrathink only on a gate item genuinely in doubt.
+Ultrathink only on a gate item genuinely in doubt. Be brief but not lossy in the
+gate responses — terse verdicts, no over-explaining a clear pass; spend tokens
+only where they change the result.
