@@ -6,13 +6,21 @@
 review — frozen-at-lock invariants without version markers,
 enums/grammars/formats that get reopened in 6 weeks.
 
-**Cost**: ~20–30 min. **Dual-model recommended** — run in two sessions on
+**Cost**: ~20–30 min. **Dual-model, profile-graduated** — run in two sessions on
 different base models and diff the outputs. Disagreement is the signal. A
 sub-agent can't substitute: it inherits this session's model, so the second
 run must be a CLI relaunch you do yourself. If `{RDR_RESOURCES}` lists an
 alt-model roster, use it and its launch command for the second model (e.g.
 `ollama launch claude --model kimi-k2.6:cloud`); otherwise any second base
 model works.
+
+- **`foundational`** — dual-model is **required to converge** (or the recorded
+  single-model fallback below if no alt model is reachable). A lone single-model
+  `critique.md` with no diff does **not** complete the lens.
+- **`large`** — dual-model is **strongly recommended**. Single-model fallback is
+  acceptable, but it must be **recorded as a fallback** (note "single-model only,
+  no alt model reachable" in `critique.md`), not silently passed off as a full
+  dual-model pass.
 
 **Single-model fallback** (when a second model isn't available): run the
 critique twice in *fresh* contexts and diff. Fresh context with no prior
@@ -21,6 +29,17 @@ independence discipline of Chain-of-Verification (Dhuliawala 2024), applied to
 defeat the LLM's tendency to agree with a plausible spec (Mitani 2025). Cheaper
 than a second model; do not let the absence of one skip the anti-sycophancy
 step entirely.
+
+## Re-entry — new model, or repeat?
+
+Never conclude "already complete" from an existing `critique.md` alone. Read its
+model stamp (rdr-common §model-stamp) and compare to this session's base model:
+
+- **Different model / no stamp** → the dual-model second pass. Write
+  `critique-modelB.md` (stamped this session) and diff the two; the disagreement
+  is the signal to resolve. (No stamp = unknown, so don't assume a match.)
+- **Same model** → redundant repeat; short-circuit is fine, but say so ("prior run
+  was the same base model `<id>`") and point at the alt-model roster.
 
 ## Prompt — single RDR
 
@@ -57,8 +76,9 @@ restart.
 
 Write the critique to {EVIDENCE_DIR}/critique.md ({EVIDENCE_DIR} is already bound
 by the dispatcher to this lens's `critique/<rdr-slug>/` folder under the
-base {RDR_ENV} defines — do not re-derive it). On a dual-model run, the
-second model writes critique-modelB.md alongside it, and you diff the two.
+base {RDR_ENV} defines — do not re-derive it). Open the file with the `Model:`
+stamp (rdr-common §model-stamp). On a dual-model run, the second model writes
+critique-modelB.md alongside it (its own stamp), and you diff the two.
 ```
 
 ## Prompt — whole RDR set (higher-leverage variant)

@@ -200,6 +200,25 @@ sit as siblings under one `<RDR_SLUG>/` folder; when a consumer points
 `$RDR_EVIDENCE` at its own dir/repo, the same per-RDR shape lives there instead,
 keeping evidence isolated and self-identifying for commits.
 
+## §model-stamp — every lens evidence file records its producing model
+
+Folder existence proves a lens *ran*, not *which model* ran it — and for the
+cross-model lenses (`critique`, `repeatability`) that identity is the whole signal.
+So every lens element file (`critique.md`, `persona-*.md`, `run-<N>.md`,
+`findings.md`, grounding/cove outputs) opens with a one-line stamp of the **actual
+base model** (a sub-agent stamps the session's model it inherits):
+
+```
+Model: <base-model-id>   (e.g. claude-opus-4-8, kimi-k2.6:cloud)
+```
+
+A re-entering session compares this stamp to its own base model: a **different**
+model is a legitimate second pass (never "already complete"); the **same** model may
+short-circuit; **no stamp** = model-unknown, so don't assume a match — offer the
+second-model pass. `/rdr-status` and the Stage 5 gate read this stamp; the
+convergence rule that depends on it lives in [`05-prelock.md`](../stages/05-prelock.md)
+and the critique lens.
+
 ## §run-prompt — run the stage's prompt file
 
 Load the stage prompt **symlinked beside the skill's SKILL.md** — `<NN>.prompt.md`,

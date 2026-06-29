@@ -113,7 +113,10 @@ defers to the diff session — see rdr-common §commit.
   demotion, or escalation: an RDR that became `foundational` still owes
   `cove 3amigo critique repeatability` even if it previously ran the `mid` or
   `large` subset, and a completed `critique` is **not** the end of Stage 5 unless
-  `repeatability` is also complete.
+  `repeatability` is also complete. **`critique` itself isn't "complete" from a folder
+  alone**: read the evidence's `Model:` stamp (rdr-common §model-stamp) — a
+  `foundational` RDR needs the dual-model diff (or recorded single-model fallback),
+  and a re-entry under a *different* model is the second pass to run, not a no-op.
 - **3amigo | critique | cove** converged → next lens is the first missing lens in
   the current profile's full set: `Next: /rdr-prelock NNNN <next-lens>`.
 - **repeatability** — runs missing → `Next: /rdr-prelock NNNN repeatability <N+1>`

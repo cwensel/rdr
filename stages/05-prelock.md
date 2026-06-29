@@ -220,7 +220,11 @@ enforces them; don't re-derive):
    barely-changed draft = the plank problem — the skill stops with
    `stopped:verdict-flapping` and surfaces it once; the cure is a human look or a
    model switch, not a fourth pass.
-4. **Converged → next lens** in the set.
+4. **Converged → next lens** in the set. **Critique is model-aware**: a lone
+   single-model `critique.md` does **not** converge a `foundational` RDR (dual-model
+   required, or recorded single-model fallback); on re-entry, compare the existing
+   evidence's `Model:` stamp (§model-stamp) to this session's — a different model is
+   the second pass to run, never "already complete."
 
 If critique or cove surfaces that an *assumption* was wrong (not just
 under-documented), flag-as-you-go captures it and **Stage 6 reconciles it** before
