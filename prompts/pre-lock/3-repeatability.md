@@ -25,8 +25,9 @@ the full ×3 lens stays gated to Foundational or escalation.
 **Cost**: 15 min × 1 alternate-model run + 10 min focused diff (vs. 55 min full).
 
 **Run**: one reconstruction on a **different base model** (the cross-model draw is
-the whole point — same generation prompt below, a single `run-1.md`), then the diff
-pass against the RDR in a fresh session.
+the whole point — same generation prompt below, a single `run-1.md`), then a
+focused diff against the RDR in a fresh session. Lite never runs `run-2` or
+`run-3` unless it escalates to the full lens.
 
 **The lite diff must name concrete RDR silences, not style differences.** A finding
 is admissible only if it points at a specific algorithmic contract the RDR left
@@ -95,8 +96,9 @@ header — paste verbatim, or fill them if standalone.
 For repeatability-lite, read `{EVIDENCE_DIR}/run-1.md`; compare it against the RDR
 at `{RDR_PATH}` and write `{EVIDENCE_DIR}/diff.md` with only concrete contract
 silences: missing step order, field owner, transform tie-break, error mode, or
-similar determinacy gap. Do not report naming, wording, or helper-decomposition
-differences.
+similar determinacy gap. This is not a same-model consistency sample and not a
+three-run disagreement count. Do not report naming, wording, or
+helper-decomposition differences.
 
 For full repeatability:
 

@@ -114,7 +114,8 @@ or contradicts what the tree shows.
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
    lens *and* resolves its findings (review + fix are one cycle now). For
    `repeatability`, point at the next missing piece: full uses `run-1/2/3` then
-   `diff`; lite uses only `run-1` then `diff` (which also resolves the `diff.md`).
+   `diff`; lite uses only `run-1` then a focused RDR-vs-run diff (which also
+   resolves the `diff.md`).
    Profile changes are additive until the current profile's checklist is satisfied:
    if the RDR was reset/escalated from `mid` or `large` to `foundational`, keep the
    existing lower-profile lens folders as done, but require the missing

@@ -4,6 +4,12 @@ the corpora and design docs, and {RDR_ENV} for the spike location ({SPIKE_DIR}).
 Pre-Lock needs-verification list(s):
 <paste the list(s)>
 
+Before building the open set, verify Stage 5 is complete. Re-read `Profile` and
+`Normative Contracts`: all required profile lenses must have evidence; for
+`mid`/`large`, a fired Determinacy trigger also requires
+`evidence/repeatability/run-1.md` + `diff.md` or a written
+`determinacy: n/a - <reason>`. If not, stop with `NOT RECONCILED — return to
+Stage 5` and print the exact next `/rdr-prelock NNNN ...` command.
 
 Build the open set from FOUR sources:
 1. The Pre-Lock needs-(re)verification list(s) — assumptions flipped back to

@@ -22,8 +22,10 @@ Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, cri
 ```
 
 `run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates
-that one run, `diff` compares them. In repeatability-lite, only `run-1` then
-`diff` are required. Reject an unknown lens with `stopped:bad-lens:<value>`.
+one run. Full repeatability uses `run-1/2/3` then `diff` compares the runs;
+repeatability-lite uses only `run-1`, then `diff` compares that reconstruction
+against the RDR for concrete determinacy silences. Reject an unknown lens with
+`stopped:bad-lens:<value>`.
 
 **Pick the lens by profile** (`$RDR_HOME/stages/README.md` matrix): mid →
 `grounding 3amigo`; large → `grounding 3amigo critique`; foundational →
@@ -80,7 +82,8 @@ defers to the diff session — see rdr-common §commit.
   `stopped:repeatability-needs-fresh-session:run-<N+1>` after writing. The next
   `/rdr-prelock NNNN repeatability <N+1>` invocation in a fresh session writes
   the next run. For repeatability-lite, stop after `run-1` with next
-  `repeatability diff`. Relaunch on the alt model for the cross-model run.
+  `Next: /rdr-prelock NNNN repeatability diff`; do not continue to reconcile.
+  Relaunch on the alt model for the cross-model run.
 - **Diff only when complete + clean** — full repeatability requires `run-1/2/3`;
   repeatability-lite requires only `run-1`. This session wrote none; else
   `stopped:repeatability-incomplete:<missing>`. ≥1 run on a different model.

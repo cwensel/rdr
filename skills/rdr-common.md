@@ -363,8 +363,8 @@ it via this anchor and do not restate it.
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
 `/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;
-`repeatability` first loops run-1/2/3→diff in fresh sessions, then the diff
-session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
+`repeatability` first loops fresh-session run(s)→diff — full uses run-1/2/3,
+lite uses run-1 — then the diff session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
 The branch after `resolve` reads the RDR's **`Profile` field** (the latch Stage 4
 writes), not a fresh size inference: `small` skips prelock (resolve→reconcile);
 `mid`+ runs the profile's lenses (`$RDR_HOME/stages/README.md` matrix). The
@@ -481,8 +481,8 @@ the evidence subtree is a separate `chore(rdr):` commit so the `docs(rdr)` log s
 readable. Match the subject grammar already in the consumer's log
 (`docs(rdr): <stage> cli/NNNN — <one-line>`).
 
-**The `repeatability` lens is the one exception to "commit at the lens."** Its `run-1/2/3`
-each run in a *fresh* session that writes only `evidence/repeatability/run-N.md` and does
+**The `repeatability` lens is the one exception to "commit at the lens."** Its run file(s)
+each land in a *fresh* session that writes only `evidence/repeatability/run-N.md` and does
 **not** touch the RDR doc. So each run session commits just its own run file
 (`chore(rdr): cli/NNNN repeatability run-N`) — that keeps the loop tight (a fresh session's
 owned set is one file, unambiguous). The **doc commit is deferred to the diff session**,

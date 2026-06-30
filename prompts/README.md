@@ -45,7 +45,7 @@ Mid/Large, embedded as CoVe's Step 0 at Foundational.
 | 0 | Grounding | [pre-lock/0-grounding.md](pre-lock/0-grounding.md) | ~5–10 min | RDR locks no contract (small) — or it is run inside CoVe (foundational) |
 | 1 | 3amigo | [pre-lock/1-3amigo.md](pre-lock/1-3amigo.md) | ~30 min | trivial single-file RDRs |
 | 2 | Critique | [pre-lock/2-critique.md](pre-lock/2-critique.md) | ~20–30 min, dual-model | RDR is purely additive — locks no enum/hash/format/grammar |
-| 3 | Repeatability | [pre-lock/3-repeatability.md](pre-lock/3-repeatability.md) | 3 runs + diff | RDR locks no public API/signature/data model |
+| 3 | Repeatability | [pre-lock/3-repeatability.md](pre-lock/3-repeatability.md) | full: 3 runs + diff; lite: 1 run + diff | RDR locks no public API/signature/data model and no Determinacy trigger |
 | 4 | CoVe | [pre-lock/4-cove.md](pre-lock/4-cove.md) | ~20–30 min | trivial single-file RDRs |
 
 See the parent README's *Pre-Lock Review* section for the applicability matrix

@@ -124,7 +124,8 @@ directly under `…/evidence/<lens>/` (that loose set *is* iteration 1).
 - `…/evidence/3amigo/` → `persona-1-pm.md`, `persona-2-implementer.md`,
   `persona-3-qa.md`, `consolidation.md`
 - `…/evidence/critique/` → `critique.md` (+ `critique-modelB.md` on a dual-model run)
-- `…/evidence/repeatability/` → `run-1.md`, `run-2.md`, `run-3.md`, `diff.md`
+- `…/evidence/repeatability/` → full: `run-1.md`, `run-2.md`, `run-3.md`, `diff.md`;
+  lite: `run-1.md`, `diff.md`
 - `…/evidence/cove/` → `findings.md`
 
 The resolve half *reads* the lens's `{EVIDENCE_DIR}` folder (the consolidation /

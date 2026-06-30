@@ -22,6 +22,11 @@ Claude: /rdr-reconcile <NNNN>
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `$RDR_ENV`, `RDR_PATH`, `{SPIKE_DIR}`. Have the Pre-Lock
    needs-verification list(s) ready to paste.
+   - **Preflight Stage 5 completeness before reconciling.** Re-read `Profile` and
+     **Normative Contracts**. If a required profile lens is missing, or `mid`/`large`
+     Determinacy fired without `evidence/repeatability/run-1.md` + `diff.md` or
+     `determinacy: n/a - <reason>`, stop: `NOT RECONCILED — return to Stage 5`,
+     with the exact next `/rdr-prelock NNNN ...` command.
 2. **Run the prompt** [`06-reconcile.prompt.md`](06-reconcile.prompt.md);
    paste the Pre-Lock list(s) where its `<paste the list(s)>` marker is. It builds the
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-
