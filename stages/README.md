@@ -64,7 +64,7 @@ Ordered. Skips are allowed per *Applicability* below — the order never changes
 | 2 | **Propose** | [02-propose.md](02-propose.md) | The seeded draft has a problem statement but no chosen approach |
 | 3 | **Refine** | [03-refine.md](03-refine.md) | The draft is internally messy — redundant, contradictory, or bloated |
 | 4 | **Resolve Assumptions** | [04-resolve-assumptions.md](04-resolve-assumptions.md) | Before any review round — verify every Critical Assumption (research + spikes) |
-| 5+6 | **Pre-Lock Review & Resolve** | [05-prelock.md](05-prelock.md) | Draft complete + assumptions verified — per lens (by risk profile), one `/rdr-prelock <lens>` cycle reviews *and* resolves, grounding each finding and looping to convergence (cap 3 → flapping). Skip for a small RDR |
+| 5+6 | **Pre-Lock Review & Resolve** | [05-prelock.md](05-prelock.md) | Draft complete + assumptions verified — per lens (by risk profile plus Determinacy-trigger repeatability-lite), one `/rdr-prelock <lens>` cycle reviews *and* resolves, grounding each finding and looping to convergence (cap 3 → flapping). Skip for a small RDR |
 | 6 | **Reconcile Spikes & Assumptions** | [06-reconcile.md](06-reconcile.md) | After all lenses — close every open spike + disturbed assumption before lock |
 | 7 | **Finalize** | [07.0-finalize.md](07.0-finalize.md) | Reconcile clean — run the gate and flip to Final |
 | 7.1 | **Cluster Reconcile** | [07.1-cluster-reconcile.md](07.1-cluster-reconcile.md) | *Per cluster, not per RDR* — when ≥2 related RDRs are Final & none implemented, reconcile cross-RDR drift before any implements (most RDRs skip) |

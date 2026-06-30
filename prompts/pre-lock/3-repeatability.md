@@ -82,12 +82,23 @@ Write your output to {EVIDENCE_DIR}/run-<N>.md. Report nothing else.
 ## Diff prompt
 
 Run the diff as its own pass (`/rdr-prelock NNNN repeatability diff`) **in a
-fresh session that authored none of the three runs**. The analysis is pure, but an
+fresh session that authored none of the runs**. Full repeatability diffs three
+runs; repeatability-lite diffs the single alternate-model `run-1.md` against the
+RDR and admits only concrete contract silences. The analysis is pure, but an
 authoring session isn't neutral — it diffs toward the interpretation it already
-wrote — so the diff is a fourth pass, not a tail on the last generation (and a
-sub-agent of an authoring session can't stand in either). Once all three runs
-exist and this session wrote none, paste this once. `{RDR_PATH}`/`{EVIDENCE_DIR}` bind
-from the Stage 5 arg header — paste verbatim, or fill them if standalone.
+wrote — so the full diff is a fourth pass, and the lite diff is a separate neutral
+pass (not a tail on the generation). A sub-agent of an authoring session can't
+stand in either. Once the required runs exist and this session wrote none, paste
+the matching prompt once. `{RDR_PATH}`/`{EVIDENCE_DIR}` bind from the Stage 5 arg
+header — paste verbatim, or fill them if standalone.
+
+For repeatability-lite, read `{EVIDENCE_DIR}/run-1.md`; compare it against the RDR
+at `{RDR_PATH}` and write `{EVIDENCE_DIR}/diff.md` with only concrete contract
+silences: missing step order, field owner, transform tie-break, error mode, or
+similar determinacy gap. Do not report naming, wording, or helper-decomposition
+differences.
+
+For full repeatability:
 
 ```text
 Read the three repeatability runs at {EVIDENCE_DIR}/run-1.md, run-2.md, run-3.md

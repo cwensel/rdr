@@ -89,8 +89,9 @@ or contradicts what the tree shows.
      **or** record) is already satisfied — if CAs are all `Verified`, Resolve is
      behind you and next is the first Pre-Lock lens, not `/rdr-resolve`.
 2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
-   footnote.** It maps to an exact lens-set (the `$RDR_HOME/stages/README.md`
-   matrix is the sole authority — never reconstruct it from memory):
+   footnote.** It maps to an exact base lens-set (the `$RDR_HOME/stages/README.md`
+   matrix is the sole authority for base profile lenses — never reconstruct it
+   from memory):
 
    | Profile | Stage-5 lens-set (in order) | After Resolve, next is |
    | --- | --- | --- |
@@ -100,16 +101,20 @@ or contradicts what the tree shows.
    | `foundational` | cove → 3amigo → critique → repeatability | `/rdr-prelock NNNN cove` |
 
    The Pre-Lock row lists **only this profile's lenses**; off-profile lenses are
-   absent, not `–`. Converged = every lens in *this* set ran; the first un-run one
-   is the next command. A `Draft` Profile is provisional (Resolve earns it, Stage 8
+   absent, not `–`. For `mid`/`large`, also scan **Normative Contracts** for the
+   Stage 5 Determinacy trigger; if it fires, `repeatability-lite` is required
+   unless `evidence/repeatability/run-1.md` + `diff.md` exist or a
+   `determinacy: n/a - <reason>` disposition exists. Converged = every base lens
+   plus any Determinacy obligation ran; the first un-run one is the next command.
+   A bare `repeatability/` folder is not complete without the required run/diff
+   files. A `Draft` Profile is provisional (Resolve earns it, Stage 8
    latches it) — a hint, never a basis for certifying a lens-skip; flag the basis
    when unearned. If the field is absent, infer from the matrix and flag it (Caveats).
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
    lens *and* resolves its findings (review + fix are one cycle now). For
-   `repeatability`, point at the next missing piece: `/rdr-prelock NNNN
-   repeatability <run>` until `run-1/2/3` exist, then `/rdr-prelock NNNN
-   repeatability diff` (which also resolves the `diff.md`).
+   `repeatability`, point at the next missing piece: full uses `run-1/2/3` then
+   `diff`; lite uses only `run-1` then `diff` (which also resolves the `diff.md`).
    Profile changes are additive until the current profile's checklist is satisfied:
    if the RDR was reset/escalated from `mid` or `large` to `foundational`, keep the
    existing lower-profile lens folders as done, but require the missing

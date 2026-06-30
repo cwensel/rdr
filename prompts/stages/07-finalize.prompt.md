@@ -17,6 +17,13 @@ gone by re-lock — its defect resolved and folded into live text. Stage 7 is th
 one chokepoint every re-entry path (2/3/4) shares, so a surviving note is NOT
 READY: the cross-RDR defect that demoted this RDR was never closed.
 
+ALSO scan `Profile` + `Normative Contracts`: for a `mid`/`large` RDR whose
+contract names step-ordering, parse/deparse, import/export, compose/decompose,
+hashing, identity, migration, ambiguous field ownership, or multi-step MVV
+fidelity, require `evidence/repeatability/run-1.md` + `diff.md` or a written
+`determinacy: n/a - <reason>` disposition. If absent, NOT READY; return to
+Stage 5 repeatability-lite.
+
 Then run the Finalization Gate from the template as written responses (not
 checkboxes), each becoming part of the permanent record:
 1. Contradiction Check — conflicts between Research Findings and Proposed

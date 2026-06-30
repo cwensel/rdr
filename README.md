@@ -283,8 +283,8 @@ Finalization Gate run on every profile, so they are folded into "Gate" below:
 
 Grounding (a cheap codebase-claim sweep) runs first wherever a contract is locked — standalone at Mid/Large, embedded
 as CoVe's Step 0 at Foundational (so CoVe leads there); 3amigo runs on every non-trivial RDR; Critique on RDRs that lock
-a surface; Repeatability on foundational work. The Tooling-pass sweep runs on every RDR as the Gate's mechanical
-pre-step.
+a surface; Repeatability runs on foundational work, and `mid`/`large` add repeatability-lite when the Determinacy trigger
+fires. The Tooling-pass sweep runs on every RDR as the Gate's mechanical pre-step.
 
 The profile is the RDR's `Profile` Metadata field, sized by **blast radius** (the max of the contract axis and the
 accretion axis) rather than contract count alone: a `Seam Lineage` carrying ≥2 closed prior point-fixes floors the
