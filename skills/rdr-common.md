@@ -363,8 +363,9 @@ it via this anchor and do not restate it.
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
 `/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;
-`repeatability` first loops fresh-session run(s)→diff — full uses run-1/2/3,
-lite uses run-1 — then the diff session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
+`repeatability` first loops fresh-session run(s)→diff, variant by `Profile` not
+files present — `mid`/`large` lite (run-1), `foundational`/escalation full
+(run-1/2/3) — then the diff session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
 The branch after `resolve` reads the RDR's **`Profile` field** (the latch Stage 4
 writes), not a fresh size inference: `small` skips prelock (resolve→reconcile);
 `mid`+ runs the profile's lenses (`$RDR_HOME/stages/README.md` matrix). The

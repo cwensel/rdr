@@ -6,9 +6,13 @@ or data model an implementer must reproduce exactly — or when the Stage 5
 parse/deparse, import/export, compose/decompose, hashing, identity, migration,
 multi-step MVV fidelity). Apply after the draft is complete **and its assumptions
 are verified** (Stage 4). One of the single-RDR lenses; peers with
-[3amigo](1-3amigo.md), [critique](2-critique.md), and [cove](4-cove.md). At
+[3amigo](1-3amigo.md), [critique](2-critique.md), and [cove](4-cove.md).
+
+**The variant is fixed by profile, not by which `run-*.md` already exist.** At
 `mid`/`large` the determinacy default is the **lite variant** below (one
-alternate-model run); the full ×3 lens is for Foundational or on escalation.
+alternate-model run, `run-1` only); the full ×3 lens is for Foundational or on a
+recorded escalation. At `mid`/`large`, do not write `run-2`/`run-3` — that silently
+promotes the RDR to full; escalate deliberately (below) or diff `run-1`.
 
 **What it uniquely catches**: under-specified signatures, types, and APIs.
 Where multiple generation runs disagree, the RDR is silent — that silence is
@@ -42,7 +46,10 @@ RDR but you can't tell determinacy from shared-model overfit (suspiciously clean
 GUESS markers); **or** the lite diff surfaces a determinacy silence on a
 **load-bearing or cross-RDR** contract (a one-run sample under-powers a contract
 peers depend on); **or** the profile is already Foundational (full is the floor
-there). Otherwise the lite diff is sufficient and feeds Resolve like any lens folder.
+there). **To escalate, rewrite `run-1.md`'s `variant:` line to `full (escalated:
+<reason>)`** — that recorded line is what makes the later `run-2`/`run-3` legitimate
+rather than a mismatch. Otherwise the lite diff is sufficient and feeds Resolve like
+any lens folder.
 
 ## Generation prompt
 
@@ -76,7 +83,9 @@ Based only on the RDR at {RDR_PATH}, produce:
 Do not ask clarifying questions. Do not say "it depends." Make your best
 guess where the RDR is silent, and *mark each guess explicitly as a GUESS*.
 
-Begin run-<N>.md with one line: `model: <base model you are running on>`.
+Begin run-<N>.md with two header lines: `model: <base model you are running on>`
+then `variant: <lite|full> (profile: <RDR profile>)` — the variant resolved from
+the profile before this run (lite for mid/large, full for foundational/escalation).
 Write your output to {EVIDENCE_DIR}/run-<N>.md. Report nothing else.
 ```
 
@@ -104,7 +113,9 @@ For full repeatability:
 
 ```text
 Read the three repeatability runs at {EVIDENCE_DIR}/run-1.md, run-2.md, run-3.md
-(each starts with its `model:` line). Compare them against the RDR at
+(each starts with its `model:` + `variant:` header lines; `run-1`'s `variant:`
+records the intended variant — if it reads `lite`, extra runs are a mismatch to
+flag, not full coverage). Compare them against the RDR at
 {RDR_PATH} and write {EVIDENCE_DIR}/diff.md with:
 
   1. Disagreements — every interface, type, error mode, data-model field, or

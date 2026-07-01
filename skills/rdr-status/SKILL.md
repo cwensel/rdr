@@ -113,9 +113,10 @@ or contradicts what the tree shows.
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
    lens *and* resolves its findings (review + fix are one cycle now). For
-   `repeatability`, point at the next missing piece: full uses `run-1/2/3` then
-   `diff`; lite uses only `run-1` then a focused RDR-vs-run diff (which also
-   resolves the `diff.md`).
+   `repeatability`, the variant follows `Profile`, not the files present:
+   `mid`/`large` = lite (only `run-1` then a focused RDR-vs-run diff);
+   `foundational`/escalation = full (`run-1/2/3` then `diff`). Point at the next
+   missing piece for that variant; the diff session also resolves `diff.md`.
    Profile changes are additive until the current profile's checklist is satisfied:
    if the RDR was reset/escalated from `mid` or `large` to `foundational`, keep the
    existing lower-profile lens folders as done, but require the missing

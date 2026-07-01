@@ -125,7 +125,9 @@ directly under `…/evidence/<lens>/` (that loose set *is* iteration 1).
   `persona-3-qa.md`, `consolidation.md`
 - `…/evidence/critique/` → `critique.md` (+ `critique-modelB.md` on a dual-model run)
 - `…/evidence/repeatability/` → full: `run-1.md`, `run-2.md`, `run-3.md`, `diff.md`;
-  lite: `run-1.md`, `diff.md`
+  lite: `run-1.md`, `diff.md`. `run-1.md`'s header carries a `variant: lite|full`
+  line (beside `model:`) — the durable record of intent a cleared/model-switched
+  session reads instead of re-deriving; extra runs beside a `lite` header are a mismatch.
 - `…/evidence/cove/` → `findings.md`
 
 The resolve half *reads* the lens's `{EVIDENCE_DIR}` folder (the consolidation /

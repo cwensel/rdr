@@ -26,7 +26,10 @@ Claude: /rdr-reconcile <NNNN>
      **Normative Contracts**. If a required profile lens is missing, or `mid`/`large`
      Determinacy fired without `evidence/repeatability/run-1.md` + `diff.md` or
      `determinacy: n/a - <reason>`, stop: `NOT RECONCILED — return to Stage 5`,
-     with the exact next `/rdr-prelock NNNN ...` command.
+     with the exact next `/rdr-prelock NNNN ...` command. `run-2`/`run-3` beside a
+     `run-1.md` whose `variant:` header reads `lite` (not `full (escalated: …)`) is a
+     variant mismatch (full ran where lite was owed) — flag it (Caveats), don't
+     silently pass it as done.
 2. **Run the prompt** [`06-reconcile.prompt.md`](06-reconcile.prompt.md);
    paste the Pre-Lock list(s) where its `<paste the list(s)>` marker is. It builds the
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-

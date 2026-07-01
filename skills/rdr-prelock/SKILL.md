@@ -22,10 +22,9 @@ Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, cri
 ```
 
 `run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates
-one run. Full repeatability uses `run-1/2/3` then `diff` compares the runs;
-repeatability-lite uses only `run-1`, then `diff` compares that reconstruction
-against the RDR for concrete determinacy silences. Reject an unknown lens with
-`stopped:bad-lens:<value>`.
+one run. **Variant follows the profile, not the `run` arg** (§repeatability-variant):
+`mid`/`large` = lite (`run-1` only, then `diff`); `foundational`/escalation = full
+(`run-1/2/3` then `diff`). Reject an unknown lens with `stopped:bad-lens:<value>`.
 
 **Pick the lens by profile** (`$RDR_HOME/stages/README.md` matrix): mid →
 `grounding 3amigo`; large → `grounding 3amigo critique`; foundational →
@@ -75,17 +74,31 @@ RDR anyway). **Commit cadence is the §commit exception**: each run session comm
 only its own `run-<N>.md` (`chore(rdr): cli/NNNN repeatability run-N`); the doc commit
 defers to the diff session — see rdr-common §commit.
 
+### §repeatability-variant — resolve the variant from profile before writing any run
+
+**The intended variant lives on disk, not in session memory** — pre-lock clears
+context and switches models between runs, so nothing you hold survives. `run-1.md`'s
+`variant:` header line (written at generation, beside `model:`) is the durable record;
+if `run-1.md` doesn't exist yet, resolve from the RDR's `Profile` (`foundational` =
+**full** `run-1/2/3`; `mid`/`large` = **lite** `run-1` only) and stamp it into that line.
+Never infer the variant from how many `run-*.md` files exist — that is what silently
+promotes a `large` RDR to full ×3. A `run-2`/`run-3` request against a `variant: lite`
+header stops with `stopped:repeatability-lite-no-run-2:<NNNN>` — escalate to full only
+by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.md`
+*Escalate*), else `diff` on `run-1`.
+
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
   writes exactly one run; never write a second run in the same session.
-- **Next run needs a fresh session** — stop with
-  `stopped:repeatability-needs-fresh-session:run-<N+1>` after writing. The next
+- **Next run needs a fresh session (full only)** — after writing, stop with
+  `stopped:repeatability-needs-fresh-session:run-<N+1>`; the next
   `/rdr-prelock NNNN repeatability <N+1>` invocation in a fresh session writes
-  the next run. For repeatability-lite, stop after `run-1` with next
-  `Next: /rdr-prelock NNNN repeatability diff`; do not continue to reconcile.
-  Relaunch on the alt model for the cross-model run.
-- **Diff only when complete + clean** — full repeatability requires `run-1/2/3`;
-  repeatability-lite requires only `run-1`. This session wrote none; else
+  the next run, relaunched on the alt model for the cross-model draw. **Lite stops
+  after `run-1`** with next `Next: /rdr-prelock NNNN repeatability diff` (never a
+  `run-2` pointer); do not continue to reconcile.
+- **Diff only when complete + clean** — completeness is judged against the
+  profile's variant (§repeatability-variant), not the file count: lite needs `run-1`,
+  full needs `run-1/2/3`. This session wrote none; else
   `stopped:repeatability-incomplete:<missing>`. ≥1 run on a different model.
 - **Resolve once `diff.md` lands** — this same skill runs the resolve prompt on
   `diff.md`; its REPEATABILITY DIFF clause governs each divergence. If autocommit is on,
@@ -127,9 +140,11 @@ defers to the diff session — see rdr-common §commit.
   and a re-entry under a *different* model is the second pass to run, not a no-op.
 - **3amigo | critique | cove** converged → next lens is the first missing item in
   the current checklist: `Next: /rdr-prelock NNNN <next-lens>`.
-- **repeatability** — full: missing run → `Next: /rdr-prelock NNNN repeatability
-  <N+1>` until `run-1/2/3`, then `diff`; lite: missing `run-1` → `repeatability 1`,
-  then `diff` (fresh session; it also resolves `diff.md`).
+- **repeatability** — pick the variant from `Profile` (§repeatability-variant), never
+  from files present. Lite (`mid`/`large`): missing `run-1` → `repeatability 1`, then
+  `diff` — never point at `run-2`. Full (`foundational`/escalation): missing run →
+  `Next: /rdr-prelock NNNN repeatability <N+1>` until `run-1/2/3`, then `diff`. Diff
+  runs in a fresh session; it also resolves `diff.md`.
 - **All profile lenses and Determinacy obligations done** → `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
 - **`stopped:verdict-flapping`** → resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces
