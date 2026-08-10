@@ -466,6 +466,13 @@ hoist the joint question, with the optional `Cluster` field and tandem barrier i
   leaving reconciliation where the viewpoints argument puts it. DOI 10.1109/32.310667 —
   <https://doi.org/10.1109/32.310667>
   (open PDF: <https://www.finkelstein.live/papers/tse94.esec.pdf>)
+- **Easterbrook, Finkelstein, Kramer & Nuseibeh (1994), *Coordinating Conflicting
+  Viewpoints by Managing Inconsistency*** (see §3) — the *managing, not eliminating*
+  thesis: some inter-view conflicts are resolved, others are recorded and lived with
+  as a coordination act. This is the warrant for the gate's JOINT-DECISION
+  disposition — a cross-RDR contradiction that is a shared decision neither RDR
+  solely owns is not forced down the demotion path; it is marked, hoisted to a
+  single normative home, and the siblings proceed Final under recorded tolerance.
 - **Nentwich, Capra, Emmerich & Finkelstein (2002), *xlinkit: A Consistency
   Checking and Smart Link Generation Service*, ACM TOIT 2(2)** — mechanized
   cross-document consistency checking; the conceptual ancestor of the pairwise
@@ -497,7 +504,10 @@ hoist the joint question, with the optional `Cluster` field and tandem barrier i
   obstacle analysis: residual risk is closed only when it is *explicitly judged
   acceptable*, not silently. This is the rationale for making Reconcile a forced
   gate (a refuting spike re-opens the RDR; an MVV-critical spike cannot defer
-  past lock) rather than a checkbox. DOI 10.1109/TSE.2025.3534318 —
+  past lock) rather than a checkbox. The same explicit-acceptance warrant reaches
+  cross-RDR: Stage 7.1's recorded tolerance closes a JOINT-DECISION only by
+  explicit judgment — a named home and a recorded qualifier, never silence.
+  DOI 10.1109/TSE.2025.3534318 —
   <https://doi.org/10.1109/TSE.2025.3534318>
   (open: <https://discovery.ucl.ac.uk/id/eprint/10204032/>)
 

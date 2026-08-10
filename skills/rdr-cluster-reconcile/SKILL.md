@@ -45,11 +45,17 @@ say so and point at `/rdr-implement NNNN`.
 - A cross-RDR defect routes a peer **Final → Draft** at the right re-entry scope
   (re-lock-only / stage-scoped / full-flow), sized to the defect — the stage doc owns
   this call.
+- A **JOINT-DECISION** finding (a shared decision neither RDR solely owns) demotes
+  no one: hoist it to a named home, record the tolerance, siblings stay Final —
+  and it must be genuinely joint, not a dodged single-RDR defect.
 
 ## Next step (rdr-common §next-step)
 
 - If autocommit is on, run **§commit** for the cluster-reconcile *evidence* (`chore(rdr): cli/NNNN cluster-reconcile <cluster>`); the doc/lock commit lands at finalize, not here.
 - Reconciled, no demotion → `Next: /rdr-implement NNNN` for each cluster member.
+- Reconciled with tolerances → same `Next: /rdr-implement NNNN` (no demotion, no
+  re-walk); list each standing tolerance (pair, joint decision, home) in the close
+  packet's `Deviations:` field.
 - A peer demoted to Draft → re-enter it at the scoped stage (`/rdr-propose` /
   `/rdr-refine` / `/rdr-resolve` per the scope), re-lock via `/rdr-finalize NNNN`,
   then implement.

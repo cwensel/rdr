@@ -259,7 +259,10 @@ inconsistency during per-RDR work and reconciles it once, at
 related RDRs is all Final-and-unimplemented. That stage file owns the mechanics,
 the rationale (Finkelstein/Easterbrook), and the Final→Draft routing — including
 the *re-entry scope* call (re-lock-only / stage-scoped / full-flow), sized to the
-defect so a simple change never drags a full flow behind it. It is *per cluster,
+defect so a simple change never drags a full flow behind it — plus the
+JOINT-DECISION disposition, under which a shared decision neither RDR solely
+owns is hoisted to a named home and the siblings stay Final under recorded
+tolerance. It is *per cluster,
 not per RDR*, and most RDRs skip it.
 
 ## Parameters

@@ -20,24 +20,28 @@ instance body). -->
     refiled as a plain issue. Carry the destination on the
     live value: `Demoted [→ <issue link>]`, and record the
     same link under **Related Issues**. A `Demoted` RDR runs
-    no further stages. (Distinct from the 08.1 *demotion*
+    no further stages. (Distinct from the 07.1 *demotion*
     below, which is a `Final → Draft` flip that keeps the
     RDR in the lifecycle — that flip never writes
     `Status: Demoted`; see the disambiguation note there.)
-  - A Draft demoted from Final by the 08.1 cluster gate
+  - A Draft demoted from Final by the 07.1 cluster gate
     carries a qualifier on the live value:
     `Draft [revised from Final YYYY-MM-DD; re-verify A2,A4
     — <one-line reason>]`. It is still a `Draft` for every
     binary Draft/Final gate; only Stage 4 (scoped
-    re-verify) and Stage 8 (re-lock) parse the qualifier.
-    The Stage 8 flip to `Final` overwrites the whole value,
+    re-verify) and Stage 7 (re-lock) parse the qualifier.
+    The Stage 7 flip to `Final` overwrites the whole value,
     so the qualifier self-clears at re-lock — no separate
-    cleanup. This 08.1 "demotion" is a *verb* describing the
+    cleanup. This 07.1 "demotion" is a *verb* describing the
     Final→Draft flip; it is **not** the `Demoted` status
     above (which exits the lifecycle to an issue) — do not
     conflate the two. (`Reverted` above is the unrelated
     terminal "implementation rolled back" status — also do
     not conflate.)
+  - A Final tolerated at the 07.1 gate under a JOINT-DECISION
+    carries `Final [joint decision → <home §-anchor>]`. It is
+    still a `Final` for every binary gate; the qualifier does
+    not self-clear — the named home owns the decision.
   -->
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture

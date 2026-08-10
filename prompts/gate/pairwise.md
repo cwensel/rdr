@@ -44,6 +44,9 @@ For each finding, emit:
   EXPLANATION: one sentence (for round-trip: name the input class that breaks
     identity, and whether it is a fidelity loss or an outright failure)
   SEVERITY: [blocks-impl | risks-impl | cosmetic]
+  OWNERSHIP: [single-RDR | joint] — single-RDR when the wrongness is internal
+    to one RDR; joint when the finding is a shared decision neither RDR
+    solely owns
   BLOCKS: <the decision this blocks or the test it prevents>
 
 Do not paraphrase quotes — use exact wording. If you cannot find a direct
@@ -63,12 +66,16 @@ models on "do these two contradict?" is itself a signal.
 
 ## What a finding does
 
-A `blocks-impl` or `risks-impl` cross-RDR contradiction is a **SPEC-DEFECT**
-against the *less foundational* RDR of the pair — it does not get edited in
-place. The cluster gate drops that RDR from Final back to Draft and re-enters
-the flow; see [Stage 7.1]($RDR_HOME/stages/07.1-cluster-reconcile.md) for the
-disposition rules and the literature behind tolerating cross-RDR inconsistency
-until this gate.
+A `blocks-impl` or `risks-impl` finding with OWNERSHIP single-RDR is a
+**SPEC-DEFECT** against the *less foundational* RDR of the pair — it does not
+get edited in place. The cluster gate drops that RDR from Final back to Draft
+and re-enters the flow. A `joint` finding instead takes the gate's
+**JOINT-DECISION** disposition — mark, hoist the shared decision to a single
+normative home, siblings proceed under recorded tolerance, no demotion. See
+[Stage 7.1]($RDR_HOME/stages/07.1-cluster-reconcile.md) for the disposition
+rules and the literature behind tolerating cross-RDR inconsistency: this gate
+is the chosen checkpoint where drift is marked and homed, not necessarily
+eliminated.
 
 ## Source
 
