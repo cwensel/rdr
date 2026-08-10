@@ -49,6 +49,11 @@ open RDRs from silently coupling on the same decision before either locks.
   final step greps every open peer for shared modify-anchors / contract literals
   with zero cross-citation (mechanics live there); a fire PAUSES propose before
   refine. A fire advanced over silently → re-run.
+- **Was the bridge question surfaced and answered when its cues were present?**
+  Behind the tandem barrier, a plan-introduced surface a Cluster sibling
+  schedules for deletion puts the (a) skip-to-end-state / (b) `Transient`-marker
+  choice to the user (mechanics in the prompt's sub-check). An unanswered
+  bridge choice → re-run.
 - **Were real alternatives weighed?** One option, or strawmen, means the
   choice isn't earned — re-run asking for distinct, defensible options.
 - **Was prior art read *before* the approaches?** Order matters — an LLM that
@@ -90,6 +95,7 @@ If the joint-decision check fired, the joint decision has a named home — the
 consumer's umbrella-decision record (e.g. an RFD), or the shared interface
 declared in both RDRs — an open fire does not advance. If the RDR declares a
 `Cluster`, every member has completed propose before any member advances to
-refine (the tandem barrier — see TEMPLATE.md `Cluster`).
+refine (the tandem barrier — see TEMPLATE.md `Cluster`), and an open bridge
+choice — (a) skip to end-state / (b) `Transient` marker — does not advance.
 
 → Next: [03-refine.md](03-refine.md)

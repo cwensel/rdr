@@ -51,7 +51,9 @@ Claude: /rdr-propose <NNNN>
 - The chosen approach solves the *user's* problem; the premortem ran and the choice
   survived it.
 - The joint-decision check ran against all open peers; any fire was paused on,
-  not advanced over.
+  not advanced over. In a Cluster, the bridge sub-check's (a) skip-to-end-state /
+  (b) `Transient`-marker choice was surfaced and answered when its cues were
+  present — an unanswered choice does not advance.
 - Load-bearing assumptions named (Pending is fine) — Stage 4's worklist.
 - Technical Design proportionate — enough to commit, not a full implementation.
 
@@ -65,4 +67,8 @@ Claude: /rdr-propose <NNNN>
   naming this check): Next is the joint question to the user — hoist to the
   consumer's umbrella-decision record (e.g. an RFD), cite-don't-restate, or
   declare the shared interface in both RDRs — not `/rdr-refine`.
+- A bridge sub-check answer routes the handoff: choice (a) skip to end-state →
+  iterate this stage (re-run `/rdr-propose NNNN` — the plan changed); choice (b)
+  → the `Transient` marker is recorded in the bridge's contract block, proceed
+  to `/rdr-refine NNNN`.
 - `/rdr-status NNNN` to re-orient.

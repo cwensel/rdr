@@ -69,7 +69,10 @@ than one way**, or the **MVV rests on multi-step transformation fidelity** — a
 to the profile's lenses, down to `mid`. This is a cue read from the contract's
 *kind*, not a fresh judgment: a contract that names one of those verbs fires it; one
 that does not, does not. The escape is a one-line written disposition in the lens
-folder (`determinacy: n/a — <reason>`), mirroring the accretion escape. It does
+folder (`determinacy: n/a — <reason>`), mirroring the accretion escape;
+`Transient`-marked contracts (TEMPLATE.md Normative Contracts) are excluded from
+the trigger read in the same register — the marker line is their recorded
+disposition. It does
 **not** fire for CLI-flag/UX/surface changes, additive un-ordered config,
 doc/wording, or pure plumbing with no transform — these have no step-ordering or
 field-ownership ambiguity to diff. Foundational still runs the **full** ×3 lens

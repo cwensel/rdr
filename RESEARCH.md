@@ -143,7 +143,12 @@ one of these elements, this is the reasoning you are changing.
   AI Coding Assistants*** — the "few phases, each producing an artifact that
   constrains the next, with a human review at each checkpoint" default, and the
   "minimum rigor that removes ambiguity" doctrine the flow's brevity rule
-  restates. arXiv 2602.00180 — <https://arxiv.org/abs/2602.00180>
+  restates. Its p.7 throwaway-prototype rule — spec investment that will be
+  discarded with the code is not justified — lands as the `Transient` contract
+  marker (TEMPLATE.md Normative Contracts): spec burden matched to lifespan, so
+  a bridge surface whose deletion a sibling RDR already schedules keeps a named
+  contract but is excluded from rigor sizing. arXiv 2602.00180 —
+  <https://arxiv.org/abs/2602.00180>
 - **Porter, Votta & Basili (1995), *Comparing Detection Methods for Software
   Requirements Inspections: A Replicated Experiment*, IEEE TSE 21(7)** — the
   finding that *restructuring* an inspection (changing phase count, team size)

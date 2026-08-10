@@ -88,6 +88,10 @@ matrix):
 - one contract + user-facing surface, OR locks a contract → `mid`;
 - locks an enum/hash/format/grammar/destructive op → `large`;
 - cross-RDR producer / spans modules → `foundational`.
+Exclude `Transient`-marked contracts (scheduled deletion by a named sibling —
+TEMPLATE.md Normative Contracts) from this recount and from the ≥2 split
+signal: the marker is a recorded lifespan disposition; sizing stays on the
+durable contracts.
 With the assumptions just verified, the count is evidence-grounded here, not
 guessed. ≥2 independent contracts → the RDR spans more than one seam: flag for
 splitting (back to Stage 2/3) rather than picking a profile. Report the profile

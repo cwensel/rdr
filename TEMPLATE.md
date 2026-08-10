@@ -209,6 +209,18 @@ Phase 2).]
 > seams rather than locking them together. The split test
 > is **contract count, not word count**.
 
+> **Transient marker (bridge surfaces).** A contract block
+> for bridge code may carry one line: `Transient — scheduled
+> deletion by <sibling NNNN-slug>, <phase/anchor>;
+> <one-clause disposition>`. The surface stays named here —
+> Profile sizes by blast radius; the marker caps rigor for a
+> surface with a scheduled deletion. A `Transient`-marked
+> contract counts toward neither the Profile contract axis
+> (blast-radius sizing stays on the durable contracts) nor
+> the >1-independent-contract split signal above (that
+> signal counts *sole-authored* contracts — a bridge whose
+> replacement a sibling owns is not sole-authored).
+
 - Function/method signatures and type definitions for
   values that cross module boundaries
 - Wire-format / on-disk / serialization grammars
@@ -573,7 +585,10 @@ a contract that warranted `mid`+ lenses, or the lenses
 were skipped on a wrong `small`), correct the field and
 do not lock until the missing lenses have run. This is
 the latch's backstop — a wrong Profile cannot route
-past the lens battery undetected. Also confirm form:
+past the lens battery undetected. A `Transient`-marked
+contract with a named deleting sibling and schedule is a
+recorded lifespan disposition, not an under-sized
+Profile — do not count it when re-deriving. Also confirm form:
 value + one clause naming the contract(s); strip any
 matrix/provenance prose left from the template or Seed
 (it belongs in the template comment, not the instance).]

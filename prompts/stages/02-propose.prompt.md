@@ -112,6 +112,19 @@ Read the Problem Statement and Context, then:
    first lock. A fire is detection, not demotion: the siblings proceed under
    recorded tolerance once the joint decision has a home. Report the verdict
    either way (fired on NNNN / N peers checked, none).
+   **Bridge sub-check** — Cluster members only, behind the tandem barrier
+   (all members' plans exist, so a scheduled deletion is decidable). When this
+   RDR's Implementation Plan introduces a surface a sibling's plan schedules
+   for deletion/replacement — cues `bridge`, `retire`, `replace` (stem match,
+   in either plan; NOT `supersede`, which overwhelmingly claims lineage over
+   prior closed RDRs and would false-fire), cross-referenced with Cluster
+   membership and the joint decision's named home if one exists — PAUSE and
+   put the choice to the user: **(a) skip to end-state** — implement the
+   sibling's replacement directly, or reorder shipping; **(b) build the
+   bridge under the `Transient` marker** (TEMPLATE.md Normative Contracts) —
+   spec treatment matched to its lifespan. Record the choice where it is
+   durable: (a) reshapes this plan; (b) writes the marker line into the
+   bridge's contract block.
 
 Surface, but do not resolve, the load-bearing assumptions the chosen approach
 depends on — list them in Critical Assumptions as Status: Pending with a
