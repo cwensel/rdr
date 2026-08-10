@@ -51,10 +51,12 @@ and send the
 RDR back to Stage 2 (approach), 3 (refine), or 4 (re-resolve) — name which.
 Locking over a refuted assumption is the failure this gate exists to prevent.
 
-HARD RULE — no spike deferred past lock if the MVV depends on it. If a spike
-pins the very thing the Minimum Viable Validation proves (byte-parity
-reference, the load-bearing external behavior), it is a pre-lock prerequisite,
-not a post-lock follow-up — run it now or the RDR is NOT READY.
+HARD RULE — no spike or assumption deferred past lock if the MVV depends on
+it. If it pins the very thing the Minimum Viable Validation proves (byte-parity
+reference, a normative fixture the MVV consumes, the load-bearing external
+behavior), it is a pre-lock prerequisite, not a post-lock follow-up — run it
+now or the RDR is NOT READY. Stage 4 sets the same floor at first resolve; a
+catch here is a regression the rounds introduced.
 
 Before the verdict, a completeness check: no `_Draft placeholder._` may survive
 in any body section and no `this is a seed skeleton` header may remain. A hollow

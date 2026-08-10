@@ -29,6 +29,10 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   catches a later regression, never an original defect.
 - **Did spikes actually run?** A "Spike" Method with no command + captured
   output is a Docs-Only claim in a costume. Demand the output.
+- **Were I/O-expressible assumptions rendered and the round put to the user?**
+  Exactness claims get concrete I/O pairs presented in one consolidated
+  approve/reject round; an approved I/O pair lands as a named normative fixture in
+  the RDR body. An unapproved I/O pair is not Evidence.
 - **Did the reuse audit run?** Confirm the `{RDR_ENV}` reuse-audit paths were
   actually checked for code that already does what the approach introduces — a
   silent skip ships a design that rebuilds existing capability.
@@ -54,7 +58,11 @@ unresolved ones, don't re-run the whole stage.
 
 Every Critical Assumption is `Verified` with a non-self-referential Evidence
 Record (or explicitly `Pending` with a plan that will run during
-implementation), no load-bearing claim rests on `Docs Only` alone, no
+implementation — unless the MVV depends on it: an MVV-critical assumption —
+one the MVV, or a normative fixture the MVV consumes, rests on — resolves NOW
+or the stage is NOT READY; Stage 6's twin rule re-checks this at the exit, so
+setting the floor here means it only ever catches a regression, never an
+original defer), no load-bearing claim rests on `Docs Only` alone, no
 research finding contradicts the approach, and the evidence-body (Testing
 Strategy, Performance Expectations) is authored — no `_Draft placeholder._`
 nor seed-skeleton header left in the document.

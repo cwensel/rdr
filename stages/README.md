@@ -176,7 +176,7 @@ living in one, so track them as a cycle, not a per-stage chore:
   disturbed assumption is run, deferred, or accepted before lock.
 
 The load-bearing invariant — a refutation re-opens the RDR rather than becoming
-a wording fix, and an MVV-critical spike never defers past lock — lives at
+a wording fix, and an MVV-critical spike or assumption never defers past lock — lives at
 Stage 6, which is why Reconcile is a forced gate and not a checkbox. Both rules
 and the lock-day near-misses that justify them are stated where the driver acts
 on them: [`06-reconcile.md`](06-reconcile.md#why-the-two-hard-rules-are-hard).

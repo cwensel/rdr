@@ -157,7 +157,10 @@ the instance body. Pick exactly one per assumption):
 - **MVV Test** — the property is testable via the
   Minimum Viable Validation, and the test
   is named in this RDR's Validation section (pending
-  implementation at lock time). Evidence: test name.
+  implementation at lock time). Evidence: test name,
+  or a named normative fixture + its I/O pair (an
+  approved I/O pair is Normative per the Illustrative
+  Code rule below).
 - **Docs Only** — documentation reading alone.
   **Insufficient** for load-bearing assumptions; allowed
   only when paired with a Spike or Source Search plan
@@ -429,7 +432,10 @@ the problem?]
 ### Minimum Viable Validation
 
 [Required — never omit. The single end-to-end proof that
-the approach works. Must be in scope — not deferred.]
+the approach works. Must be in scope — not deferred.
+State it as a stepwise scenario — numbered steps plus the
+expected end-state — so the pre-lock desk trace can walk
+it.]
 
 ### Phase 1: Code Implementation
 

@@ -41,6 +41,10 @@ every assumption from scratch as below.
 For each Critical Assumption in scope:
 - Pick exactly one Method: Source Search | Spike | Prior Art | Derivation |
   Design Decision | Peer RDR | MVV Test | Docs Only.
+- If the claim is I/O-expressible — an exactness word (the sweep below) is the
+  prime cue — render 1–3 concrete I/O pairs (real input → exact expected
+  output, read from a spike run or the source, never invented) and hold them
+  for the consolidated approval round below.
 - Produce concrete Evidence for it:
     Source Search → file:line in the actual source that owns the behavior:
       for a claim about THIS project's own code, the project source (the
@@ -59,12 +63,25 @@ For each Critical Assumption in scope:
     Docs Only → INSUFFICIENT for load-bearing claims; allowed only paired
       with a Spike or Source Search plan stated in the Evidence line.
 - Set Status: Verified only when Method + Evidence actually support it.
-  Otherwise leave Pending with a named verification plan.
+  Otherwise leave Pending with a named verification plan — unless the MVV
+  depends on it (the MVV, or a normative fixture the MVV consumes, rests on
+  this assumption): an MVV-critical assumption resolves NOW or the stage is
+  NOT READY.
 - Confirm "If wrong" is non-empty and names how it surfaces to a user/test.
+
+Then ONE consolidated I/O-pair round — Stage 4's single user interaction, one
+round like Stage 6's accept/defer tiebreakers, never a drip per assumption:
+present every rendered I/O pair for approve/reject. Approved → record it as a
+normative fixture in the RDR body: named on the assumption's Evidence line
+and, where a Testing Strategy scenario covers it, in that scenario's Expected
+— citing the spike artifact under {SPIKE_DIR} that produced it (TEMPLATE.md's
+Normative/Illustrative rule gives it its lock-time semantics). Rejected → the
+assumption is genuinely open: resolve by another Method or revise the claim.
 
 Verify EXACTNESS words too (all/every, first/nearest, byte-identical,
 lossless, canonical, deterministic, stable order) — each needs an Evidence
-Record or coverage by the Minimum Viable Validation. For byte-stable output,
+Record — prefer a named normative fixture from the round above — or coverage
+by the Minimum Viable Validation. For byte-stable output,
 run the determinism checklist (hash fn+lib, pre-image byte layout, encodings,
 map order, whitespace, case folding, empty/null/absent, version marker).
 
@@ -103,4 +120,4 @@ not the instance.
 Be brief in results; ultrathink for complex design or any load-bearing
 assumption; never trade brevity for a weaker verification. Report per
 assumption: Status + Method + one-line Evidence, and flag any you could NOT
-verify.
+verify; plus one line: I/O pairs rendered / approved / rejected.

@@ -47,7 +47,7 @@ Claude: /rdr-reconcile <NNNN>
      dispositions into the RDR.
 3. **Two hard rules** the prompt enforces: a spike that **refutes** an assumption the
    RDR relies on is a BLOCKER that re-opens the RDR (never a wording fix); an
-   MVV-critical spike **cannot** defer past lock.
+   MVV-critical spike or assumption **cannot** defer past lock.
 
 ## Review gate (Stage `06-reconcile.md`)
 

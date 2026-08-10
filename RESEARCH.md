@@ -163,7 +163,9 @@ one of these elements, this is the reasoning you are changing.
 
 ### Resolve-before-review ordering, and the 3amigo lens
 
-**Drives**: [`stages/04-resolve-assumptions.md`](stages/04-resolve-assumptions.md) (resolve-before-review ordering) and the
+**Drives**: [`stages/04-resolve-assumptions.md`](stages/04-resolve-assumptions.md) (resolve-before-review ordering; the
+consolidated approved-I/O-pair round in
+[`prompts/stages/04-resolve.prompt.md`](prompts/stages/04-resolve.prompt.md)) and the
 [`prompts/pre-lock/1-3amigo.md`](prompts/pre-lock/1-3amigo.md) lens.
 
 - **Basili, Green, Laitenberger, Lanubile, Shull, Sørumgård & Zelkowitz (1996),
@@ -181,6 +183,23 @@ one of these elements, this is the reasoning you are changing.
   Right Software*, Manning** — the BDD "Three Amigos" and Example Mapping
   practice the 3amigo lens combines with PBR.
   <https://www.manning.com/books/specification-by-example>
+- **Fakhoury, Naik, Sakkas, Chakraborty & Lahiri (2024), *LLM-Based Test-Driven
+  Interactive Code Generation: User Study and Empirical Evaluation*, IEEE TSE**
+  — TiCoder: formalize user intent by generating candidate tests the user
+  approves or rejects; a single approval interaction measurably improves
+  correctness, and users judge a test far more reliably when its concrete
+  expected output is shown than when it is hidden (half the participants
+  misjudged the same assertion once the output was obfuscated). The warrant for
+  Stage 4's consolidated I/O-pair round: render exactness claims as real input →
+  exact output, one approve/reject round, approved I/O pairs recorded as
+  normative fixtures. DOI 10.1109/TSE.2024.3428972 —
+  <https://doi.org/10.1109/TSE.2024.3428972>
+- **Fogelström & Gorschek (2007), *Test-case Driven versus Checklist-based
+  Inspections of Software Requirements — An Experimental Evaluation*** —
+  controlled experiment: deriving concrete test cases while inspecting a
+  requirements spec is significantly more effective at finding major faults
+  than checklist-based reading. Why the I/O pairs are rendered *during* Resolve
+  rather than deferred to a test-writing phase.
 
 ### Critique / premortem lens
 
@@ -514,6 +533,15 @@ hoist the joint question, with the optional `Cluster` field and tandem barrier i
   cross-document consistency checking; the conceptual ancestor of the pairwise
   cross-RDR check. DOI 10.1145/514183.514186 —
   <https://doi.org/10.1145/514183.514186>
+- **Chen, Kuo, Liu, Poon, Towey, Tse & Zhou (2018), *Metamorphic Testing: A
+  Review of Challenges and Opportunities*, ACM Computing Surveys 51(1)** —
+  metamorphic relations: necessary properties over multiple inputs and their
+  expected outputs, used to verify where no direct oracle exists. The warrant
+  for the pre-lock desk trace's `Cluster` extension
+  ([`stages/05-prelock.md`](stages/05-prelock.md) mini-checks): a declared
+  Round-Trip / Inverse Invariant walked across sibling drafts' scenarios is a
+  metamorphic relation across the seam, checkable before either sibling is
+  Final. DOI 10.1145/3143561 — <https://doi.org/10.1145/3143561>
 - **Liu, Wang & Zhai (2025), *A Hybrid Framework for Inconsistency Detection in
   Diversity Requirements: Combining Multi-Graph Merging and LLM*, QRS 2025** —
   contemporary LLM-assisted cross-spec inconsistency detection; cited as the
@@ -539,8 +567,9 @@ hoist the joint question, with the optional `Cluster` field and tandem barrier i
   Engineering: Retrospective and Emerging Challenges*, IEEE TSE 51(3)** —
   obstacle analysis: residual risk is closed only when it is *explicitly judged
   acceptable*, not silently. This is the rationale for making Reconcile a forced
-  gate (a refuting spike re-opens the RDR; an MVV-critical spike cannot defer
-  past lock) rather than a checkbox. The same explicit-acceptance warrant reaches
+  gate (a refuting spike re-opens the RDR; an MVV-critical spike or assumption
+  cannot defer past lock — the same floor Stage 4 sets at first resolve, no
+  escape hatch) rather than a checkbox. The same explicit-acceptance warrant reaches
   cross-RDR: Stage 7.1's recorded tolerance closes a JOINT-DECISION only by
   explicit judgment — a named home and a recorded qualifier, never silence.
   DOI 10.1109/TSE.2025.3534318 —

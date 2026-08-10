@@ -79,7 +79,7 @@ field-ownership ambiguity to diff. Foundational still runs the **full** ×3 lens
 unchanged; the trigger only *adds* mid/large coverage at the lite tier, and the lite
 diff escalates to the full lens on the criteria the lens names.
 
-**Conditional mini-checks (structural triggers).** Four cheap checks that fire only
+**Conditional mini-checks (structural triggers).** Five cheap checks that fire only
 on a named cue in the draft — *not* lenses, *not* profile-tiered, *not* always-on.
 Each fires when its cue is present and writes a **compact table into the RDR** (the
 decision belongs in the spec); a draft with no cue gets no table and no note. They
@@ -91,6 +91,19 @@ surface, before lock, defect classes that otherwise escape to implementation/tri
 | test-discriminability | an MVV/oracle that passes by absence-of-error, no-op, or fixture-name match ("did not error", exit-0, substring/absence oracle) | `oracle`: each MVV row × "fails if X is wrong because Y" + the negative/failing control |
 | round-trip / fidelity | import/export, parse/deparse, compose/decompose, serialize, snapshot/drift, migrate/rollback, inverse | `fidelity`: operation × byte/value-equality invariant OR the justified weaker invariant + named lossy-exemption sites |
 | disposition | drop / ignore / filter / skip over input classes, or set exit/op outcomes | `disposition`: input class × exit code · event/error · artifact/op minted · silent-vs-loud |
+| desk trace | two or more normative assertions (contract clauses, Testing Strategy Expected lines, or normative fixtures) bearing on the same output surface or the MVV's end-state | `trace`: walk the MVV stepwise; each row = step × the assertions in force at that step × a concrete witness value (from a normative fixture or spike output) or CONTRADICTION |
+
+The desk trace is the owner of **joint satisfiability within one RDR** — every
+other check here is per-item, per-clause, or cross-RDR. Like its siblings it is
+cue-fired, one-shot, and contract-scoped: read the cue from Normative
+Contracts, the MVV, and Testing Strategy — not a file grep. A CONTRADICTION row is a
+real defect: fix the draft in this pre-lock pass, or flag it via the resolve
+prompt's FLAG-AS-YOU-GO rail into Stage 6. No CONTRADICTION row may survive to
+lock. When the RDR declares a `Cluster`, the trace also walks each declared
+Round-Trip / Inverse Invariant across the sibling drafts' scenarios — the
+existing Round-Trip / Inverse Invariant concept applied across the seam as a
+metamorphic relation, not a rival mechanism; a violated sibling relation is a
+JOINT-DECISION candidate.
 
 Fire **only** on the named cue — do not add these tables to an RDR that lacks it.
 Each is distinct from the Stage 8 impl-time gates: those catch the defect *during*
@@ -111,7 +124,10 @@ All are **single-RDR** lenses — each reads only `{RDR_PATH}` (grounding also
 reads the source the RDR cites), independent of the others, so they are peer
 files (numbered 0–4 for run order), not a composite round. Cross-RDR
 contradiction is *not* a pre-lock lens — it needs two settled (Final) RDRs, so
-it lives at [Stage 7.1 Cluster-reconcile](07.1-cluster-reconcile.md). A
+it lives at [Stage 7.1 Cluster-reconcile](07.1-cluster-reconcile.md). (The desk
+trace is a mini-check, not a lens: it may read co-declared `Cluster` siblings'
+drafts — co-authored behind the tandem barrier; contradiction between settled
+RDRs stays at 7.1.) A
 small/single-file RDR runs no lens (no contract to ground, no PM/UX or
 time-shifted surface); the Stage 7 sweep is its only pre-lock check.
 

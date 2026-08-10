@@ -35,7 +35,9 @@ spike's command + output under `{SPIKE_DIR}`.
   refutation with suspicion.
 - **Are DOWNGRADED items genuinely survivable?** A downgrade promises
   implementation will verify it and that being wrong is recoverable. If being
-  wrong breaks the MVV, it can't be downgraded — VERIFY now.
+  wrong breaks the MVV, it can't be downgraded — VERIFY now. (Stage 4 already
+  refuses the original MVV-critical defer; a catch here is a regression the
+  rounds introduced, not an original defect.)
 - **Were spikes actually run, with captured output** — not asserted? Check that
   `{SPIKE_DIR}` grew.
 - **Did the dispositions land in the RDR**, not just the report? Open the
@@ -53,8 +55,8 @@ If NOT RECONCILED, return to the named stage; do not proceed to Finalize.
 Every open spike and disturbed assumption is VERIFIED, DOWNGRADED (named
 impl-time plan + survivable "If wrong"), or ACCEPTED (Design Decision), and each
 disposition is written into the RDR's Critical Assumptions section (not only the
-report); no assumption the RDR relies on stands refuted; no MVV-critical spike is
-deferred. Verdict: RECONCILED.
+report); no assumption the RDR relies on stands refuted; no MVV-critical spike or
+assumption is deferred. Verdict: RECONCILED.
 
 → Next: [07.0-finalize.md](07.0-finalize.md)
 
@@ -70,7 +72,9 @@ having this gate, not abstract caution:
   normative rewrite. Without a forced gate the temptation is to "adjust the
   wording" and lock anyway; that papers over a design that is now wrong. So a
   refutation is a BLOCKER that re-opens the RDR (Stage 2/3/4), never a checkbox.
-- **An MVV-critical spike can't defer.** A spike that pins the very thing the
-  Minimum Viable Validation proves once nearly slipped past lock as a "post-lock
-  follow-up." If the MVV's fidelity bar rests on it, deferring it locks an
-  unproven contract. It is a pre-lock prerequisite — run now or NOT READY.
+- **An MVV-critical spike or assumption can't defer.** A spike that pins the
+  very thing the Minimum Viable Validation proves once nearly slipped past lock
+  as a "post-lock follow-up." If the MVV's fidelity bar rests on it, deferring
+  it locks an unproven contract. It is a pre-lock prerequisite — run now or NOT
+  READY. Stage 4 sets the same floor at first resolve; this gate is its
+  regression guard.

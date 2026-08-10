@@ -66,6 +66,10 @@ One invocation runs the full loop for one lens:
    with `stopped:verdict-flapping:<lens>:<NNNN>` (name the churning entries),
    surface once; the cure is a human look or model switch, not a fourth pass.
 
+Alongside the lens cycle, run the conditional mini-checks whose cue fires —
+cues, tables, and the desk trace live in `$RDR_HOME/stages/05-prelock.md`
+(single-source); a fired cue writes its compact table into the RDR.
+
 ## Repeatability (the multi-session exception)
 
 Not an in-skill loop — independence comes from separate sessions between runs,
