@@ -35,12 +35,15 @@ The **evidence folder is the primary signal.** For `RDR_SLUG`, check existence a
 combine with the RDR's own header. All reads are cheap; delegate nothing unless an
 evidence folder is large.
 
-**Two artifact shapes — they nest differently; don't reuse one join for both:**
+**Artifact shapes:**
 - **Lenses:** `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` — slug, then a literal
   `evidence/`, then the lens. (The `evidence/` segment is the one most-missed; a
   check at `<slug>/<lens>/` finds nothing and falsely reports the lens un-run.)
-- **Spikes:** `<RDR_EVIDENCE>/spikes/<slug>/` — `spikes/` is a top-level sibling,
-  slug underneath, **no `evidence/` segment.**
+- **Spikes:** `<RDR_EVIDENCE>/<slug>/evidence/spikes/` (`{SPIKE_DIR}`, rdr-common
+  §evidence). Legacy trees may hold `<RDR_EVIDENCE>/spikes/<slug>/` instead —
+  either satisfies.
+- `propose-premortem/` under `<slug>/evidence/` is Stage 2's critic output, a
+  non-lens sibling — never count it toward Stage-5 lens convergence.
 
 There is no `<round>/<slug>` shape — don't invent one and flag the real tree as
 deviating. Stale top-level lens folders may sit loose under `<RDR_EVIDENCE>/`
@@ -50,10 +53,10 @@ per-slug paths above count.
 | Stage | Done-signal on disk |
 | --- | --- |
 | 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
-| 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending) |
+| 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending); `Premortem:` verdict line in Decision Rationale and the joint-decision check's verdict reported (legacy RDRs predate both — absence alone doesn't reopen propose when the sections are filled; a *paused* joint-decision fire or bridge choice, however, is propose not done) |
 | 3 Refine | *human-judged* — infer done if Stage-4 evidence exists or assumptions carry Method/Evidence |
-| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `<RDR_EVIDENCE>/spikes/<slug>/` present when spikes were named (spike shape, not lens shape). A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. |
-| 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
+| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
+| 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present (legacy RDRs: five responses inline in the RDR — either satisfies); README index row updated |
 | 8.1 Cluster | `<RDR_EVIDENCE>/<slug>/evidence/cluster-reconcile/<cluster>/` (only when the RDR is in a cluster) |
@@ -61,8 +64,9 @@ per-slug paths above count.
 
 Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
 its Critical Assumptions (count Verified vs Pending), then `ls` each folder at the
-exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes under
-`spikes/<slug>/`, plus `cluster-reconcile/` and `{ARTIFACT_DIR}/status.md`.
+exact shape above — lenses, `reconcile`, and `spikes` under `<slug>/evidence/`
+(legacy: top-level `spikes/<slug>/`), plus `cluster-reconcile/` and
+`{ARTIFACT_DIR}/status.md`.
 For an in-flight Stage 9, the status.md capsule header is the single authoritative
 resume read — do not open the detailed implementation artifacts unless it is absent
 or contradicts what the tree shows.
@@ -72,7 +76,12 @@ or contradicts what the tree shows.
 1. **`Status` first — it is the coarse position.**
    - `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
    - `Final` → next is `/rdr-implement` (unless a cluster of ≥2 Final-unimplemented
-     peers exists → `/rdr-cluster-reconcile` first).
+     peers exists → `/rdr-cluster-reconcile` first). A `Final [joint decision →
+     <home>]` qualifier is still `Final` for routing — surface the home so the
+     human sees the standing tolerance.
+   - A bare `Draft` that declares `Cluster` is barred from refine until every
+     member has completed propose (the tandem barrier) — if a sibling hasn't
+     proposed, next is that sibling's `/rdr-propose`, not this RDR's `/rdr-refine`.
    - `Implemented` / `Reverted` / `Abandoned` / `Superseded` → terminal; report the
      post-mortem state, no next command.
    - A re-entry qualifier `Draft [revised from Final <date>; re-verify <IDs>]` →
