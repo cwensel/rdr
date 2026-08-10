@@ -23,16 +23,13 @@ from {EVIDENCE_DIR} — its consolidation / findings / diff file (e.g.
 repeatability/<slug>/diff.md). If you were handed findings inline instead, use
 those.
 
-CRITIQUE LEDGER (when <lens> = critique): `critique.md` opens with a `C-N` findings
-ledger — use it as the origin ledger directly; do not re-transcribe the prose into a
-ledger of your own. Each row's **Origin** column (`§1`/`§2`/`§3`/`premortem`/`AT-N`)
-points into the analysis below it: read that section before dispositioning the row —
-the row is an index entry, and the reasoning that justifies it lives in the prose.
-Premortem- and AT-origin rows are not lower-grade for having come from a narrative
-section. If the prose plainly raises a defect that no row indexes, resolve it too and
-say so (an unindexed defect is a ledger bug, not permission to skip it). On a
-dual-model run, reconcile the two ledgers by passage anchor — `C-N` IDs are per-file
-and do not correspond across models.
+CRITIQUE LEDGER (when <lens> = critique): `critique.md` opens with a `C-N` ledger —
+use it as the origin ledger as-is, don't rebuild one. Each row's **Origin**
+(`§1`/`§2`/`§3`/`premortem`/`AT-N`) points into the prose below, where the reasoning
+that justifies the row lives — read it before dispositioning, and rank
+premortem/AT-origin rows equal to the rest. A defect the prose raises but no row
+indexes still gets resolved (say so; it's a ledger bug, not a skip). Dual-model runs
+reconcile by passage anchor — `C-N` IDs don't correspond across files.
 
 Each finding passes the GROUNDING GATE before it can edit the draft, gets a
 durable DISPOSITION, and is anchored to an origin concern. Do these in order; the

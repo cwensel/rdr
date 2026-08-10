@@ -71,33 +71,28 @@ Structure:
    Gherkin or plain steps) that would have caught each failure at
    RDR-review time.
 
-6. The findings ledger. After writing 1–5, index every distinct defect you
-   raised as one row — this is what the fix half resolves against, so a
-   defect that never becomes a row is a defect you did not report:
+6. The findings ledger — one row per distinct defect raised in 1–5. The
+   fix half resolves against this, so an unrowed defect is unreported.
 
    | ID | RDR passage | Failure mode | Symptom user sees | Origin |
    |----|-------------|--------------|-------------------|--------|
 
    - **ID** — `C-1`, `C-2`, … stable within this file.
-   - **RDR passage** — the anchor: `§Section`, a REQ id, an `A-N`, or a
-     quoted phrase. "The RDR generally" is not an anchor.
-   - **Origin** — which section above raised it: `§1` / `§2` / `§3` /
-     `premortem` / `AT-N`. A row may cite more than one. The premortem and
-     the acceptance tests are first-class origins, not decoration — findings
-     that surface only there are among the highest-value ones.
+   - **RDR passage** — a real anchor: `§Section`, REQ id, `A-N`, or quoted
+     phrase. "The RDR generally" is not one.
+   - **Origin** — the section that raised it: `§1`/`§2`/`§3`/`premortem`/`AT-N`
+     (may be several). Premortem and AT origins rank equal to the rest.
 
 Hostile critique is the assignment. If you find yourself softening,
 restart.
 
 Write the critique to {EVIDENCE_DIR}/critique.md ({EVIDENCE_DIR} is already bound
 by the dispatcher to this lens's `critique/<rdr-slug>/` folder under the
-base {RDR_ENV} defines — do not re-derive it). Put the **ledger first**, directly
-under the `Model:` stamp (rdr-common §model-stamp), with sections 1–5 below it
-at full length — the ledger indexes the analysis, it does not replace it. Do not
-compress 1–5 to make room; a row is a pointer, and a pointer into a section you
-truncated resolves to nothing. On a dual-model run, the second model writes
-critique-modelB.md alongside it (its own stamp), and you diff the two — diff the
-ledgers first (by passage anchor, since IDs are per-file), then the prose.
+base {RDR_ENV} defines — do not re-derive it). Ledger first, under the `Model:`
+stamp (rdr-common §model-stamp); 1–5 follow at full length — never compressed to
+make room, since a row pointing into a truncated section resolves to nothing. On
+a dual-model run, the second model writes critique-modelB.md alongside it (its
+own stamp); diff the ledgers by passage anchor (IDs are per-file), then the prose.
 ```
 
 ## Prompt — whole RDR set (higher-leverage variant)
@@ -121,14 +116,12 @@ so the fix half can route rows to the right draft.]
 ## Expected signal
 
 - **Healthy** — the critique names concrete passages, concrete functions, concrete
-  user journeys; the Gherkin tests map cleanly to specific lines. Every ledger row
-  carries a real passage anchor and an origin stamp, and rows trace to more than one
-  origin section (a ledger sourced entirely from `§1` means the premortem and the
-  acceptance tests were written as ceremony, not as analysis).
+  user journeys; the Gherkin tests map cleanly to specific lines. Ledger rows carry a
+  real anchor and span several origins — an all-`§1` ledger means the premortem and
+  the ATs were written as ceremony, not analysis.
 - **Unhealthy** — generic advice ("consider adding more tests"); no named
-  passages; abstract user journeys; ledger rows anchored to "the RDR" rather than a
-  passage, or a ledger that omits defects the prose clearly raised. Switch model and
-  rerun.
+  passages; abstract user journeys; rows anchored to "the RDR", or a ledger missing
+  defects the prose raises. Switch model and rerun.
 
 ## Source
 
