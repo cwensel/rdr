@@ -139,6 +139,16 @@ The stages are mined from this project's own session history; Stage 5 dispatches
 rounds and Stage 8 into [`prompts/implementation/launch.md`](prompts/implementation/launch.md) rather than duplicating
 them.
 
+Three of those stages carry decision points a driver should expect. **Propose** ends with a premortem (recorded as a
+`Premortem: survived | hardened | switched` verdict line; at `large`/`foundational` a draft-free fresh-context critic
+runs it) and a **joint-decision check** across all open peer RDRs — a fire pauses the stage until the shared decision is
+hoisted to a named home, and bridge code a sibling already schedules for deletion forces a skip-to-end-state vs.
+`Transient`-marker choice. **Resolve** puts its rendered I/O pairs to the user in one consolidated approve/reject round
+(an approved pair becomes a normative fixture; an MVV-critical assumption cannot defer past this stage). **Stage 7.1**
+demotes a Final RDR to Draft only for a defect that RDR solely owns — a shared joint decision (its JOINT-DECISION
+disposition) is instead hoisted to a named home and the siblings stay Final under a recorded tolerance
+(`Final [joint decision → <home>]`).
+
 ## Status Definitions
 
 - **Draft** — During planning/research phase
@@ -195,10 +205,13 @@ self-reference rule live in [TEMPLATE.md](TEMPLATE.md) under *Critical Assumptio
   permalink only for audit/traceability. The only mechanical anchor check worth running is *does the cited symbol still
   resolve on `main`?* Write fewer, durable anchors rather than many volatile ones. (Rationale: [`stages/` README *Doctrine*](stages/README.md#doctrine-applies-to-every-stage).)
 - **Exactness words are claims, not emphasis.** If the RDR says all/every, first/nearest, byte-identical, lossless,
-  canonical, deterministic, or stable order, back it with an Evidence Record or with the Minimum Viable Validation.
+  canonical, deterministic, or stable order, back it with an Evidence Record or with the Minimum Viable Validation. At
+  Resolve such claims are rendered as concrete I/O pairs (real input → exact expected output, read from a spike run or
+  source) and put to the user in one consolidated approve/reject round; an approved pair is recorded in the RDR as a
+  named normative fixture, a rejected pair reopens the assumption.
 - **Examples are contracts only when labeled Normative.** Fixtures, sample inputs/outputs, numeric counts, platform
-  paths, and worked examples are either Normative (tests may assert them; cite the artifact or derivation) or
-  Illustrative (intent only; tests must not assert them literally).
+  paths, and worked examples are either Normative (tests may assert them; cite the artifact or derivation — approved
+  I/O pairs from Resolve enter here) or Illustrative (intent only; tests must not assert them literally).
 
 **On code examples**: code in RDRs is either *Normative* (load-bearing — signatures, type definitions, wire formats,
 error envelopes, I/O contracts that the implementer must match exactly) or *Illustrative* (pseudocode, examples,
@@ -236,7 +249,9 @@ author to actively verify rather than passively confirm.
 5. **Proportionality** — Is the document right-sized? Are alternatives, code examples, and future considerations trimmed
    to what adds value? The split test is **contract count, not word count**: an RDR that is the sole author of more than
    one independent load-bearing contract (a type design *and* a hash *and* a taxonomy…) spans more than one seam and
-   should be split along those seams, not locked together. The Normative Contracts section is the seam detector.
+   should be split along those seams, not locked together. The Normative Contracts section is the seam detector. A
+   `Transient`-marked bridge contract (its deletion already scheduled by a sibling RDR) stays named but counts toward
+   neither the split signal nor profile sizing — see the marker rule in [TEMPLATE.md](TEMPLATE.md).
 
 **When to run the gate**: After the Proposed Solution and Alternatives are complete, before marking Draft → Final.
 
@@ -270,7 +285,14 @@ The four analytical rounds, in order of cost. Each links to its prompt file unde
    is locked. Cross-RDR contradiction is a *separate* concern — [pairwise.md](prompts/gate/pairwise.md) — that needs
    two settled (Final) RDRs, so the [`stages/`](stages/README.md#cross-rdr-drift-stage-71) recipe runs it post-Final at
    Stage 7.1 (per cluster), not pre-lock, since a per-RDR pass can't catch drift a later lock introduces into an earlier
-   peer.
+   peer. (Propose's joint-decision check surfaces shared-surface overlap earlier, but it triages — reconciliation stays
+   at 7.1.)
+
+Alongside the rounds, **five conditional mini-checks** — source-authority census, test-discriminability,
+round-trip/fidelity, disposition, and the **desk trace** — fire only on a named cue in the draft and write a compact
+decision table into the RDR. The desk trace owns joint satisfiability *within* one RDR: it walks the MVV stepwise
+against every contract clause, Testing Strategy Expected, and normative fixture in force, and no CONTRADICTION row may
+survive to lock. Cues and tables: [`stages/05-prelock.md`](stages/05-prelock.md).
 
 The **[Tooling pass](prompts/gate/tooling-pass.md)** (~5 min, seconds when scripted) is *not* a fifth round — it is
 the mechanical pre-step of the Finalization Gate. Run on every RDR after the rounds, it sweeps for regressions the
@@ -335,7 +357,8 @@ The post-mortem is **required**, not advisory, on an Implemented, Reverted, or A
 - **Implementation vs. Plan** — what matched, what diverged, what was added, what was skipped
 - **Drift Classification** — categorize divergences to enable pattern analysis across RDRs
 - **Escaped-Defect Ledger** — per-finding escape record consolidated from `triage.md` + the pre-lock lens evidence,
-  feeding per-stage miss rates and per-lens false-positive rates
+  feeding per-stage miss rates and per-lens false-positive rates (its `2-propose` rows seed the propose premortem's
+  critic)
 - **Key Takeaways** — actionable, generalizable, evidence-based improvements to the RDR process
 
 Implementation artifacts should classify deviations before post-mortem synthesis. This is the same taxonomy the

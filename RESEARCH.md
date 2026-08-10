@@ -137,7 +137,8 @@ one of these elements, this is the reasoning you are changing.
 ### Overall shape — filter cascade, few phases, gate-method-not-phase-count
 
 **Drives**: the [`prompts/`](prompts/README.md) lens set and the
-[Stage 5 risk-profile matrix](stages/05-prelock.md); the written-response gate in [`TEMPLATE.md`](TEMPLATE.md).
+[Stage 5 risk-profile matrix](stages/05-prelock.md); the written-response gate and
+the `Transient` contract marker in [`TEMPLATE.md`](TEMPLATE.md).
 
 - **Piskala (2026), *Spec-Driven Development: From Code to Contract in the Age of
   AI Coding Assistants*** — the "few phases, each producing an artifact that
@@ -204,9 +205,10 @@ consolidated approved-I/O-pair round in
 ### Critique / premortem lens
 
 **Drives**: [`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md),
-and the hardened `large`/`foundational` propose premortem — the draft-free
-critic — in
-[`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md).
+and the Stage 2 propose premortem in
+[`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md) — a
+one-paragraph form at `small`/`mid`, the hardened draft-free critic at
+`large`/`foundational`, both closed by the `Premortem:` verdict line.
 
 - **Klein (2007), *Performing a Project Premortem*, Harvard Business Review** —
   the premortem technique the Critique lens is built on: imagine the failure has
@@ -508,7 +510,8 @@ propose-time **joint-decision check** in
 lexical scan of the fresh RDR against all open peers that FIREs on a shared
 modify-anchor or contract literal with zero cross-citation and PAUSEs before Refine to
 hoist the joint question, with the optional `Cluster` field and tandem barrier in
-[`TEMPLATE.md`](TEMPLATE.md).
+[`TEMPLATE.md`](TEMPLATE.md); and the desk-trace mini-check's `Cluster` extension
+in [`stages/05-prelock.md`](stages/05-prelock.md).
 
 - **Finkelstein, Gabbay, Hunter, Kramer & Nuseibeh (1994), *Inconsistency
   Handling in Multiperspective Specifications*, IEEE TSE 20(8)** — the viewpoints
@@ -561,7 +564,10 @@ hoist the joint question, with the optional `Cluster` field and tandem barrier i
 
 ### Reconcile gate (Stage 6) — residual-risk closure
 
-**Drives**: [`stages/06-reconcile.md`](stages/06-reconcile.md).
+**Drives**: [`stages/06-reconcile.md`](stages/06-reconcile.md); the MVV-critical
+defer floor at [`stages/04-resolve-assumptions.md`](stages/04-resolve-assumptions.md);
+the recorded-tolerance closure at
+[`stages/07.1-cluster-reconcile.md`](stages/07.1-cluster-reconcile.md).
 
 - **Letier & van Lamsweerde (2025), *Obstacle Analysis in Requirements
   Engineering: Retrospective and Emerging Challenges*, IEEE TSE 51(3)** —
@@ -616,6 +622,8 @@ ledger the Critique lens writes at the top of `critique.md`
 ([`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md)), consumed as the
 origin ledger by
 [`prompts/stages/05-prelock-resolve.prompt.md`](prompts/stages/05-prelock-resolve.prompt.md).
+The escaped-defect ledger's `Expected-catching stage: 2-propose` rows also seed the
+propose critic's brief (*Critique / premortem lens*, above).
 
 - **Fagan (1986), *Advances in Software Inspections*, IEEE TSE SE-12(7)** — the second
   half of inspection that the 1976 paper's defect-finding half is usually quoted without:
@@ -649,12 +657,11 @@ origin ledger by
 **Drives**: [`prompts/implementation/launch.md`](prompts/implementation/launch.md), dispatched at
 [`stages/08-implement.md`](stages/08-implement.md).
 
-- **Fakhoury, Naik, Sakkas, Chakraborty & Lahiri (2024), *LLM-based Test-driven
-  Interactive Code Generation* (TiCoder), IEEE TSE** — tests-from-spec-first and
-  ranking generations by test-consistency; the basis for the launch prompt's
-  Phase 1 "write tests from the REQ-N quotes before any implementation."
-  <https://www.seas.upenn.edu/~asnaik/assets/papers/tse24_ticoder.pdf>
-  (DOI 10.1109/TSE.2024.3428972)
+- **Fakhoury et al. (2024), TiCoder (cited in full above, *Resolve-before-review*)**
+  — tests-from-spec-first and ranking generations by test-consistency; the basis
+  for the launch prompt's Phase 1 "write tests from the REQ-N quotes before any
+  implementation." (open PDF:
+  <https://www.seas.upenn.edu/~asnaik/assets/papers/tse24_ticoder.pdf>)
 - **Osmani (2025), *How to write a good spec for AI agents*** — the
   conformance-testing + per-test spec-citation pattern the launch prompt's
   coverage artifact (`REQ-N × test-name`) implements.
@@ -691,7 +698,8 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   Sabaliauskaite (2004), *Investigating Defect Detection in Object-Oriented Design and
   Cost-Effectiveness of Software Inspection*, PhD thesis — false-positive rate as a
   per-technique cost (load-bearing; see §2 escape measurement).
-- Fogelström & Gorschek (2007), inspection economics.
+- Fogelström & Gorschek (2007), inspection economics (load-bearing; see §2
+  resolve-before-review — the I/O-pair round).
 - Rigby (2013), *Convergent Contemporary Software Peer Review Practices*.
 - van Lamsweerde & Letier (2000), *Handling Obstacles in Goal-Oriented
   Requirements Engineering*, IEEE TSE (load-bearing; see §2 critique/premortem
@@ -699,7 +707,8 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   Architecture* (2004) — DOI 10.1109/RE.2004.25; *Goal-Oriented Requirements
   Engineering: A Guided Tour* (RE 2001).
 - Easterbrook, Finkelstein, Kramer & Nuseibeh (1994), *Coordinating Conflicting
-  Viewpoints by Managing Inconsistency*.
+  Viewpoints by Managing Inconsistency* (load-bearing; see §2 pairwise /
+  cross-RDR consistency — the JOINT-DECISION disposition).
 - Sindre & Opdahl (2005), *Eliciting Security Requirements with Misuse Cases*,
   Requirements Engineering Journal — DOI 10.1007/s00766-004-0194-4; McDermott &
   Fox (1999), *Using Abuse Case Models for Security Requirements Analysis*,
@@ -734,7 +743,7 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   Measuring Long Horizon Execution in LLMs*, ICLR 2026 — arXiv 2509.09677; the
   self-conditioning failure mode (load-bearing; see §2 instance conditionality).
 - Shi et al. (2023), *Large Language Models Can Be Easily Distracted by Irrelevant
-  Context*, ICML — arXiv 2302.00093.
+  Context*, ICML — arXiv 2302.00093 (load-bearing; see §2 instance conditionality).
 - AgentStop — terminating idle local agents early to cut token/energy overhead;
   evidence behind preferring state/event-driven resume over routine wakeups.
 - Triggerflow — trigger/event-based orchestration of serverless workflows over
@@ -753,7 +762,8 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   Cutler, Dickstein & Pierce (2024), *Property-Based Testing in Practice*, ICSE
   — DOI 10.1145/3597503.3639581.
 - Metamorphic testing: Chen et al. (2018), ACM Computing Surveys — DOI
-  10.1145/3143561; Segura et al. (2016), IEEE TSE.
+  10.1145/3143561 (load-bearing; see §2 pairwise / cross-RDR consistency — the
+  desk trace's `Cluster` extension); Segura et al. (2016), IEEE TSE.
 
 ### Lightweight formal methods (industrial)
 
