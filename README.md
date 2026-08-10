@@ -206,8 +206,9 @@ The Finalization Gate (in the template) is the mechanism that ensures no contrad
 redundancies survive into the locked RDR.
 
 **Why written responses, not checkboxes**: Checkboxes are easily rubber-stamped. Each gate item requires a written
-statement that becomes part of the permanent RDR record. This forces the author to actively verify rather than passively
-confirm.
+statement that becomes part of the permanent record — born in the RDR's `artifacts/gate.md` side file at lock, with the
+RDR carrying a one-line pointer to it (legacy RDRs carry the responses inline and are never amended). This forces the
+author to actively verify rather than passively confirm.
 
 **The gate covers five concerns derived from recurring RDR authoring patterns:**
 

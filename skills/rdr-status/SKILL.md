@@ -55,14 +55,14 @@ per-slug paths above count.
 | 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `<RDR_EVIDENCE>/spikes/<slug>/` present when spikes were named (spike shape, not lens shape). A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
-| 8 Finalize | `Status: Final`; the Finalization Gate's five responses present in the RDR; README index row updated |
+| 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present (legacy RDRs: five responses inline in the RDR — either satisfies); README index row updated |
 | 8.1 Cluster | `<RDR_EVIDENCE>/<slug>/evidence/cluster-reconcile/<cluster>/` (only when the RDR is in a cluster) |
-| 9 Implement | `{ARTIFACT_DIR}/<slug>/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
+| 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
 its Critical Assumptions (count Verified vs Pending), then `ls` each folder at the
 exact shape above — lenses + `reconcile` under `<slug>/evidence/`, spikes under
-`spikes/<slug>/`, plus `cluster-reconcile/` and `{ARTIFACT_DIR}/<slug>/status.md`.
+`spikes/<slug>/`, plus `cluster-reconcile/` and `{ARTIFACT_DIR}/status.md`.
 For an in-flight Stage 9, the status.md capsule header is the single authoritative
 resume read — do not open the detailed implementation artifacts unless it is absent
 or contradicts what the tree shows.

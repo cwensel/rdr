@@ -20,16 +20,21 @@ Claude: /rdr-finalize <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**
-   to bind `$RDR_ENV`, `RDR_PATH`, `{EVIDENCE_DIR}`.
+   to bind `$RDR_ENV`, `RDR_PATH`, `{EVIDENCE_DIR}`, `{ARTIFACT_DIR}`
+   (= `<RDR_RECORDS>/<RDR_SLUG>/artifacts/`).
 2. Run [`07-finalize.prompt.md`](07-finalize.prompt.md). It runs the mechanical
    Tooling sweep, confirms no cluster re-entry note survives, writes the
-   Finalization Gate's five responses, then acts on the verdict:
-   - **READY** → set Status → Final, write the gate's five responses into the RDR,
+   Finalization Gate's five responses to `{ARTIFACT_DIR}/gate.md`, then acts on
+   the verdict:
+   - **READY** → write the five responses to `{ARTIFACT_DIR}/gate.md` (overwrite
+     on re-lock), replace the RDR's Finalization Gate section body with the
+     one-line pointer to gate.md, set Status → Final,
      and **flip this RDR's README index row to Final** (seed created the row at
      Draft; finalize updates that same row in place — add it only if a pre-seed
      RDR has none). Then, if the autocommit gate is on (§commit), run
      **§commit** with subject `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` over
-     `$RDR_PATH` + `$RDR_RECORDS/README.md` — a **standalone** commit, never a `fixup!`
+     `$RDR_PATH` + `$RDR_RECORDS/README.md` + `{ARTIFACT_DIR}/gate.md` — a
+     **standalone** commit, never a `fixup!`
      (RDR commits ARE the design history; per the no-fixup doctrine we record the lock
      as its own real subject, we do not defer-squash it).
    - **NOT READY** → flip nothing; report the named blockers and the return stage.
@@ -50,7 +55,8 @@ Claude: /rdr-finalize <NNNN>
 - The mechanical sweep ran and PASSED (a BLOCK is a real regression — fix before
   locking).
 - Any `## Refinement Context (cluster re-entry)` note is gone.
-- The five gate responses are *written*, not rubber-stamped.
+- The five gate responses are *written* in `{ARTIFACT_DIR}/gate.md`, not
+  rubber-stamped.
 - Readiness says READY, no open blockers; MVV genuinely in scope; the RDR's
   README index row flipped to Final (the row seed created). On NOT READY the
   prompt flips nothing — return to the named stage.

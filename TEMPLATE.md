@@ -472,16 +472,22 @@ chosen approach over a rejected one.]
 
 ## Finalization Gate
 
-> Complete each item with a written response before
-> marking this RDR as **Final**. Written responses
-> prevent rubber-stamping and produce a review record.
+> Complete each item with a written response in
+> `{ARTIFACT_DIR}/gate.md` before marking this RDR as
+> **Final**. Written responses prevent rubber-stamping
+> and produce a review record.
 >
 > First run the mechanical pre-sweep
 > (`prompts/gate/tooling-pass.md`): TEMPLATE section
 > coverage, Method-label vocabulary, `Source Search`
 > self-reference, `Docs Only` on load-bearing claims. It
 > catches what the review rounds disturbed; resolve any
-> BLOCK before the written responses below.
+> BLOCK before the written responses.
+>
+> At lock, replace this section's body with the
+> one-line pointer to gate.md — responses are never
+> inlined. The sub-sections below spec gate.md's
+> content.
 
 ### Contradiction Check
 

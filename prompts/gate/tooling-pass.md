@@ -31,8 +31,10 @@ corresponding section as: Present-substantive | Present-hollow | Missing.
 Hollow = TBD, "see above," single-sentence placeholder (`_Draft placeholder._`),
 or copy-paste of the template instructional text. A surviving `this is a seed
 skeleton` header is an automatic Present-hollow on the Finalization Gate section
-— name it. A surviving verbatim template bracket — `[Conditional — …]`,
-`[Resource]`, `[Capability]`, or any bracketed template instruction — in a
+— name it. (At/after lock the Finalization Gate section holds only the pointer
+line to gate.md — that is the record, not a hollow section.) A surviving
+verbatim template bracket — `[Conditional — …]`, `[Resource]`, `[Capability]`,
+or any bracketed template instruction — in a
 non-Draft (non-locking) RDR is a BLOCK: the section is Present-hollow, the
 bracket was meant to be filled or the section deleted. List every Present-hollow
 and Missing entry by section name. (This is where post-rewrite regressions show
@@ -81,7 +83,8 @@ CHECK 6 — Status consistency  (grep-able)
 List any assumption marked `Pending` or `Unverified` whose property is then
 relied on as a settled fact in prose elsewhere in the RDR (a "settled-fact"
 sentence depending on an unsettled assumption). Also flag any place a checklist
-box and the Finalization Gate disagree about the same assumption's status — these
+box and the Finalization Gate (inline or `{ARTIFACT_DIR}/gate.md`) disagree
+about the same assumption's status — these
 cannot both be right. (The checklist-vs-gate sub-check is transitional: once a
 contract is single-sourced there is no second copy to disagree.)
 

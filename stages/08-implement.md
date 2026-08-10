@@ -27,8 +27,10 @@ tests in the project source tree, and the artifacts under `{ARTIFACT_DIR}`
 launch.md's PRECHECKS assume a locked RDR. Stage 7 guarantees exactly what
 they consume — state it once, here:
 
-- **Status: Final**, with the Finalization Gate's five written responses in the
-  RDR. launch.md treats the spec as an immutable contract.
+- **Status: Final**, with the Finalization Gate's five written responses in
+  `{ARTIFACT_DIR}/gate.md` and the pointer line in the RDR (legacy pre-gate.md
+  locks carry them inline — either form satisfies). launch.md treats the spec
+  as an immutable contract.
 - **MVV in scope** (Stage 7 Scope Verification) — Phase 1 turns it into
   `REQ-MVV`, the runnable end-to-end test.
 - **Predecessors COMPLETE** — every `**Predecessors**:` entry's

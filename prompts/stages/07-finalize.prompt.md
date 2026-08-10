@@ -1,9 +1,10 @@
 Review the RDR at {RDR_PATH}. Verify it against the rdr README and TEMPLATE
 and identify exactly what's required to flip it to Final.
 
-Read {RDR_ENV} for the pre-lock output location ({EVIDENCE_DIR}). If reading those
-outputs is heavy, delegate to a sub-agent that returns a §return-packet
-(rdr-common) — findings-closed in summary_50w, residue in next_action.
+Read {RDR_ENV} for the pre-lock output location ({EVIDENCE_DIR}) and the gate
+record's home ({ARTIFACT_DIR}). If reading those outputs is heavy, delegate to
+a sub-agent that returns a §return-packet (rdr-common) — findings-closed in
+summary_50w, residue in next_action.
 
 FIRST run the mechanical sweep — the Tooling pass: open
 $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
@@ -25,7 +26,8 @@ fidelity, require `evidence/repeatability/run-1.md` + `diff.md` or a written
 Stage 5 repeatability-lite.
 
 Then run the Finalization Gate from the template as written responses (not
-checkboxes), each becoming part of the permanent record:
+checkboxes), written to {ARTIFACT_DIR}/gate.md — a short header (RDR id/slug,
+date, verdict), then one H2 section per item — not into the RDR:
 1. Contradiction Check — conflicts between Research Findings and Proposed
    Solution; planned features vs stated principles.
 2. Assumption Verification — every Critical Assumption record internally
@@ -43,15 +45,20 @@ not a human pause:
 
 - NOT READY (any blocker) — report the named blockers and the stage each
   returns to. Flip NOTHING. Stop here.
-- READY — lock immediately: set Status to Final, write the gate's five
-  responses into the Finalization Gate section, and **flip this RDR's README
-  index row to Final** (the row seed added at Draft, updated in place; correct
-  Title/Priority only if drifted). If the row is missing (a pre-seed RDR), add
+- READY — lock immediately: write the five responses to {ARTIFACT_DIR}/gate.md
+  (on a re-lock, overwrite it — gate.md is the current lock's record), replace
+  the RDR's Finalization Gate section body (including its ### sub-sections)
+  with the single pointer line
+  `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`, set
+  Status to Final, and **flip this RDR's README index row to Final** (the row
+  seed added at Draft, updated in place; correct Title/Priority only if
+  drifted). If the row is missing (a pre-seed RDR), add
   it: `| [NNNN](NNNN-slug.md) | <Title> | Final | <Priority> |`. If autocommit is
   on (rdr-common §commit),
   commit it as a **standalone** `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`
-  over the RDR + README — **never** a `fixup!` (RDR commits ARE the design history;
-  we record the lock as its own real subject, not a deferred-squash).
+  over the RDR + README + {ARTIFACT_DIR}/gate.md — **never** a `fixup!` (RDR
+  commits ARE the design history; we record the lock as its own real subject,
+  not a deferred-squash).
 - A single gate item genuinely in doubt (not a clear pass or fail) — stop and
   surface it per §stop-packet rather than guessing the lock.
 
