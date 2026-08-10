@@ -20,13 +20,19 @@ Claude: /rdr-propose <NNNN>
 ```
 
 1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** + **§rdr-resolve**
-   to bind `$RDR_RESOURCES`, `RDR_PATH`.
+   to bind `$RDR_RESOURCES`, `RDR_PATH`. Bind `{EVIDENCE_DIR}` =
+   `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/` (§evidence) — the prompt's
+   `research/` and `propose-premortem/` outputs land under it.
 2. **Run the prompt** [`02-propose.prompt.md`](02-propose.prompt.md).
    Propose owns **selection** (which approach wins, read from prior art), not
    **verification** (deep spikes / full corpora) — that stays at Resolve, by
    design. The split is depth, not avoidance. It runs the freshness check (step 0),
    then reads prior art, enumerates 2–4 grounded approaches, recommends one,
-   premortems it, and writes Proposed Solution / Alternatives / Decision Rationale +
+   premortems it (`small`/`mid`: one paragraph; `large`/`foundational`: a
+   draft-free critic sub-agent briefed without the RDR's justifying prose,
+   writing `{EVIDENCE_DIR}propose-premortem/critic.md`), records the
+   `Premortem:` verdict line in Decision Rationale, and writes Proposed
+   Solution / Alternatives / Decision Rationale +
    a `Pending` Critical Assumptions list into the draft. **Retrieval-first:** prior
    art is read *before* approaches are named (an LLM that enumerates first anchors
    on its training prior), with a **cite-check** — every prior-art claim the choice
@@ -48,8 +54,9 @@ Claude: /rdr-propose <NNNN>
 - Prior art read *before* the approaches (grounds the set; `⚠ no prior-art coverage`
   if none), and the choice's prior-art claims are quoted/anchored, not paraphrased.
 - `large`/`foundational`: the choice falls out of a scored Q-O-C matrix, not prose.
-- The chosen approach solves the *user's* problem; the premortem ran and the choice
-  survived it.
+- The chosen approach solves the *user's* problem; the premortem ran in its
+  profile's form (paragraph, or the draft-free critic at `large`/`foundational`)
+  and the `Premortem:` verdict line is recorded in Decision Rationale.
 - The joint-decision check ran against all open peers; any fire was paused on,
   not advanced over. In a Cluster, the bridge sub-check's (a) skip-to-end-state /
   (b) `Transient`-marker choice was surfaced and answered when its cues were

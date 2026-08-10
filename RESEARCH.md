@@ -184,7 +184,10 @@ one of these elements, this is the reasoning you are changing.
 
 ### Critique / premortem lens
 
-**Drives**: [`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md).
+**Drives**: [`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md),
+and the hardened `large`/`foundational` propose premortem — the draft-free
+critic — in
+[`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md).
 
 - **Klein (2007), *Performing a Project Premortem*, Harvard Business Review** —
   the premortem technique the Critique lens is built on: imagine the failure has
@@ -194,15 +197,43 @@ one of these elements, this is the reasoning you are changing.
   *Chain-of-Verification Reduces Hallucination in Large Language Models*, ACL
   Findings 2024** — the *independence* discipline (a fresh context with no prior
   answers beats "now double-check yourself") that powers both the CoVe lens and
-  the dual-model / fresh-context anti-sycophancy step in Critique. arXiv
+  the dual-model / fresh-context anti-sycophancy step in Critique. Its *factored*
+  variants supply the other half — the verifier must not see the original
+  answer — which is why the propose critic's brief carries the approach but
+  never the RDR's justifying prose. arXiv
   2309.11495 — <https://arxiv.org/abs/2309.11495> ; ACL Anthology —
   <https://aclanthology.org/2024.findings-acl.212/>
+- **van Lamsweerde & Letier (2000), *Handling Obstacles in Goal-Oriented
+  Requirements Engineering*, IEEE TSE 26(10)** — obstacle analysis: negate each
+  goal or assumption, construct the scenarios that satisfy the negation, and
+  make the design answer them. The warrant for the propose critic's
+  obstacle-negation element (each load-bearing claim negated into a
+  domain-consistent failure scenario the approach must answer).
+  DOI 10.1109/32.879820 — <https://doi.org/10.1109/32.879820>
 - **Mitani et al. (2025), *LLM-AQuA-DiVeR: LLM-Assisted Quality Assurance Through
   Dialogues on Verifiable Specification*, RAIE 2025 @ ICSE** — LLM-assisted spec
   QA via stakeholder dialogue; cited for the practical caveat the Critique lens
   encodes (an LLM tends to agree with a plausible spec, so run dual-model and
   diff rather than asking one model to critique its own draft).
   <https://conf.researchr.org/details/icse-2025/raie-2025-papers/6/>
+- **Bertalanič & Fortuna (2026), *The Cost of Consensus: Isolated
+  Self-Correction Prevails Over Unguided Homogeneous Multi-Agent Debate*,
+  ACM AIAS 2026** — homogeneous multi-agent debate collapses into sycophantic
+  conformity (modal adoption up to 85.5%; near-total consensus by round 3) and
+  costs more tokens than isolated self-correction. Why the hardened propose
+  premortem is ONE critic queried once, never a panel or extra rounds.
+  DOI 10.1145/3786335.3813137 — <https://doi.org/10.1145/3786335.3813137>
+- **Iacob et al. (2026), *The Red Queen Gödel Machine: Co-Evolving Agents and
+  Their Evaluators*, arXiv 2606.26294** — evaluation fixed outside the
+  improvement loop goes stationary while the generator evolves, so the
+  evaluator must co-evolve with what it judges. Why the propose critic is
+  seeded with specs that survived their premortem and failed anyway, rather
+  than re-running a static checklist. <https://arxiv.org/abs/2606.26294>
+
+The seeding element itself is the Fagan (1986) feedback loop (see *Escape
+measurement* below) closed back into Stage 2: the escaped-defect ledger's
+`Expected-catching stage: 2-propose` rows feed the stage that should have
+caught them.
 
 ### Propose selection — read prior art first, compare before committing
 
@@ -634,7 +665,8 @@ theme; included so an adopter can go deeper and so the provenance is complete.
 - Fogelström & Gorschek (2007), inspection economics.
 - Rigby (2013), *Convergent Contemporary Software Peer Review Practices*.
 - van Lamsweerde & Letier (2000), *Handling Obstacles in Goal-Oriented
-  Requirements Engineering*, IEEE TSE; *From System Goals to Software
+  Requirements Engineering*, IEEE TSE (load-bearing; see §2 critique/premortem
+  lens); *From System Goals to Software
   Architecture* (2004) — DOI 10.1109/RE.2004.25; *Goal-Oriented Requirements
   Engineering: A Guided Tour* (RE 2001).
 - Easterbrook, Finkelstein, Kramer & Nuseibeh (1994), *Coordinating Conflicting

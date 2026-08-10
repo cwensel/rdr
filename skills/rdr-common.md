@@ -182,7 +182,8 @@ The evidence tree is **per-RDR-first**, rooted at `$RDR_EVIDENCE` (the contract 
 and symmetric with the per-RDR `{ARTIFACT_DIR}` under `$RDR_RECORDS`: every RDR owns
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/`, holding one folder per lens
 (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`) plus siblings `reconcile/`,
-`spikes/`, `tooling-pass/`, `action-items/`, and the per-cluster
+`spikes/`, `tooling-pass/`, `action-items/`, `propose-premortem/` (Stage 2's
+hardened-critic output — a sibling, not a Stage-5 lens signal), and the per-cluster
 `cluster-reconcile/<cluster>/`. `{EVIDENCE_DIR}` is the **fully-bound per-lens dir** —
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/`; `{SPIKE_DIR}` is
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/spikes/`. A re-entry pass appends `iter-N/`
@@ -351,7 +352,7 @@ it via this anchor and do not restate it.
 | Stage | RDR delta must name |
 |---|---|
 | seed | user outcome; number/slug; why RDR-shaped or demoted |
-| propose | chosen approach; rejected alternatives; decisive evidence/criteria; new Pending assumptions |
+| propose | chosen approach; rejected alternatives; decisive evidence/criteria; new Pending assumptions; premortem verdict |
 | refine | contradictions removed; bloat/history cut; changed contract wording |
 | resolve | assumptions verified/downgraded/blocked; evidence basis; recommendation pressure from verification |
 | prelock | lens findings accepted/dismissed/deferred; RDR edits; net-new assumptions/failure modes |
@@ -467,7 +468,7 @@ rdr_commit() {
 | Stage | Doc commit (`$RDR_PATH` [+ `$RDR_RECORDS/README.md`]) | Evidence commit (separate) |
 |-------|---|---|
 | seed | `docs(rdr): seed cli/NNNN <slug>` (`$RDR_PATH` + `$RDR_RECORDS/README.md` — the new index row) | — |
-| propose | `docs(rdr): propose cli/NNNN — <summary>` | — |
+| propose | `docs(rdr): propose cli/NNNN — <summary>` | `chore(rdr): cli/NNNN propose evidence` (if the hardened premortem wrote) |
 | refine | `docs(rdr): refine cli/NNNN — <summary>` | — |
 | resolve | `docs(rdr): resolve cli/NNNN — <summary>` | `chore(rdr): cli/NNNN spike evidence` (if a spike wrote) |
 | prelock (non-repeatability lens) | `docs(rdr): prelock cli/NNNN — <lens> pass` | `chore(rdr): cli/NNNN <lens> evidence` |

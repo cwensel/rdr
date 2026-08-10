@@ -20,8 +20,10 @@ the skill.
 resume point). **Produces**: the RDR's *Proposed Solution* + *Alternatives
 Considered* + *Decision Rationale* + the design-body (*Investigation* +
 *Implementation Plan* phases at design altitude) + a `Pending` Critical
-Assumptions list, written into the draft — plus the **joint-decision check's
-verdict** (fired on a peer / no fire), reported in the close packet.
+Assumptions list, written into the draft — plus the **premortem verdict**
+(`Premortem: survived | hardened | switched`, variant named), written into
+Decision Rationale, and the **joint-decision check's verdict** (fired on a
+peer / no fire), both reported in the close packet.
 
 The joint-decision check is propose-time *triage*, not reconciliation: a cheap
 lexical pass at the one moment switching is free. Stage 7.1's
@@ -69,10 +71,16 @@ open RDRs from silently coupling on the same decision before either locks.
   explicit Q-O-C matrix (approaches × deciding criteria). Prose-only → re-run.
 - **Does the chosen approach solve the *user's* problem**, not an adjacent
   one? (The PM lens, surfaced early.)
-- **Did the premortem run, and did the choice survive it?** A premortem that
+- **Did the premortem run in its profile's form, and is the verdict recorded?**
+  `small`/`mid` write the one-paragraph post-mortem; `large`/`foundational`
+  dispatch the draft-free critic (brief-only input, queried once) whose `P-N`
+  ledger lands in `evidence/propose-premortem/critic.md`. Either form ends
+  with the `Premortem:` verdict line in Decision Rationale. A premortem that
   found nothing on a non-trivial approach is a tell it was skipped — the
   cheapest high-yield check in the literature (Klein 2007) shouldn't come back
-  empty. If it forced a switch, confirm the new choice is the one written in.
+  empty; for the hardened form, an empty ledger on a foundational approach is
+  the sycophancy tell — re-run with the seeds emphasized. If it forced a
+  switch, confirm the new choice is the one written in.
 - **Are the load-bearing assumptions named** (even if unverified)? Stage 4
   needs this worklist.
 - **Is Technical Design proportionate** — enough to commit, not a full
@@ -87,7 +95,9 @@ fix inline — don't re-run.
 ## Advance when
 
 One approach is chosen, alternatives are recorded with rejection reasons, the
-Critical Assumptions list exists (Pending is fine), and the design-body
+Critical Assumptions list exists (Pending is fine), the `Premortem:` verdict
+line is recorded in Decision Rationale (any value — an absent verdict does
+not advance), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
 left in those two sections. If the accretion gate fired (≥2 prior point-fixes),
 the undecided contract is named and the profile is floored to `foundational`.

@@ -69,23 +69,78 @@ Read the Problem Statement and Context, then:
 3. Recommend ONE. State the decision rationale — the key factors and why each
    rejected alternative was rejected (one sentence for trivial ones); for a scored
    matrix, the rationale references the deciding rows.
-4. **Premortem the chosen approach (one paragraph).** Assume this approach
-   shipped and failed in production; write the one-paragraph post-mortem, then
-   confirm the recommendation survives it. If the post-mortem exposes a failure
-   the chosen approach can't answer, revise the choice now — it is far cheaper
-   to switch approaches here than after Resolve has spent its spike budget. This
-   is the approach-level gut-check, distinct from the lock-time hostile
-   premortem in Stage 5 Critique; it runs on every profile because Propose
-   always does. **Sibling-path check:** if the chosen approach adds a new
-   discriminator, heuristic, switch case, or identity rule, grep whether an
-   adjacent/sibling path already makes that decision, and *exhibit* the result
-   in the RDR (a pasted `path::Symbol`, or "searched, none exists") — reusing an
-   existing signal beats inventing a parallel one.
-5. Write the recommended approach into Proposed Solution and the alternatives
+4. **Premortem the chosen approach.** Assume it shipped and failed in
+   production; confirm the recommendation survives, or revise the choice now —
+   far cheaper to switch here than after Resolve has spent its spike budget.
+   This is the approach-level check, distinct from the lock-time hostile
+   premortem in Stage 5 Critique: it runs pre-body, on the approach alone (the
+   hardened form on a brief), where Critique reads the full draft at lock.
+   Either way, close by writing one verdict line into Decision Rationale —
+   `Premortem: survived | hardened | switched (paragraph | hardened)` — closed
+   vocabulary, variant named (the repeatability `variant:` precedent); that
+   one greppable line is what makes per-form miss rates computable later.
+   (Profile is the *current* value here — the accretion gate above may have
+   floored it to `foundational` in-flight.)
+   - **`small`/`mid` → one paragraph.** Write the one-paragraph post-mortem of
+     the shipped-and-failed approach, then confirm the recommendation survives
+     it. A failure the chosen approach can't answer → switch. Variant
+     `(paragraph)`.
+   - **`large`/`foundational` → hardened critic: ONE `Task` sub-agent
+     (rdr-common §delegation), queried ONCE** — never more critics or rounds (homogeneous
+     debate converges, it doesn't dissent; one hardened critic queried once
+     beats it at fewer tokens). The extension past "delegate reads" is honest:
+     this delegates *judgment*, because a fresh context that never saw the
+     justifying prose is the independence that defeats self-confirmation — the
+     same CoVe discipline Critique already uses. It is NOT a dual-model pass
+     (a sub-agent inherits this session's model — see `2-critique.md`).
+     - **Seeds first (main agent, before dispatch).** Glob
+       `$RDR_RECORDS/*-postmortem.md` at depth 1 (never recurse); from their
+       Escaped-Defect Ledgers take 2–3 rows with `Expected-catching stage:
+       2-propose` (then `3-refine`), preferring high Escape distance; fall
+       back to the consumer's post-mortem `SYNTHESIS.md` if present. Nothing
+       found → write `⚠ no escaped-defect ledger entries yet` into the brief
+       and proceed — never a silent skip, never a blocker.
+     - **The brief — independence enforced structurally, not by honour.** Pass
+       ONLY: (a) the Problem Statement; (b) the chosen approach stated
+       neutrally in 3–6 lines; (c) its load-bearing claims as an enumerated
+       negation-target list; (d) a one-line technical-environment summary;
+       (e) the seeds. NEVER the RDR path, the QOC matrix, the Decision
+       Rationale, or any justifying prose. The critic works from the brief
+       alone — no repo reads, no RDR read.
+     - **The critic's task** (four elements): (1) *prospective hindsight* —
+       the approach shipped and failed; write the failure narrative as
+       accomplished fact; (2) *obstacle negation* — negate each load-bearing
+       claim; for each, a domain-consistent failure scenario the approach must
+       answer; (3) *consumer artifacts* — for each failure, the concrete
+       artifact that would have caught it at review time: a named test case or
+       user journey, not an opinion; (4) *refutation targets* — the seeds are
+       specs that survived their premortem and failed anyway; find that class
+       of failure here before accepting anything.
+     - **Output.** The critic writes
+       `{EVIDENCE_DIR}propose-premortem/critic.md`: the rdr-common
+       §model-stamp header, then a findings ledger in the critique lens's
+       column form (`| ID | passage/claim | Failure mode | Symptom user sees |
+       Origin |`, ids `P-N`, Origin = which of the four elements raised it),
+       then the narrative/negations/artifacts at full length. It returns a
+       rdr-common §return-packet exactly: survived → `PASS`; mitigations to fold →
+       `PASS` with `next_action` listing them; forced switch →
+       `NEEDS_DECISION`; `changed_paths` = the critic.md; `summary_50w` = the
+       verdict's reason.
+     - **Consequence (main agent, in-context).** Fold mitigations into the
+       draft — Pending assumptions and Failure Modes; each unanswered scenario
+       either forces the switch or becomes one. On `NEEDS_DECISION`, loop back
+       to step 3 with the failure as a new criterion — in-stage, no user
+       pause; the close packet reports it. Variant `(hardened)`.
+5. **Sibling-path check.** If the chosen approach adds a new discriminator,
+   heuristic, switch case, or identity rule, grep whether an adjacent/sibling
+   path already makes that decision, and *exhibit* the result in the RDR (a
+   pasted `path::Symbol`, or "searched, none exists") — reusing an existing
+   signal beats inventing a parallel one.
+6. Write the recommended approach into Proposed Solution and the alternatives
    into Alternatives Considered. Keep Technical Design at the level the
    problem needs — do NOT over-specify signatures yet; that sharpens during
    Resolve and Pre-Lock.
-6. Author the **design-body** (replace its `_Draft placeholder._`s):
+7. Author the **design-body** (replace its `_Draft placeholder._`s):
    - **Investigation**: the prior art, code paths, and constraints that
      shaped the choice — one paragraph; deep evidence lands at Resolve.
    - **Implementation Plan**: Prerequisites, the MVV, and Phase 1…N as
@@ -94,7 +149,7 @@ Read the Problem Statement and Context, then:
      over-specified; that detail fills at Resolve/Pre-Lock.
    Leave Testing Strategy and Performance Expectations as placeholders —
    Resolve owns those, after the assumptions they lean on are verified.
-7. **Joint-decision check — runs last, on the written proposal.** Catch two
+8. **Joint-decision check — runs last, on the written proposal.** Catch two
    open RDRs coupling on one decision while switching is still free. From THIS
    RDR collect *modify-anchors* — the `Seam Lineage` locus plus backticked
    `path::Symbol` tokens in Proposed Solution / Implementation Plan — and

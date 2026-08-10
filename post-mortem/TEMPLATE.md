@@ -139,7 +139,12 @@ anything.
   precursor, read from
   `<RDR_EVIDENCE>/<rdr-slug>/evidence/<lens>/`. Values:
   `grounding | 3amigo | critique | repeatability |
-  repeatability-lite | cove | none | n/a-no-lens-run`.
+  repeatability-lite | cove | propose-premortem | none |
+  n/a-no-lens-run`. `propose-premortem` is Stage 2's
+  hardened critic (read from
+  `evidence/propose-premortem/`), not a pre-lock lens —
+  listed so the Lens miss note can say
+  `none (propose-premortem ran clean)`.
   `repeatability` and `repeatability-lite` are distinct
   (different lens strength) — `run-1.md`'s header
   `variant: lite|full` line settles which ran. If more
