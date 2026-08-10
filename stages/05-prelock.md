@@ -131,8 +131,14 @@ directly under `…/evidence/<lens>/` (that loose set *is* iteration 1).
 - `…/evidence/cove/` → `findings.md`
 
 The resolve half *reads* the lens's `{EVIDENCE_DIR}` folder (the consolidation /
-findings / diff file) instead of you pasting a findings list — that folder is the
-hand-off from the review half to the fix half, both inside the one cycle.
+findings / ledger / diff file) instead of you pasting a findings list — that folder
+is the hand-off from the review half to the fix half, both inside the one cycle.
+
+**Write-only after lock.** Evidence is consumed *inside* the stage 5/6 cycle that
+wrote it and essentially never after — once the RDR reaches Final, its evidence tree
+is a **write-only archive**. Never polish, amend, re-format, or garden it post-lock:
+there is no downstream reader to benefit, and the RDR itself is the record from
+Stage 7 on. Terse-at-capture is worth it; tidy-after-the-fact is not.
 
 ## Paste this (once per lens in your profile's set)
 
