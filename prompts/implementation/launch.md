@@ -233,8 +233,8 @@ contract, validation, or future interpretation. After the suite is
 green, it runs REQ-MVV end-to-end and records the actual output in
 `<art>/coverage.md`.
 Sub-agent returns a §return-packet; verdict=NEEDS_DECISION if any
-needs-author-decision deviation, summary_50w gives green +
-mechanical-deviation count, evidence_paths cite each open deviation.
+needs-author-decision deviation, summary_50w gives green,
+evidence_paths cite each open deviation.
 If needs-author-decision deviations are non-empty, the orchestrator
 asks the user one consolidated question listing each gap with the
 sub-agent's recommendation, records the resolutions back to
@@ -251,7 +251,7 @@ those inputs against the actual implementation (the sub-agent has
 the source tree but is forbidden from reading the Phase 1 tests).
 Any actual violation gets appended to `<art>/verification.md` as a
 FAIL-N entry with the failing input and observed behaviour.
-Sub-agent returns a §return-packet (verdict=BLOCK if FAIL-N; summary_50w lists defect count, FAIL-N list one line each).
+Sub-agent returns a §return-packet (verdict=BLOCK if FAIL-N; summary_50w lists the FAIL-N entries one line each).
 
 PHASE 3b [DELEGATE to sub-agent: "Adversarial reviewer"]
 Brief: the RDR's Failure Modes section, `<art>/req-list.md`, and

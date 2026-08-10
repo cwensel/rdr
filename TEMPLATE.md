@@ -315,9 +315,14 @@ assumptions explicit.
 
 ### Capability Dependencies
 
-[For each load-bearing behavior, state whether the
-enabling capability exists now, is introduced by this
-RDR, is provided by a predecessor, or is deferred.]
+[Conditional — required whenever a load-bearing behavior
+depends on a capability not already available (introduced
+here, by a predecessor, or deferred); omit (don't
+N/A-bullet) this whole section only if every capability
+this RDR relies on already exists. For each load-bearing
+behavior, state whether the enabling capability exists
+now, is introduced by this RDR, is provided by a
+predecessor, or is deferred.]
 
 | Needed Capability | Source | Status | Spec Impact |
 | --- | --- | --- | --- |
@@ -325,10 +330,13 @@ RDR, is provided by a predecessor, or is deferred.]
 
 ### Existing Infrastructure Audit
 
-[List existing modules that overlap with proposed
-components. For each, state whether to reuse, extend,
-or replace, and name any known limit that affects the
-spec.]
+[Conditional — required whenever this RDR proposes a
+component that overlaps an existing module; omit (don't
+N/A-bullet) this whole section only if this RDR touches no
+existing infrastructure. List existing modules that
+overlap with proposed components. For each, state whether
+to reuse, extend, or replace, and name any known limit
+that affects the spec.]
 
 | Needed Capability | Existing Surface | Known Limit | Decision | Spec Impact |
 | --- | --- | --- | --- | --- |

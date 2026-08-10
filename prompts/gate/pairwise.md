@@ -25,8 +25,7 @@ explicitly listed in a *Critical Assumptions* (Method: Peer RDR) or
 Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report your TOP 3 places
 they contradict, duplicate, or leave a gap (an interaction one mentions that
 the other does not). Escalate to exhaustive enumeration only when a
-blocks-impl finding cannot be fixed without listing the rest; append an
-overflow count otherwise.
+blocks-impl finding cannot be fixed without listing the rest.
 
 ALSO check round-trip / inverse invariants. If the two RDRs describe a pair of
 operations expected to compose to identity (A emits, B consumes; encode/decode,

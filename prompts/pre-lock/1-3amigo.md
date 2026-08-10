@@ -20,20 +20,18 @@ Persona 1 — Product Manager
   Question: does this RDR actually deliver the user outcome?
   Deliverable: your TOP 5 passages where the user outcome is unclear or the
     RDR solves a different problem, severity-ranked; for each, name the
-    decision it blocks. Append a one-line count of lower-severity overflow.
+    decision it blocks.
 
 Persona 2 — Implementer
   Question: if I started coding this Monday, what would I ask in the first
     hour?
   Deliverable: your TOP 5 clarification-requests, severity-ranked, each with
-    the RDR passage that triggered it and the decision it blocks. Append a
-    one-line count of lower-severity overflow.
+    the RDR passage that triggered it and the decision it blocks.
 
 Persona 3 — QA / Tester
   Question: how do I test this? What are the pass/fail criteria?
   Deliverable: your TOP 5 tests you cannot write for lack of pass/fail
-    criteria, severity-ranked, each naming the test it prevents. Append a
-    one-line count of lower-severity overflow.
+    criteria, severity-ranked, each naming the test it prevents.
 
 Write each persona's list to {EVIDENCE_DIR} as its own file —
 persona-1-pm.md, persona-2-implementer.md, persona-3-qa.md
@@ -42,9 +40,8 @@ persona-1-pm.md, persona-2-implementer.md, persona-3-qa.md
 re-derive it).
 
 At the end, consolidate: which passages appeared under two or more personas?
-Those are the highest-priority rewrites — list the top 2–4 only, plus an
-overflow count. Write that to {EVIDENCE_DIR}/consolidation.md — the file
-Stage 6 reads.
+Those are the highest-priority rewrites — list the top 2–4 only. Write that
+to {EVIDENCE_DIR}/consolidation.md — the file Stage 6 reads.
 ```
 
 ## Expected signal
