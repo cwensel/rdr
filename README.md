@@ -316,10 +316,14 @@ that improve the RDR authoring process itself.
 - After a reverted RDR — understand why the plan failed
 - Periodically across multiple post-mortems — synthesize cross-cutting findings into a SYNTHESIS.md
 
+The post-mortem is **required**, not advisory, on an Implemented, Reverted, or Abandoned RDR.
+
 **Key sections:**
 
 - **Implementation vs. Plan** — what matched, what diverged, what was added, what was skipped
 - **Drift Classification** — categorize divergences to enable pattern analysis across RDRs
+- **Escaped-Defect Ledger** — per-finding escape record consolidated from `triage.md` + the pre-lock lens evidence,
+  feeding per-stage miss rates and per-lens false-positive rates
 - **Key Takeaways** — actionable, generalizable, evidence-based improvements to the RDR process
 
 Implementation artifacts should classify deviations before post-mortem synthesis. This is the same taxonomy the

@@ -101,6 +101,15 @@ resumable gate.
 RDR's status (Implemented | Reverted | Abandoned | Superseded) and write the
 post-mortem ([`../post-mortem/TEMPLATE.md`](../post-mortem/TEMPLATE.md)).
 
+**The post-mortem is required**, not optional, on Implemented | Reverted |
+Abandoned — write it at Close as `NNNN-slug-postmortem.md`, a sibling of the
+RDR. Its Drift Classification and Escaped-Defect Ledger consolidate records
+that already exist — `<art>/deviations.md` (the deviation taxonomy) and
+`<art>/triage.md` (carrying `odc-type`/`odc-trigger` per finding), plus the
+pre-lock lens evidence folders. Writing it is consolidation, not fresh
+archaeology; Close is also the only point where both the lens evidence and the
+implementation artifacts are reachable at once.
+
 **Also drain the kata tracker.** Close every open `kind:rdr-tracked` kata whose
 `tracks: cli/NNNN` comment names this RDR (`kata close <id> --reason done`) —
 after confirming the defect actually resolves; if it survives, leave the kata

@@ -102,6 +102,62 @@ exists). This enables incremental synthesis updates.]
 
 ---
 
+## Escaped-Defect Ledger
+
+One row per finding in the implementation's
+`<art>/triage.md`, enriched with the two fields triage
+cannot assign (at triage time the lens evidence is in
+another repo, out of reach). Findings pre-filtered at
+triage as `n/a-not-a-defect` (Phase-1 intentionally-RED
+test findings) are excluded.
+
+| Finding | odc-type | odc-trigger | Expected-catching stage | Precursor lens | Escape distance |
+| --- | --- | --- | --- | --- | --- |
+| | | | | | |
+
+**Lens miss note**: if a lens ran and returned clean but
+the defect escaped anyway, write the cell as
+`none (lens X ran clean)` — that separates "no lens
+covered it" from "the right lens ran and missed it",
+which is what makes per-lens false-positive rates mean
+anything.
+
+- **odc-type** / **odc-trigger** — copied verbatim from
+  `<art>/triage.md`, which carries them per finding; not
+  re-derived here.
+- **Expected-catching stage** — which stage should have
+  caught it. Closed vocabulary: `2-propose | 3-refine |
+  4-resolve | 5-prelock | 6-reconcile | 7-finalize |
+  7.1-cluster-reconcile | 8-implement |
+  none-escaped-by-design | pre-existing-not-this-rdr`.
+  The last two are not misses: `none-escaped-by-design`
+  = the RDR specified the blind spot (cite the
+  REQ/section); `pre-existing-not-this-rdr` = it
+  reproduces at merge-base, so no stage of this RDR
+  could have caught it.
+- **Precursor lens** — which pre-lock lens raised a
+  precursor, read from
+  `<RDR_EVIDENCE>/<rdr-slug>/evidence/<lens>/`. Values:
+  `grounding | 3amigo | critique | repeatability |
+  repeatability-lite | cove | none | n/a-no-lens-run`.
+  `repeatability` and `repeatability-lite` are distinct
+  (different lens strength) — `run-1.md`'s header
+  `variant: lite|full` line settles which ran. If more
+  than one lens raised a precursor, list all that apply,
+  comma-separated. On a foundational RDR grounding runs
+  as Step 0 inside cove and its evidence lands in the
+  cove folder — attribute `grounding` when the finding
+  is a grounding-class claim, `cove` otherwise.
+- **Escape distance** — stages between the
+  expected-catching stage and stage 8 (expected at
+  `2-propose` but reached implementation = 6; expected
+  at `8-implement` = 0). `none-escaped-by-design` and
+  `pre-existing-not-this-rdr` get `n/a`. It weights
+  findings by how far they travelled, so cost is
+  comparable across RDRs rather than counted flat.
+
+---
+
 ## RDR Quality Assessment
 
 ### What the RDR Got Right
