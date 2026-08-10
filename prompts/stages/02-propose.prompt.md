@@ -160,21 +160,29 @@ Read the Problem Statement and Context, then:
    carries decoy statuses), excluding this RDR. Grep each peer for each
    anchor/literal, whole-token match. **FIRE** = a peer shares a modify-anchor
    or a contract literal AND neither RDR cites the other (`NNNN` or slug,
-   either direction). On fire, PAUSE — do not hand off to refine: put the joint
-   question to the user (hoist the joint decision to the consumer's
-   umbrella-decision record — e.g. an RFD — as its single normative home,
-   cite-don't-restate; or declare the shared interface in both RDRs) before
-   first lock. A fire is detection, not demotion: the siblings proceed under
-   recorded tolerance once the joint decision has a home. Report the verdict
-   either way (fired on NNNN / N peers checked, none).
+   either direction).
+   **Record the verdict in Decision Rationale — fire or not** — one greppable
+   line beside `Premortem:`, closed vocabulary:
+   `Joint-check: clear (N peers) | fired → NNNN[, NNNN] (home: <home> | OPEN)`.
+   Unwritten = *did not run*: absence reopens propose, since a later session
+   can't tell a skipped gate item from a passed one.
+   On fire, PAUSE — emit §stop-packet `stopped:joint-decision:<the joint
+   question>` and WAIT. This is a human-judgment fork, not a gate failure to
+   report and move past: name the peer RDR(s) and both answers — hoist to the
+   consumer's umbrella-decision record (e.g. an RFD) as the single normative
+   home, cite-don't-restate; or declare the shared interface in both RDRs.
+   Don't choose for the user, and don't close as if the stage finished. A fire
+   is detection, not demotion: siblings proceed under recorded tolerance once
+   the joint decision has a home.
    **Bridge sub-check** — Cluster members only, behind the tandem barrier
    (all members' plans exist, so a scheduled deletion is decidable). When this
    RDR's Implementation Plan introduces a surface a sibling's plan schedules
    for deletion/replacement — cues `bridge`, `retire`, `replace` (stem match,
    in either plan; NOT `supersede`, which overwhelmingly claims lineage over
    prior closed RDRs and would false-fire), cross-referenced with Cluster
-   membership and the joint decision's named home if one exists — PAUSE and
-   put the choice to the user: **(a) skip to end-state** — implement the
+   membership and the joint decision's named home if one exists — PAUSE
+   (§stop-packet `stopped:bridge-choice:<the choice>`) and WAIT on the user
+   for: **(a) skip to end-state** — implement the
    sibling's replacement directly, or reorder shipping; **(b) build the
    bridge under the `Transient` marker** (TEMPLATE.md Normative Contracts) —
    spec treatment matched to its lifespan. Record the choice where it is

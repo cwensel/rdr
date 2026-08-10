@@ -345,7 +345,9 @@ that affects the spec.]
 
 [Why this approach over alternatives. Key factors,
 how it addresses the problem, why alternatives were
-ruled out.]
+ruled out. Closes with Stage 2's two greppable verdict
+lines — `Premortem:` and `Joint-check:` — whose absence
+means the check never ran.]
 
 ## Alternatives Considered
 

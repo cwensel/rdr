@@ -44,7 +44,11 @@ Claude: /rdr-propose <NNNN>
 3. **Run the joint-decision check** (the prompt's final step — it needs the
    freshly written draft): grep every open peer under `$RDR_RECORDS` for this
    RDR's modify-anchors / contract literals; a shared whole-token hit with zero
-   cross-citation FIRES and pauses propose (mechanics live in the prompt step).
+   cross-citation FIRES (mechanics live in the prompt step). Either way write
+   the `Joint-check:` line into Decision Rationale — unwritten reads as *never
+   ran*. A fire is a **human-judgment fork**: emit §stop-packet
+   `stopped:joint-decision:…`, put both answers and the peer RDRs to the user,
+   and **wait** — don't close the stage as done.
 
 ## Review gate (Stage `02-propose.md`)
 
@@ -57,10 +61,13 @@ Claude: /rdr-propose <NNNN>
 - The chosen approach solves the *user's* problem; the premortem ran in its
   profile's form (paragraph, or the draft-free critic at `large`/`foundational`)
   and the `Premortem:` verdict line is recorded in Decision Rationale.
-- The joint-decision check ran against all open peers; any fire was paused on,
-  not advanced over. In a Cluster, the bridge sub-check's (a) skip-to-end-state /
-  (b) `Transient`-marker choice was surfaced and answered when its cues were
-  present — an unanswered choice does not advance.
+- The joint-decision check ran against all open peers and its `Joint-check:`
+  verdict line is recorded in Decision Rationale (absent line = did not run —
+  re-run it; a skipped gate item must not read as a passed one). Any fire was
+  paused on and answered by the user, not advanced over. In a Cluster, the
+  bridge sub-check's (a) skip-to-end-state / (b) `Transient`-marker choice was
+  surfaced and answered when its cues were present — an unanswered choice does
+  not advance.
 - Load-bearing assumptions named (Pending is fine) — Stage 4's worklist.
 - Technical Design proportionate — enough to commit, not a full implementation.
 
@@ -74,10 +81,10 @@ Claude: /rdr-propose <NNNN>
   batch ordering).
 - A surfaced contradiction is a real design hole → iterate this stage (re-run
   `/rdr-propose NNNN`) before refining.
-- A joint-decision fire pauses the handoff (close packet: `Gate: NOT READY`,
-  naming this check): Next is the joint question to the user — hoist to the
-  consumer's umbrella-decision record (e.g. an RFD), cite-don't-restate, or
-  declare the shared interface in both RDRs — not `/rdr-refine`.
+- A joint-decision fire stops the stage (`Gate: stopped:joint-decision`): Next
+  is the user's answer, not a command — hoist to the consumer's
+  umbrella-decision record (e.g. an RFD), cite-don't-restate, or declare the
+  shared interface in both RDRs. Never `/rdr-refine` with the fire open.
 - A bridge sub-check answer routes the handoff: choice (a) skip to end-state →
   iterate this stage (re-run `/rdr-propose NNNN` — the plan changed); choice (b)
   → the `Transient` marker is recorded in the bridge's contract block, proceed

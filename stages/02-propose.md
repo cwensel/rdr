@@ -57,8 +57,10 @@ Clusters; extend the same discipline to any batch of sibling seeds.
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Did the joint-decision check run, and was any fire paused on?** The prompt's
   final step greps every open peer for shared modify-anchors / contract literals
-  with zero cross-citation (mechanics live there); a fire PAUSES propose before
-  refine. A fire advanced over silently → re-run.
+  with zero cross-citation (mechanics live there) and records a `Joint-check:`
+  line in Decision Rationale either way. No such line → it did not run, re-run
+  it (a skipped gate item must not read as a passed one). A fire PAUSES propose
+  before refine, as a user question — advanced over silently → re-run.
 - **Was the bridge question surfaced and answered when its cues were present?**
   Behind the tandem barrier, a plan-introduced surface a Cluster sibling
   schedules for deletion puts the (a) skip-to-end-state / (b) `Transient`-marker
@@ -109,9 +111,11 @@ not advance), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
 left in those two sections. If the accretion gate fired (≥2 prior point-fixes),
 the undecided contract is named and the profile is floored to `foundational`.
-If the joint-decision check fired, the joint decision has a named home — the
-consumer's umbrella-decision record (e.g. an RFD), or the shared interface
-declared in both RDRs — an open fire does not advance. If the RDR declares a
+The `Joint-check:` verdict line is recorded in Decision Rationale (its absence
+does not advance — it means the check never ran). If it fired, the joint
+decision has a named home — the consumer's umbrella-decision record (e.g. an
+RFD), or the shared interface declared in both RDRs — an open fire does not
+advance. If the RDR declares a
 `Cluster`, every member has completed propose before any member advances to
 refine (the tandem barrier — see TEMPLATE.md `Cluster`), and an open bridge
 choice — (a) skip to end-state / (b) `Transient` marker — does not advance.
