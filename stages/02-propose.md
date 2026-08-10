@@ -20,7 +20,16 @@ the skill.
 resume point). **Produces**: the RDR's *Proposed Solution* + *Alternatives
 Considered* + *Decision Rationale* + the design-body (*Investigation* +
 *Implementation Plan* phases at design altitude) + a `Pending` Critical
-Assumptions list, written into the draft.
+Assumptions list, written into the draft — plus the **joint-decision check's
+verdict** (fired on a peer / no fire), reported in the close packet.
+
+The joint-decision check is propose-time *triage*, not reconciliation: a cheap
+lexical pass at the one moment switching is free. Stage 7.1's
+tolerate-then-reconcile doctrine stands — cross-RDR inconsistency is still
+tolerated during per-RDR work and reconciled semantically once, per cluster
+(see [07.1](07.1-cluster-reconcile.md) *Why a gate, not a per-RDR step*, and
+its "Related" definition under *When it fires*). This check only stops two
+open RDRs from silently coupling on the same decision before either locks.
 
 ## Review gate
 
@@ -36,6 +45,10 @@ Assumptions list, written into the draft.
 - **Was the sibling-path check exhibited?** For any new discriminator, heuristic,
   switch case, or identity rule, confirm a grep for an existing sibling path was
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
+- **Did the joint-decision check run, and was any fire paused on?** The prompt's
+  final step greps every open peer for shared modify-anchors / contract literals
+  with zero cross-citation (mechanics live there); a fire PAUSES propose before
+  refine. A fire advanced over silently → re-run.
 - **Were real alternatives weighed?** One option, or strawmen, means the
   choice isn't earned — re-run asking for distinct, defensible options.
 - **Was prior art read *before* the approaches?** Order matters — an LLM that
@@ -73,5 +86,10 @@ Critical Assumptions list exists (Pending is fine), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
 left in those two sections. If the accretion gate fired (≥2 prior point-fixes),
 the undecided contract is named and the profile is floored to `foundational`.
+If the joint-decision check fired, the joint decision has a named home — the
+consumer's umbrella-decision record (e.g. an RFD), or the shared interface
+declared in both RDRs — an open fire does not advance. If the RDR declares a
+`Cluster`, every member has completed propose before any member advances to
+refine (the tandem barrier — see TEMPLATE.md `Cluster`).
 
 → Next: [03-refine.md](03-refine.md)

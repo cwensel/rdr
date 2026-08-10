@@ -94,6 +94,24 @@ Read the Problem Statement and Context, then:
      over-specified; that detail fills at Resolve/Pre-Lock.
    Leave Testing Strategy and Performance Expectations as placeholders —
    Resolve owns those, after the assumptions they lean on are verified.
+7. **Joint-decision check — runs last, on the written proposal.** Catch two
+   open RDRs coupling on one decision while switching is still free. From THIS
+   RDR collect *modify-anchors* — the `Seam Lineage` locus plus backticked
+   `path::Symbol` tokens in Proposed Solution / Implementation Plan — and
+   *contract literals* — backticked error/rule codes, flag/field names, exit
+   codes, sentinels in or near its ```normative fences. Open peers = `*.md` at
+   depth 1 of `$RDR_RECORDS` (never recurse) whose FIRST `- **Status**:` value
+   starts with `Draft` or `Final` (prefix match; the template's Status comment
+   carries decoy statuses), excluding this RDR. Grep each peer for each
+   anchor/literal, whole-token match. **FIRE** = a peer shares a modify-anchor
+   or a contract literal AND neither RDR cites the other (`NNNN` or slug,
+   either direction). On fire, PAUSE — do not hand off to refine: put the joint
+   question to the user (hoist the joint decision to the consumer's
+   umbrella-decision record — e.g. an RFD — as its single normative home,
+   cite-don't-restate; or declare the shared interface in both RDRs) before
+   first lock. A fire is detection, not demotion: the siblings proceed under
+   recorded tolerance once the joint decision has a home. Report the verdict
+   either way (fired on NNNN / N peers checked, none).
 
 Surface, but do not resolve, the load-bearing assumptions the chosen approach
 depends on — list them in Critical Assumptions as Status: Pending with a

@@ -35,6 +35,10 @@ Claude: /rdr-propose <NNNN>
    art found → an explicit `⚠ no prior-art coverage` line. **`large`/`foundational`
    also build a scored Questions-Options-Criteria matrix** so the choice falls out
    of an explicit comparison, not prose.
+3. **Run the joint-decision check** (the prompt's final step — it needs the
+   freshly written draft): grep every open peer under `$RDR_RECORDS` for this
+   RDR's modify-anchors / contract literals; a shared whole-token hit with zero
+   cross-citation FIRES and pauses propose (mechanics live in the prompt step).
 
 ## Review gate (Stage `02-propose.md`)
 
@@ -46,6 +50,8 @@ Claude: /rdr-propose <NNNN>
 - `large`/`foundational`: the choice falls out of a scored Q-O-C matrix, not prose.
 - The chosen approach solves the *user's* problem; the premortem ran and the choice
   survived it.
+- The joint-decision check ran against all open peers; any fire was paused on,
+  not advanced over.
 - Load-bearing assumptions named (Pending is fine) — Stage 4's worklist.
 - Technical Design proportionate — enough to commit, not a full implementation.
 
@@ -55,4 +61,8 @@ Claude: /rdr-propose <NNNN>
 - `Next: /rdr-refine NNNN` — remove contradiction, redundancy, bloat.
 - A surfaced contradiction is a real design hole → iterate this stage (re-run
   `/rdr-propose NNNN`) before refining.
+- A joint-decision fire pauses the handoff (close packet: `Gate: NOT READY`,
+  naming this check): Next is the joint question to the user — hoist to the
+  consumer's umbrella-decision record (e.g. an RFD), cite-don't-restate, or
+  declare the shared interface in both RDRs — not `/rdr-refine`.
 - `/rdr-status NNNN` to re-orient.

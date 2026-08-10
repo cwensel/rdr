@@ -94,6 +94,13 @@ instance body). -->
     establishing the distinct seams>.` Absent that line, the
     floor stands. Co-locating count and escape keeps the
     override reviewable beside its evidence.]
+- **Cluster**: [Optional — omit if this RDR stands alone.
+  Comma-separated `NNNN-slug` of sibling RDRs deliberately
+  proposed in tandem; declare the same set in every member.
+  Declaring it mechanically constrains the Stage 2 gate:
+  all members complete propose before any member advances
+  to refine (the tandem barrier — the joint-decision check
+  then sees the whole set).]
 
 ## Problem Statement
 
