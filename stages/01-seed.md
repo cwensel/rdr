@@ -69,4 +69,8 @@ The Draft exists, conforms to the template skeleton, its Problem Statement
 is a reviewable user-outcome statement with no solution baked in, and the RDR
 home's README index carries a Draft row for it.
 
+Seeding a batch of sibling RDRs? Finish seeding, then **propose every sibling
+before any refines** — the joint-decision check compares written proposals, and
+bare seeds are invisible to it (see [02-propose.md](02-propose.md)).
+
 → Next: [02-propose.md](02-propose.md)

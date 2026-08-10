@@ -166,7 +166,10 @@ List in-flight RDRs: glob the RDR dir, read each `**Status**:` line, and report
 every RDR whose Status is `Draft`/`Draft [revised…]` (and any `Final` not yet
 `Implemented`) as one line — `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
 Skip `Implemented`/`Demoted`/`Abandoned`/`Superseded`. Keeps the standing
-worklist visible without opening each RDR.
+worklist visible without opening each RDR. When several listed Drafts are
+pre-propose siblings, recommend proposing **all** of them before any refines —
+breadth-first keeps joint-decision fires against still-fluid drafts
+(stages/02-propose.md, batch ordering).
 
 ## Self-update
 

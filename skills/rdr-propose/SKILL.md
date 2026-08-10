@@ -68,6 +68,10 @@ Claude: /rdr-propose <NNNN>
 
 - If autocommit is on, run **§commit** for `propose` first (see the rdr-common table).
 - `Next: /rdr-refine NNNN` — remove contradiction, redundancy, bloat.
+- Sibling seeds still unproposed? Recommend *their* `/rdr-propose` before this
+  RDR refines — each successive propose greps peers still in Draft, keeping any
+  joint-decision fire in the free-switching window (stages/02-propose.md,
+  batch ordering).
 - A surfaced contradiction is a real design hole → iterate this stage (re-run
   `/rdr-propose NNNN`) before refining.
 - A joint-decision fire pauses the handoff (close packet: `Gate: NOT READY`,

@@ -58,5 +58,8 @@ Claude: /rdr-seed <kata-id | "one-line idea">
 
 - If autocommit is on, run **§commit** for `seed` first over `$RDR_PATH` + `$RDR_RECORDS/README.md` (the new index row).
 - `Next: /rdr-propose NNNN` — enumerate approaches, choose one, premortem it.
+- Seeded a batch of siblings? Propose them **all** before any refines — the
+  joint-decision check compares written proposals; bare seeds are invisible to
+  it (stages/02-propose.md, batch ordering).
 - Demoted → done (refiled as an issue).
 - `/rdr-status NNNN` to re-orient.

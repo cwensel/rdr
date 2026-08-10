@@ -33,6 +33,14 @@ tolerated during per-RDR work and reconciled semantically once, per cluster
 its "Related" definition under *When it fires*). This check only stops two
 open RDRs from silently coupling on the same decision before either locks.
 
+**Order a seeded batch breadth-first: propose every sibling before any
+refines.** The check collects anchors from *this* RDR's written proposal and
+greps peers' bodies — a bare seed has no anchors to collide with, so
+depth-first (one RDR seed→Final at a time) blinds the early checks and lands
+any late fire against locked text, where the fix is a recorded tolerance
+instead of free switching. The tandem barrier enforces this order for declared
+Clusters; extend the same discipline to any batch of sibling seeds.
+
 ## Review gate
 
 - **Was the seed still current?** Confirm step 0 ran — stale references/scope
