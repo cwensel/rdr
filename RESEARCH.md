@@ -336,7 +336,7 @@ high-accretion loci.
 
 **Bounded review output is the cost lever, not exhaustive findings.** The
 pre-lock 3amigo lens emits a capped set (top-N per persona, severity-ranked, each
-naming the decision it blocks, plus an overflow count) and the pairwise cross-RDR
+naming the decision it blocks) and the pairwise cross-RDR
 check emits top-N per *peer* pair only, exhaustive only when a blocks-implementation
 finding demands it. The case against "list every passage": a transcript where the
 parent already held the relevant RDR sections, then re-read line ranges and
@@ -346,6 +346,13 @@ decision-utility: an unbounded list maximizes findings, not the next decision. T
 same non-monotone-returns caution (Chen et al. above) applies — more redundant
 output past the point a decision is made does not improve it. Finiteness of the
 attention budget is the constraint (Anthropic, *Effective context engineering*, §3).
+The corollary the lenses were later swept for: **a cap bounds output, a count merely
+describes it.** The caps stay; the overflow counts beside them (3amigo's per-persona
+and consolidation counts, pairwise's, and the deviation/defect counts in two
+`summary_50w` descriptions) were removed once a sweep confirmed no consumer read
+one — every downstream branch keys off `verdict=` and `evidence_paths`. Emitting a
+number nothing reads is pure cost, and by Shi et al. (below) it is also a small
+correctness tax on whatever *does* read the packet.
 
 **Research is bounded by query/hit budgets plus a stop rule and a reused
 citation cache.** Propose runs ≤3 queries / ≤5 hits per claim, Resolve ≤4 / ≤6 per
@@ -378,21 +385,43 @@ and re-fetched by the parent.
   is the cost lever against verbose or under-specified returns — rejecting one
   costs a re-ask, never a second full pass. arXiv 2503.13657 (cited in full above).
 
-### Instance conditionality & resume cost
+### Instance conditionality, section order & resume cost
 
 **Drives**: the section-class legend (Required / Conditional / Reference-only) and
-delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md), the surviving-bracket BLOCK in
+delete-not-blank rule in [`TEMPLATE.md`](TEMPLATE.md) (with *Capability Dependencies*
+and *Existing Infrastructure Audit* demoted to Conditional under cues naming when each
+is required), the **section order** of `TEMPLATE.md` (Critical Assumptions promoted to
+top-level directly after Problem Statement; Context and Research Findings demoted to the
+middle band), the birth of the Finalization Gate's five responses as an
+`{ARTIFACT_DIR}/gate.md` side file with the RDR carrying only a pointer, the
+surviving-bracket BLOCK in
 [`prompts/gate/tooling-pass.md`](prompts/gate/tooling-pass.md) CHECK 1, the
 [`skills/rdr-common.md`](skills/rdr-common.md) `§no-heartbeat` resume doctrine, and
 the fixed `status.md` resume capsule read first by
 [`prompts/implementation/launch.md`](prompts/implementation/launch.md) and `$rdr-status`.
 
 - **Liu, Lin, Hewitt, Paranjape, Bevilacqua, Petroni & Liang (2023), *Lost in the
-  Middle: How Language Models Use Long Contexts*, TACL** — retrieval is highest when
-  relevant content sits at the start, degrading sharply when buried mid-context. Every
-  inert section copied into an instance pushes the load-bearing spine deeper, so cutting
-  conditional prose is a *reliability* gain, not only a token saving. arXiv 2307.03172 —
+  Middle: How Language Models Use Long Contexts*, TACL** — retrieval follows a
+  **U-shaped curve**: highest when the relevant content sits at the start *or the end*
+  of the context, degrading sharply when buried mid-context. Two applications. **Volume**:
+  every inert section copied into an instance pushes the load-bearing spine deeper, so
+  cutting conditional prose is a *reliability* gain, not only a token saving. **Position**:
+  where a section sits is itself load-bearing, so the template puts the contract-bearing
+  sections at the document's edges and demotes the narrative residue (Context, Research
+  Findings — read once during authoring, rarely by the implementer) into the middle band
+  the curve says is weakest. Ordering is a free reliability lever: no words are cut, so it
+  composes with, rather than competes against, the volume cuts above. arXiv 2307.03172 —
   <https://arxiv.org/abs/2307.03172>
+- **Sinha, Arun, Goel, Staab & Geiping (2025), *The Illusion of Diminishing Returns:
+  Measuring Long Horizon Execution in LLMs*, ICLR 2026** — the **self-conditioning**
+  failure mode: a model conditioned on its *own* prior output errs more on the steps that
+  follow, and larger models are not immune. An RDR that carries its own generated
+  by-products — inlined gate responses, spent scaffolding — feeds them back as context on
+  every later stage that re-reads the instance. This is the reliability argument (beyond
+  token cost) for the gate's responses being *born* in an `{ARTIFACT_DIR}/gate.md` side
+  file rather than inlined and later extracted, and for demoting authoring residue out of
+  the spine instead of letting it accumulate at the top. arXiv 2509.09677 —
+  <https://arxiv.org/abs/2509.09677>
 - **Shi, Chen, Misra, Scales, Dohan, Chi, Schärli & Zhou (2023), *Large Language Models
   Can Be Easily Distracted by Irrelevant Context*, ICML** — irrelevant in-context text
   measurably drops task accuracy; the implementation prompt must otherwise spend
@@ -415,17 +444,26 @@ the fixed `status.md` resume capsule read first by
   The pressure was observed directly — a memory index nearing its read limit, and
   output-channel degradation that made full-status re-reads expensive.
 
-### Pairwise / cross-RDR consistency (Stage 7.1)
+### Pairwise / cross-RDR consistency (Stage 7.1 and the propose-time check)
 
 **Drives**: [`prompts/gate/pairwise.md`](prompts/gate/pairwise.md), dispatched at
-[`stages/07.1-cluster-reconcile.md`](stages/07.1-cluster-reconcile.md).
+[`stages/07.1-cluster-reconcile.md`](stages/07.1-cluster-reconcile.md); and the
+propose-time **joint-decision check** in
+[`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md) — a cheap
+lexical scan of the fresh RDR against all open peers that FIREs on a shared
+modify-anchor or contract literal with zero cross-citation and PAUSEs before Refine to
+hoist the joint question, with the optional `Cluster` field and tandem barrier in
+[`TEMPLATE.md`](TEMPLATE.md).
 
 - **Finkelstein, Gabbay, Hunter, Kramer & Nuseibeh (1994), *Inconsistency
   Handling in Multiperspective Specifications*, IEEE TSE 20(8)** — the viewpoints
   tradition: tolerate inconsistency between views during work, and reconcile it
   at *chosen* points rather than enforcing global consistency as a precondition.
   This is exactly how the flow defers cross-RDR drift to Stage 7.1 instead of
-  gating every per-RDR edit on it. DOI 10.1109/32.310667 —
+  gating every per-RDR edit on it. The propose-time check does not overturn that
+  deferral — it adds a *second chosen point*, at the one moment the choice is still
+  cheap: it detects the overlap and names the joint question, but resolves nothing,
+  leaving reconciliation where the viewpoints argument puts it. DOI 10.1109/32.310667 —
   <https://doi.org/10.1109/32.310667>
   (open PDF: <https://www.finkelstein.live/papers/tse94.esec.pdf>)
 - **Nentwich, Capra, Emmerich & Finkelstein (2002), *xlinkit: A Consistency
@@ -436,8 +474,19 @@ the fixed `status.md` resume capsule read first by
 - **Liu, Wang & Zhai (2025), *A Hybrid Framework for Inconsistency Detection in
   Diversity Requirements: Combining Multi-Graph Merging and LLM*, QRS 2025** —
   contemporary LLM-assisted cross-spec inconsistency detection; cited as the
-  Pairwise lens's modern anchor. DOI 10.1109/QRS65678.2025.00014 —
+  Pairwise lens's modern anchor. Its hybrid split — cheap rule-based analysis paired
+  with LLM linguistic understanding rather than either alone — is also the shape of the
+  two-tier cross-RDR surface here: a whole-token lexical scan cheap enough to run on
+  *every* propose, and the full semantic pairwise read reserved for Stage 7.1.
+  DOI 10.1109/QRS65678.2025.00014 —
   <https://doi.org/10.1109/QRS65678.2025.00014>
+- **The propose-time trigger is internally grounded.** What the check fires on (a shared
+  modify-anchor or contract literal with no cross-citation) and its placement at propose
+  come from this project's own incident record, not from a paper: a real RDR pair whose
+  shared decision the flow surfaced only five finalize-gate iterations later, replayed
+  against the pair's propose-stage snapshot to confirm the check fires there, with a
+  4-draft probe at HEAD returning zero false fires. Recorded as operational doctrine in
+  the §1 manner — project-internal evidence, no fabricated citation.
 
 ### Reconcile gate (Stage 6) — residual-risk closure
 
@@ -481,6 +530,45 @@ the fixed `status.md` resume capsule read first by
   a defect, and the tooling pass no longer blocks on it. This is operational
   doctrine grounded in project transcripts (§1), not a published source.
 
+### Escape measurement & the findings ledgers
+
+**Drives**: the *Escaped-Defect Ledger* in
+[`post-mortem/TEMPLATE.md`](post-mortem/TEMPLATE.md) (one row per triage finding:
+odc-type / odc-trigger / expected-catching stage / precursor lens / escape distance),
+the post-mortem's promotion from advisory to **required** at Stage 8 Close
+([`stages/08-implement.md`](stages/08-implement.md)), and the Step 6 `C-N` findings
+ledger the Critique lens writes at the top of `critique.md`
+([`prompts/pre-lock/2-critique.md`](prompts/pre-lock/2-critique.md)), consumed as the
+origin ledger by
+[`prompts/stages/05-prelock-resolve.prompt.md`](prompts/stages/05-prelock-resolve.prompt.md).
+
+- **Fagan (1986), *Advances in Software Inspections*, IEEE TSE SE-12(7)** — the second
+  half of inspection that the 1976 paper's defect-finding half is usually quoted without:
+  inspection data is only worth collecting if it *feeds back* into the process that
+  injected the defects, which requires knowing where each defect was injected and where
+  it should have been caught. This is exactly the escape ledger's two hand-assigned
+  columns; the taxonomy columns beside them are ODC (Chillarege et al., above), whose
+  purpose is likewise in-process measurement rather than post-hoc cataloguing. Close is
+  the only point where both the pre-lock lens evidence and the implementation artifacts
+  are reachable, so it is where the two are joined. DOI 10.1109/TSE.1986.6312976 —
+  <https://doi.org/10.1109/TSE.1986.6312976>
+- **Sabaliauskaite (2004), *Investigating Defect Detection in Object-Oriented Design and
+  Cost-Effectiveness of Software Inspection*, PhD thesis** — treats the **false-positive rate**
+  as a first-class per-technique cost, not noise: a reading technique is scored by what it
+  costs as well as what it catches. The reason the escape ledger separates
+  `none` (no lens covered it) from `none (lens X ran clean)` — only that distinction makes
+  a per-lens false-positive rate mean anything, and only per-lens rates can justify
+  retiring a lens from the applicability matrix.
+- **Ledger-indexes-prose, not ledger-replaces-prose** — the Critique lens's `C-N` table
+  indexes the sections above it; nothing is cut. This is an *internally-grounded*
+  decision, not paper-backed: a corpus read of 197 critique files (530k words) under
+  `$RDR_EVIDENCE` found 10 of 15 resolution files already transcribing the prose into a
+  table by hand, so the waste was transcription rather than verbosity — and the same
+  corpus showed the premortem and acceptance-test sections (35% of critique words, the
+  obvious cut) being cited as finding *origins*, which is why the ledger carries an
+  `Origin` column instead of the essay being capped. Recorded the same way as the
+  audit-driven template changes in §1: project-internal evidence, no fabricated citation.
+
 ### Implementation launch (Stage 8)
 
 **Drives**: [`prompts/implementation/launch.md`](prompts/implementation/launch.md), dispatched at
@@ -518,11 +606,16 @@ theme; included so an adopter can go deeper and so the provenance is complete.
 ### Software inspection & requirements engineering
 
 - Fagan (1976), *Design and code inspections to reduce errors in program
-  development*, IBM Systems Journal — the origin of formal inspection.
+  development*, IBM Systems Journal — the origin of formal inspection. Fagan (1986),
+  *Advances in Software Inspections*, IEEE TSE SE-12(7), is the process-feedback
+  sequel (load-bearing; see §2 escape measurement) — DOI 10.1109/TSE.1986.6312976.
 - Porter, Votta & Basili — see §2 (load-bearing). Porter & Votta (1994), *An
   experiment to assess different defect detection methods for software
   requirements inspections*, ICSE, is the original of the 1995 TSE replication.
-- Sabaliauskaite et al. (2002), perspective-based reading replication, ICSE.
+- Sabaliauskaite et al. (2002), perspective-based reading replication, ICSE;
+  Sabaliauskaite (2004), *Investigating Defect Detection in Object-Oriented Design and
+  Cost-Effectiveness of Software Inspection*, PhD thesis — false-positive rate as a
+  per-technique cost (load-bearing; see §2 escape measurement).
 - Fogelström & Gorschek (2007), inspection economics.
 - Rigby (2013), *Convergent Contemporary Software Peer Review Practices*.
 - van Lamsweerde & Letier (2000), *Handling Obstacles in Goal-Oriented
@@ -560,7 +653,10 @@ theme; included so an adopter can go deeper and so the provenance is complete.
 ### Context use, cost & agent orchestration
 
 - Liu et al. (2023), *Lost in the Middle: How Language Models Use Long Contexts*,
-  TACL — arXiv 2307.03172 (load-bearing; see §2 instance conditionality).
+  TACL — arXiv 2307.03172 (load-bearing; see §2 instance conditionality & section order).
+- Sinha, Arun, Goel, Staab & Geiping (2025), *The Illusion of Diminishing Returns:
+  Measuring Long Horizon Execution in LLMs*, ICLR 2026 — arXiv 2509.09677; the
+  self-conditioning failure mode (load-bearing; see §2 instance conditionality).
 - Shi et al. (2023), *Large Language Models Can Be Easily Distracted by Irrelevant
   Context*, ICML — arXiv 2302.00093.
 - AgentStop — terminating idle local agents early to cut token/energy overhead;

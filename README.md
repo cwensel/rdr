@@ -105,6 +105,17 @@ This README is the cross-project **process manual** for authoring RDRs: the
 workflow, finalization gate, pre-lock review rounds, and post-mortem process
 below apply to every project's RDRs regardless of which index lists them.
 
+Each part of it is there for a reason that is written down. [RESEARCH.md](RESEARCH.md) is the citation record: §2 maps
+every load-bearing element — each review round, the Evidence Record, the gate — to the source that justifies it, and
+says plainly where a rule rests on this project's own incident evidence rather than a paper.
+
+One consequence is visible the moment you open [TEMPLATE.md](TEMPLATE.md): **its section order is deliberate, not
+editorial.** The contract-bearing sections — Problem Statement, Critical Assumptions, then the Proposed Solution — lead,
+and the narrative sections that are read while authoring but rarely during implementation (Context, Research Findings)
+sit in the middle. Model retrieval is weakest mid-document, so an RDR is laid out to put what the implementer must not
+miss where it is most likely to be read. Keep the order when authoring; move a section only for a reason better than
+taste.
+
 ## Workflow
 
 1. **Create** (Draft) — Document problem, initial constraints, technical environment
