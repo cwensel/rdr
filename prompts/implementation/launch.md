@@ -19,7 +19,7 @@ code — and so each launch leaves file-backed artifacts the next launch
   containing this prompt). Required sections, with their TEMPLATE
   paths:
   - `## Metadata` (top-level)
-  - `## Research Findings > ### Critical Assumptions`
+  - `## Critical Assumptions` (top-level)
   - `## Proposed Solution > ### Technical Design > #### Normative Contracts`
   - `## Trade-offs > ### Failure Modes`
   - `## Validation > ### Testing Strategy`

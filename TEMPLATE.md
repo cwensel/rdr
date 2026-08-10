@@ -100,34 +100,7 @@ instance body). -->
 [What is the specific challenge or requirement?
 Refine as research deepens understanding.]
 
-## Context
-
-### Background
-
-[How was this discovered? Current behavior, impact,
-constraints.]
-
-### Technical Environment
-
-[Framework versions, dependencies, architecture,
-related components.]
-
-## Research Findings
-
-### Investigation
-
-[What was analyzed? Code, docs, source, experiments,
-standards. Cite specific locations.]
-
-### Key Discoveries
-
-[Label each finding's evidence basis:
-
-- **Verified** — confirmed by spike/POC/experiment
-- **Documented** — from official docs or source reading
-- **Assumed** — needs validation before implementation]
-
-### Critical Assumptions
+## Critical Assumptions
 
 [Required — never omit. Load-bearing assumptions — if
 wrong, the approach fails. Each must have a complete
@@ -374,6 +347,33 @@ full analysis; the `Briefly Rejected` list alone is fine.]
 ### Briefly Rejected
 
 - **[Alternative N]**: [One-sentence rejection]
+
+## Context
+
+### Background
+
+[How was this discovered? Current behavior, impact,
+constraints.]
+
+### Technical Environment
+
+[Framework versions, dependencies, architecture,
+related components.]
+
+## Research Findings
+
+### Investigation
+
+[What was analyzed? Code, docs, source, experiments,
+standards. Cite specific locations.]
+
+### Key Discoveries
+
+[Label each finding's evidence basis:
+
+- **Verified** — confirmed by spike/POC/experiment
+- **Documented** — from official docs or source reading
+- **Assumed** — needs validation before implementation]
 
 ## Trade-offs
 
