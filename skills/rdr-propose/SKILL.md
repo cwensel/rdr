@@ -1,7 +1,7 @@
 ---
 name: rdr-propose
 metadata:
-  argument-hint: <NNNN> [--commit | --no-commit]
+  argument-hint: <NNNN> [--model-ceiling <model>] [--commit | --no-commit]
 description: 'Use to move a seeded RDR from problem statement to chosen approach with alternatives weighed. Runs Stage 2 and re-validates stale seeds. Trigger for propose approach, $rdr-propose, or /rdr-propose.'
 ---
 
@@ -23,6 +23,15 @@ Claude: /rdr-propose <NNNN>
    to bind `$RDR_RESOURCES`, `RDR_PATH`. Bind `{EVIDENCE_DIR}` =
    `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/` (§evidence) — the prompt's
    `research/` and `propose-premortem/` outputs land under it.
+   **Model-adequacy warning (§model-ceiling).** Main-context propose cannot
+   bump its own model, so it warns instead: if a ceiling is configured
+   (`--model-ceiling` > `RDR_MODEL_CEILING`) AND the RDR reads heavy — `Profile`
+   `large`/`foundational`, or `Seam Lineage` ≥2 prior point-fixes (the accretion
+   floor step 0.5 will apply) — AND the session's base model is not the ceiling:
+   print `⚠ model-below-ceiling: <session-model> for a <profile> RDR (ceiling
+   <model>) — consider a <model> session, or /rdr-joint-propose NNNN …
+   --model-ceiling <model>` and **proceed** (a warning, not a stop; record it
+   on the close packet's `Deviations:` line). No ceiling configured → silent.
 2. **Run the prompt** [`02-propose.prompt.md`](02-propose.prompt.md).
    Propose owns **selection** (which approach wins, read from prior art), not
    **verification** (deep spikes / full corpora) — that stays at Resolve, by

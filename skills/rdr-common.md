@@ -395,7 +395,10 @@ the ceiling. Never spawn authoring *below* the session model — judgment-dense
 stages don't get cheaper models (mechanical extraction passes may). A stronger
 model costs more per token, not more tokens — profile-gating is the efficient
 shape; never run a whole cohort at the ceiling "to be safe." A harness without
-per-spawn model control runs at session model and notes it in the report.
+per-spawn model control runs at session model and notes it in the report. A
+main-context skill cannot bump itself — `/rdr-propose` instead **warns** when a
+configured ceiling exceeds the session model on a heavy RDR (its step 1) and
+proceeds.
 
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 
