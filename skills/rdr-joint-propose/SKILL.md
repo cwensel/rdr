@@ -28,8 +28,10 @@ packet prints this command ready to paste). Per member: §rdr-resolve; must be
 `Status: Draft` with Proposed Solution still the template placeholder
 (seeded-unproposed). Already-proposed → **skip and report** ("re-open singly:
 `/rdr-propose NNNN`" — re-proposal is a deliberate single act with the
-freshness check in play). Fewer than 2 members left → refuse (use
-`/rdr-propose`). Interrupted run → re-invoke the same list; the skip guard
+freshness check in play). Empty roster → refuse. A **single member is valid** —
+the elevation path: one heavy propose delegated at `--model-ceiling` (the
+model-adequacy fork routes here); Phase 0 degenerates to a trivial order and
+the loop runs once. Interrupted run → re-invoke the same list; the skip guard
 resumes from disk state (no `--resume`, §no-heartbeat).
 
 ## Posture — the Stage-8 delegation exception
@@ -48,8 +50,10 @@ proposal content.
 §seam-bind, then §rdr-resolve each member. Pre-order with the joint-check's own
 vocabulary (prompt step 8) pointed at seeds: per member collect modify-anchors
 (the `Seam Lineage` locus + backticked `path::Symbol` tokens — from
-Problem/Context, since Proposed Solution is placeholder) and contract literals;
-build the overlap graph. `Predecessors` metadata are hard edges — topo-sort
+Problem/Context, since Proposed Solution is placeholder) and contract literals,
+**dropping any token also backticked in `TEMPLATE.md`** (template-shipped
+literals appear in every seed and would falsely link all pairs); build the
+overlap graph. `Predecessors` metadata are hard edges — topo-sort
 those first. Within an overlap group the likely **contract owner** proposes
 first: locus *is* the shared anchor > lower-level seam > Priority > number
 order. The order is a prior, not a promise — the loop corrects it; this pass
