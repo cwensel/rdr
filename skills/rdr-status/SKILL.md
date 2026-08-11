@@ -54,7 +54,7 @@ per-slug paths above count.
 | --- | --- |
 | 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
 | 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending); `Premortem:` and `Joint-check:` verdict lines in Decision Rationale (legacy RDRs predate both — absence alone doesn't reopen propose when the sections are filled, but surface it as a Caveat naming the unrun check, since a skipped gate item otherwise reads as a passed one; a *paused* joint-decision fire or bridge choice is propose not done) |
-| 3 Refine | *human-judged, no durable artifact* — certified only by **Stage 4's product**: at least one assumption at `Status: Verified`, or `{SPIKE_DIR}` present. A `Method:`/`Evidence:` line is **not** a signal — TEMPLATE.md ships both as skeleton labels on every assumption and Stage 2 lists CAs `Pending` by design, so an all-`Pending` list means Refine is **un-run**, never done. If Stage 4 is un-run, Refine is open — say so; do not certify it from Stage-2 output (CA count, `Premortem:`/`Joint-check:` verdicts, propose evidence folders) |
+| 3 Refine | *human-judged* — certified only by **Stage 4's product**: an assumption at `Status: Verified`, or `{SPIKE_DIR}`. A `Method:`/`Evidence:` line is **not** a signal (TEMPLATE.md ships both as skeleton labels; Stage 2 lists CAs `Pending` by design) — an all-`Pending` list means Refine is un-run. Never certify it from Stage-2 output (CA count, `Premortem:`/`Joint-check:` verdicts, propose evidence) |
 | 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
@@ -97,11 +97,9 @@ or contradicts what the tree shows.
      verdicts first. Never recommend re-running a stage whose done-signal (folder
      **or** record) is already satisfied — if CAs are all `Verified`, Resolve is
      behind you and next is the first Pre-Lock lens, not `/rdr-resolve`.
-     The converse binds equally: an **open `~` stage is the next command**, not a
-     footnote to step past. Refine is the only `~` in the front half, and it is
-     certified solely by Stage 4's product — so when CAs are all `Pending`, next
-     is `/rdr-refine`, *then* `/rdr-resolve`. Passing up an un-certified Refine to
-     recommend the stage after it is the failure this rule exists to prevent.
+     The converse binds equally: an **open `~` is the next command**, not a
+     footnote to step past. Refine is the front half's only `~` — when CAs are all
+     `Pending`, next is `/rdr-refine`, *then* `/rdr-resolve`.
 2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
    footnote.** It maps to an exact base lens-set (the `$RDR_HOME/stages/README.md`
    matrix is the sole authority for base profile lenses — never reconstruct it
@@ -152,10 +150,9 @@ Be brief. Print:
    not forgotten), naming the evidence keyed on
    (e.g. `5+6 Pre-Lock  ✓ grounding  ✓ 3amigo` for a mid RDR). For `~`, name the
    downstream signal, not just the verdict
-   (`3 Refine  ~ judged done — A3/A5 Verified`); if that signal is absent the `~`
-   is genuinely open — say so and let it own **Next**
-   (`3 Refine  ~ open — CAs all Pending, Stage 4 un-run`). Never write a `~` as
-   done while naming no Stage-4 product.
+   (`3 Refine  ~ judged done — A3/A5 Verified`); if absent the `~` is open — say
+   so and let it own **Next** (`3 Refine  ~ open — CAs all Pending`). Never write
+   `~` as done while naming no Stage-4 product.
 3. **Next** — the exact command to run, e.g. `Next: /rdr-prelock 0046 critique`.
    If terminal, say so and name the disposition.
 4. **Caveats** — only genuinely-open items: a `~` gate whose downstream signal is
