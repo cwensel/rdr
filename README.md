@@ -192,9 +192,26 @@ source, framework docs, and technical papers for semantic and full-text search, 
 behind a claim without reading the whole tree. It ships Claude Code plugins and pairs directly with this flow.
 
 Every load-bearing claim in an RDR — API behavior, peer-RDR contract, byte layout, scoping decision — is recorded as a
-**Critical Assumption Evidence Record** with one of the eight Methods (Source Search | Spike | Prior Art | Derivation
-| Design Decision | Peer RDR | MVV Test | Docs Only) and a concrete Evidence pointer. The full vocabulary and the
-self-reference rule live in [TEMPLATE.md](TEMPLATE.md) under *Critical Assumptions*. Two rules of thumb:
+**Critical Assumption Evidence Record** with exactly one of the eight Methods below and a concrete Evidence pointer.
+This section is the authoritative Method vocabulary — the TEMPLATE's Evidence Record points here; guidance never ships
+inside the template body, because the template is copied verbatim to make each instance.
+
+- **Source Search** — verified against dependency source code. Evidence: a greppable `path::Symbol`
+  (function/type/const name), **not a bare `file:line`**; a commit-SHA permalink only for audit/traceability. Standard
+  for libraries.
+- **Spike** — verified by running code against a live service or fixture. Evidence: command run + path to captured
+  output.
+- **Prior Art** — same property holds in ≥1 named external system. Evidence: system + section/page.
+- **Derivation** — pure math or proof. Evidence: the derivation, shown inline.
+- **Design Decision** — a scoping choice this RDR is *making* (not *verifying*). Evidence: the decision and the
+  alternative explicitly rejected.
+- **Peer RDR** — relies on a property defined in another RDR. Evidence: RDR ID + section.
+- **MVV Test** — the property is testable via the Minimum Viable Validation, and the test is named in this RDR's
+  Validation section (pending implementation at lock time). Evidence: test name, or a named normative fixture + its
+  I/O pair (an approved I/O pair is Normative per the *Examples are contracts* rule below).
+- **Docs Only** — documentation reading alone; see the first rule below.
+
+Rules that bind every record:
 
 - **`Docs Only` is insufficient for anything load-bearing.** It is allowed only when paired with a Spike or Source
   Search plan in the Evidence line.

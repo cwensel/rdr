@@ -45,8 +45,10 @@ spike's command + output under `{SPIKE_DIR}`.
   matches its row in the table. A reconcile that produced only a report left the
   RDR unchanged — Stage 6 reads the RDR, so the work isn't done.
 - **Is the body whole?** No `_Draft placeholder._` or seed-skeleton header
-  survives — a hollow body is NOT RECONCILED, back to Propose/Resolve. The grep
-  that catches at Stage 6 what CHECK 1 would otherwise catch at the lock door.
+  survives — a hollow body is NOT RECONCILED, back to Propose/Resolve — and
+  `## References` is filled in place from citations the RDR already carries. The
+  grep that catches at Stage 6 what CHECK 1 would otherwise catch at the lock
+  door.
 
 If NOT RECONCILED, return to the named stage; do not proceed to Finalize.
 

@@ -37,7 +37,14 @@ Claude: /rdr-finalize <NNNN>
      **standalone** commit, never a `fixup!`
      (RDR commits ARE the design history; per the no-fixup doctrine we record the lock
      as its own real subject, we do not defer-squash it).
-   - **NOT READY** → flip nothing; report the named blockers and the return stage.
+   - **Sweep BLOCK** → mechanical findings (hollow-but-fillable sections such as
+     `## References`, surviving template text including old-template blocks,
+     anchor rewrites) are fixed in-pass and the sweep re-run — never routed to
+     Refine, whose contract excludes conformance. Only substantive findings make
+     the RDR NOT READY.
+   - **NOT READY** → flip nothing; report the named blockers and the return
+     stage. A finding re-reported unchanged after its named stage ran is a
+     routing failure — stop per §stop-packet (`stopped:finalize-routing-loop:…`).
    - A single gate item genuinely in doubt → stop per §stop-packet, don't guess.
    - The Tooling sweep's checks live verbatim in [`tooling-pass.md`](tooling-pass.md)
      (CHECK 1 template coverage, CHECK 2 **Method-label vocabulary** against the

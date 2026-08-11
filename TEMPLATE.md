@@ -5,8 +5,7 @@
 
 <!-- Section classes: **Required** (never omit). **Conditional**
 (delete the whole section if N/A — do NOT leave it blank or
-N/A-bulleted). **Reference-only** (guidance; never copy into the
-instance body). -->
+N/A-bulleted). -->
 
 ## Metadata
 
@@ -119,66 +118,19 @@ Evidence Record before marking this RDR Final.]
 
 - **A1 [Statement]**
   - **Status**: Verified | Pending | Unverified
-  - **Method**: `one of the eight below`
+  - **Method**: `one of the eight — README
+    §Verifying load-bearing claims`
   - **Evidence**: [single sentence — concrete artifact;
-    see method-specific guidance below. Prefer a stable
-    anchor: `path::Symbol`, section heading,
-    REQ/assumption/test ID, grepable literal snippet, or
-    artifact path. A bare `file:line` or peer-RDR
+    per-method form in README §Verifying load-bearing
+    claims. Prefer a stable anchor: `path::Symbol`,
+    section heading, REQ/assumption/test ID, grepable
+    literal snippet, or artifact path. A bare `file:line` or peer-RDR
     `~line N` is non-normative — drop or rewrite to a
     stable anchor unless the line number **is** the
     behavior under test.]
   - **If wrong**: [single sentence — what fails; how
     it surfaces to a user or test]
 - **A2 [Statement]** — (same shape)
-
-**Method vocabulary** (Reference-only — guidance for
-filling the **Method** field; do NOT copy this list into
-the instance body. Pick exactly one per assumption):
-
-- **Source Search** — verified against dependency
-  source code. Evidence: a greppable `path::Symbol`
-  (function/type/const name), **not a bare `file:line`**;
-  a commit-SHA permalink only for audit/traceability.
-  Standard for libraries. (Why symbol not line: flow
-  README *Doctrine*.)
-- **Spike** — verified by running code against a live
-  service or fixture. Evidence: command run + path to
-  captured output.
-- **Prior Art** — same property holds in ≥1 named
-  external system. Evidence: system + section/page.
-- **Derivation** — pure math or proof. Evidence: the
-  derivation, shown inline.
-- **Design Decision** — a scoping choice this RDR is
-  *making* (not *verifying*). Evidence: the decision
-  and the alternative explicitly rejected.
-- **Peer RDR** — relies on a property defined in
-  another RDR. Evidence: RDR ID + section.
-- **MVV Test** — the property is testable via the
-  Minimum Viable Validation, and the test
-  is named in this RDR's Validation section (pending
-  implementation at lock time). Evidence: test name,
-  or a named normative fixture + its I/O pair (an
-  approved I/O pair is Normative per the Illustrative
-  Code rule below).
-- **Docs Only** — documentation reading alone.
-  **Insufficient** for load-bearing assumptions; allowed
-  only when paired with a Spike or Source Search plan
-  in the Evidence line.
-
-A `Method: Source Search` whose Evidence cites this
-same RDR file — or any path under the RDR's artifact
-directory — is self-reference and not Verified. The
-cited proof must also support **the specific claim**,
-not an adjacent one: confirming a neighboring fact and
-stamping the assumption `Verified` is not verification.
-The cited symbol must resolve on `main` (a renamed,
-deleted, or never-built symbol fails the check).
-
-Any exactness claim such as all/every, first/nearest,
-byte-identical, lossless, canonical, deterministic, or
-stable order must be covered by a Critical Assumption
-Evidence Record or by the Minimum Viable Validation.
 
 ## Proposed Solution
 

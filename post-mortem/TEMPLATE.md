@@ -1,5 +1,17 @@
 # Post-Mortem: RDR-[NUMBER] [TITLE]
 
+<!-- Engine-repo hygiene: this repo is public and generic.
+This template is for RDR-INSTANCE post-mortems; instances
+live in the consumer repo beside their RDR — never here.
+PROCESS post-mortems (diagnoses of the flow itself) live in
+the consumer's research tree, not this repo. Nothing stored
+in this repo may carry project-specific metadata: no
+consumer repo names, RDR ids/slugs, kata ids, source
+paths/symbols, commit SHAs, or evidence paths. Aggregate
+counts ("N of M") and engine-file references are fine;
+scrub the rest before committing. -->
+
+
 ## RDR Summary
 
 [2-3 sentence summary of what the RDR proposed to solve

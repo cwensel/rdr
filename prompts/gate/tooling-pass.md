@@ -29,7 +29,8 @@ CHECK 1 — Template section coverage  (primary signal)
 For each top-level and second-level section in TEMPLATE.md, mark the RDR's
 corresponding section as: Present-substantive | Present-hollow | Missing.
 Hollow = TBD, "see above," single-sentence placeholder (`_Draft placeholder._`),
-or copy-paste of the template instructional text. A surviving `this is a seed
+or copy-paste of template instructional text — from any template version; an
+older instance may carry blocks the current TEMPLATE.md no longer ships. A surviving `this is a seed
 skeleton` header is an automatic Present-hollow on the Finalization Gate section
 — name it. (At/after lock the Finalization Gate section holds only the pointer
 line to gate.md — that is the record, not a hollow section.) A surviving

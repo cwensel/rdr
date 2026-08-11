@@ -63,6 +63,10 @@ in any body section and no `this is a seed skeleton` header may remain. A hollow
 body is NOT RECONCILED — return it to Propose (Investigation / Implementation
 Plan) or Resolve (Testing Strategy / Performance Expectations), whichever owns
 the empty section. This is a grep, not a judgment; it does not reopen assumptions.
+Also `## References`: if it still carries the template's bracketed placeholders,
+fill it now from citations the RDR already carries (source paths, dependency
+docs, peer RDRs, spike artifacts) — collection, not research; left alone it
+becomes a Stage 7 BLOCK.
 
 Be brief; ultrathink for any assumption whose refutation would force a design
 change; come to the user for accept/defer tiebreakers.

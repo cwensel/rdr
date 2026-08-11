@@ -9,8 +9,24 @@ summary_50w, residue in next_action.
 FIRST run the mechanical sweep — the Tooling pass: open
 $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
 every RDR as a post-mutation regression check, since the rounds and the Stage 6
-reconcile just rewrote this draft. If the sweep returns BLOCK, the RDR is NOT
-READY — fix the regressions before the written responses below.
+reconcile just rewrote this draft. Write its report under
+`evidence/tooling-pass/` (first run `tooling-pass.md`; re-runs `iter-N/`). On
+BLOCK, split the findings:
+
+- MECHANICAL — fix in this pass, re-run the sweep: a hollow/bracketed section
+  fillable from material already in the RDR (`## References` from citations the
+  body already carries), surviving template instructional text — including
+  blocks an older TEMPLATE.md shipped and the current one doesn't — and C5
+  anchor rewrites. Never route these to Refine: conformance is outside its
+  contract, so the finding returns unchanged.
+- SUBSTANTIVE — NOT READY: needs new evidence or a design call (disturbed/
+  refuted assumption, section unfillable from what the RDR carries). Name the
+  stage whose prompt owns the fix.
+
+LOOP-BREAKER: before any NOT-READY return pointer, read the prior reports in
+`evidence/tooling-pass/`. A finding re-reported unchanged after its named stage
+ran is a ROUTING failure, not an author failure — stop per §stop-packet
+(`stopped:finalize-routing-loop:<finding + stage that failed to clear it>`).
 
 ALSO confirm no cluster re-entry note survives: a `## Refinement Context
 (cluster re-entry — delete on re-lock)` block left by the 07.1 gate MUST be
