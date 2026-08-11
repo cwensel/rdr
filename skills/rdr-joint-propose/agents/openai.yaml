@@ -1,0 +1,4 @@
+interface:
+  display_name: "RDR Joint Propose"
+  short_description: "Propose a seeded RDR batch in dependency order"
+  default_prompt: "Use $rdr-joint-propose to propose a batch of seeded RDRs with the joint-decision check."

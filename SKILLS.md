@@ -36,6 +36,7 @@ For the full description, run a skill with no arguments or read its
 | --- | --- | --- |
 | **`/rdr-seed`** | 1 — Seed | Start brand-new RDRs from an idea, a kata, or a triaged batch (kata-id list or `--label` cohort). Allocates numbers and writes template-conformant Draft skeletons, one per seed. |
 | **`/rdr-propose`** | 2 — Propose | Move a seeded RDR from a problem statement to a chosen approach, with alternatives weighed and pre-mortemed. Also the front-half resume point — its freshness check re-validates a seed that sat idle. |
+| **`/rdr-joint-propose`** | 2 — Propose (batch) | Propose a batch of seeded siblings in dependency order so the joint-decision check runs against written proposals: sequential per-RDR proposers, orchestrator-handled re-orders on emergent dependencies, true joint forks surfaced to the user. |
 | **`/rdr-refine`** | 3 — Refine | Remove internal contradiction, redundancy, change-history narration, and bloat — make the draft internally consistent *before* its claims are verified. |
 | **`/rdr-resolve`** | 4 — Resolve | Verify the RDR's critical assumptions against reality: research, spikes, and a reuse audit, flipping assumptions to **Verified** with a Method + Evidence. |
 | **`/rdr-prelock`** | 5+6 — Pre-Lock | Run **one** pre-lock review lens against the draft *and* resolve its findings in the same pass. Lens is `grounding \| 3amigo \| critique \| repeatability \| cove`, picked by risk profile plus any Determinacy-trigger repeatability-lite. Loops until the lens converges. |

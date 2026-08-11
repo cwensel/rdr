@@ -143,7 +143,8 @@ Three of those stages carry decision points a driver should expect. **Propose** 
 `Premortem: survived | hardened | switched` verdict line; at `large`/`foundational` a draft-free fresh-context critic
 runs it) and a **joint-decision check** across all open peer RDRs — a fire pauses the stage until the shared decision is
 hoisted to a named home, and bridge code a sibling already schedules for deletion forces a skip-to-end-state vs.
-`Transient`-marker choice. **Resolve** puts its rendered I/O pairs to the user in one consolidated approve/reject round
+`Transient`-marker choice. (For a batch of sibling seeds, `/rdr-joint-propose` runs Propose across the cohort in
+dependency order, handling the emergent propose-before re-orders itself and surfacing only true joint forks.) **Resolve** puts its rendered I/O pairs to the user in one consolidated approve/reject round
 (an approved pair becomes a normative fixture; an MVV-critical assumption cannot defer past this stage). **Stage 7.1**
 demotes a Final RDR to Draft only for a defect that RDR solely owns — a shared joint decision (its JOINT-DECISION
 disposition) is instead hoisted to a named home and the siblings stay Final under a recorded tolerance

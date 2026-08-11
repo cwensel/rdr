@@ -78,7 +78,8 @@ Claude: /rdr-propose <NNNN>
 - Sibling seeds still unproposed? Recommend *their* `/rdr-propose` before this
   RDR refines — each successive propose greps peers still in Draft, keeping any
   joint-decision fire in the free-switching window (stages/02-propose.md,
-  batch ordering).
+  batch ordering). `/rdr-joint-propose <NNNN …>` orchestrates the whole cohort
+  dependency-ordered.
 - A surfaced contradiction is a real design hole → iterate this stage (re-run
   `/rdr-propose NNNN`) before refining.
 - A joint-decision fire stops the stage (`Gate: stopped:joint-decision`): Next

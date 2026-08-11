@@ -380,6 +380,23 @@ their matching lenses, but they do not shrink the row: when a reset/escalation
 makes the RDR `foundational`, `cove 3amigo critique repeatability` is the required
 set until all four are present/resolved.
 
+## §model-ceiling — per-spawn model bump for delegated authoring
+
+For orchestrating skills that spawn *authoring* sub-agents (e.g.
+`/rdr-joint-propose`) — a skill running in the main context cannot change its
+own model. Resolve the ceiling: `--model-ceiling <model>` arg >
+`RDR_MODEL_CEILING` marker var > unset (every spawn inherits the session model —
+the default). Per-spawn policy, gated on the member's `Profile` field:
+`small`/`mid` → session model; `large`/`foundational` → the ceiling (those
+profiles already carry the heavier obligations — scored matrix, hardened
+critic — so the stronger model lands where judgment is densest). One
+**escalation retry**: a malformed packet or forced re-run may re-spawn once at
+the ceiling. Never spawn authoring *below* the session model — judgment-dense
+stages don't get cheaper models (mechanical extraction passes may). A stronger
+model costs more per token, not more tokens — profile-gating is the efficient
+shape; never run a whole cohort at the ceiling "to be safe." A harness without
+per-spawn model control runs at session model and notes it in the report.
+
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 
 A writing stage already knows the exact files it wrote — `$RDR_PATH`,

@@ -39,7 +39,10 @@ greps peers' bodies — a bare seed has no anchors to collide with, so
 depth-first (one RDR seed→Final at a time) blinds the early checks and lands
 any late fire against locked text, where the fix is a recorded tolerance
 instead of free switching. The tandem barrier enforces this order for declared
-Clusters; extend the same discipline to any batch of sibling seeds.
+Clusters; extend the same discipline to any batch of sibling seeds. The
+`/rdr-joint-propose` skill mechanizes this: dependency-ordered sequential
+proposes, orchestrator-handled re-orders when a propose blocks on an unproposed
+peer, and only the true joint forks surfaced to the user.
 
 ## Review gate
 
