@@ -34,7 +34,7 @@ For the full description, run a skill with no arguments or read its
 
 | Skill | Stage | What it does |
 | --- | --- | --- |
-| **`/rdr-seed`** | 1 — Seed | Start a brand-new RDR from an idea, kata, or one-line description. Allocates the next number and writes a template-conformant Draft skeleton. |
+| **`/rdr-seed`** | 1 — Seed | Start brand-new RDRs from an idea, a kata, or a triaged batch (kata-id list or `--label` cohort). Allocates numbers and writes template-conformant Draft skeletons, one per seed. |
 | **`/rdr-propose`** | 2 — Propose | Move a seeded RDR from a problem statement to a chosen approach, with alternatives weighed and pre-mortemed. Also the front-half resume point — its freshness check re-validates a seed that sat idle. |
 | **`/rdr-refine`** | 3 — Refine | Remove internal contradiction, redundancy, change-history narration, and bloat — make the draft internally consistent *before* its claims are verified. |
 | **`/rdr-resolve`** | 4 — Resolve | Verify the RDR's critical assumptions against reality: research, spikes, and a reuse audit, flipping assumptions to **Verified** with a Method + Evidence. |

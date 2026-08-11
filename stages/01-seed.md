@@ -14,7 +14,9 @@ beside this file.
 — the `/rdr-seed` skill runs it (binds the params, allocates the number). Paste
 its body by hand if driving without the skill.
 
-**Run when**: starting a brand-new RDR. **Produces**: a new RDR file in the
+**Run when**: starting a brand-new RDR. The `/rdr-seed` skill also takes a
+kata-id list or `--label <name>` (an `rdr-seed-triage` `batch:rdr-YYYY-MM-DD`
+cohort) and runs this stage once per seed. **Produces**: a new RDR file in the
 project's RDR directory (the `{ARTIFACT_DIR}` parent from `{RDR_ENV}`), Status:
 Draft, **plus a Draft row for it in the RDR home's README index**.
 
