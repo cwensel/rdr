@@ -35,6 +35,16 @@ for base in "$PROJECT/.claude/skills" "$PROJECT/.codex/skills"; do
   seen10=1
   b=$(find "$base"/rdr-* -type l ! -exec test -e {} ";" -print 2>/dev/null)
   [ -z "$b" ] && pass "10 consumer links resolve - $base" || { fail "10 broken consumer links in $base - repoint to \$RDR_HOME/skills/:"; echo "$b" | sed "s/^/        /"; }
+  # 10b - a farm that mounts rdr-* must be COMPLETE: a newly shipped engine skill
+  # is invisible to the consumer until linked (missing != broken, so check 10 can't see it).
+  if ls "$base"/rdr-* >/dev/null 2>&1; then
+    miss=""
+    for d in "$RDR_HOME"/skills/*/; do
+      s=$(basename "$d"); [ -f "${d}SKILL.md" ] || continue
+      [ -e "$base/$s" ] || miss="$miss $s"
+    done
+    [ -z "$miss" ] && pass "10b farm complete - $base" || warn "10b engine skills not mounted in $base:$miss - add: ln -s \"\$RDR_HOME/skills/<name>\" \"$base/<name>\" (a bare /rdr-init re-run offers this)"
+  fi
 done
 [ -n "$seen10" ] || echo "  [INFO] 10 no consumer skill links here (engine repo, or hand-driven consumer) - n/a"
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."

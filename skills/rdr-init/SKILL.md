@@ -15,8 +15,9 @@ engine + paths from any cwd/worktree), and the RDR home's index `README.md`.
 **Scope.** Creates the untracked seam + marker, the RDR home, and its index
 README (the one tracked file it adds — inside `$RDR_RECORDS`, not the consumer's code;
 the flow needs it as its index/Status table). Does **not** install the `/rdr-*`
-symlink farm (consumer-owned) and never copies the engine's `TEMPLATE.md`/prompts
-(read live from `$RDR_HOME`).
+symlink farm (consumer-owned) — though a re-run **offers to complete** an
+*existing* `rdr-*` farm with newly shipped engine skills (never creates one) —
+and never copies the engine's `TEMPLATE.md`/prompts (read live from `$RDR_HOME`).
 
 ## Usage
 
@@ -95,7 +96,11 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    - **A repo-local marker already exists** (`$PROJECT/.rdr/workspace`), no
      `--reconfigure` → do not rewrite seam/env/resources. Verify + report the
      existing five-var contract, then still offer the SessionStart seam hook if
-     the active harness hook config is absent.
+     the active harness hook config is absent — and, if a consumer farm
+     (`.claude/skills`/`.codex/skills`) already holds `rdr-*` links, offer to
+     add any engine skill missing from it (`ln -s "$RDR_HOME/skills/<name>"
+     <farm>/<name>` per missing one; completes, never creates, the
+     consumer-owned farm).
    - **`--workspace`** → write/join the shared `$WS/.rdr-workspace` (create it, or if it
      exists and is complete, stop and report this repo inherits it). For sharing siblings.
    - **No repo-local marker, but a shared workspace marker exists** (the `intrastate`
@@ -215,7 +220,8 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
   written; that is correct.
 - **No footprint on the consumer's source?** No change to `CLAUDE.md`, `AGENTS.md`,
   or root `.gitignore`; `.rdr/` ignored. Only tracked adds: the RDR-home
-  `README.md` and, if accepted, the opt-in `.claude/` or `.codex/` hook config.
+  `README.md` and, if accepted, the opt-in `.claude/` or `.codex/` hook config
+  or offered farm links.
 - **Inferred values real?** Source paths exist; named docs/corpora present (missing
   corpora carry the degraded-mode TODO, not a silent dead reference).
 - **Scope honored?** Repo-local (default) wrote `$PROJECT/.rdr/workspace` and **left any
@@ -237,5 +243,7 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
 - `/rdr-doctor` — verify the full five-var contract + engine layout in one read-only
   pass (use it if any later skill reports a `stopped:` seam error).
 - A bare re-run on an existing seam is idempotent: it verifies + reports and may
-  offer missing SessionStart hook setup, but does not rewrite seam/env/resources.
-  Use `--reconfigure` to change where records/evidence/seam live.
+  offer missing SessionStart hook setup and farm completion (newly shipped
+  engine skills linked into an existing `rdr-*` farm), but does not rewrite
+  seam/env/resources. Use `--reconfigure` to change where records/evidence/seam
+  live.
