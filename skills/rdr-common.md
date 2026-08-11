@@ -395,10 +395,25 @@ the ceiling. Never spawn authoring *below* the session model — judgment-dense
 stages don't get cheaper models (mechanical extraction passes may). A stronger
 model costs more per token, not more tokens — profile-gating is the efficient
 shape; never run a whole cohort at the ceiling "to be safe." A harness without
-per-spawn model control runs at session model and notes it in the report. A
-main-context skill cannot bump itself — `/rdr-propose` instead **warns** when a
-configured ceiling exceeds the session model on a heavy RDR (its step 1) and
-proceeds.
+per-spawn model control runs at session model and notes it in the report.
+
+**Model-adequacy fork (heavy RDRs, before any authoring).** Heavy = `Profile`
+`large`/`foundational`, or `Seam Lineage` ≥2 (the accretion floor Stage 2 will
+apply). The authoring model is a design input; decide it *before* tokens are
+spent — at stage start nothing is written, so cancel is free. Resolve:
+
+- Ceiling set, session model is the ceiling → proceed silently.
+- Ceiling set, session is not the ceiling → **pause** (§stop-packet
+  `stopped:model-adequacy:…` / AskUserQuestion) and wait: *continue* at the
+  session model (record on `Deviations:`), or *cancel* — restart in a ceiling
+  session, or `/rdr-joint-propose … --model-ceiling` (it can bump spawns).
+- No ceiling: session model confidently the strongest tier its harness offers
+  → one note, proceed. Weaker **or unsure** → the same pause, adding "or set
+  `RDR_MODEL_CEILING`". Uncertainty asks — never silently author a heavy RDR
+  from a model that can't claim top tier. (No ranking table on purpose: names
+  churn, harnesses differ; the session judges its own tier, conservatively.)
+
+`small`/`mid` never trigger the fork.
 
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 

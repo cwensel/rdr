@@ -105,7 +105,10 @@ it, never answers it:
 
 rdr-common §model-ceiling: per-spawn, profile-gated — `small`/`mid` at session
 model, `large`/`foundational` at the ceiling — plus the one escalation retry
-above. Unset ceiling = every spawn at session model.
+above. Unset ceiling = every spawn at session model — so if the roster holds
+heavy members and no ceiling is set, run the **model-adequacy fork** once,
+before the loop (there is nothing to bump to; the user may want to cancel and
+restart with `--model-ceiling`).
 
 ## Review gate
 
