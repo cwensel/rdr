@@ -56,7 +56,7 @@ project pins one; gitignored `.rdr/` scratch only in the generic default).
 ## The Prompt
 
 Replace `{RDR_PATH}` with the RDR file's path
-(e.g. `cli/0001-smo-catalog.md`) and `{RDR_RESOURCES}` with the flow's
+(e.g. `<rdr-dir>/0001-slug.md`) and `{RDR_RESOURCES}` with the flow's
 evidence index (resolved via the workspace marker — see the flow README *Where
 the seam lives*) — the same corpora, design docs, and anchors the flow grounded
 the spec against, so a sub-agent facing a defect can verify and reason rather
@@ -340,7 +340,7 @@ When an RDR's tests or code will reference behaviour pinned by an
 earlier RDR, list the load-bearing predecessors in the RDR's Metadata:
 
 ```markdown
-- **Predecessors**: 0001-smo-catalog, 0003-project-config-and-init
+- **Predecessors**: 0001-core-schema, 0003-project-config
 ```
 
 The launch prompt's PRECHECKS step gates on each predecessor's

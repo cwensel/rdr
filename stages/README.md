@@ -355,7 +355,7 @@ hops back into wherever the flow docs sit.
 `$PROJECT/.rdr/workspace` (inside the gitignored `.rdr/`, so no project-level
 `.gitignore` edit) — each repo runs its own RDR process. §seam-bind prefers it over a
 shared `$WS/.rdr-workspace`, which several sibling repos opt into with
-`/rdr-init --workspace` (the `newcoinc/` setup: retrofit/process/flow share one seam).
+`/rdr-init --workspace` (e.g. a code/records/evidence trio of sibling repos sharing one seam).
 A repo-local marker overrides the shared one for that repo without re-pointing it.
 
 > **Worked example — a pinned-seam consumer.** A consumer may pin its seam this

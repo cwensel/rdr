@@ -355,8 +355,8 @@ truth and the plan has met reality. It is the deliberate counterpart to the up-f
 forward at a draft, this one looks back at an implementation in use.
 
 After an RDR is implemented, reverted, or abandoned, create a post-mortem as a sibling file next to the original RDR
-using the [post-mortem template](post-mortem/TEMPLATE.md). Name the file `NNNN-slug-postmortem.md` (e.g.
-`cli/0003-project-config-and-init-postmortem.md`). Cross-RDR synthesis artifacts (e.g. `SYNTHESIS.md`) live under
+using the [post-mortem template](post-mortem/TEMPLATE.md). Name the file `NNNN-slug-postmortem.md`, a sibling of
+`NNNN-slug.md`. Cross-RDR synthesis artifacts (e.g. `SYNTHESIS.md`) live under
 `post-mortem/`.
 
 The purpose is **not** to catalog gaps for their own sake, but to identify recurring patterns of plan-vs-reality drift

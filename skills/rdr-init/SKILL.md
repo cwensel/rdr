@@ -103,8 +103,8 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      consumer-owned farm).
    - **`--workspace`** → write/join the shared `$WS/.rdr-workspace` (create it, or if it
      exists and is complete, stop and report this repo inherits it). For sharing siblings.
-   - **No repo-local marker, but a shared workspace marker exists** (the `intrastate`
-     case) → the **scope fork**. Default is still repo-local, but a shared seam already
+   - **No repo-local marker, but a shared workspace marker exists** (the
+     late-joining-sibling case) → the **scope fork**. Default is still repo-local, but a shared seam already
      covers this repo, so surface it:
      - **`--defaults`** → take the repo-local default silently (own seam).
      - **bare / `--interactive`** → **ask once**: *"A shared workspace seam at
