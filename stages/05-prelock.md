@@ -252,7 +252,9 @@ enforces them; don't re-derive):
    single-model `critique.md` does **not** converge a `foundational` RDR (dual-model
    required, or recorded single-model fallback); on re-entry, compare the existing
    evidence's `Model:` stamp (§model-stamp) to this session's — a different model is
-   the second pass to run, never "already complete."
+   the second pass to run, never "already complete." The owed second pass keeps
+   `critique` the *next* lens: the close packet points at the relaunch, never at
+   a later lens.
 
 If critique or cove surfaces that an *assumption* was wrong (not just
 under-documented), flag-as-you-go captures it and **Stage 6 reconciles it** before

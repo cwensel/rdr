@@ -143,7 +143,10 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   `foundational` RDR needs the dual-model diff (or recorded single-model fallback),
   and a re-entry under a *different* model is the second pass to run, not a no-op.
 - **3amigo | critique | cove** converged → next lens is the first missing item in
-  the current checklist: `Next: /rdr-prelock NNNN <next-lens>`.
+  the current checklist: `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
+  second pass keeps `critique` the first missing item — `Next:` is "relaunch the
+  CLI on a second base model, then `/rdr-prelock NNNN critique`", never a later
+  lens (§next-step: one action; other open obligations go in `Continue check:`).
 - **repeatability** — pick the variant from `Profile` (§repeatability-variant), never
   from files present. Lite (`mid`/`large`): missing `run-1` → `repeatability 1`, then
   `diff` — never point at `run-2`. Full (`foundational`/escalation): missing run →

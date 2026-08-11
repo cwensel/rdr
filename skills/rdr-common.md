@@ -343,7 +343,9 @@ Next: $rdr-<next-stage> NNNN [lens] (Codex) / /rdr-<next-stage> NNNN [lens] (Cla
 `skills/rdr-doctor/close-summary-check.sh` (golden fixtures, both surfaces; run
 `--self-test`). The Review gate is **compressed** to the
 `Gate:` line unless a failed gate item is the reason not to continue (then name it). Keep
-*both* command spellings in `Next` (the dual-surface convention). For what `RDR
+*both* command spellings in `Next` (the dual-surface convention). `Next:` commits to
+**one** action — the status pointer is the only permitted alternative; when two paths
+compete, pick one and name the other open obligation in `Continue check:`. For what `RDR
 delta` must name per stage, use the table below — it is the single source; SKILLs inherit
 it via this anchor and do not restate it.
 
