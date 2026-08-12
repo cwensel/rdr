@@ -80,7 +80,10 @@ peer, and only the true joint forks surfaced to the user.
 - **Did the cite-check hold?** Every prior-art claim the choice rests on is
   quoted/anchored from source (named system + section, or `path::Symbol`), not
   paraphrased — an inverted citation is what overturned a chosen approach three
-  stages late. Unanchored load-bearing claim → re-run or demote to a Resolve assumption.
+  stages late. Unanchored load-bearing claim → re-run or demote to a Resolve
+  assumption. Each load-bearing citation carries its `⇒` consequence line, and
+  a cited state-read names its writer — a true fact left uncomposed is the
+  same late-overturn class.
 - **Did the grounding micro-sweep run?** A `Ground-sweep:` verdict line sits
   beside `Premortem:` (absence = it did not run — re-run). A load-bearing
   REFUTED/NOT-FOUND advanced over instead of re-choosing is the late-overturn

@@ -34,7 +34,11 @@ Read the Problem Statement and Context, then:
 1. **Read prior art FIRST — before naming any approach.** An LLM that enumerates
    first anchors on its training prior and won't reliably self-correct, so read
    before the candidate set exists, not as a bias applied after. Read the Domain
-   priors' competitors/prior systems/standards for THIS problem class; on a
+   priors' competitors/prior systems/standards for THIS problem class — and,
+   when the problem names a specific operator/surface, ALSO ask the instance
+   question (what does each named peer do for *this* operator), never the
+   class question alone: the class read picks the frame, the instance read
+   decides the disposition. On a
    `large`/`foundational` RDR, also do a bounded external pass (corpora or
    web/literature) — a read, not a spike. **Coverage:** found nothing? Write one
    Investigation line (`⚠ no prior-art coverage for <problem class>; approaches
@@ -103,7 +107,9 @@ Read the Problem Statement and Context, then:
      - **The brief — independence enforced structurally, not by honour.** Pass
        ONLY: (a) the Problem Statement; (b) the chosen approach stated
        neutrally in 3–6 lines; (c) its load-bearing claims as an enumerated
-       negation-target list; (d) a one-line technical-environment summary;
+       negation-target list, PLUS each rejected alternative's one-line
+       rejection *reason* (claims to attack — an inverted rejection is a
+       documented escape); (d) a one-line technical-environment summary;
        (e) the seeds. NEVER the RDR path, the QOC matrix, the Decision
        Rationale, or any justifying prose. The critic works from the brief
        alone — no repo reads, no RDR read.
@@ -139,7 +145,11 @@ Read the Problem Statement and Context, then:
 6. Write the recommended approach into Proposed Solution and the alternatives
    into Alternatives Considered. Keep Technical Design at the level the
    problem needs — do NOT over-specify signatures yet; that sharpens during
-   Resolve and Pre-Lock.
+   Resolve and Pre-Lock. Every load-bearing citation in the body — prior-art
+   or `path::Symbol` — carries a one-line `⇒ <what this forces here>`; and a
+   cited state-*read* (a filter, flag test, marker check) names its *writer*
+   too (what sets that state, when) — a true fact cited without its
+   consequence or its writer is the documented uncomposed-fact escape.
 7. Author the **design-body** (replace its `_Draft placeholder._`s):
    - **Investigation**: the prior art, code paths, and constraints that
      shaped the choice — one paragraph; deep evidence lands at Resolve.
@@ -174,6 +184,12 @@ Read the Problem Statement and Context, then:
    anchor/literal, whole-token match. **FIRE** = a peer shares a modify-anchor
    or a contract literal AND neither RDR cites the other (`NNNN` or slug,
    either direction).
+   **Absence arm** — when the proposal converts a refusal into an acceptance
+   (fills a previously-empty cell, removes a guard, classifies the
+   previously-unclassified), also grep `Final` peers for the refusal token
+   itself (the error / `unclassified` / refused literal): a Final peer
+   *relying on the refusal* is a FIRE — anchor greps cannot see a dependency
+   on an absence.
    **Record the verdict in Decision Rationale — fire or not** — one greppable
    line beside `Premortem:`, closed vocabulary:
    `Joint-check: clear (N peers) | fired → NNNN[, NNNN] (home: <home> | OPEN)`.
