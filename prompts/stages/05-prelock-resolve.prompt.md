@@ -101,11 +101,7 @@ word like all/every/exact/canonical/deterministic), record it in a running
 Do NOT verify them now — Stage 6 closes them. Just ensure none is silently
 absorbed into the draft as if already true.
 
-AMENDMENT SWEEP: a fix that amends a normative predicate/contract clause greps
-the draft for the pre-edit token(s) before its disposition closes — every
-surviving stale site updates in the same pass or is listed in the disposition.
-(Mined: an IFF amended at reconcile updated 12 of 13 sites; the thirteenth
-cost two more reconcile iterations and two gate runs.)
+AMENDMENT SWEEP: rdr-common §amendment-sweep, before each fix's disposition closes.
 
 Be brief — terse reasoning, tight edits, no change-history narration (keep
 rationale for decisions, not a log of edits).

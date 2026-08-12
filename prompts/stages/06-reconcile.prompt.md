@@ -43,9 +43,7 @@ After dispositioning, the RDR's Critical Assumptions records and the report
 table MUST agree: every item's Status/Method/Evidence in the RDR matches its
 row here. A disposition that lives only in the report and not in the RDR is not
 done — Stage 7's Assumption Verification reads the RDR, not this report.
-An edit that amends a normative predicate/contract clause greps the draft for
-the pre-edit token(s) in the same pass — every surviving stale site updates or
-is listed; an unswept amendment is the multi-iteration escape.
+Clause-amending edits run rdr-common §amendment-sweep in the same pass.
 
 HARD RULE — refutation is not a checkbox. If a spike or source-search REFUTES
 an assumption the RDR currently relies on (the design says X, the target system

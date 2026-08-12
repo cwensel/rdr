@@ -395,6 +395,19 @@ four stages later; the Stage-7 sweep stays the backstop. (Mined: a Required
 contract section once survived propose, refine, resolve, and four lenses as
 verbatim template text.)
 
+## §amendment-sweep — propagate clause changes at disposition
+
+Amending OR adding a normative predicate/contract clause: (1) grep the draft
+for the pre-edit token(s) — every surviving stale site updates in the same
+pass or is listed; (2) grep the subject token it defines or redefines;
+re-read producers and consumers against the new wording — semantic
+disagreement counts, not just staleness; (3) an ADDED clause amends its
+contract block — re-read siblings for agreement (values, counts, predicates);
+(4) a new order/reachability/emission claim grounds at its authority (call
+flow, producing site, output) or registers a Pending assumption (Method:
+Spike or MVV Test). (Mined: an amendment missed 1 of 13 sites — two more
+reconcile iterations.)
+
 ## §model-ceiling — per-spawn model bump for delegated authoring
 
 For orchestrating skills that spawn *authoring* sub-agents (e.g.

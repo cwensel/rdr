@@ -84,6 +84,7 @@ and, where a Testing Strategy scenario covers it, in that scenario's Expected
 — citing the spike artifact under {SPIKE_DIR} that produced it (TEMPLATE.md's
 Normative/Illustrative rule gives it its lock-time semantics). Rejected → the
 assumption is genuinely open: resolve by another Method or revise the claim.
+A revised or narrowed clause runs rdr-common §amendment-sweep.
 
 Verify EXACTNESS words too (all/every, first/nearest, byte-identical,
 lossless, canonical, deterministic, stable order) — each needs an Evidence
