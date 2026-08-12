@@ -41,8 +41,8 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   rework the approach, then come back. (Ask: *do these findings force critical
   changes to the proposed solution?*) Before re-entering, run rdr-common
   §strong-consult on the reopened fork (alternatives × the route-back
-  findings); the close packet's `Next:` is the re-propose — a route-back is a
-  routing outcome, not a user pause.
+  findings) and append the §punt-ledger row; the close packet's `Next:` is
+  the re-propose — a route-back is a routing outcome, not a user pause.
 - **Are citations from local corpora**, not hallucinated? Cross-check a sample
   against the corpus or cloned source.
 - **Is the evidence-body authored from the verified assumptions?** Testing

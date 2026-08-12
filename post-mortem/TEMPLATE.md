@@ -127,6 +127,10 @@ test findings) are excluded.
 | --- | --- | --- | --- | --- | --- |
 | | | | | | |
 
+Route-back rows (rdr-common §punt-ledger) append here at the
+moment a stage reopens a completed stage — odc columns n/a
+until implementation triage.
+
 **Lens miss note**: if a lens ran and returned clean but
 the defect escaped anyway, write the cell as
 `none (lens X ran clean)` — that separates "no lens

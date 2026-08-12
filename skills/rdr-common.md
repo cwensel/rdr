@@ -445,6 +445,20 @@ only on its NEEDS_DECISION or a repeat flap. This re-orders the escalation
 ladder, it does not remove the human: genuine either/or design calls still
 stop.
 
+## §punt-ledger — record the escape at the moment of the route-back
+
+Any route-back that reopens a completed stage (a Stage-4/6 refutation
+returning to propose/refine, a prelock refutation returning to Stage 4, a
+7.1 demotion) appends ONE row to the consumer's escaped-defect ledger —
+`$RDR_RECORDS/<slug>-postmortem.md` (start it from post-mortem/TEMPLATE.md
+with just the ledger if absent): the defect one-line, the stage that caught
+it, Expected-catching stage (the ledger's closed vocabulary), escape
+distance; odc columns n/a until implementation triage. Append BEFORE any
+refine collapses the history — refine strips change-history from the RDR
+body by charter, so the ledger is the punt's only durable home, and the
+propose premortem's seeds read it: an unrecorded punt is a premortem that
+runs blind next time.
+
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 
 A writing stage already knows the exact files it wrote — `$RDR_PATH`,

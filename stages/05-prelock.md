@@ -263,7 +263,8 @@ enforces them; don't re-derive):
 
 If critique or cove surfaces that an *assumption* was wrong (not just
 under-documented), flag-as-you-go captures it and **Stage 6 reconciles it** before
-lock. If the refutation forces a redesign, **return to Stage 4** now.
+lock. If the refutation forces a redesign, **return to Stage 4** now
+(§strong-consult + §punt-ledger row apply — rdr-common).
 
 ## Advance when
 

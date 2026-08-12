@@ -55,7 +55,8 @@ RDR back to Stage 2 (approach), 3 (refine), or 4 (re-resolve) — name which.
 Locking over a refuted assumption is the failure this gate exists to prevent.
 Run rdr-common §strong-consult on the reopened fork before routing — its
 verdict rides the BLOCKER report, and the route-back is the close packet's
-`Next:`, not a user pause.
+`Next:`, not a user pause. Append the §punt-ledger row (rdr-common) as part
+of the BLOCKER disposition.
 
 HARD RULE — no spike or assumption deferred past lock if the MVV depends on
 it. If it pins the very thing the Minimum Viable Validation proves (byte-parity
