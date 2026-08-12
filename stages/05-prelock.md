@@ -48,7 +48,10 @@ a frame that's false against the codebase. At `mid`/`large` it is the standalone
 [grounding Step-0](../prompts/pre-lock/0-grounding.md) (a cheap deterministic
 sweep); at `foundational` it is Step 0 *inside* [cove](../prompts/pre-lock/4-cove.md)
 (which subsumes it), so cove leads. The cost-order cascade still holds for the
-remaining 3amigo → critique → repeatability.
+remaining 3amigo → critique → repeatability. A propose-time `Ground-sweep:`
+verdict (02-propose step 7.5) means the proposal's anchors are already
+source-checked — grounding (and cove's Step 0) delta-scopes to claims added or
+edited since propose; no verdict line → full sweep.
 
 **Accretion floor (deterministic).** Profile is blast-radius, not local diff
 size. If the RDR's `Seam Lineage` (Metadata) carries **≥2 closed prior

@@ -22,8 +22,9 @@ Considered* + *Decision Rationale* + the design-body (*Investigation* +
 *Implementation Plan* phases at design altitude) + a `Pending` Critical
 Assumptions list, written into the draft — plus the **premortem verdict**
 (`Premortem: survived | hardened | switched`, variant named), written into
-Decision Rationale, and the **joint-decision check's verdict** (fired on a
-peer / no fire), both reported in the close packet.
+Decision Rationale, the **ground-sweep verdict** (`Ground-sweep: clean |
+reopened`, beside it), and the **joint-decision check's verdict** (fired on a
+peer / no fire), all reported in the close packet.
 
 The joint-decision check is propose-time *triage*, not reconciliation: a cheap
 lexical pass at the one moment switching is free. Stage 7.1's
@@ -80,6 +81,10 @@ peer, and only the true joint forks surfaced to the user.
   quoted/anchored from source (named system + section, or `path::Symbol`), not
   paraphrased — an inverted citation is what overturned a chosen approach three
   stages late. Unanchored load-bearing claim → re-run or demote to a Resolve assumption.
+- **Did the grounding micro-sweep run?** A `Ground-sweep:` verdict line sits
+  beside `Premortem:` (absence = it did not run — re-run). A load-bearing
+  REFUTED/NOT-FOUND advanced over instead of re-choosing is the late-overturn
+  failure the sweep exists to stop.
 - **`large`/`foundational`: scored matrix, not prose?** The choice falls out of an
   explicit Q-O-C matrix (approaches × deciding criteria). Prose-only → re-run.
 - **Does the chosen approach solve the *user's* problem**, not an adjacent
@@ -114,8 +119,8 @@ not advance), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
 left in those two sections. If the accretion gate fired (≥2 prior point-fixes),
 the undecided contract is named and the profile is floored to `foundational`.
-The `Joint-check:` verdict line is recorded in Decision Rationale (its absence
-does not advance — it means the check never ran). If it fired, the joint
+The `Joint-check:` and `Ground-sweep:` verdict lines are recorded in Decision
+Rationale (either absent does not advance — that check never ran). If it fired, the joint
 decision has a named home — the consumer's umbrella-decision record (e.g. an
 RFD), or the shared interface declared in both RDRs — an open fire does not
 advance. If the RDR declares a

@@ -22,7 +22,9 @@ sibling/adjacent path already does Z", each "the only place this happens is …"
 For EACH, read the actual source on `main` and record CONFIRMED (paste the
 greppable `path::Symbol` or line), REFUTED (paste what you found instead), or
 NOT-FOUND (symbol doesn't resolve). Do not take the RDR's word for a codebase
-fact.
+fact. If Decision Rationale carries a `Ground-sweep:` verdict (the propose-time
+micro-sweep), scope to claims added or edited after propose — diff the RDR
+against its propose commit; no verdict line → sweep everything.
 
 Then the inverse the RDR did not check: if the approach adds a NEW
 discriminator, heuristic, switch case, or identity rule, grep whether a

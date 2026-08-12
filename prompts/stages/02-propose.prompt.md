@@ -149,6 +149,19 @@ Read the Problem Statement and Context, then:
      over-specified; that detail fills at Resolve/Pre-Lock.
    Leave Testing Strategy and Performance Expectations as placeholders —
    Resolve owns those, after the assumptions they lean on are verified.
+7.5 **Grounding micro-sweep — on the written proposal.** Delegate ONE
+   fresh-context sub-agent (rdr-common §delegation): the brief carries ONLY
+   the proposal's cited anchors — every backticked `path::Symbol` and every
+   quoted peer-RDR passage — never the justifying prose (factored
+   verification: the checker must not see the argument). It reads each
+   anchor's source on `main` (or the peer RDR) and returns per anchor
+   CONFIRMED | REFUTED (what it found instead) | NOT-FOUND, as one
+   §return-packet. A load-bearing REFUTED / NOT-FOUND reopens the choice —
+   loop to step 3 with the correction as a new criterion; cosmetic misses fix
+   inline. Record the verdict beside `Premortem:`, closed vocabulary:
+   `Ground-sweep: clean (N anchors) | reopened → <claim>` — unwritten = did
+   not run. Stage 5's grounding lens then delta-scopes to claims added after
+   this sweep.
 8. **Joint-decision check — runs last, on the written proposal.** Catch two
    open RDRs coupling on one decision while switching is still free. From THIS
    RDR collect *modify-anchors* — the `Seam Lineage` locus plus backticked
