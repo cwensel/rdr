@@ -48,6 +48,9 @@ Read the Problem Statement and Context, then:
    or inverted citation is the exact defect that overturned an approach three
    stages late. A claim you can't open and quote isn't load-bearing: demote it to a
    Resolve assumption rather than leaning the choice on it.
+   Order/reachability/emission claims can never be quote-confirmed — always
+   demote them (Method: Spike or MVV Test), including a rejection reason that
+   rests on one.
    - **Prior-art search budget.** Stay bounded: ≤3 corpus queries per candidate
      problem-class claim, ≤5 opened hits total per claim; stop the moment a hit
      confirms or refutes the claim — do not sweep for completeness. Search via

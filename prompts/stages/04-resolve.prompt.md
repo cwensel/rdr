@@ -54,7 +54,14 @@ For each Critical Assumption in scope:
       spec to verify the spec is self-reference, not verification. (The reuse
       audit above asks a different question of the same own-code source: does a
       capability already EXIST? Source Search asks: does the code BEHAVE as the
-      claim says?)
+      claim says?) A claim about call ORDER, REACHABILITY of a site, or
+      emission side-effects is never attested by opening the symbol it names —
+      an unconditional consumer reads true while the conditional producer
+      upstream decides. Method is Spike or MVV Test, with the ordering,
+      reachability, or output diff itself as Evidence — Evidence answering the
+      claim's own predicate, not a proxy question. A normative clause
+      asserting one of these carries its own assumption, so a sweep has
+      something to falsify.
     Spike → the command run against a live service/fixture + where output is
       captured under {SPIKE_DIR}. Actually run it; paste the output.
     Prior Art → named external system + section/page.

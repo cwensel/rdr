@@ -18,7 +18,11 @@ One deterministic source-reading sweep, not a review loop.
 Sweep the RDR at {RDR_PATH} for every claim that asserts a codebase fact —
 each cited `path::Symbol` (especially Critical Assumptions with Method: Source
 Search, and Normative Contract symbols), each "no existing X does Y", each "a
-sibling/adjacent path already does Z", each "the only place this happens is …".
+sibling/adjacent path already does Z", each "the only place this happens is …",
+and each claim that a call runs before/after another, that a site is
+(un)reachable, or that output does not change — refute these at the call flow,
+the producing/population site, or the output, not by opening the named symbol;
+such a claim anchored by no assumption is itself a finding.
 For EACH, read the actual source on `main` and record CONFIRMED (paste the
 greppable `path::Symbol` or line), REFUTED (paste what you found instead), or
 NOT-FOUND (symbol doesn't resolve). Do not take the RDR's word for a codebase
