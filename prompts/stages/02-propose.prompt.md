@@ -225,3 +225,4 @@ depends on — list them in Critical Assumptions as Status: Pending with a
 one-line "If wrong". Stage 4 verifies them.
 
 Be brief but not lossy; drop into ultrathink if the design gets complex.
+Close with rdr-common §mechanical-gate.

@@ -382,6 +382,19 @@ their matching lenses, but they do not shrink the row: when a reset/escalation
 makes the RDR `foundational`, `cove 3amigo critique repeatability` is the required
 set until all four are present/resolved.
 
+## §mechanical-gate — 30-second template/anchor grep at stage exit
+
+Propose, refine, and resolve close with a grep of the RDR for: a surviving
+verbatim template bracket (`[Required`, `[Conditional`, `[Resource]`,
+`[Capability]`), `_Draft placeholder._` or a seed-skeleton header in any
+section this stage's `Advance when` requires authored, and (propose/resolve)
+each NEW `path::Symbol` resolving somewhere in the repo. Any hit → fix now,
+or close `Gate: NOT READY (mechanical: <item>)`. This is the Stage-7
+tooling-pass CHECK 1/5 subset run where the regression is created instead of
+four stages later; the Stage-7 sweep stays the backstop. (Mined: a Required
+contract section once survived propose, refine, resolve, and four lenses as
+verbatim template text.)
+
 ## §model-ceiling — per-spawn model bump for delegated authoring
 
 For orchestrating skills that spawn *authoring* sub-agents (e.g.
