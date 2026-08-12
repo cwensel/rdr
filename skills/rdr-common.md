@@ -417,6 +417,21 @@ spent — at stage start nothing is written, so cancel is free. Resolve:
 
 `small`/`mid` never trigger the fork.
 
+## §strong-consult — a stronger fresh look before the human
+
+At a *challenge* — a route-back reopening the approach, a tiebreaker the
+evidence won't collapse, verdict-flapping at the cap — consult ONE
+fresh-context sub-agent at the strongest reasoning tier available (the
+§model-ceiling resolution; none set → the strongest model this harness
+offers, judged conservatively) BEFORE escalating to the human. Factored
+brief: the fork/claims in tension + the new evidence, never the justifying
+prose or prior verdicts (precedent: a second-model critique pass refuted a
+claim the first model had ratified). One consult, queried once — never a
+panel. It returns a §return-packet; escalate to the human (§stop-packet)
+only on its NEEDS_DECISION or a repeat flap. This re-orders the escalation
+ladder, it does not remove the human: genuine either/or design calls still
+stop.
+
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 
 A writing stage already knows the exact files it wrote — `$RDR_PATH`,

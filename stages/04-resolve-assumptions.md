@@ -39,7 +39,10 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
 - **Did research change the design?** If a finding (or a reuse hit) contradicts
   the chosen approach, that's not a citation fix — **return to Stage 2 or 3**,
   rework the approach, then come back. (Ask: *do these findings force critical
-  changes to the proposed solution?*)
+  changes to the proposed solution?*) Before re-entering, run rdr-common
+  §strong-consult on the reopened fork (alternatives × the route-back
+  findings); the close packet's `Next:` is the re-propose — a route-back is a
+  routing outcome, not a user pause.
 - **Are citations from local corpora**, not hallucinated? Cross-check a sample
   against the corpus or cloned source.
 - **Is the evidence-body authored from the verified assumptions?** Testing

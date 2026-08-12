@@ -107,9 +107,10 @@ rationale for decisions, not a log of edits).
 TIEBREAKER-REDUCTION GATE. **Ultrathink** before applying any load-bearing /
 cross-subsystem / structural / principle-touching / intent-conflicting finding,
 and use that reasoning + the grounding evidence to **collapse the fork yourself** —
-most apparent either/ors dissolve once the evidence is on the table. Escalate to
-me ONLY when the evidence is genuinely indeterminate or design intent truly
-conflicts, not as the default for a hard call. (Cross-model repeatability
+most apparent either/ors dissolve once the evidence is on the table. Still
+indeterminate → rdr-common §strong-consult first; escalate to me ONLY on its
+NEEDS_DECISION or when design intent truly conflicts, not as the default for
+a hard call. (Cross-model repeatability
 independence is the one fork you can't collapse alone — the lens handles it.)
 
 Output: per finding, one line — disposition (fixed / dismissed-with-cite /

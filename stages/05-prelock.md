@@ -229,8 +229,9 @@ enforces them; don't re-derive):
   RDR; that is the scope-expansion wormhole).
 - **Tiebreaker-reduction gate.** Ultrathink on load-bearing / cross-subsystem /
   structural / principle-touching / intent-conflicting findings and collapse the
-  fork with reasoning + evidence. Escalate to the human only when the evidence is
-  genuinely indeterminate.
+  fork with reasoning + evidence; still indeterminate → rdr-common
+  §strong-consult. Escalate to the human only when the consult is
+  indeterminate too.
 - **Flag-as-you-go.** A fix that touches/adds a load-bearing claim flips a Verified
   assumption back to Pending, or adds a new `A-N` Pending — Stage 6 closes them.
 
@@ -249,8 +250,9 @@ enforces them; don't re-derive):
    ledger entries** (under `iter-N/`), then resolve again; small fix doesn't need
    it. **Cap = 3**: three iterations still surfacing net-new findings against a
    barely-changed draft = the plank problem — the skill stops with
-   `stopped:verdict-flapping` and surfaces it once; the cure is a human look or a
-   model switch, not a fourth pass.
+   `stopped:verdict-flapping` and surfaces it once; the cure is §strong-consult
+   (rdr-common) over the open ledger entries, then a human look — not a
+   fourth pass.
 4. **Converged → next lens** in the set. **Critique is model-aware**: a lone
    single-model `critique.md` does **not** converge a `foundational` RDR (dual-model
    required, or recorded single-model fallback); on re-entry, compare the existing

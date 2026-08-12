@@ -95,8 +95,10 @@ Read the Problem Statement and Context, then:
      beats it at fewer tokens). The extension past "delegate reads" is honest:
      this delegates *judgment*, because a fresh context that never saw the
      justifying prose is the independence that defeats self-confirmation — the
-     same CoVe discipline Critique already uses. It is NOT a dual-model pass
-     (a sub-agent inherits this session's model — see `2-critique.md`).
+     same CoVe discipline Critique already uses. It is NOT a dual-model pass —
+     spawn it at the §model-ceiling resolution when the harness has per-spawn
+     model control (these profiles are where the ceiling applies); without
+     that control it inherits the session model (see `2-critique.md`).
      - **Seeds first (main agent, before dispatch).** Glob
        `$RDR_RECORDS/*-postmortem.md` at depth 1 (never recurse); from their
        Escaped-Defect Ledgers take 2–3 rows with `Expected-catching stage:

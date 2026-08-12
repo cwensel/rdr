@@ -50,6 +50,9 @@ or the source does not-X), STOP. Do not paper over it. Report it as a BLOCKER
 and send the
 RDR back to Stage 2 (approach), 3 (refine), or 4 (re-resolve) — name which.
 Locking over a refuted assumption is the failure this gate exists to prevent.
+Run rdr-common §strong-consult on the reopened fork before routing — its
+verdict rides the BLOCKER report, and the route-back is the close packet's
+`Next:`, not a user pause.
 
 HARD RULE — no spike or assumption deferred past lock if the MVV depends on
 it. If it pins the very thing the Minimum Viable Validation proves (byte-parity
