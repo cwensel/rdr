@@ -36,7 +36,9 @@ Claude: /rdr-propose <NNNN>
    premortems it (`small`/`mid`: one paragraph; `large`/`foundational`: a
    draft-free critic sub-agent briefed without the RDR's justifying prose,
    writing `{EVIDENCE_DIR}propose-premortem/critic.md`), records the
-   `Premortem:` verdict line in Decision Rationale, and writes Proposed
+   `Premortem:` verdict line in Decision Rationale, runs the grounding
+   micro-sweep on the written proposal (step 7.5 — its `Ground-sweep:`
+   verdict lands beside `Premortem:`), and writes Proposed
    Solution / Alternatives / Decision Rationale +
    a `Pending` Critical Assumptions list into the draft. **Retrieval-first:** prior
    art is read *before* approaches are named (an LLM that enumerates first anchors
@@ -65,7 +67,8 @@ Claude: /rdr-propose <NNNN>
 - `large`/`foundational`: the choice falls out of a scored Q-O-C matrix, not prose.
 - The chosen approach solves the *user's* problem; the premortem ran in its
   profile's form (paragraph, or the draft-free critic at `large`/`foundational`)
-  and the `Premortem:` verdict line is recorded in Decision Rationale.
+  and the `Premortem:` and `Ground-sweep:` verdict lines are recorded in
+  Decision Rationale.
 - The joint-decision check ran against all open peers and its `Joint-check:`
   verdict line is recorded in Decision Rationale (absent line = did not run —
   re-run it; a skipped gate item must not read as a passed one). Any fire was

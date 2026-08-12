@@ -117,7 +117,7 @@ restart with `--model-ceiling`).
 ## Review gate
 
 Per member, the single-propose gate (stages/02-propose.md) applies — each RDR
-carries its own `Premortem:`/`Joint-check:` lines. The batch adds:
+carries its own `Premortem:`/`Ground-sweep:`/`Joint-check:` lines. The batch adds:
 
 - Every member reached a terminal outcome: proposed | skipped | parked-fork.
 - Every `Joint-check:` line written; every fire disposed or surfaced.
