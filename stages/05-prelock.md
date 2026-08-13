@@ -258,8 +258,8 @@ enforces them; don't re-derive):
    required, or recorded single-model fallback); on re-entry, compare the existing
    evidence's `Model:` stamp (§model-stamp) to this session's — a different model is
    the second pass to run, never "already complete." The owed second pass keeps
-   `critique` the *next* lens: the close packet points at the relaunch, never at
-   a later lens.
+   `critique` the *next* lens: the close packet points at `--auto` (or, where the
+   harness can't spawn per-model, the relaunch), never at a later lens.
 
 If critique or cove surfaces that an *assumption* was wrong (not just
 under-documented), flag-as-you-go captures it and **Stage 6 reconciles it** before

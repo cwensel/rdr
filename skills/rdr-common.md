@@ -408,6 +408,30 @@ flow, producing site, output) or registers a Pending assumption (Method:
 Spike or MVV Test). (Mined: an amendment missed 1 of 13 sites — two more
 reconcile iterations.)
 
+## §auto-fanout — `--auto`: spawn a lens's cross-model passes in parallel
+
+For the cross-model pre-lock lenses (`critique`, `repeatability`), whose passes
+have no data dependency on each other and are serial only because a human
+relaunches the CLI between them. `--auto` fans them out as concurrent sub-agents,
+one per pass, each pinned to a **distinct** model via the spawn's model param
+(assign the set up front — with parallel spawns there are no prior files to read
+stamps from). Opt-in: without the flag nothing changes.
+
+**Independence is preserved, not waived.** The one-pass-per-session rule exists to
+stop a context that authored one pass from anchoring the next; concurrent spawns
+satisfy that strictly better, since none exists when the others start. What stays
+binding is the **barrier**: the diff/compare pass runs only after every pass lands,
+in a further fresh sub-agent that authored none of them (an authoring context
+diffs toward the interpretation it already wrote). Fan-out → barrier → diff.
+
+**Degrade, never fake.** A harness without per-spawn model control or concurrent
+spawns runs the documented hand-relaunch path instead — emit the relaunch command
+(the `{RDR_RESOURCES}` alt-model roster) and note `auto: unavailable (harness) —
+manual relaunch` in the close packet. Never silently run the passes on one model:
+same-`model:`-stamp files are not a cross-model pass however they were spawned
+(§model-stamp is the check). The win lands only where the harness supports it;
+that asymmetry is accepted — never serialize a capable harness for parity.
+
 ## §model-ceiling — per-spawn model bump for delegated authoring
 
 For orchestrating skills that spawn *authoring* sub-agents (e.g.

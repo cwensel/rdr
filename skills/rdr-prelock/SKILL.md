@@ -1,7 +1,7 @@
 ---
 name: rdr-prelock
 metadata:
-  argument-hint: "<NNNN> <lens> [run] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}"
+  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
 description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding, 3amigo, critique, repeatability, cove. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
 ---
 
@@ -25,6 +25,13 @@ Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, cri
 one run. **Variant follows the profile, not the `run` arg** (§repeatability-variant):
 `mid`/`large` = lite (`run-1` only, then `diff`); `foundational`/escalation = full
 (`run-1/2/3` then `diff`). Reject an unknown lens with `stopped:bad-lens:<value>`.
+
+`--auto` (`critique` | `repeatability` only — reject elsewhere with
+`stopped:auto-not-applicable:<lens>`) runs the lens's cross-model passes as
+parallel sub-agents instead of hand CLI relaunches, then the diff behind the
+barrier: **rdr-common §auto-fanout** owns the mechanics (distinct models per
+spawn, barrier before diff, harness degradation) — don't restate them. With
+`--auto`, `repeatability` needs no `run` arg; it spawns the variant's whole set.
 
 **Pick the lens by profile** (`$RDR_HOME/stages/README.md` matrix): mid →
 `grounding 3amigo`; large → `grounding 3amigo critique`; foundational →
@@ -75,11 +82,14 @@ inherits them.
 
 ## Repeatability (the multi-session exception)
 
-Not an in-skill loop — independence comes from separate sessions between runs,
-not from the invoking session being RDR-naive (the generation prompt reads the
-RDR anyway). **Commit cadence is the §commit exception**: each run session commits
-only its own `run-<N>.md` (`chore(rdr): cli/NNNN repeatability run-N`); the doc commit
-defers to the diff session — see rdr-common §commit.
+Not an in-skill loop — independence comes from each run being written by a context
+that authored no other run, not from the invoking session being RDR-naive (the
+generation prompt reads the RDR anyway). Separate sessions (below) and `--auto`'s
+parallel spawns (§auto-fanout) both satisfy that. **Commit cadence is the §commit
+exception**: each run session commits only its own `run-<N>.md` (`chore(rdr):
+cli/NNNN repeatability run-N`); the doc commit defers to the diff session — see
+rdr-common §commit. Under `--auto` the orchestrator commits the run set once the
+barrier clears, then the diff as usual.
 
 ### §repeatability-variant — resolve the variant from profile before writing any run
 
@@ -96,8 +106,11 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
 
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
-  writes exactly one run; never write a second run in the same session.
-- **Next run needs a fresh session (full only)** — after writing, stop with
+  writes exactly one run; never write a second run in the same session. (Under
+  `--auto` the orchestrator writes none itself — each parallel sub-agent is that
+  one-run context; §auto-fanout.)
+- **Next run needs a fresh context (full only)** — serial relaunch is the manual
+  path, and the fallback when `--auto` is unavailable. After writing, stop with
   `stopped:repeatability-needs-fresh-session:run-<N+1>`; the next
   `/rdr-prelock NNNN repeatability <N+1>` invocation in a fresh session writes
   the next run, relaunched on the alt model for the cross-model draw. **Lite stops
@@ -105,7 +118,8 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   `run-2` pointer); do not continue to reconcile.
 - **Diff only when complete + clean** — completeness is judged against the
   profile's variant (§repeatability-variant), not the file count: lite needs `run-1`,
-  full needs `run-1/2/3`. This session wrote none; else
+  full needs `run-1/2/3`. The diffing context wrote none — this session manually, or
+  a fresh post-barrier sub-agent under `--auto` (§auto-fanout); else
   `stopped:repeatability-incomplete:<missing>`. ≥1 run on a different model.
 - **Resolve once `diff.md` lands** — this same skill runs the resolve prompt on
   `diff.md`; its REPEATABILITY DIFF clause governs each divergence. If autocommit is on,
@@ -147,9 +161,11 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   and a re-entry under a *different* model is the second pass to run, not a no-op.
 - **3amigo | critique | cove** converged → next lens is the first missing item in
   the current checklist: `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
-  second pass keeps `critique` the first missing item — `Next:` is "relaunch the
-  CLI on a second base model, then `/rdr-prelock NNNN critique`", never a later
-  lens (§next-step: one action; other open obligations go in `Continue check:`).
+  second pass keeps `critique` the first missing item — `Next:` is
+  `/rdr-prelock NNNN critique --auto` where the harness spawns per-model
+  (§auto-fanout), else "relaunch the CLI on a second base model, then
+  `/rdr-prelock NNNN critique`"; never a later lens (§next-step: one action;
+  other open obligations go in `Continue check:`).
 - **repeatability** — pick the variant from `Profile` (§repeatability-variant), never
   from files present. Lite (`mid`/`large`): missing `run-1` → `repeatability 1`, then
   `diff` — never point at `run-2`. Full (`foundational`/escalation): missing run →

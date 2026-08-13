@@ -30,7 +30,7 @@ the full ×3 lens stays gated to Foundational or escalation.
 
 **Run**: one reconstruction on a **different base model** (the cross-model draw is
 the whole point — same generation prompt below, a single `run-1.md`), then a
-focused diff against the RDR in a fresh session. Lite never runs `run-2` or
+focused diff against the RDR in a fresh context. Lite never runs `run-2` or
 `run-3` unless it escalates to the full lens.
 
 **The lite diff must name concrete RDR silences, not style differences.** A finding
@@ -53,17 +53,21 @@ any lens folder.
 
 ## Generation prompt
 
-**Run 3 times, one run per fresh session** — at least one run on a **different
-base model**. The cross-model run is the point: it surfaces where the RDR reads
-differently to a different model, not just a different temperature draw.
+**Run 3 times, one run per independent context** (fresh sessions in series, or
+`--auto`'s parallel spawns) — at least one run on a **different base model**. The
+cross-model run is the point: it surfaces where the RDR reads differently to a
+different model, not just a different temperature draw.
 
-**One session writes exactly one run.** A context window that authored a run
-must not write a second `run-*.md` — the next run goes in a fresh session so
-each draw is independent. A sub-agent **cannot** stand in (self-consistency
-check). After writing `run-<N>.md`, stop — the next invocation in a fresh
-session writes the next one. Relaunch on the alt model between runs (e.g.
-`ollama launch claude --model kimi-k2.6:cloud`); if `{RDR_RESOURCES}` lists
-an alt-model roster, use one of its commands for run N.
+**One context writes exactly one run.** A context window that authored a run must
+not write a second `run-*.md` — each draw must be independent, so a sub-agent *of
+an authoring session* cannot stand in (that is a self-consistency check, not a
+fresh draw). Independent contexts satisfy this two ways: fresh sessions in series,
+or the parallel spawns of `/rdr-prelock … repeatability --auto` (rdr-common
+§auto-fanout) — concurrent runs cannot contaminate each other, since none exists
+when the others start. Running manually: after writing `run-<N>.md`, stop; the
+next invocation in a fresh session writes the next one, relaunched on the alt
+model (e.g. `ollama launch claude --model kimi-k2.6:cloud`); if
+`{RDR_RESOURCES}` lists an alt-model roster, use one of its commands for run N.
 
 `{RDR_PATH}`, `{EVIDENCE_DIR}` (this lens's `<rdr-slug>/evidence/repeatability/`
 folder under `$RDR_EVIDENCE` — `{RDR_ENV}` defines), and `<N>` (this run's
@@ -91,16 +95,18 @@ Write your output to {EVIDENCE_DIR}/run-<N>.md. Report nothing else.
 
 ## Diff prompt
 
-Run the diff as its own pass (`/rdr-prelock NNNN repeatability diff`) **in a
-fresh session that authored none of the runs**. Full repeatability diffs three
-runs; repeatability-lite diffs the single alternate-model `run-1.md` against the
-RDR and admits only concrete contract silences. The analysis is pure, but an
-authoring session isn't neutral — it diffs toward the interpretation it already
-wrote — so the full diff is a fourth pass, and the lite diff is a separate neutral
-pass (not a tail on the generation). A sub-agent of an authoring session can't
-stand in either. Once the required runs exist and this session wrote none, paste
-the matching prompt once. `{RDR_PATH}`/`{EVIDENCE_DIR}` bind from the Stage 5 arg
-header — paste verbatim, or fill them if standalone.
+Run the diff as its own pass (`/rdr-prelock NNNN repeatability diff`) **in a fresh
+context that authored none of the runs** — a fresh session, or under `--auto` a
+post-barrier sub-agent spawned once every run has landed (§auto-fanout). Full
+repeatability diffs three runs; repeatability-lite diffs the single
+alternate-model `run-1.md` against the RDR and admits only concrete contract
+silences. The analysis is pure, but an authoring context isn't neutral — it diffs
+toward the interpretation it already wrote — so the full diff is a fourth pass,
+and the lite diff is a separate neutral pass (not a tail on the generation). A
+sub-agent of an authoring session can't stand in either. Once the required runs
+exist and the diffing context wrote none, paste the matching prompt once.
+`{RDR_PATH}`/`{EVIDENCE_DIR}` bind from the Stage 5 arg header — paste verbatim,
+or fill them if standalone.
 
 For repeatability-lite, read `{EVIDENCE_DIR}/run-1.md`; compare it against the RDR
 at `{RDR_PATH}` and write `{EVIDENCE_DIR}/diff.md` with only concrete contract
