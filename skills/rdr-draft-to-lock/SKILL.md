@@ -57,7 +57,8 @@ a corrected packet; still malformed → one re-spawn at the ceiling, then surfac
 §seam-bind + §rdr-resolve. Then read **only** the RDR's `Status:` line, `Profile`
 field, `Seam Lineage`, and (for `mid`/`large`) Normative Contracts — the cheap
 routing reads, not the body. Compute the lens row via **§lens-row** and write the
-plan to `{ARTIFACT_DIR}/run-plan.md`:
+plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is otherwise its
+first writer):
 
 ```
 rdr: NNNN-<slug>          profile: <value>   (as read; Draft = provisional)
