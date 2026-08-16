@@ -7,24 +7,18 @@ description: 'Use to drive one proposed RDR from Refine through Finalize as dele
 
 # rdr-draft-to-lock — Stages 3→7 as one delegated pass (EXPERIMENTAL)
 
-Drive **one already-proposed** RDR from Refine to Final — the span propose hands
-off to. The premise: the design judgment lives at Seed and Propose; 3→7 is a
-filter cascade whose stages already own their gates and already know when to
-stop. This skill schedules them and holds the forks — it does not re-decide them.
+Drive **one already-proposed** RDR from Refine to Final. Design judgment is
+settled at Seed and Propose; 3→7 is a filter cascade whose stages already own
+their gates. This skill schedules them and holds the forks — never re-decides
+them, and never spans Seed/Propose or Implement (`$RDR_HOME/stages/README.md`
+*One skill per stage* records why that bound is the trial's constraint).
 
-**Experimental, and mid-flow by design.** `$RDR_HOME/stages/README.md` rejects a
-whole-flow `/rdr-flow` walker; this is not one. Seed and Propose stay hand-driven
-(the design is decided there) and Implement keeps `launch.md` — the flow already
-runs an orchestrator at that end. This one takes the middle, where the stages own
-their gates.
-
-It changes *who types the next command*, never what a stage does: each stage runs
-its own skill, unmodified, in its own sub-agent. Sub-agents answer the *context
-bloat* objection; they are also the *hand-off* the README warns costs the driver
-their seat — so every stop rule below is what pays for that, and none is
-optional. If this skill were deleted mid-run, the RDR is on disk at a clean stage
-boundary and `/rdr-status NNNN` names the next command. That is the safety
-property; keep it.
+**Experimental.** It changes *who types the next command*, never what a stage
+does: each stage runs its own skill, unmodified, in its own sub-agent. The
+sub-agent hand-off is what costs the driver their seat, so **every stop rule
+below is what buys it back — none is optional.** Two invariants: the RDR sits at
+a clean stage boundary throughout (delete this skill mid-run and `/rdr-status
+NNNN` names the next command), and no fork is ever answered here.
 
 ## Usage
 
@@ -40,23 +34,20 @@ pass through to every spawn (§model-ceiling, §commit).
 
 **Precondition.** `Status: Draft` with Proposed Solution authored (post-Stage-2).
 A seeded-unproposed RDR stops with `stopped:not-proposed:<NNNN>` → `/rdr-propose
-NNNN`. Refuse `Final` (`stopped:already-final`). Starting at Stage 3 is what makes
-this safe to enter on any proposed RDR: refine always runs, so the run re-enters
-the cascade at its head rather than assuming an earlier stage happened. Stage 8 is **out of scope** —
-implement is a separate act with its own orchestrator (`launch.md`).
+NNNN`. Refuse `Final` (`stopped:already-final`). Entry is Stage 3 because refine
+always runs — the cascade is re-entered at its head, never mid-way on an
+assumption. Stage 8 is out of scope (`launch.md` owns it).
 
 ## Posture — delegate everything, hold only the ledger
 
-Like `/rdr-joint-propose` and Stage 8's `launch.md`, this orchestrator **never
-reads the RDR text, evidence bodies, or source** (§delegation, and the stricter
-orchestrator rule in `$RDR_HOME/stages/README.md` *Doctrine*). Cheap metadata
-reads are permitted and named in Phase 0 — that is launch.md's rule too, not a
-loosening of it. Each stage runs
-as one sub-agent invoking the real stage skill; the orchestrator holds only:
-the bound seam vars, the lens plan, the packets, and the parked forks. Two
-consequences it must not trade away: stage skills keep authoring in *their* main
-context (§delegation is satisfied — the orchestrator's context is not the
-stage's), and a stage's own Review gate still runs inside that stage.
+Like `/rdr-joint-propose` and `launch.md`, this orchestrator **never reads the
+RDR text, evidence bodies, or source** — the cheap metadata reads in Phase 0 are
+the exception, as they are for launch.md. Each stage is one sub-agent invoking
+the real stage skill; the orchestrator holds only the seam vars, the plan, the
+packets, and the parked forks. Two things that buys, neither tradable: stage
+skills still author in *their* main context (§delegation is satisfied — the
+orchestrator's context is not the stage's), and each stage's Review gate still
+runs inside it.
 
 Each stage returns a **§return-packet**. Reject a malformed one and ask only for
 a corrected packet; still malformed → one re-spawn at the ceiling, then surface.
@@ -77,10 +68,9 @@ stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
 (count, then the accretion floor), so **recompute §lens-row from the field after
-resolve returns**, not from this plan. The plan records intent; the field decides
-— so when they diverge, **rewrite the plan file** before the next hop, or the
-durable state you re-read is stale. Any stage may move the field (escalation,
-demotion, a 7.1 re-entry): re-read `Profile` at every hop, not only after resolve.
+resolve returns**. Any stage can move the field, so re-read `Profile` every hop
+and **rewrite the plan when they diverge** — a durable state you don't update is
+a stale one you will trust. The plan records intent; the field decides.
 
 ## The loop — one stage per sub-agent
 
@@ -105,13 +95,11 @@ Then, per packet:
 
 **Route-backs are the orchestrator's hard boundary.** A reconcile `NOT
 RECONCILED`, a finalize `NOT READY`, or a prelock refutation names an *earlier*
-stage. This skill **never drives backward** — it parks the verdict with the named
-return stage and stops. Re-opening a settled stage is a design decision; the
-*decision* is the human's. The **ledger row is not**: §punt-ledger says append it
-at the route-back, before refine collapses the history, so the route-back brief
-tells the stage sub-agent to append its own row and the packet's `changed_paths`
-must show it. An unrecorded punt blinds the next premortem — never leave the row
-to the human who may not return. Report `Next: /rdr-<named-stage> NNNN`.
+stage. This skill **never drives backward** — park the verdict with its named
+return stage and stop; re-opening a settled stage is the human's decision. The
+§punt-ledger row is **not** theirs to remember: the route-back brief tells the
+stage sub-agent to append it (before refine collapses the history) and
+`changed_paths` must show it. Report `Next: /rdr-<named-stage> NNNN`.
 
 ## Forks — schedule them, never answer them
 
@@ -124,27 +112,21 @@ pair is not Evidence" (`04-resolve.prompt.md`) — it is the flow's one mandated
 user interaction in this span, and a run that auto-approves it has forged
 evidence, not saved a turn.
 
-Relaying it needs the **one read carve-out** in this skill: a §return-packet
-cannot carry I/O pairs (`summary_50w` caps it, `next_action` is one imperative),
-so the resolve sub-agent **writes the rendered round to a file** and returns its
-path in `evidence_paths` with `verdict: NEEDS_DECISION`. The orchestrator reads
-**that file only** — not the RDR, not other evidence — and puts the pairs to the
-user unedited. Narrow by construction: one named file, written for this purpose,
-read once. Without it "relay verbatim" has no legal channel and the mandated
-interaction silently degrades into a summary.
+Relaying it takes the **one read carve-out** here: a §return-packet can't carry
+I/O pairs, so resolve **writes the round to a file** and returns its path in
+`evidence_paths` with `verdict: NEEDS_DECISION`. Read **that file only** and put
+the pairs to the user unedited. Without the carve-out the round degrades to a
+summary, which is the same forgery by a slower route.
 
 Before escalating a *judgment* fork (not an I/O round, not a mechanical stop),
 run **§strong-consult** once — a fresh strongest-tier look may collapse it. Its
 `NEEDS_DECISION` goes to the user.
 
-**A consult never closes `stopped:verdict-flapping`.** The cap-3 flap is the
-anti-flapping core (`$RDR_HOME/stages/05-prelock.md`), and its cure is a human
-look **or a model switch** — a consult that returns PASS and resumes the lens is
-a fourth pass in a different hat. Treat flapping like the I/O round: a hard stop
-to the user, who chooses the look or the switch. This orchestrator has read none
-of the evidence, so it is the wrong context to judge that a consult legitimately
-collapsed a fork — that limit is why the consult is advisory here, never
-dispositive.
+**A consult never closes `stopped:verdict-flapping`.** Its cure is a human look
+or a model switch (`$RDR_HOME/stages/05-prelock.md`); a consult that returns PASS
+and resumes the lens is a fourth pass in a different hat. Hard stop, like the I/O
+round — the user picks. Having read no evidence, this context cannot judge that a
+consult legitimately collapsed a fork: advisory here, never dispositive.
 
 ## Autonomy by profile — bias to hands-off where the blast radius is small
 
