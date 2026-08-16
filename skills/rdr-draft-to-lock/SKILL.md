@@ -38,9 +38,10 @@ is a choice worth seeing rather than inheriting.
 **Precondition.** `Status: Draft`, proposed — tested without reading the body:
 `### Technical Design` + `#### Normative Contracts` present, or `propose-premortem/`
 on disk. Neither → `stopped:not-proposed:<NNNN>` → `/rdr-propose
-NNNN`. Refuse `Final` (`stopped:already-final`). Entry is Stage 3 because refine
-always runs — the cascade is re-entered at its head, never mid-way on an
-assumption. Stage 8 is out of scope (`launch.md` owns it).
+NNNN`. Refuse `Final` (`stopped:already-final`). A **first** run enters at Stage 3
+— refine always runs, so the cascade starts at its head rather than mid-way on an
+assumption; a re-invocation enters at the skip guard's first open stage (below).
+Stage 8 is out of scope (`launch.md` owns it).
 
 ## Posture — delegate everything, hold only the ledger
 
@@ -73,12 +74,27 @@ lenses: <row, in order, or "none (small)">
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
 
+Then a **Ledger** — one row per planned stage (`verdict`, `blocking`, one-line
+note), appended as each packet lands, and any **decided fork disposition** with
+the consequence the RDR still owes. This is not bookkeeping: it is what makes
+re-entry work, and what a human reads to see where the run got to.
+
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
 (count, then the accretion floor), so **recompute §lens-row from the field after
 resolve returns**. Any stage can move the field, so re-read `Profile` every hop
 and **rewrite the plan when they diverge** — a durable state you don't update is
 a stale one you will trust. The plan records intent; the field decides.
+
+**Re-entry: re-invoke, never `--resume`.** There is no resume flag (§run-prompt —
+re-entry is a property of on-disk state). A run that stopped at a fork resumes by
+running the same command again; the **skip guard** is the plan's Ledger plus the
+evidence dirs: a stage with a `PASS`/`blocking: no` row is done — skip it. Start
+at the first row that is missing, `INCOMPLETE`, or blocking. Trust the Ledger
+only where the RDR agrees (a `PASS` row whose stage left no trace is a defect,
+not a skip); no plan file at all → Phase 0 from scratch. Brief the re-run stage
+with any fork the user has since decided, so it folds the answer in rather than
+re-asking.
 
 ## The loop — one stage per sub-agent
 
