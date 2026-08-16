@@ -68,17 +68,22 @@ is the lever that pulls an accreting `small`/`mid` RDR up to the foundational
 row — so its first lens becomes **cove**, not `grounding`. Stage 4 re-applies
 the floor when it overwrites the field; the floor outranks the contract count.
 
-**Determinacy trigger (repeatability-lite).** A second mechanical gate, read from
-the RDR's **Normative Contracts**, not its profile. If a locked contract is
+**Determinacy trigger (repeatability-lite).** A second gate, read from the
+RDR's **Normative Contracts** — the fenced ` ```normative ` block, not the
+surrounding prose — and not from its profile. If a locked contract is
 *algorithmic* — its **output depends on step ordering**, or it defines
 **parse/deparse, import/export, compose/decompose, hashing, identity, or migration**
 behavior, or a **data-model field whose ownership/semantics could be inferred more
 than one way**, or the **MVV rests on multi-step transformation fidelity** — add
 **repeatability-lite** (one alternate-model reconstruction + a focused diff; see
 [the lens](../prompts/pre-lock/3-repeatability.md#repeatability-lite-one-alternate-model-reconstruction))
-to the profile's lenses, down to `mid`. This is a cue read from the contract's
-*kind*, not a fresh judgment: a contract that names one of those verbs fires it; one
-that does not, does not. The escape is a one-line written disposition in the lens
+to the profile's lenses, down to `mid` (§lens-row appends it as a row entry, so
+the next-lens rule sees it). This is a cue read from the contract's *kind* — a
+narrow read, but **not a word test**: it fires on what the block *does*, and the
+ownership-ambiguity cue names none of the verbs. Grepping the whole RDR
+over-fires on topic vocabulary (an RDR *about* identity says "identity"
+everywhere); grepping only the block under-fires. Read the block and ask what it
+legislates. The escape is a one-line written disposition in the lens
 folder (`determinacy: n/a — <reason>`), mirroring the accretion escape;
 `Transient`-marked contracts (TEMPLATE.md Normative Contracts) are excluded from
 the trigger read in the same register — the marker line is their recorded

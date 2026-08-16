@@ -30,10 +30,14 @@ Claude: /rdr-draft-to-lock <NNNN> [--to reconcile] [--ask-each]
 `--to <stage>` stops after that stage (`refine|resolve|prelock|reconcile|finalize`;
 default `finalize`). `--ask-each` confirms before every stage — the training-wheels
 mode; use it the first few runs. `--model-ceiling` and `--commit`/`--no-commit`
-pass through to every spawn (§model-ceiling, §commit).
+pass through to every spawn (§model-ceiling, §commit). Resolve the ceiling in
+Phase 0 and **record it in the plan** — `large`/`foundational` spawn at it, and an
+unset ceiling silently runs the judgment-dense profiles at session model, which
+is a choice worth seeing rather than inheriting.
 
-**Precondition.** `Status: Draft` with Proposed Solution authored (post-Stage-2).
-A seeded-unproposed RDR stops with `stopped:not-proposed:<NNNN>` → `/rdr-propose
+**Precondition.** `Status: Draft`, proposed — tested without reading the body:
+`### Technical Design` + `#### Normative Contracts` present, or `propose-premortem/`
+on disk. Neither → `stopped:not-proposed:<NNNN>` → `/rdr-propose
 NNNN`. Refuse `Final` (`stopped:already-final`). Entry is Stage 3 because refine
 always runs — the cascade is re-entered at its head, never mid-way on an
 assumption. Stage 8 is out of scope (`launch.md` owns it).
@@ -54,14 +58,17 @@ a corrected packet; still malformed → one re-spawn at the ceiling, then surfac
 
 ## Phase 0 — bind, then plan once
 
-§seam-bind + §rdr-resolve. Then read **only** the RDR's `Status:` line, `Profile`
-field, `Seam Lineage`, and (for `mid`/`large`) Normative Contracts — the cheap
-routing reads, not the body. Compute the lens row via **§lens-row** and write the
+§seam-bind + §rdr-resolve (they bind `{ARTIFACT_DIR}` from `$RDR_ENV`). Then read
+**only** the RDR's `Status:` line, `Profile` field, `Seam Lineage`, and — for
+`mid`/`large` — the fenced ` ```normative ` block under `#### Normative
+Contracts` (an h4 inside Proposed Solution, per TEMPLATE.md; reading it is not
+reading the body). Those are the cheap routing reads. Compute the lens row via **§lens-row** and write the
 plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is otherwise its
 first writer):
 
 ```
-rdr: NNNN-<slug>          profile: <value>   (as read; Draft = provisional)
+rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
+ceiling: <model | unset (session model)>
 lenses: <row, in order, or "none (small)">
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
@@ -143,8 +150,9 @@ a second scale.
 
 `--ask-each` overrides the table upward (confirm everywhere); nothing overrides
 it downward — a `foundational` run cannot be made silent. A **`Draft` Profile is
-provisional** (Resolve earns it): treat an unearned `small` as `mid` for posture
-until Stage 4 has written the field.
+provisional** (Resolve earns it), so posture never *drops* on an unearned field:
+read an unearned `small` as `mid`, and keep an unearned `large`/`foundational` at
+its own row until Stage 4 writes the field.
 
 ## Review gate
 

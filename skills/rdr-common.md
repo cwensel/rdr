@@ -397,11 +397,13 @@ pre-escalation `mid`/`large` pass does **not** discharge cove's Step 0.
 required checklist and subtract only *completed* lens evidence under
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/` — a bare folder is not completion
 (`repeatability` owes its run/diff files; `critique` on `foundational` owes the
-dual-model diff, §model-stamp). `mid`/`large` additionally owe
-**repeatability-lite** when the Stage 5 Determinacy trigger fires (algorithmic
-contract — `$RDR_HOME/stages/05-prelock.md`), unless a `determinacy: n/a —
-<reason>` disposition exists. All row entries plus any Determinacy obligation
-complete → `/rdr-reconcile NNNN`.
+dual-model diff, §model-stamp). When the Stage 5 Determinacy trigger fires on a
+`mid`/`large` RDR (algorithmic contract — `$RDR_HOME/stages/05-prelock.md`),
+**append `repeatability` (lite variant) to the row** — a row entry, not a
+footnote, so the first-missing rule sees it and `evidence/repeatability/` is its
+completion signal. It is discharged only by those files or a written
+`determinacy: n/a — <reason>` disposition. Whole row complete →
+`/rdr-reconcile NNNN`.
 
 **Profile changes are additive, and the row never shrinks.** Recompute from the
 *current* field on every close-out, not from the lens just run or a profile
