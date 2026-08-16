@@ -20,6 +20,11 @@ below is what buys it back — none is optional.** Two invariants: the RDR sits 
 a clean stage boundary throughout (delete this skill mid-run and `/rdr-status
 NNNN` names the next command), and no fork is ever answered here.
 
+**At a stop, name the one next command and stop.** Report what the run settled
+and what it parked; don't reason past the edge of the flow into advice the
+stages own. Where the flow is silent this skill is silent too — a plausible
+suggestion invented in a gap is the failure mode, and it reads as authority.
+
 ## Usage
 
 ```
@@ -175,6 +180,8 @@ its own row until Stage 4 writes the field.
 - Every stage ran its **own** skill and gate — this skill added no gate and
   skipped none. A stage's Review gate is not restated here and never re-judged.
 - The orchestrator authored no RDR content and read no RDR body.
+- The close named **one** next command and invented no advice the flow doesn't
+  own — no alternative orderings, no suggestion a stage would have to refuse.
 - Stage 4's I/O round reached the user (or the RDR had no I/O-expressible
   assumption, stated as such in the packet).
 - Every parked fork is in the close packet — a fork dropped to reach Final is
@@ -183,8 +190,14 @@ its own row until Stage 4 writes the field.
 
 ## Next step (rdr-common §next-step)
 
+- **Stopped at the pre-finalize confirm** (`large`/`foundational`) → `Next:
+  /rdr-finalize NNNN`. Report what reconcile settled and parked; offer no
+  alternative to locking. Cross-RDR work is not one — it runs at propose
+  (`/rdr-joint-propose`) or after the lock (7.1 needs **Final** members, so a
+  Draft can't be in a cluster). Final-and-unimplemented peers are a `Continue
+  check:` note, never a reason to defer.
 - Ran to `Final` → `Next: /rdr-implement NNNN` (name any parked non-blocking
-  forks in `Deviations:`).
+  forks in `Deviations:`; if peers are Final-and-unimplemented, 7.1 comes first).
 - Parked at a fork → `Next:` is the stage that owns it (the named return stage
   for a route-back), with the fork stated as the reason.
 - `Continue check:` names what judgment remains — this skill's close packet
