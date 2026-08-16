@@ -90,14 +90,13 @@ Orchestrator, per packet:
 
 ## Fork dispositions
 
-A fire is a human-judgment fork (prompt step 8) — the orchestrator schedules
-it, never answers it:
+A fire is a human-judgment fork (prompt step 8) — schedule it, never answer it
+(rdr-common §fork-disposition owns the rule and the ask-now/park split):
 
-- **Ask now vs park.** If any *remaining* member's anchors overlap the fired
-  pair, ask immediately — proposing past an unresolved fork that feeds a later
-  member recreates the waste this skill exists to kill. Otherwise park the
-  fired member, finish the roster, and batch every parked fork into **one**
-  `AskUserQuestion` at the end.
+- **Ask now** when any *remaining* member's anchors overlap the fired pair —
+  proposing past an unresolved fork that feeds a later member recreates the
+  waste this skill exists to kill. Otherwise park the fired member and finish
+  the roster.
 - **Non-roster fire.** Never silently expand the roster: the question carries
   the standard dispositions (hoist / cite-don't-restate / declare in both)
   plus "pull NNNN into this run" when that peer is itself seeded-unproposed.

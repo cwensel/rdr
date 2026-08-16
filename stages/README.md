@@ -481,11 +481,26 @@ The skills are thin: each runs §seam-bind + §rdr-resolve (shared bones in
 [`skills/rdr-common.md`](../skills/rdr-common.md)), runs its stage's prompt file under
 [`../prompts/stages/`](../prompts/stages/), then prints the gate + the next command.
 
-**One skill per stage. No orchestrator.** A `/rdr-flow` walker was considered and
-rejected: it would either accumulate every stage's context (bloat) or hand off
-between sub-agents (losing the iterative, human-in-the-loop context a driver needs
-to drop in and correct at any stage). Granularity is the point — each invocation
-holds only its own stage's state.
+**One skill per stage. No orchestrator** — one bounded exception, under trial. A
+`/rdr-flow` walker was considered and rejected: it would either accumulate every
+stage's context (bloat) or hand off between sub-agents (losing the iterative,
+human-in-the-loop context a driver needs to drop in and correct at any stage).
+Granularity is the point — each invocation holds only its own stage's state.
+
+What that rejects is a **whole-flow walker**. The flow already tolerates an
+orchestrator where the span is bounded and the judgment is upstream: Stage 8's
+`launch.md` drives its phases and is the strictest delegator in the repo.
+`/rdr-draft-to-lock` (experimental) tests the same bargain **mid-flow, across 3→7 only** —
+Seed and Propose stay hand-driven because that is where the design is decided,
+and Implement keeps its own orchestrator. Sub-agents answer the *bloat* horn;
+they are the *hand-off* horn, so the parenthetical above is `/rdr-draft-to-lock`'s
+**standing constraint, not a superseded note** — the driver's seat is what it
+must not cost, and spanning Seed/Propose is the line it may not cross. What the
+trial measures is exactly that objection: whether a driver can still drop in
+and correct, via the stop at every genuine fork, the parked route-back,
+`--ask-each`, and an RDR that sits at a clean stage boundary throughout. If a
+defect reaches Final that a hand-driven pass would have caught, the rejection
+stands and the skill goes.
 
 | Skill | Param | Stage |
 | --- | --- | --- |

@@ -29,7 +29,6 @@ For the full description, run a skill with no arguments or read its
 | **`/rdr-init`** | **Stage 0.** Run **once per project** to bind it to the flow — writes the per-project seam and the RDR home index README so the other skills can resolve their paths. Installing the plugin alone does *not* set this up; init does. |
 | **`/rdr-doctor`** | Read-only health check. Confirms the seam binds, the engine resolves, the evidence root is reachable, and no symlink is broken — reports PASS/WARN/FAIL with the one fix per failure. Run after `init`, after an engine upgrade, or when a skill reports a `stopped:` seam error. |
 | **`/rdr-status`** | Read-only navigator. Derives an RDR's position in the flow purely from disk and tells you what to run next. Omit the number to list in-flight RDRs. Writes nothing. |
-| **`/rdr-run`** | **Experimental.** Drives one *already-proposed* RDR through Stages 4→7 as delegated stages, stopping at genuine human forks. Changes who types the next command, not what a stage does — every stage runs its own skill and gate. Seed and Propose stay hand-driven; Stage 8 is out of scope. |
 
 ## Authoring a record — Stages 1–6
 
@@ -41,6 +40,7 @@ For the full description, run a skill with no arguments or read its
 | **`/rdr-refine`** | 3 — Refine | Remove internal contradiction, redundancy, change-history narration, and bloat — make the draft internally consistent *before* its claims are verified. |
 | **`/rdr-resolve`** | 4 — Resolve | Verify the RDR's critical assumptions against reality: research, spikes, and a reuse audit, flipping assumptions to **Verified** with a Method + Evidence. |
 | **`/rdr-prelock`** | 5+6 — Pre-Lock | Run **one** pre-lock review lens against the draft *and* resolve its findings in the same pass. Lens is `grounding \| 3amigo \| critique \| repeatability \| cove`, picked by risk profile plus any Determinacy-trigger repeatability-lite. Loops until the lens converges. |
+| **`/rdr-draft-to-lock`** | 3→7 (runner) | **Experimental.** Drives one *already-proposed* RDR from Draft to the Lock — refine → resolve → lenses → reconcile → finalize — as delegated stages, stopping at every genuine human fork. Changes who types the next command, not what a stage does: each stage runs its own skill and gate. Seed/Propose stay hand-driven; Implement keeps `launch.md`. |
 | **`/rdr-reconcile`** | 6 — Reconcile | Close every open spike and round-disturbed assumption: force each to a terminal state (VERIFIED / DOWNGRADED / ACCEPTED / BLOCKER) and write it into the RDR. Gates the lock. |
 
 ## Locking & building — Stages 7–8

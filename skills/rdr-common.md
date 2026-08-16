@@ -511,6 +511,23 @@ only on its NEEDS_DECISION or a repeat flap. This re-orders the escalation
 ladder, it does not remove the human: genuine either/or design calls still
 stop.
 
+## §fork-disposition — an orchestrator schedules a fork, never answers it
+
+For skills that drive other stages (`/rdr-joint-propose`, `/rdr-draft-to-lock`). A
+human-judgment fork surfaced by a delegated stage is **scheduled**, not resolved
+by the orchestrator — which by construction has read none of the evidence behind
+it. Two rules decide *when* to interrupt:
+
+- **Ask now** when the fork blocks what comes next — advancing past it wastes
+  the work after it.
+- **Park** anything that does not block; batch every parked fork into **one**
+  `AskUserQuestion` when the run stops.
+
+Batching is for *economy of interruption*, never for reaching a terminal state:
+a fork dropped to finish a run is the failure mode these skills must not have.
+Each caller names its own ask-now triggers and dispositions; this anchor owns
+only the schedule-don't-answer rule and the ask-now/park split.
+
 ## §punt-ledger — record the escape at the moment of the route-back
 
 Any route-back that reopens a completed stage (a Stage-4/6 refutation
