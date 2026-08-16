@@ -63,7 +63,8 @@ per-slug paths above count.
 | 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
-its Critical Assumptions (count Verified vs Pending), then `ls` each folder at the
+its `Profile` field, its Critical Assumptions (count Verified vs Pending), and — for
+`mid`/`large` — its Normative Contracts (the Determinacy trigger, §lens-row), then `ls` each folder at the
 exact shape above — lenses, `reconcile`, and `spikes` under `<slug>/evidence/`
 (legacy: top-level `spikes/<slug>/`), plus `cluster-reconcile/` and
 `{ARTIFACT_DIR}/status.md`.
@@ -101,27 +102,15 @@ or contradicts what the tree shows.
      footnote to step past. Refine is the front half's only `~` — when CAs are all
      `Pending`, next is `/rdr-refine`, *then* `/rdr-resolve`.
 2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
-   footnote.** It maps to an exact base lens-set (the `$RDR_HOME/stages/README.md`
-   matrix is the sole authority for base profile lenses — never reconstruct it
-   from memory):
-
-   | Profile | Stage-5 lens-set (in order) | After Resolve, next is |
-   | --- | --- | --- |
-   | `small` | *(none)* | `/rdr-reconcile` (skip Pre-Lock) |
-   | `mid` | grounding → 3amigo | `/rdr-prelock NNNN grounding` |
-   | `large` | grounding → 3amigo → critique | `/rdr-prelock NNNN grounding` |
-   | `foundational` | cove → 3amigo → critique → repeatability | `/rdr-prelock NNNN cove` |
-
-   The Pre-Lock row lists **only this profile's lenses**; off-profile lenses are
-   absent, not `–`. For `mid`/`large`, also scan **Normative Contracts** for the
-   Stage 5 Determinacy trigger; if it fires, `repeatability-lite` is required
-   unless `evidence/repeatability/run-1.md` + `diff.md` exist or a
-   `determinacy: n/a - <reason>` disposition exists. Converged = every base lens
-   plus any Determinacy obligation ran; the first un-run one is the next command.
-   A bare `repeatability/` folder is not complete without the required run/diff
-   files. A `Draft` Profile is provisional (Resolve earns it, Stage 8
-   latches it) — a hint, never a basis for certifying a lens-skip; flag the basis
-   when unearned. If the field is absent, infer from the matrix and flag it (Caveats).
+   footnote.** It maps to an exact lens row: **rdr-common §lens-row** is the
+   authority (row, first-lens fork, Determinacy add-on, completion rules) —
+   never reconstruct it from memory. The Pre-Lock row you print lists **only
+   this profile's lenses**, plus a Determinacy-owed `repeatability` when it
+   fires (an owed obligation is never hidden); other off-profile lenses are
+   absent, not `–`. A `Draft`
+   Profile is provisional (Resolve earns it, Stage 8 latches it) — a hint, never
+   a basis for certifying a lens-skip; flag the basis when unearned. If the field
+   is absent, infer from the row and flag it (Caveats).
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
    the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
    lens *and* resolves its findings (review + fix are one cycle now). For
@@ -129,12 +118,7 @@ or contradicts what the tree shows.
    `mid`/`large` = lite (only `run-1` then a focused RDR-vs-run diff);
    `foundational`/escalation = full (`run-1/2/3` then `diff`). Point at the next
    missing piece for that variant; the diff session also resolves `diff.md`.
-   Profile changes are additive until the current profile's checklist is satisfied:
-   if the RDR was reset/escalated from `mid` or `large` to `foundational`, keep the
-   existing lower-profile lens folders as done, but require the missing
-   foundational lenses (`cove` and/or `repeatability`) before recommending
-   `/rdr-reconcile`. Never infer "all lenses done" from the last lens in an older
-   or smaller profile.
+   Escalation is additive and the row never shrinks — §lens-row.
 
 ## Output
 

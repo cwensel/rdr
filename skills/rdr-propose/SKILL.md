@@ -81,7 +81,7 @@ Claude: /rdr-propose <NNNN>
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `propose` first (see the rdr-common table).
+- If autocommit is on, run **§commit** for `propose` first (row in rdr-commit-map.md).
 - `Next: /rdr-refine NNNN` — remove contradiction, redundancy, bloat.
 - Sibling seeds still unproposed? Recommend *their* `/rdr-propose` before this
   RDR refines — each successive propose greps peers still in Draft, keeping any

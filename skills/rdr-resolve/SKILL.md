@@ -50,19 +50,13 @@ Claude: /rdr-resolve <NNNN>
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `resolve` first (+ a separate spike-evidence commit if a spike wrote; see the rdr-common table).
+- If autocommit is on, run **§commit** for `resolve` first (+ a separate spike-evidence commit if a spike wrote; row in rdr-commit-map.md).
 - Research refuted the approach or surfaced existing capability → **back** to
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
   field** (the routing latch) from the contract count, then the Seam Lineage
-  accretion floor, which outranks it (the prompt owns both). The next pointer
-  reads the field it just wrote — it does not re-derive size
-  (`$RDR_HOME/stages/README.md` matrix):
-  - `Profile: small` → skip Pre-Lock: `Next: /rdr-reconcile NNNN`.
-  - `Profile: mid`+ → the **first lens of the profile's set**, which is
-    profile-dependent — read the field, don't default:
-    `mid`/`large` → `Next: /rdr-prelock NNNN grounding`;
-    `foundational` → `Next: /rdr-prelock NNNN cove` (cove subsumes grounding as
-    its Step 0, so `grounding` is never the pointer here). Then the remaining
-    lenses in matrix order (`$RDR_HOME/stages/README.md`).
+  accretion floor, which outranks it (the prompt owns both). Take the next
+  pointer from the field it just wrote via **rdr-common §lens-row** — the first
+  lens is profile-dependent (`foundational` leads with `cove`, not `grounding`),
+  so read the row, never default.
 - `/rdr-status NNNN` to re-orient.

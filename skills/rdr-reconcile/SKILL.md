@@ -60,7 +60,7 @@ Claude: /rdr-reconcile <NNNN>
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `reconcile` first (+ a separate reconcile-evidence commit; see the rdr-common table).
+- If autocommit is on, run **§commit** for `reconcile` first (+ a separate reconcile-evidence commit; row in rdr-commit-map.md).
 - Verdict **RECONCILED** → `Next: /rdr-finalize NNNN`.
 - Verdict **NOT RECONCILED** → back to the named stage: `/rdr-propose NNNN` (approach),
   `/rdr-refine NNNN`, or `/rdr-resolve NNNN` (re-resolve).

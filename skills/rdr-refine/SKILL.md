@@ -40,7 +40,7 @@ Claude: /rdr-refine <NNNN>
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `refine` first (see the rdr-common table).
+- If autocommit is on, run **§commit** for `refine` first (row in rdr-commit-map.md).
 - `Next: /rdr-resolve NNNN` — verify the Critical Assumptions against reality.
 - A contradiction that's a real design hole → `/rdr-propose NNNN` (the approach is
   underspecified).

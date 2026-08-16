@@ -33,15 +33,11 @@ barrier: **rdr-common §auto-fanout** owns the mechanics (distinct models per
 spawn, barrier before diff, harness degradation) — don't restate them. With
 `--auto`, `repeatability` needs no `run` arg; it spawns the variant's whole set.
 
-**Pick the lens by profile** (`$RDR_HOME/stages/README.md` matrix): mid →
-`grounding 3amigo`; large → `grounding 3amigo critique`; foundational →
-`cove 3amigo critique repeatability` (cove embeds the grounding sweep as its
-Step 0, so it leads and `grounding` is not run separately). A small RDR runs
-**no** lens (skip to `/rdr-reconcile`). Run lenses in that order — grounding/cove
-first (ground the frame before the personas debate it). `mid`/`large`
-additionally run **repeatability-lite** when the Stage 5 Determinacy trigger fires
-(algorithmic contract — see `$RDR_HOME/stages/05-prelock.md`); foundational runs
-the full ×3 `repeatability` lens.
+**Pick the lens by profile — rdr-common §lens-row** owns the row, the first-lens
+fork, the Determinacy add-on, and the additive-on-escalation rule; don't restate
+them. Run the row in order (the grounding sweep leads: ground the frame before
+the personas debate it). `foundational` runs the full ×3 `repeatability` lens;
+`mid`/`large` run repeatability-lite only when Determinacy fires.
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a
@@ -144,21 +140,15 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   here (doc + a separate `<lens>` evidence commit). **repeatability** follows its own
   cadence — run files commit per session, the doc commit + a whole-`repeatability/`-dir
   (self-healing) evidence commit land at the diff (see above / §commit).
-- **Before printing `Next:` re-read the RDR's current `Profile` field and bind the
-  full lens-set from the matrix above.** Then scan **Normative Contracts** for the
-  Stage 5 Determinacy trigger; for `mid`/`large`, append `repeatability-lite`
-  unless `evidence/repeatability/` already contains `run-1.md` + `diff.md` or a
-  one-line `determinacy: n/a - <reason>` disposition. Treat that as the required
-  checklist, then subtract only completed lens evidence under
-  `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/`; for repeatability, a folder alone is not
-  complete. This is mandatory after a reset,
-  demotion, or escalation: an RDR that became `foundational` still owes
-  `cove 3amigo critique repeatability` even if it previously ran the `mid` or
-  `large` subset, and a completed `critique` is **not** the end of Stage 5 unless
-  `repeatability` is also complete. **`critique` itself isn't "complete" from a folder
-  alone**: read the evidence's `Model:` stamp (rdr-common §model-stamp) — a
-  `foundational` RDR needs the dual-model diff (or recorded single-model fallback),
-  and a re-entry under a *different* model is the second pass to run, not a no-op.
+- **Before printing `Next:` recompute the checklist via rdr-common §lens-row** —
+  re-read the current `Profile`, take the row, subtract completed evidence. It
+  owns the Determinacy add-on and the additive-on-escalation rule; mandatory
+  after a reset, demotion, or escalation. Two completion nuances are this
+  skill's: a completed `critique` is **not** the end of Stage 5 unless
+  `repeatability` is also complete, and **`critique` isn't complete from a folder
+  alone** — read the evidence's `Model:` stamp (§model-stamp): a `foundational`
+  RDR needs the dual-model diff (or recorded single-model fallback), and a
+  re-entry under a *different* model is the second pass to run, not a no-op.
 - **3amigo | critique | cove** converged → next lens is the first missing item in
   the current checklist: `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
   second pass keeps `critique` the first missing item — `Next:` is

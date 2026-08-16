@@ -29,6 +29,18 @@ else fail "6 evidence root parent missing ($RDR_EVIDENCE) - fix RDR_EVIDENCE in 
 [ -f "$RDR_ENV" ] && { grep -q "{EVIDENCE_DIR}" "$RDR_ENV" && grep -q "{ARTIFACT_DIR}" "$RDR_ENV" && grep -q "{SPIKE_DIR}" "$RDR_ENV" && pass "8 path-map names EVIDENCE_DIR/ARTIFACT_DIR/SPIKE_DIR" || fail "8 path-map missing a staging key - re-run /rdr-init"; }
 b=$(find "$RDR_HOME/skills" -type l ! -exec test -e {} ";" -print 2>/dev/null)
 [ -z "$b" ] && pass "9 engine skill symlinks resolve" || { fail "9 broken engine symlinks - reinstall the engine:"; echo "$b" | sed "s/^/        /"; }
+# 9b - shared helpers a SKILL.md references must be PRESENT beside it. An upgrade that
+# adds a helper leaves older skill dirs without the link; missing != broken, so 9 can't see it.
+miss9=""
+for f in rdr-common.md rdr-commit.sh rdr-commit-map.md; do
+  [ -f "$RDR_HOME/skills/$f" ] || { miss9="$miss9 engine:$f"; continue; }
+  for d in "$RDR_HOME"/skills/*/; do
+    [ -f "${d}SKILL.md" ] || continue
+    grep -q "$f" "${d}SKILL.md" "$RDR_HOME/skills/rdr-common.md" 2>/dev/null || continue
+    [ -e "$d$f" ] || miss9="$miss9 $(basename "$d")/$f"
+  done
+done
+[ -z "$miss9" ] && pass "9b shared helpers linked in every skill dir" || fail "9b missing helper links (engine upgrade added a shared file):$miss9 - relink each as: ln -s \"../<file>\" \"\$RDR_HOME/skills/<skill>/<file>\" (or reinstall the engine)"
 seen10=
 for base in "$PROJECT/.claude/skills" "$PROJECT/.codex/skills"; do
   [ -d "$base" ] || continue
