@@ -119,9 +119,15 @@ signal: the marker is a recorded lifespan disposition; sizing stays on the
 durable contracts.
 With the assumptions just verified, the count is evidence-grounded here, not
 guessed. ≥2 independent contracts → the RDR spans more than one seam: flag for
-splitting (back to Stage 2/3) rather than picking a profile. Report the profile
-+ the contract count behind it. The field holds the value + one clause naming
-the contract(s); strip any matrix/provenance prose the template or Seed left
+splitting (back to Stage 2/3) rather than picking a profile.
+**Then apply the accretion floor — it outranks the count.** Read `Seam Lineage`
+(do not re-derive): ≥2 closed prior point-fixes → write `foundational`
+regardless of what you just counted, escapable only by the written accretion
+disposition already in that field. The count may raise the profile; it may
+never lower one the floor holds — un-flooring an accreting seam routes it past
+the very lenses the floor buys. Report the profile + the contract count behind
+it, and the floor's disposition when it applied. The field holds the value + one
+clause naming the contract(s); strip any matrix/provenance prose the template or Seed left
 behind — that guidance lives in the template comment and `rdr/stages/README.md`,
 not the instance.
 

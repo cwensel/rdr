@@ -54,12 +54,15 @@ Claude: /rdr-resolve <NNNN>
 - Research refuted the approach or surfaced existing capability → **back** to
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
-  field** (the routing latch) from the contract count; the next pointer reads
-  that field — it does not re-derive size (`$RDR_HOME/stages/README.md` matrix):
+  field** (the routing latch) from the contract count, then the Seam Lineage
+  accretion floor, which outranks it (the prompt owns both). The next pointer
+  reads the field it just wrote — it does not re-derive size
+  (`$RDR_HOME/stages/README.md` matrix):
   - `Profile: small` → skip Pre-Lock: `Next: /rdr-reconcile NNNN`.
-  - `Profile: mid`+ → the **first lens of the profile's set** (grounding runs
-    first whenever present): `mid`/`large` → `Next: /rdr-prelock NNNN grounding`;
+  - `Profile: mid`+ → the **first lens of the profile's set**, which is
+    profile-dependent — read the field, don't default:
+    `mid`/`large` → `Next: /rdr-prelock NNNN grounding`;
     `foundational` → `Next: /rdr-prelock NNNN cove` (cove subsumes grounding as
-    its Step 0). Then the remaining lenses in matrix order
-    (`$RDR_HOME/stages/README.md`).
+    its Step 0, so `grounding` is never the pointer here). Then the remaining
+    lenses in matrix order (`$RDR_HOME/stages/README.md`).
 - `/rdr-status NNNN` to re-orient.

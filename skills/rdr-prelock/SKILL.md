@@ -1,8 +1,8 @@
 ---
 name: rdr-prelock
 metadata:
-  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
-description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding, 3amigo, critique, repeatability, cove. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
+  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding|cove (first lens: grounding at mid/large, cove at foundational), 3amigo, critique, repeatability}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
+description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding or cove (whichever the Profile picks) then 3amigo, critique, repeatability. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
 ---
 
 # rdr-prelock — Stage 5+6 (Pre-Lock Review **and** Resolve, per lens)

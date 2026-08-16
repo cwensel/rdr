@@ -42,13 +42,18 @@ draft and a mechanical sweep is only meaningful *after* the last mutation.
 
 ‡ *+ repeatability-lite if the Determinacy trigger fires (below).*
 
-**Grounding runs first** (whenever present). It is the only lens that checks the
-RDR against *source*; running it ahead of the personas keeps them from ratifying
-a frame that's false against the codebase. At `mid`/`large` it is the standalone
+**The grounding sweep runs first** — as `grounding` at `mid`/`large`, as cove's
+Step 0 at `foundational`. It is the only check that reads the RDR against
+*source*; running it ahead of the personas keeps them from ratifying a frame
+that's false against the codebase. So the **first lens is profile-dependent**:
+`mid`/`large` → the standalone
 [grounding Step-0](../prompts/pre-lock/0-grounding.md) (a cheap deterministic
-sweep); at `foundational` it is Step 0 *inside* [cove](../prompts/pre-lock/4-cove.md)
-(which subsumes it), so cove leads. The cost-order cascade still holds for the
-remaining 3amigo → critique → repeatability. A propose-time `Ground-sweep:`
+sweep); `foundational` → [cove](../prompts/pre-lock/4-cove.md), which subsumes
+it — cove leads and `grounding` is not run separately. Subsumption runs one way:
+a standalone `grounding/` from a pre-escalation `mid`/`large` pass does **not**
+discharge cove's Step 0, so an escalated RDR still owes `cove` first. The
+cost-order cascade still holds for the remaining 3amigo → critique →
+repeatability. A propose-time `Ground-sweep:`
 verdict (02-propose step 7.5) means the proposal's anchors are already
 source-checked — grounding (and cove's Step 0) delta-scopes to claims added or
 edited since propose; no verdict line → full sweep.
@@ -59,7 +64,9 @@ point-fixes** at the locus, the profile is floored at **Foundational** — a sea
 with prior point-fixes is the matrix's `cross-RDR` trigger. This is a mechanical
 count read from the field (filled at Seed from `kata-scope-review`), not a
 judgment; the only escape is the written accretion disposition in that field. It
-is the lever that pulls an accreting `small`/`mid` RDR up to the grounding lens.
+is the lever that pulls an accreting `small`/`mid` RDR up to the foundational
+row — so its first lens becomes **cove**, not `grounding`. Stage 4 re-applies
+the floor when it overwrites the field; the floor outranks the contract count.
 
 **Determinacy trigger (repeatability-lite).** A second mechanical gate, read from
 the RDR's **Normative Contracts**, not its profile. If a locked contract is
