@@ -48,6 +48,22 @@ NNNN`. Refuse `Final` (`stopped:already-final`). A **first** run enters at Stage
 assumption; a re-invocation enters at the skip guard's first open stage (below).
 Stage 8 is out of scope (`launch.md` owns it).
 
+**A demoted Draft carries its own re-entry scope — honor it, don't re-derive it.**
+`Status: Draft [revised from Final …; re-verify <IDs>]` means 7.1 (or a Stage-8
+spec defect) sent it back with a scope the report already sized
+(`$RDR_HOME/stages/07.1-cluster-reconcile.md`). Only one scope is this skill's:
+
+| Scope | Prescribed re-walk | Here |
+| --- | --- | --- |
+| RE-LOCK-ONLY | the fix, then Stage 7 re-locks | `stopped:scope-relock-only:<NNNN>` → `/rdr-finalize NNNN` |
+| STAGE-SCOPED | re-enter at 3 or 4, forward to 7 | **run it** — enter at the named stage, `re-verify <IDs>` is the delta |
+| FULL-FLOW | the full 2 → 7 cascade | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
+
+Running the wrong one is not a slow path but a wrong one: RE-LOCK-ONLY re-walks
+gates the defect never touched (cost, not defect yield), and FULL-FLOW skips the
+approach rework that voided the lock. If the qualifier names no scope, stop
+(`stopped:scope-unstated:<NNNN>`) — don't guess it from the `re-verify` set.
+
 ## Posture — delegate everything, hold only the ledger
 
 Like `/rdr-joint-propose` and `launch.md`, this orchestrator **never reads the
@@ -106,7 +122,10 @@ re-asking.
 Per stage, spawn one sub-agent whose brief is: the bound seam vars, `{RDR_PATH}`,
 and *"run `/rdr-<stage> NNNN [lens]` in full, including its Review gate and
 §commit; return a §return-packet."* Nothing else — no orchestrator summary of
-the RDR, which would anchor the stage on a reading it did not do.
+the RDR, which would anchor the stage on a reading it did not do. On a
+STAGE-SCOPED re-entry the brief adds nothing either: stages 4/5 self-detect the
+`revised from Final` qualifier and delta-scope to `re-verify <IDs>` themselves
+(§run-prompt). Route to the right stage; let it scope itself.
 
 Then, per packet:
 
@@ -187,6 +206,7 @@ its own row until Stage 4 writes the field.
 - Every parked fork is in the close packet — a fork dropped to reach Final is
   the failure mode this skill must not have.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.
+- A demoted Draft ran at its report's scope — never a scope this skill chose.
 
 ## Next step (rdr-common §next-step)
 
