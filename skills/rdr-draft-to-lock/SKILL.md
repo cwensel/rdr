@@ -59,6 +59,11 @@ spec defect) sent it back with a scope the report already sized
 | STAGE-SCOPED | re-enter at 3 or 4, forward to 7 | **run it** — enter at the named stage, `re-verify <IDs>` is the delta |
 | FULL-FLOW | the full 2 → 7 cascade | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
 
+Scope picks *which stages* re-walk; it never edits the lens row. A STAGE-SCOPED
+demotion to Stage 3 therefore keeps the profile's whole row — what shrinks is
+each pass (delta-scoped to `re-verify <IDs>`), not the sequence. Don't drop lenses to make a
+re-entry cheaper; that is what RE-LOCK-ONLY exists for, and 7.1 already chose.
+
 Running the wrong one is not a slow path but a wrong one: RE-LOCK-ONLY re-walks
 gates the defect never touched (cost, not defect yield), and FULL-FLOW skips the
 approach rework that voided the lock. If the qualifier names no scope, stop
@@ -91,9 +96,18 @@ first writer):
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
 ceiling: <model | unset (session model)>
-lenses: <row, in order, or "none (small)">
+lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
+
+On a demoted Draft the bracket is **required**, because the row alone overstates
+the run: the lens row is profile-derived and does not shrink, but each pass runs
+as a fresh iteration delta-scoped to `re-verify <IDs>` against an
+already-resolved draft (`stages/05-prelock.md`), not a full re-review. A plan
+that shows only the row asks a human to approve a cost the run will not spend.
+Don't compute an iteration number here — `iter-N` is **per-lens** (each lens
+numbers off its own dir, and a row's lenses can sit at different N), and the
+stage skill assigns it. Name the delta; let each lens number itself.
 
 Then a **Ledger** — one row per planned stage (`verdict`, `blocking`, one-line
 note), appended as each packet lands, and any **decided fork disposition** with
@@ -187,6 +201,12 @@ a second scale.
 | `mid` | Hands-off through the lens row; forks batched at the end. |
 | `large` | Hands-off, but confirm once before `/rdr-finalize` (lock is the irreversible step). |
 | `foundational` | Confirm the lens plan up front; confirm before finalize. Cross-RDR blast radius earns two interruptions. |
+
+The up-front confirm asks about **cost and posture** — the ceiling the lenses
+spawn at, and `stop-after` — never "is the row right?", which §lens-row already
+decided from the Profile and the human cannot answer better. State the row, its
+`iter-N`/delta bracket when demoted, and the ceiling; a plan whose `ceiling:` is
+`unset` at `large`/`foundational` says so, since that is where the cost lands.
 
 `--ask-each` overrides the table upward (confirm everywhere); nothing overrides
 it downward — a `foundational` run cannot be made silent. A **`Draft` Profile is
