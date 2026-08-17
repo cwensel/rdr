@@ -29,10 +29,10 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   catches a later regression, never an original defect.
 - **Did spikes actually run?** A "Spike" Method with no command + captured
   output is a Docs-Only claim in a costume. Demand the output.
-- **Was the consolidated round put to the user?** It carries every rendered I/O
-  pair *and* every question only they can settle — one round, not a drip, and it
-  runs even when no pair was rendered (most RDRs render none). An approved pair
-  lands as a named normative fixture; an unapproved one is not Evidence.
+- **Was the author's round put to the user?** It carries every rendered fixture
+  *and* every question only they can settle — one round, not a drip, and it
+  runs even when no fixture was rendered (most RDRs render none). An approved
+  fixture lands as a named normative fixture; an unapproved one is not Evidence.
 - **Did the reuse audit run?** Confirm the `{RDR_ENV}` reuse-audit paths were
   actually checked for code that already does what the approach introduces — a
   silent skip ships a design that rebuilds existing capability.
@@ -43,7 +43,7 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   §strong-consult on the reopened fork (alternatives × the route-back
   findings) and append the §punt-ledger row; the close packet's `Next:` is
   the re-propose — a route-back is a routing outcome, not a user pause.
-- **Did the approval round reach the user with its grounding?** Every pair or
+- **Did the author's round reach the user with its grounding?** Every fixture or
   question carries a source anchor, spike output, or constraining prior
   decision; bare ones make the user re-derive what this stage already verified.
 - **Are citations from local corpora**, not hallucinated? Cross-check a sample

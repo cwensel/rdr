@@ -144,8 +144,8 @@ Three of those stages carry decision points a driver should expect. **Propose** 
 runs it) and a **joint-decision check** across all open peer RDRs — a fire pauses the stage until the shared decision is
 hoisted to a named home, and bridge code a sibling already schedules for deletion forces a skip-to-end-state vs.
 `Transient`-marker choice. (For a batch of sibling seeds, `/rdr-joint-propose` runs Propose across the cohort in
-dependency order, handling the emergent propose-before re-orders itself and surfacing only true joint forks.) **Resolve** puts its rendered I/O pairs to the user in one consolidated approve/reject round
-(an approved pair becomes a normative fixture; an MVV-critical assumption cannot defer past this stage). **Stage 7.1**
+dependency order, handling the emergent propose-before re-orders itself and surfacing only true joint forks.) **Resolve** puts its rendered fixtures to the user in one consolidated **author's round**
+(an approved fixture becomes a normative fixture; an MVV-critical assumption cannot defer past this stage). **Stage 7.1**
 demotes a Final RDR to Draft only for a defect that RDR solely owns — a shared joint decision (its JOINT-DECISION
 disposition) is instead hoisted to a named home and the siblings stay Final under a recorded tolerance
 (`Final [joint decision → <home>]`).
@@ -207,8 +207,8 @@ inside the template body, because the template is copied verbatim to make each i
   alternative explicitly rejected.
 - **Peer RDR** — relies on a property defined in another RDR. Evidence: RDR ID + section.
 - **MVV Test** — the property is testable via the Minimum Viable Validation, and the test is named in this RDR's
-  Validation section (pending implementation at lock time). Evidence: test name, or a named normative fixture + its
-  I/O pair (an approved I/O pair is Normative per the *Examples are contracts* rule below).
+  Validation section (pending implementation at lock time). Evidence: test name, or a named normative fixture (an
+  approved fixture is Normative per the *Examples are contracts* rule below).
 - **Docs Only** — documentation reading alone; see the first rule below.
 
 Rules that bind every record:
@@ -224,12 +224,12 @@ Rules that bind every record:
   resolve on `main`?* Write fewer, durable anchors rather than many volatile ones. (Rationale: [`stages/` README *Doctrine*](stages/README.md#doctrine-applies-to-every-stage).)
 - **Exactness words are claims, not emphasis.** If the RDR says all/every, first/nearest, byte-identical, lossless,
   canonical, deterministic, or stable order, back it with an Evidence Record or with the Minimum Viable Validation. At
-  Resolve such claims are rendered as concrete I/O pairs (real input → exact expected output, read from a spike run or
-  source) and put to the user in one consolidated approve/reject round; an approved pair is recorded in the RDR as a
-  named normative fixture, a rejected pair reopens the assumption.
+  Resolve such claims are rendered as concrete fixtures (the exact expected value, read from a spike run or source)
+  and put to the user in one consolidated author's round; an approved fixture is recorded in the RDR as a
+  named normative fixture, a rejected one reopens the assumption.
 - **Examples are contracts only when labeled Normative.** Fixtures, sample inputs/outputs, numeric counts, platform
-  paths, and worked examples are either Normative (tests may assert them; cite the artifact or derivation — approved
-  I/O pairs from Resolve enter here) or Illustrative (intent only; tests must not assert them literally).
+  paths, and worked examples are either Normative (tests may assert them; cite the artifact or derivation — fixtures
+  approved at Resolve enter here) or Illustrative (intent only; tests must not assert them literally).
 
 **On code examples**: code in RDRs is either *Normative* (load-bearing — signatures, type definitions, wire formats,
 error envelopes, I/O contracts that the implementer must match exactly) or *Illustrative* (pseudocode, examples,

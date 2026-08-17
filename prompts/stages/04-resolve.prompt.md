@@ -41,12 +41,13 @@ every assumption from scratch as below.
 For each Critical Assumption in scope:
 - Pick exactly one Method: Source Search | Spike | Prior Art | Derivation |
   Design Decision | Peer RDR | MVV Test | Docs Only.
-- If the claim is I/O-expressible — an exactness word (the sweep below) **in the
-  assumption or the normative clause it backs** is the prime cue; the same word
-  loose in prose is not, or the cue fires on nearly every RDR — render 1–3
-  concrete I/O pairs (real input → exact expected output, read from a spike run
-  or the source, never invented) and hold them for the round below. Most
-  assumptions render none; that is the expected case, not a gap to fill.
+- If the claim can be shown as a concrete value — an exactness word (the sweep
+  below) **in the assumption or the normative clause it backs** is the prime
+  cue; the same word loose in prose is not, or the cue fires on nearly every
+  RDR — render 1–3 **fixtures**: the exact expected value itself (a wire record,
+  byte layout, count, field set), read from a spike run or the source, never
+  invented. Hold them for the round below. Most assumptions render none; that is
+  the expected case, not a gap to fill.
 - Produce concrete Evidence for it:
     Source Search → file:line in the actual source that owns the behavior:
       for a claim about THIS project's own code, the project source (the
@@ -78,16 +79,16 @@ For each Critical Assumption in scope:
   NOT READY.
 - Confirm "If wrong" is non-empty and names how it surfaces to a user/test.
 
-Then ONE consolidated approval round — Stage 4's single user interaction, one
-round like Stage 6's accept/defer tiebreakers, never a drip per assumption:
-present every rendered I/O pair for approve/reject — plus any other question
-only the user can settle, so the round is the stage's one interaction whether or
-not a pair exists. **Everything it surfaces carries the
+Then ONE consolidated **author's round** — Stage 4's single user interaction,
+one round like Stage 6's accept/defer tiebreakers, never a drip per assumption:
+present every rendered fixture for approve/reject — plus any other question only
+the author can settle, so the round is the stage's one interaction whether or
+not a fixture exists. **Everything it surfaces carries the
 grounding it takes to rule on it** — the source anchor, spike output, or prior
 decision (peer RDR, RFD clause, standing contract) that constrains the answer.
-You hold these from the Method work above; withheld, the user re-derives what
+You hold these from the Method work above; withheld, the author re-derives what
 you just verified or answers blind. Can't name the grounding → not ready to
-ask: resolve by another Method first. An approved pair → record it as a
+ask: resolve by another Method first. An approved fixture → record it as a
 normative fixture in the RDR body: named on the assumption's Evidence line
 and, where a Testing Strategy scenario covers it, in that scenario's Expected
 — citing the spike artifact under {SPIKE_DIR} that produced it (TEMPLATE.md's
@@ -143,6 +144,6 @@ not the instance.
 Be brief in results; ultrathink for complex design or any load-bearing
 assumption; never trade brevity for a weaker verification. Report per
 assumption: Status + Method + one-line Evidence, and flag any you could NOT
-verify; plus one line: round items put / approved / rejected (pairs and
-questions, `none` if the round had nothing to ask). Close with
+verify; plus one line: author's-round items put / approved / rejected (fixtures
+and questions, `none` if the round had nothing to ask). Close with
 rdr-common §mechanical-gate.

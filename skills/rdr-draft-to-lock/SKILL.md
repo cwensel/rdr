@@ -167,27 +167,27 @@ stage sub-agent to append it (before refine collapses the history) and
 
 **rdr-common §fork-disposition** owns the rule — schedule, never answer — and the
 ask-now/park split. This skill's ask-now triggers: an unresolved BLOCK, an
-assumption refuted, `stopped:verdict-flapping`, and Stage 4's I/O round.
+assumption refuted, `stopped:verdict-flapping`, and Stage 4's author's round.
 
-**Stage 4's I/O round is a hard stop and is never batched.** "An unapproved I/O
-pair is not Evidence" (`04-resolve.prompt.md`) — it is the flow's one mandated
+**Stage 4's author's round is a hard stop and is never batched.** "An unapproved
+fixture is not Evidence" (`04-resolve.prompt.md`) — it is the flow's one mandated
 user interaction in this span, and a run that auto-approves it has forged
 evidence, not saved a turn.
 
 Relaying it takes the **one read carve-out** here: a §return-packet can't carry
 the round's items and their grounding, so resolve **writes the round to a file**
 and returns its path in `evidence_paths` with `verdict: NEEDS_DECISION`. Read
-**that file only** and put it to the user unedited — pairs and questions alike. Without the carve-out the round degrades to a
+**that file only** and put it to the user unedited — fixtures and questions alike. Without the carve-out the round degrades to a
 summary, which is the same forgery by a slower route.
 
-Before escalating a *judgment* fork (not an I/O round, not a mechanical stop),
+Before escalating a *judgment* fork (not the author's round, not a mechanical stop),
 run **§strong-consult** once — a fresh strongest-tier look may collapse it. Its
 `NEEDS_DECISION` goes to the user.
 
 **A consult never closes `stopped:verdict-flapping`.** Its cure is a human look
 or a model switch (`$RDR_HOME/stages/05-prelock.md`); a consult that returns PASS
-and resumes the lens is a fourth pass in a different hat. Hard stop, like the I/O
-round — the user picks. Having read no evidence, this context cannot judge that a
+and resumes the lens is a fourth pass in a different hat. Hard stop, like the
+author's round — the user picks. Having read no evidence, this context cannot judge that a
 consult legitimately collapsed a fork: advisory here, never dispositive.
 
 ## Autonomy by profile — bias to hands-off where the blast radius is small
@@ -221,8 +221,8 @@ its own row until Stage 4 writes the field.
 - The orchestrator authored no RDR content and read no RDR body.
 - The close named **one** next command and invented no advice the flow doesn't
   own — no alternative orderings, no suggestion a stage would have to refuse.
-- Stage 4's I/O round reached the user (or the RDR had no I/O-expressible
-  assumption, stated as such in the packet).
+- Stage 4's author's round reached the user (or the round had nothing to put to
+  them, stated as such in the packet).
 - Every parked fork is in the close packet — a fork dropped to reach Final is
   the failure mode this skill must not have.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.

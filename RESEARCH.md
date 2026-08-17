@@ -165,7 +165,7 @@ the `Transient` contract marker in [`TEMPLATE.md`](TEMPLATE.md).
 ### Resolve-before-review ordering, and the 3amigo lens
 
 **Drives**: [`stages/04-resolve-assumptions.md`](stages/04-resolve-assumptions.md) (resolve-before-review ordering; the
-consolidated approved-I/O-pair round in
+consolidated author's round in
 [`prompts/stages/04-resolve.prompt.md`](prompts/stages/04-resolve.prompt.md)) and the
 [`prompts/pre-lock/1-3amigo.md`](prompts/pre-lock/1-3amigo.md) lens.
 
@@ -191,15 +191,17 @@ consolidated approved-I/O-pair round in
   correctness, and users judge a test far more reliably when its concrete
   expected output is shown than when it is hidden (half the participants
   misjudged the same assertion once the output was obfuscated). The warrant for
-  Stage 4's consolidated I/O-pair round: render exactness claims as real input →
-  exact output, one approve/reject round, approved I/O pairs recorded as
-  normative fixtures. DOI 10.1109/TSE.2024.3428972 —
+  Stage 4's consolidated author's round: render exactness claims as the concrete
+  expected value, one approve/reject round, approved fixtures recorded as
+  normative fixtures. (TiCoder's unit is a candidate *test*; ours is the
+  fixture alone — what RDRs assert is usually a value, not a call.)
+  DOI 10.1109/TSE.2024.3428972 —
   <https://doi.org/10.1109/TSE.2024.3428972>
 - **Fogelström & Gorschek (2007), *Test-case Driven versus Checklist-based
   Inspections of Software Requirements — An Experimental Evaluation*** —
   controlled experiment: deriving concrete test cases while inspecting a
   requirements spec is significantly more effective at finding major faults
-  than checklist-based reading. Why the I/O pairs are rendered *during* Resolve
+  than checklist-based reading. Why fixtures are rendered *during* Resolve
   rather than deferred to a test-writing phase.
 
 ### Critique / premortem lens
@@ -700,7 +702,7 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   Cost-Effectiveness of Software Inspection*, PhD thesis — false-positive rate as a
   per-technique cost (load-bearing; see §2 escape measurement).
 - Fogelström & Gorschek (2007), inspection economics (load-bearing; see §2
-  resolve-before-review — the I/O-pair round).
+  resolve-before-review — the author's round).
 - Rigby (2013), *Convergent Contemporary Software Peer Review Practices*.
 - van Lamsweerde & Letier (2000), *Handling Obstacles in Goal-Oriented
   Requirements Engineering*, IEEE TSE (load-bearing; see §2 critique/premortem
