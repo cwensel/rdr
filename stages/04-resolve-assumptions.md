@@ -43,6 +43,9 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   §strong-consult on the reopened fork (alternatives × the route-back
   findings) and append the §punt-ledger row; the close packet's `Next:` is
   the re-propose — a route-back is a routing outcome, not a user pause.
+- **Did the approval round reach the user with its grounding?** Every pair or
+  question carries a source anchor, spike output, or constraining prior
+  decision; bare ones make the user re-derive what this stage already verified.
 - **Are citations from local corpora**, not hallucinated? Cross-check a sample
   against the corpus or cloned source.
 - **Is the evidence-body authored from the verified assumptions?** Testing
