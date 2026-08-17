@@ -50,6 +50,17 @@ dismiss-with-reason, never silently drop:
      the decision, and make that decision explicit in the draft if it was implicit
      (the #1 flapping cause in the corpus is re-litigating settled calls).
 
+COMPUTE, DON'T ARGUE. A fix claiming agreement with something pinned — a fixture,
+count, census, or another clause — writes the comparison's **executed result**,
+not reasoning about it. "Satisfies X by construction", "the two agree" are
+arguments; run the subtraction or diff and write what it returned. Can't execute
+it → book an assumption, don't close it. Also check the clause against fixes an
+earlier lens in this row already made to it: the row edits a shared draft and
+nobody re-reads it whole, so two lenses can pin one field two ways. Both shipped
+defects. Limit: this catches a false claim inside a sound frame, not a wrong
+frame — a count re-measured in the wrong unit returns correct and wrong. Findings
+that keep *widening* one enumeration (6→7→9→…) are that signal: question the unit.
+
 ORIGIN ANCHOR (anti-plank). On the first pass, the findings *are* the
 originating concerns — keep them as a ledger (critique ships one; for other lenses
 build it from the findings file). Every finding you act on traces to a ledger
