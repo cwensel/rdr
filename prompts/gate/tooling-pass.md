@@ -89,7 +89,22 @@ about the same assumption's status — these
 cannot both be right. (The checklist-vs-gate sub-check is transitional: once a
 contract is single-sourced there is no second copy to disagree.)
 
-Output: one bullet per finding, prefixed with the check ID (C1–C6) and
+CHECK 9 — Evidence-field budget  (grep-able; ADVISORY, never blocks)
+TEMPLATE.md specifies the Critical Assumption Evidence field as a single
+sentence naming a stable anchor; the corpus median is 14 lines. For every
+Evidence Record count the field's lines (the `- **Evidence**:` bullet through
+the next bold-label bullet). List every field over **30 lines**, longest first,
+with its assumption ID and count, then one total: `N fields over budget, M
+lines`. This is a REPORT: over-budget fields alone never make the verdict
+BLOCK. Do NOT propose truncation — the mass is usually real verification
+content (source-verified positions, documented exceptions, consumer censuses),
+and cutting it blinds the grounding sweep that reads those anchors. The report
+asks one question per hit: has the prose outgrown the *record* — is the
+load-bearing anchor still findable, and does the balance belong in
+`{ARTIFACT_DIR}` with the field keeping the anchor and a pointer? The author
+answers it per assumption at the Gate.
+
+Output: one bullet per finding, prefixed with the check ID (C1–C6, C9) and
 the section or assumption ID. End with a one-line verdict:
   PASS — no findings; proceed to the Gate's written responses.
   BLOCK — N findings, lock prohibited until resolved.
@@ -107,7 +122,9 @@ the section or assumption ID. End with a one-line verdict:
   re-run. A C3 finding is rare and signals a disturbed evidence record — treat
   it seriously rather than as routine. A C5 "resolves nowhere" finding is the
   phantom-API class (cited code not on `main`); a C6 finding is an internal
-  status contradiction. Both block lock.
+  status contradiction. Both block lock. **C9 is advisory** — it reports
+  Evidence fields over budget and never blocks on its own; a run whose only
+  findings are C9 is a PASS carrying a report.
 
 ## Out of scope for this pass
 
@@ -116,7 +133,7 @@ have a corresponding Critical Assumption Evidence Record above* is
 intentionally not mechanized here — it requires linking call-sites to records,
 an analytical judgment. Verify it during 3amigo (Implementer persona) or
 Action-items (Repeatability Probe). A future CHECK 7 can absorb it once the
-matching heuristic is reliable.
+matching heuristic is reliable. (CHECK 9 is taken — Evidence-field budget.)
 
 A future CHECK 8 (cheap regex guard, no script yet) can flag any unqualified
 `ScheduleWakeup` / `wakeup` / `heartbeat` phrasing introduced into RDR skills or
