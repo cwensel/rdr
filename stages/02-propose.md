@@ -61,8 +61,10 @@ peer, and only the true joint forks surfaced to the user.
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Did the joint-decision check run, and was any fire paused on?** The prompt's
   final step greps every open peer for shared modify-anchors / contract literals
-  with zero cross-citation (mechanics live there) and records a `Joint-check:`
-  line in Decision Rationale either way. No such line → it did not run, re-run
+  (mechanics live there; citation does not suppress a fire) and records a
+  `Joint-check:` line in Decision Rationale either way. A fire clears only onto a
+  resolvable §-anchor `home:` or `OPEN` — prose naming no authority does not.
+  No such line → it did not run, re-run
   it (a skipped gate item must not read as a passed one). A fire PAUSES propose
   before refine, as a user question — advanced over silently → re-run.
 - **Was the bridge question surfaced and answered when its cues were present?**

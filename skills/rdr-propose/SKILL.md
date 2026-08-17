@@ -50,10 +50,11 @@ Claude: /rdr-propose <NNNN>
    of an explicit comparison, not prose.
 3. **Run the joint-decision check** (the prompt's final step — it needs the
    freshly written draft): grep every open peer under `$RDR_RECORDS` for this
-   RDR's modify-anchors / contract literals; a shared whole-token hit with zero
-   cross-citation FIRES (mechanics live in the prompt step). Either way write
-   the `Joint-check:` line into Decision Rationale — unwritten reads as *never
-   ran*. A fire is a **human-judgment fork**: emit §stop-packet
+   RDR's modify-anchors / contract literals; a shared whole-token hit FIRES —
+   citation does not suppress it (mechanics live in the prompt step). Either
+   way write the `Joint-check:` line into Decision Rationale — unwritten reads
+   as *never ran*; `home:` takes a resolvable §-anchor or `OPEN`, never prose.
+   A fire is a **human-judgment fork**: emit §stop-packet
    `stopped:joint-decision:…`, put both answers and the peer RDRs to the user,
    and **wait** — don't close the stage as done.
 

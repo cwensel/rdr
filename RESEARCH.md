@@ -508,8 +508,9 @@ the fixed `status.md` resume capsule read first by
 propose-time **joint-decision check** in
 [`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md) — a cheap
 lexical scan of the fresh RDR against all open peers that FIREs on a shared
-modify-anchor or contract literal with zero cross-citation and PAUSEs before Refine to
-hoist the joint question, with the optional `Cluster` field and tandem barrier in
+modify-anchor or contract literal — citation is context, not suppression — and PAUSEs
+before Refine to hoist the joint question onto a named §-anchor home, with the
+optional `Cluster` field and tandem barrier in
 [`TEMPLATE.md`](TEMPLATE.md); and the desk-trace mini-check's `Cluster` extension
 in [`stages/05-prelock.md`](stages/05-prelock.md).
 

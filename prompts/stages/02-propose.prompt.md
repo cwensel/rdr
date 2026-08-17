@@ -187,8 +187,9 @@ Read the Problem Statement and Context, then:
    starts with `Draft` or `Final` (prefix match; the template's Status comment
    carries decoy statuses), excluding this RDR. Grep each peer for each
    anchor/literal, whole-token match. **FIRE** = a peer shares a modify-anchor
-   or a contract literal AND neither RDR cites the other (`NNNN` or slug,
-   either direction).
+   or a contract literal. Cross-citation is *context reported beside the fire*,
+   never suppression — writing a citation is prose about the coupling, not a
+   decision about it.
    **Absence arm** — when the proposal converts a refusal into an acceptance
    (fills a previously-empty cell, removes a guard, classifies the
    previously-unclassified), also grep `Final` peers for the refusal token
@@ -198,6 +199,12 @@ Read the Problem Statement and Context, then:
    **Record the verdict in Decision Rationale — fire or not** — one greppable
    line beside `Premortem:`, closed vocabulary:
    `Joint-check: clear (N peers) | fired → NNNN[, NNNN] (home: <home> | OPEN)`.
+   `<home>` is a resolvable `RFD NNNN`/`cli/NNNN` §-anchor where the decision is
+   normatively settled (07.1's bar), else the literal `OPEN` — prose naming no
+   authority is not a home, and unhomed is `OPEN`, not `clear`.
+   **Fires are symmetric**: write the same fire (same home) into each named
+   `Draft` peer's line — a peer already fired on may not later record `clear`.
+   A `Final` peer is never edited (no-amend); its coupling rides to 7.1.
    Unwritten = *did not run*: absence reopens propose, since a later session
    can't tell a skipped gate item from a passed one.
    On fire, PAUSE — emit §stop-packet `stopped:joint-decision:<the joint
