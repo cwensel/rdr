@@ -41,9 +41,10 @@ Claude: /rdr-resolve <NNNN>
 - Every load-bearing assumption actually `Verified`, Evidence not self-reference and
   not bare `Docs Only`.
 - Spikes actually ran (command + captured output under `{SPIKE_DIR}`).
-- I/O-expressible assumptions rendered as I/O pairs and put to the user in one
-  consolidated approve/reject round; approved I/O pairs named as normative fixtures
-  in the RDR body — an unapproved I/O pair is not Evidence.
+- One consolidated round carried every I/O pair **and** every question only the
+  user can settle, each with its grounding; approved pairs named as normative
+  fixtures in the RDR body — an unapproved pair is not Evidence. Most RDRs
+  render no pairs; the round still runs if it has a question.
 - The reuse audit ran against the `$RDR_ENV` reuse-audit paths.
 - No research finding contradicts the approach — if one does, that's **not** a
   citation fix.

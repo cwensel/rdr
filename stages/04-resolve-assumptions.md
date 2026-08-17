@@ -29,10 +29,10 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   catches a later regression, never an original defect.
 - **Did spikes actually run?** A "Spike" Method with no command + captured
   output is a Docs-Only claim in a costume. Demand the output.
-- **Were I/O-expressible assumptions rendered and the round put to the user?**
-  Exactness claims get concrete I/O pairs presented in one consolidated
-  approve/reject round; an approved I/O pair lands as a named normative fixture in
-  the RDR body. An unapproved I/O pair is not Evidence.
+- **Was the consolidated round put to the user?** It carries every rendered I/O
+  pair *and* every question only they can settle — one round, not a drip, and it
+  runs even when no pair was rendered (most RDRs render none). An approved pair
+  lands as a named normative fixture; an unapproved one is not Evidence.
 - **Did the reuse audit run?** Confirm the `{RDR_ENV}` reuse-audit paths were
   actually checked for code that already does what the approach introduces — a
   silent skip ships a design that rebuilds existing capability.

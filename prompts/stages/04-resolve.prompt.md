@@ -143,5 +143,6 @@ not the instance.
 Be brief in results; ultrathink for complex design or any load-bearing
 assumption; never trade brevity for a weaker verification. Report per
 assumption: Status + Method + one-line Evidence, and flag any you could NOT
-verify; plus one line: I/O pairs rendered / approved / rejected. Close with
+verify; plus one line: round items put / approved / rejected (pairs and
+questions, `none` if the round had nothing to ask). Close with
 rdr-common §mechanical-gate.

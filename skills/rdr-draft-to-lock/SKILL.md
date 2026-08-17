@@ -175,9 +175,9 @@ user interaction in this span, and a run that auto-approves it has forged
 evidence, not saved a turn.
 
 Relaying it takes the **one read carve-out** here: a §return-packet can't carry
-I/O pairs, so resolve **writes the round to a file** and returns its path in
-`evidence_paths` with `verdict: NEEDS_DECISION`. Read **that file only** and put
-the pairs to the user unedited. Without the carve-out the round degrades to a
+the round's items and their grounding, so resolve **writes the round to a file**
+and returns its path in `evidence_paths` with `verdict: NEEDS_DECISION`. Read
+**that file only** and put it to the user unedited — pairs and questions alike. Without the carve-out the round degrades to a
 summary, which is the same forgery by a slower route.
 
 Before escalating a *judgment* fork (not an I/O round, not a mechanical stop),
