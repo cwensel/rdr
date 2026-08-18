@@ -78,8 +78,11 @@ or contradicts what the tree shows.
    - `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
    - `Final` → next is `/rdr-implement` (unless a cluster of ≥2 Final-unimplemented
      peers exists → `/rdr-cluster-reconcile` first). A `Final [joint decision →
-     <home>]` qualifier is still `Final` for routing — surface the home so the
-     human sees the standing tolerance.
+     <home §-anchor>: <question>]` qualifier is still `Final` for routing —
+     surface the home AND the open question so the human sees what is unanswered.
+     But check the home first: if it has ANSWERED that question, the scoped
+     answer-vs-fences check is owed **before** implement (Stage 7.1) — that check
+     is the next step, not `/rdr-implement`.
    - A bare `Draft` that declares `Cluster` is barred from refine until every
      member has completed propose (the tandem barrier) — if a sibling hasn't
      proposed, next is that sibling's `/rdr-propose`, not this RDR's `/rdr-refine`.

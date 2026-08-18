@@ -38,9 +38,18 @@ N/A-bulleted). -->
     terminal "implementation rolled back" status — also do
     not conflate.)
   - A Final tolerated at the 07.1 gate under a JOINT-DECISION
-    carries `Final [joint decision → <home §-anchor>]`. It is
-    still a `Final` for every binary gate; the qualifier does
-    not self-clear — the named home owns the decision.
+    carries `Final [joint decision → <home §-anchor>: <the
+    open question>]`. It is still a `Final` for every binary
+    gate. The qualifier is an **open obligation, not a
+    coherence claim**: it says the named question is
+    unanswered here, not that this RDR agrees with the answer.
+    So it does not self-clear. When the home answers, this RDR
+    owes a scoped check of that answer against its own
+    normative fences before it re-locks or implements —
+    consistent → drop the qualifier and record the clearing;
+    contradicts fenced text → a 07.1 SPEC-DEFECT. A re-lock
+    that comes first carries the qualifier forward unchanged;
+    it is never silently dropped.
   -->
 - **Type**: Feature | Bug Fix | Technical Debt |
   Framework Workaround | Architecture

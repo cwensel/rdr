@@ -63,15 +63,21 @@ say so and point at `/rdr-implement NNNN`.
   a demotion on an unledgered finding means the gate is grading its own last repair.
 - A **JOINT-DECISION** finding (a shared decision neither RDR solely owns) demotes
   no one: hoist it to a named home, record the tolerance, siblings stay Final —
-  and it must be genuinely joint, not a dodged single-RDR defect.
+  and it must be genuinely joint, not a dodged single-RDR defect. The tolerance
+  names the open QUESTION, not just the home: it is an open obligation, not a
+  coherence claim. If a home has answered since the last report, every sibling
+  holding a tolerance against that question owes its scoped answer-vs-fences
+  check here — even one whose own text never moved.
 
 ## Next step (rdr-common §next-step)
 
 - If autocommit is on, run **§commit** for the cluster-reconcile *evidence* (`chore(rdr): cli/NNNN cluster-reconcile <cluster>`); the doc/lock commit lands at finalize, not here.
 - Reconciled, no demotion → `Next: /rdr-implement NNNN` for each cluster member.
 - Reconciled with tolerances → same `Next: /rdr-implement NNNN` (no demotion, no
-  re-walk); list each standing tolerance (pair, joint decision, home) in the close
-  packet's `Deviations:` field.
+  re-walk) *while the tolerance is unanswered*; list each standing tolerance
+  (pair, joint decision, home, open question) and whether the home has answered
+  it in the close packet's `Deviations:` field. An ANSWERED tolerance runs its
+  scoped answer-vs-fences check before that sibling implements.
 - A peer demoted to Draft → re-enter it at the scoped stage (`/rdr-propose` /
   `/rdr-refine` / `/rdr-resolve` per the scope), re-lock via `/rdr-finalize NNNN`,
   then implement.
