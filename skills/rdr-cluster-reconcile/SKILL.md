@@ -29,8 +29,21 @@ say so and point at `/rdr-implement NNNN`.
    marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<cluster>/`.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_RECORDS}`;
    form the peer pairs to compare.
-3. **Dispatch into the gate prompts** (Stage `07.1-cluster-reconcile.md` owns the
-   mechanics — read it for the cluster-membership and re-entry-scope calls):
+3. **Detect the iteration**: N = 1 + the highest existing `reconcile-report.md`
+   under the output base (loose = iter-1, `iter-N/` subdirs after); write this
+   run's outputs to `iter-N/` when N>1, and record each member's current revision
+   for the next iteration. At N>1 the run is anchored to its own history:
+   - **Origin ledger** — iter-1's findings table is the ledger; each finding
+     traces to an open entry. One tracing to none is **net-new scope**: recorded
+     with evidence, demoting no member on its own.
+   - **Delta-scope** — re-scan only pairs with ≥1 member changed since the prior
+     report's revisions; unchanged pairs **carry** the prior verdict, naming its
+     iteration. The whole-set critique re-runs only if ≥1 member changed. The
+     report's "Inputs run" table marks every check RE-SCANNED or CARRIED, so a
+     skip never reads as a pass.
+4. **Dispatch into the gate prompts** for whatever step 3 left in scope (Stage
+   `07.1-cluster-reconcile.md` owns the mechanics — read it for the
+   cluster-membership and re-entry-scope calls):
    - **Whole-set critique** — [`2-critique.md`](2-critique.md)
      run against the set; writes `critique-set.md`.
    - **Pairwise contradiction scan** — [`pairwise.md`](pairwise.md)
@@ -45,6 +58,9 @@ say so and point at `/rdr-implement NNNN`.
 - A cross-RDR defect routes a peer **Final → Draft** at the right re-entry scope
   (re-lock-only / stage-scoped / full-flow), sized to the defect — the stage doc owns
   this call.
+- At N>1: every check is a RE-SCANNED or CARRIED row, the re-scans are exactly the
+  pairs whose members moved, and each demotion traces to an open ledger entry —
+  a demotion on an unledgered finding means the gate is grading its own last repair.
 - A **JOINT-DECISION** finding (a shared decision neither RDR solely owns) demotes
   no one: hoist it to a named home, record the tolerance, siblings stay Final —
   and it must be genuinely joint, not a dodged single-RDR defect.
