@@ -41,6 +41,13 @@ say so and point at `/rdr-implement NNNN`.
      iteration. The whole-set critique re-runs only if ≥1 member changed. The
      report's "Inputs run" table marks every check RE-SCANNED or CARRIED, so a
      skip never reads as a pass.
+   - **Cap = 2 re-runs** — N=3 is the last that may demote. At N>3 with findings
+     open, demote nothing and run no further gate pass: emit
+     `stopped:cluster-flapping:<cluster>:<the open entries>` (§stop-packet)
+     carrying those entries and the decomposition question ("is the cluster cut
+     right at all?") with the gate's accumulated evidence, then §strong-consult,
+     then the author. An answered tolerance's scoped answer-vs-fences check
+     still runs.
 4. **Dispatch into the gate prompts** for whatever step 3 left in scope (Stage
    `07.1-cluster-reconcile.md` owns the mechanics — read it for the
    cluster-membership and re-entry-scope calls):
@@ -61,6 +68,7 @@ say so and point at `/rdr-implement NNNN`.
 - At N>1: every check is a RE-SCANNED or CARRIED row, the re-scans are exactly the
   pairs whose members moved, and each demotion traces to an open ledger entry —
   a demotion on an unledgered finding means the gate is grading its own last repair.
+  Past the cap (N>3, findings open) the run stops rather than demoting again.
 - A **JOINT-DECISION** finding (a shared decision neither RDR solely owns) demotes
   no one: hoist it to a named home, record the tolerance, siblings stay Final —
   and it must be genuinely joint, not a dodged single-RDR defect. The tolerance
@@ -81,4 +89,6 @@ say so and point at `/rdr-implement NNNN`.
 - A peer demoted to Draft → re-enter it at the scoped stage (`/rdr-propose` /
   `/rdr-refine` / `/rdr-resolve` per the scope), re-lock via `/rdr-finalize NNNN`,
   then implement.
+- `stopped:cluster-flapping` → no `Next:`; the cluster waits on §strong-consult
+  over the open entries, then the author's decomposition call.
 - `/rdr-status NNNN` to re-orient any member.
