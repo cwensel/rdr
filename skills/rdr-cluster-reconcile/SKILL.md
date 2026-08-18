@@ -29,35 +29,24 @@ say so and point at `/rdr-implement NNNN`.
    marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<cluster>/`.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_RECORDS}`;
    form the peer pairs to compare.
-3. **Detect the iteration**: N = 1 + the highest existing `reconcile-report.md`
-   under the output base (loose = iter-1, `iter-N/` subdirs after); write this
-   run's outputs to `iter-N/` when N>1, and record the current revision of each
-   member AND each joint-decision home for the next iteration. At N>1 the run is
-   anchored to its own history:
-   - **Origin ledger** — iter-1's findings table is the ledger; each finding
-     traces to an open entry. One tracing to none is **net-new scope**: recorded
-     with evidence, demoting no member on its own.
-   - **Delta-scope** — re-scan only pairs with ≥1 member changed since the prior
-     report's revisions; unchanged pairs **carry** the prior verdict, naming its
-     iteration. The whole-set critique re-runs only if ≥1 member changed. The
-     report's "Inputs run" table marks every check RE-SCANNED or CARRIED, so a
-     skip never reads as a pass.
-   - **Cap = 2 re-runs** — N=3 is the last that may demote. At N>3 with findings
-     open, demote nothing and run no further gate pass: emit
-     `stopped:cluster-flapping:<cluster>:<the open entries>` (§stop-packet)
-     carrying those entries and the decomposition question ("is the cluster cut
-     right at all?") with the gate's accumulated evidence, then §strong-consult,
-     then the author. An answered tolerance's scoped answer-vs-fences check
-     still runs.
-4. **Dispatch into the gate prompts** for whatever step 3 left in scope (Stage
-   `07.1-cluster-reconcile.md` owns the mechanics — read it for the
-   cluster-membership and re-entry-scope calls):
+3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);
+   it owns the mechanics (iteration contract: N detection · recorded member and
+   home revisions · origin ledger · delta-scope + the answered-tolerance
+   exception · cap and its stop packet; and the four dispositions). Don't
+   restate them here. Bind the iteration contract first — it scopes step 4 —
+   and write this run's outputs to `iter-N/` when N>1.
+4. **Dispatch into the gate prompts** for whatever the iteration contract left in
+   scope (Stage `07.1-cluster-reconcile.md` owns the cluster-membership and
+   re-entry-scope calls — read it for those):
    - **Whole-set critique** — [`2-critique.md`](2-critique.md)
      run against the set; writes `critique-set.md`.
    - **Pairwise contradiction scan** — [`pairwise.md`](pairwise.md)
      run per pair; writes `pairwise-<A>-<B>.md`.
    Delegate the heavy reads (several RDRs, the pairwise runs) to a sub-agent that
    returns verdict + evidence pointer (§return-packet).
+5. **Disposition every finding** by running the stage prompt's disposition half
+   (step 3's prompt) — NO CONFLICT / JOINT-DECISION / SPEC-DEFECT /
+   DEFER-TO-IMPLEMENTATION, one per finding.
 
 ## Review gate (Stage `07.1-cluster-reconcile.md`)
 
@@ -70,34 +59,23 @@ say so and point at `/rdr-implement NNNN`.
   pairs whose members moved, and each demotion traces to an open ledger entry —
   a demotion on an unledgered finding means the gate is grading its own last repair.
   Past the cap (N>3, findings open) the run stops rather than demoting again.
-- A **JOINT-DECISION** finding (a shared decision neither RDR solely owns) demotes
-  no one: hoist it to a named home, record the tolerance, siblings stay Final —
-  and it must be genuinely joint, not a dodged single-RDR defect. The tolerance
-  names the open QUESTION, not just the home: it is an open obligation, not a
-  coherence claim. Diff each home's recorded revision: if one moved it has
-  answered something, and every sibling holding a tolerance against that
-  question owes its scoped answer-vs-fences check here — even one whose own text
-  never moved. The home is one paragraph per decision (decision + user-visible
-  stake; derivation goes to the evidence tree) — an oversized home is just
-  another peer — and a sibling restating its
-  mechanism prose is itself a finding, repaired to a citation.
-- A shared census/figure/enumeration has **one artifact of record**, named at
-  the home and cited by every peer. A peer figure disagreeing with it is a
-  CITATION REPAIR: repair the citation, no demotion, no tolerance, no deviation
-  entry. It outranks DEFER-TO-IMPLEMENTATION, which covers a shared figure only
-  while no artifact of record exists.
-- A **DEFER-TO-IMPLEMENTATION** finding (real, but too cheap to demote for)
-  demotes no one either. It qualifies only if all three hold: the text is
-  outside every ```normative fence (or is a figure no contract's pass condition
-  reads); a mechanical check at implementation decides it (grep, compile, or a
-  test the RDRs already specify); and no clause's meaning changes. Write it into
-  that RDR's `<art>/deviations.md` under an existing Type (usually TEST-FIXTURE)
-  with the named check, left open for Stage 8 to discharge by running it. Mark
-  the report row `DEFERRED` and leave the RDR Final; it does not block
-  RECONCILED. Fenced normative text never defers,
-  nor does a clash between two clauses' meaning — both are SPEC-DEFECT. The
-  deferral closes its ledger entry, so it cannot drive the cap; the report's
-  DEFERRED rows carry forward, and re-finding one is a SPEC-DEFECT.
+- Each **JOINT-DECISION** is genuinely joint (not a dodged single-RDR defect),
+  and its tolerance names the open QUESTION as well as the home. Every home's
+  recorded revision was diffed; each answer that surfaced has its siblings'
+  scoped answer-vs-fences checks shown here — including a sibling whose own text
+  never moved.
+- Each home is a paragraph per decision, and no sibling restates its mechanism
+  prose; each shared census/figure/enumeration has one artifact of record, with
+  a disagreeing peer figure typed CITATION REPAIR rather than joint decision,
+  demotion, or deferral.
+- Each **DEFER-TO-IMPLEMENTATION** clears all three conditions, its entry is
+  actually written to that RDR's `<art>/deviations.md` with its named check, and
+  its report row reads `DEFERRED` with the RDR left Final. Nothing fenced or
+  meaning-changing was deferred, and no prior iteration's `DEFERRED` row was
+  deferred a second time.
+
+The prompt (step 3) defines each disposition and its conditions; these are the
+checks, not a second definition.
 
 ## Next step (rdr-common §next-step)
 

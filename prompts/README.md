@@ -26,10 +26,14 @@ driver) runs the prompt without re-parsing the doc. Each binds `{RDR_PATH}` /
 | 5+6 Pre-Lock Resolve | [stages/05-prelock-resolve.prompt.md](stages/05-prelock-resolve.prompt.md) | `/rdr-prelock` (the fix half of the lens cycle) |
 | 7 Reconcile | [stages/06-reconcile.prompt.md](stages/06-reconcile.prompt.md) | `/rdr-reconcile` |
 | 7 Finalize | [stages/07-finalize.prompt.md](stages/07-finalize.prompt.md) | `/rdr-finalize` (one gated prompt — READY locks) |
+| 7.1 Cluster Reconcile | [stages/07.1-cluster-reconcile.prompt.md](stages/07.1-cluster-reconcile.prompt.md) | `/rdr-cluster-reconcile` (per cluster, not per RDR — the iteration contract + the four dispositions; the stage's own block builds the cluster and runs the scans) |
 
 Stage 5 (Pre-Lock) has no `stages/` prompt — it dispatches into the `pre-lock/`
-lenses below; Stages 8.1 and 9 dispatch into `gate/` and `implementation/`. The
-skills live beside the stage docs at [`../skills/`](../skills/).
+lenses below; Stages 8.1 and 9 dispatch into `gate/` and `implementation/`.
+Stage 7.1 is the one non-linear entry: a per-cluster gate whose prompt carries
+only the mechanics its stage block would otherwise inline, and it still
+dispatches into the `gate/` prompts for the scans themselves. The skills live
+beside the stage docs at [`../skills/`](../skills/).
 
 ## Pre-Lock — validating a draft (`pre-lock/`)
 

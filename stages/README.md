@@ -73,7 +73,10 @@ Ordered. Skips are allowed per *Applicability* below — the order never changes
 Three stages **dispatch into existing `../prompts/` files rather than duplicating
 them**: Stage 5 into the [`../prompts/pre-lock/`](../prompts/pre-lock/) lenses;
 Stage 7.1 into the [`../prompts/gate/`](../prompts/gate/) cross-RDR prompts
-(`pairwise.md` + the whole-set `critique.md`); and Stage 8 into
+(`pairwise.md` + the whole-set `critique.md`) for the scans, keeping its own
+iteration contract and dispositions in
+[`../prompts/stages/07.1-cluster-reconcile.prompt.md`](../prompts/stages/07.1-cluster-reconcile.prompt.md);
+and Stage 8 into
 [`../prompts/implementation/launch.md`](../prompts/implementation/launch.md).
 Stage 7 is the Finalization Gate from
 [`../README.md`](../README.md#finalization-gate). These map onto the parent
