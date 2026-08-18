@@ -75,7 +75,15 @@ say so and point at `/rdr-implement NNNN`.
   names the open QUESTION, not just the home: it is an open obligation, not a
   coherence claim. If a home has answered since the last report, every sibling
   holding a tolerance against that question owes its scoped answer-vs-fences
-  check here — even one whose own text never moved.
+  check here — even one whose own text never moved. The home is one paragraph
+  per decision (decision + user-visible stake; derivation goes to the evidence
+  tree) — an oversized home is just another peer — and a sibling restating its
+  mechanism prose is itself a finding, repaired to a citation.
+- A shared census/figure/enumeration has **one artifact of record**, named at
+  the home and cited by every peer. A peer figure disagreeing with it is a
+  CITATION REPAIR: repair the citation, no demotion, no tolerance, no deviation
+  entry. It outranks DEFER-TO-IMPLEMENTATION, which covers a shared figure only
+  while no artifact of record exists.
 - A **DEFER-TO-IMPLEMENTATION** finding (real, but too cheap to demote for)
   demotes no one either. It qualifies only if all three hold: the text is
   outside every ```normative fence (or is a figure no contract's pass condition
