@@ -94,8 +94,9 @@ into the pre-lock rounds above.
 
 The pre-lock prompts adapt earlier general-purpose spec-fitness prompts;
 adaptations are placeholder-only (`{SPEC_A}` → `{RDR_PATH}`; inline `<spec>`
-block → file reference). Each prompt file cites its source.
+block → file reference) except where a prompt's Source line says otherwise.
+Each prompt file cites its source.
 
-If a prompt produces unhealthy signal repeatedly (over-agreement, generic
-findings, no concrete passages), it likely needs adversarial reframing before
+If a prompt produces unhealthy signal repeatedly (generic findings, no concrete
+passages, unanchored advice), it likely needs adversarial reframing before
 re-running — not endless reruns of the same prompt.

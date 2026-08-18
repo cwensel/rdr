@@ -250,8 +250,11 @@ enforces them; don't re-derive):
 ## Review gate (the cycle, per lens)
 
 1. **Findings vs the lens's "Expected signal"** (its prompt file). Healthy =
-   concrete, named passages. Unhealthy (generic advice, over-agreement, identical
-   persona lists) → switch model and re-run; don't resolve a bad pass.
+   concrete, named passages. Unhealthy (generic advice, unanchored findings, no
+   blocked decision named) → switch model and re-run; don't resolve a bad pass.
+   For 3amigo, isolated personas converging on a passage is real agreement (a
+   hotspot), not a bad pass; the failure is a persona file citing another
+   persona's output — isolation leaked.
 2. **Resolve — grounded** (see *Resolve (the fix half)* above). Every finding is
    grounded against `main` + `{RDR_RESOURCES}` + the RDR's own decided text
    *before* it edits, dispositioned (fixed / dismissed-with-cite /

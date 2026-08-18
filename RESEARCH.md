@@ -394,9 +394,9 @@ high-accretion loci.
   escalation. <https://www.nber.org/papers/w35275>
 
 **Bounded review output is the cost lever, not exhaustive findings.** The
-pre-lock 3amigo lens emits a capped set (top-N per persona, severity-ranked, each
-naming the decision it blocks) and the pairwise cross-RDR
-check runs on *peer* pairs only. Pairwise's own bound is now an anchor, not a
+pre-lock 3amigo lens bounds by anchor (each finding severity-ranked, naming the
+passage and the decision it blocks; formerly a top-N cap) and the pairwise
+cross-RDR check runs on *peer* pairs only. Pairwise's own bound is now an anchor, not a
 count — every finding carries a direct quote per RDR — because a count that is
 also a *minimum* manufactures findings on a clean pair, buying false positives
 with the same instrument meant to bound cost. The case against "list every

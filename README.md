@@ -285,9 +285,9 @@ Gate on the fixed draft.
 
 The four analytical rounds, in order of cost. Each links to its prompt file under [`prompts/`](prompts/):
 
-1. **[3amigo](prompts/pre-lock/1-3amigo.md)** (~30 min) — Read the draft three times as PM / Implementer / QA personas;
-   consolidate items flagged by ≥2 personas. Uniquely catches heterogeneous PM/UX gaps, first-hour implementer questions,
-   "I cannot write a pass/fail test for this" QA gaps.
+1. **[3amigo](prompts/pre-lock/1-3amigo.md)** (~30 min) — Three isolated persona passes (PM / Implementer / QA), each
+   blind to the others; overlap is consolidated mechanically as hotspot passages. Uniquely catches heterogeneous PM/UX
+   gaps, first-hour implementer questions, "I cannot write a pass/fail test for this" QA gaps.
 
 2. **[Critique](prompts/pre-lock/2-critique.md)** (~20–30 min, dual-model) — Adversarial future projection: three ways this
    fails in 6 weeks; the section rewritten first; the assumption that won't survive first user contact. Uniquely catches

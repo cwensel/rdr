@@ -54,7 +54,10 @@ One invocation runs the full loop for one lens:
    and delta-scope to `<IDs>`.
 2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
    `2-critique.md` · `4-cove.md`)
-   → it writes element files to `{EVIDENCE_DIR}`. Heavy/dual-model → sub-agent returns
+   → it writes element files to `{EVIDENCE_DIR}`. `3amigo` is not one prompt run:
+   fan out its three persona passes as isolated sub-agents (no cross-persona
+   visibility), then consolidate their files mechanically per the prompt.
+   Heavy/dual-model → sub-agent returns
    the findings list, not a re-dump. **This first run's findings are the origin
    ledger** for the loop.
 3. **Review gate** (below) — a bad pass is re-run on another model, not resolved.
@@ -127,8 +130,10 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
 ## Review gate (Stage `05-prelock.md`)
 
 - Read findings against the lens's own **Expected signal**. Healthy = concrete,
-  named passages. Generic advice / over-agreement / identical persona lists → switch
-  model and re-run; don't proceed on a bad pass.
+  named passages. Generic advice / unanchored findings → switch model and re-run;
+  don't proceed on a bad pass. For `3amigo`, isolated personas converging on the
+  same passage is real agreement (a hotspot), not a bad pass — the failure to
+  catch is a persona file citing another persona's output (isolation leaked).
 - After resolving: edits stayed brief (no change-history narration); fixes were
   grounded (a fix to satisfy a finding whose cited code doesn't exist on `main` is
   wrong); the needs-verification list is honest; net-new scope was charted, not
