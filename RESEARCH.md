@@ -396,9 +396,12 @@ high-accretion loci.
 **Bounded review output is the cost lever, not exhaustive findings.** The
 pre-lock 3amigo lens emits a capped set (top-N per persona, severity-ranked, each
 naming the decision it blocks) and the pairwise cross-RDR
-check emits top-N per *peer* pair only, exhaustive only when a blocks-implementation
-finding demands it. The case against "list every passage": a transcript where the
-parent already held the relevant RDR sections, then re-read line ranges and
+check runs on *peer* pairs only. Pairwise's own bound is now an anchor, not a
+count — every finding carries a direct quote per RDR — because a count that is
+also a *minimum* manufactures findings on a clean pair, buying false positives
+with the same instrument meant to bound cost. The case against "list every
+passage": a transcript where the parent already held the relevant RDR
+sections, then re-read line ranges and
 dispatched a sub-agent to pull precise passages — the repeated scanning an
 unbounded "enumerate all" prompt shape provokes. Capping trades raw recall for
 decision-utility: an unbounded list maximizes findings, not the next decision. The
@@ -406,7 +409,8 @@ same non-monotone-returns caution (Chen et al. above) applies — more redundant
 output past the point a decision is made does not improve it. Finiteness of the
 attention budget is the constraint (Anthropic, *Effective context engineering*, §3).
 The corollary the lenses were later swept for: **a cap bounds output, a count merely
-describes it.** The caps stay; the overflow counts beside them (3amigo's per-persona
+describes it.** The caps stay where the bound is a cap; the overflow counts
+beside them (3amigo's per-persona
 and consolidation counts, pairwise's, and the deviation/defect counts in two
 `summary_50w` descriptions) were removed once a sweep confirmed no consumer read
 one — every downstream branch keys off `verdict=` and `evidence_paths`. Emitting a

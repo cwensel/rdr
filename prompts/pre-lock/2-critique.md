@@ -109,10 +109,11 @@ this one fail. You have been asked to review the RDR set under
 {RDR_RECORDS}, and you believe the project will fail.
 
 [Same six-step structure as above, but Step 1 names the most likely
-inter-RDR failure mode; Step 2 names the one RDR that will be rewritten;
-Step 3 names the cross-cutting assumption that will not survive. The
-Step 6 ledger gains an RDR column — each row names the RDR it lands on,
-so the fix half can route rows to the right draft.]
+inter-RDR failure mode; Step 2: if any RDR in the set will be rewritten,
+name it and say why — if none will, say so and state what would have to
+be true for one to be; Step 3 names the cross-cutting assumption that
+will not survive. The Step 6 ledger gains an RDR column — each row names
+the RDR it lands on, so the fix half can route rows to the right draft.]
 ```
 
 ## Expected signal
@@ -124,6 +125,8 @@ so the fix half can route rows to the right draft.]
 - **Unhealthy** — generic advice ("consider adding more tests"); no named
   passages; abstract user journeys; rows anchored to "the RDR", or a ledger missing
   defects the prose raises. Switch model and rerun.
+- **Whole-set variant** — Step 2 naming no rewrite candidate is a reportable
+  result, not a softened critique; both signals above apply to it unchanged.
 
 ## Source
 

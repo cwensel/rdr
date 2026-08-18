@@ -22,10 +22,11 @@ explicitly listed in a *Critical Assumptions* (Method: Peer RDR) or
 *Cross-Cutting Concerns* entry.
 
 ```text
-Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report your TOP 3 places
-they contradict, duplicate, or leave a gap (an interaction one mentions that
-the other does not). Escalate to exhaustive enumeration only when a
-blocks-impl finding cannot be fixed without listing the rest.
+Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report every place they
+contradict, duplicate, or leave a gap (an interaction one mentions that the
+other does not) that you can anchor to two direct quotes — one per RDR, or
+one plus an explicit 'silent'. No minimum, no maximum: zero anchored
+findings is a valid report.
 
 ALSO check round-trip / inverse invariants. If the two RDRs describe a pair of
 operations expected to compose to identity (A emits, B consumes; encode/decode,
@@ -59,10 +60,11 @@ models on "do these two contradict?" is itself a signal.
 
 ## Expected signal
 
-- **Healthy** — at least one gap per plausibly-interacting pair, anchored to
-  direct quotes; `blocks-impl` findings name the exact clauses.
-- **Unhealthy** — "no issues found" across every pair (over-agreement). Switch
-  model and rerun.
+- **Healthy** — every finding anchored to direct quotes; `blocks-impl`
+  findings name the exact clauses. Zero findings on a pair whose members have
+  not changed since the last scan is the expected result, not a malfunction.
+- **Unhealthy** — findings with no quote, paraphrase in place of quotation, or
+  "NO DIRECT QUOTE" used as a routine escape.
 
 ## What a finding does
 
