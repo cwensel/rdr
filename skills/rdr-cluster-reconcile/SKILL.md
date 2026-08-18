@@ -30,11 +30,9 @@ say so and point at `/rdr-implement NNNN`.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_RECORDS}`;
    form the peer pairs to compare.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);
-   it owns the mechanics (iteration contract: N detection · recorded member and
-   home revisions · origin ledger · delta-scope + the answered-tolerance
-   exception · cap and its stop packet; and the four dispositions). Don't
-   restate them here. Bind the iteration contract first — it scopes step 4 —
-   and write this run's outputs to `iter-N/` when N>1.
+   it owns the iteration contract and the four dispositions, so read it rather
+   than re-deriving either. Bind the contract first — it scopes step 4 — and
+   write this run's outputs to `iter-N/` when N>1.
 4. **Dispatch into the gate prompts** for whatever the iteration contract left in
    scope (Stage `07.1-cluster-reconcile.md` owns the cluster-membership and
    re-entry-scope calls — read it for those):
