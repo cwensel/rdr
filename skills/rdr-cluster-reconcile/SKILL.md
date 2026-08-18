@@ -76,11 +76,25 @@ say so and point at `/rdr-implement NNNN`.
   coherence claim. If a home has answered since the last report, every sibling
   holding a tolerance against that question owes its scoped answer-vs-fences
   check here — even one whose own text never moved.
+- A **DEFER-TO-IMPLEMENTATION** finding (real, but too cheap to demote for)
+  demotes no one either. It qualifies only if all three hold: the text is
+  outside every ```normative fence (or is a figure no contract's pass condition
+  reads); a mechanical check at implementation decides it (grep, compile, or a
+  test the RDRs already specify); and no clause's meaning changes. Write it into
+  that RDR's `<art>/deviations.md` under an existing Type (usually TEST-FIXTURE)
+  with the named check, left open for Stage 8 to discharge by running it. Mark
+  the report row `DEFERRED` and leave the RDR Final; it does not block
+  RECONCILED. Fenced normative text never defers,
+  nor does a clash between two clauses' meaning — both are SPEC-DEFECT. The
+  deferral closes its ledger entry, so it cannot drive the cap; the report's
+  DEFERRED rows carry forward, and re-finding one is a SPEC-DEFECT.
 
 ## Next step (rdr-common §next-step)
 
 - If autocommit is on, run **§commit** for the cluster-reconcile *evidence* (`chore(rdr): cli/NNNN cluster-reconcile <cluster>`); the doc/lock commit lands at finalize, not here.
-- Reconciled, no demotion → `Next: /rdr-implement NNNN` for each cluster member.
+- Reconciled, no demotion → `Next: /rdr-implement NNNN` for each cluster member;
+  list any deferred items and their checks in the close packet's `Deviations:`
+  field (the entries are already in each RDR's `<art>/deviations.md`).
 - Reconciled with tolerances → same `Next: /rdr-implement NNNN` (no demotion, no
   re-walk) *while the tolerance is unanswered*; list each standing tolerance
   (pair, joint decision, home, open question) and whether the home has answered
