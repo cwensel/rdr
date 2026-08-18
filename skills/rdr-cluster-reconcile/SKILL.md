@@ -31,8 +31,9 @@ say so and point at `/rdr-implement NNNN`.
    form the peer pairs to compare.
 3. **Detect the iteration**: N = 1 + the highest existing `reconcile-report.md`
    under the output base (loose = iter-1, `iter-N/` subdirs after); write this
-   run's outputs to `iter-N/` when N>1, and record each member's current revision
-   for the next iteration. At N>1 the run is anchored to its own history:
+   run's outputs to `iter-N/` when N>1, and record the current revision of each
+   member AND each joint-decision home for the next iteration. At N>1 the run is
+   anchored to its own history:
    - **Origin ledger** — iter-1's findings table is the ledger; each finding
      traces to an open entry. One tracing to none is **net-new scope**: recorded
      with evidence, demoting no member on its own.
@@ -73,11 +74,12 @@ say so and point at `/rdr-implement NNNN`.
   no one: hoist it to a named home, record the tolerance, siblings stay Final —
   and it must be genuinely joint, not a dodged single-RDR defect. The tolerance
   names the open QUESTION, not just the home: it is an open obligation, not a
-  coherence claim. If a home has answered since the last report, every sibling
-  holding a tolerance against that question owes its scoped answer-vs-fences
-  check here — even one whose own text never moved. The home is one paragraph
-  per decision (decision + user-visible stake; derivation goes to the evidence
-  tree) — an oversized home is just another peer — and a sibling restating its
+  coherence claim. Diff each home's recorded revision: if one moved it has
+  answered something, and every sibling holding a tolerance against that
+  question owes its scoped answer-vs-fences check here — even one whose own text
+  never moved. The home is one paragraph per decision (decision + user-visible
+  stake; derivation goes to the evidence tree) — an oversized home is just
+  another peer — and a sibling restating its
   mechanism prose is itself a finding, repaired to a citation.
 - A shared census/figure/enumeration has **one artifact of record**, named at
   the home and cited by every peer. A peer figure disagreeing with it is a
