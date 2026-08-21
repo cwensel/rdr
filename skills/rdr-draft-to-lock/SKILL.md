@@ -1,7 +1,8 @@
 ---
 name: rdr-draft-to-lock
+argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--model-ceiling <model>] [--commit | --no-commit]"
 metadata:
-  argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--model-ceiling <model>] [--commit | --no-commit]   # EXPERIMENTAL: drives Refine→Finalize"
+  argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--model-ceiling <model>] [--commit | --no-commit]"
 description: 'Use to drive one proposed RDR from Refine through Finalize as delegated stages, stopping at genuine human forks. Experimental. Trigger for run the flow, drive to final, $rdr-draft-to-lock, or /rdr-draft-to-lock.'
 ---
 
@@ -36,9 +37,8 @@ Claude: /rdr-draft-to-lock <NNNN> [--to reconcile] [--ask-each]
 default `finalize`). `--ask-each` confirms before every stage — the training-wheels
 mode; use it the first few runs. `--model-ceiling` and `--commit`/`--no-commit`
 pass through to every spawn (§model-ceiling, §commit). Resolve the ceiling in
-Phase 0 and **record it in the plan** — `large`/`foundational` spawn at it, and an
-unset ceiling silently runs the judgment-dense profiles at session model, which
-is a choice worth seeing rather than inheriting.
+Phase 0 and **record it in the plan**: an unset ceiling is a choice worth seeing
+rather than inheriting.
 
 **Precondition.** `Status: Draft`, proposed — tested without reading the body:
 `### Technical Design` + `#### Normative Contracts` present, or `propose-premortem/`
@@ -72,8 +72,8 @@ approach rework that voided the lock. If the qualifier names no scope, stop
 ## Posture — delegate everything, hold only the ledger
 
 Like `/rdr-joint-propose` and `launch.md`, this orchestrator **never reads the
-RDR text, evidence bodies, or source** — the cheap metadata reads in Phase 0 are
-the exception, as they are for launch.md. Each stage is one sub-agent invoking
+RDR text, evidence bodies, or source** — Phase 0's routing reads are the only
+exception, as they are for launch.md. Each stage is one sub-agent invoking
 the real stage skill; the orchestrator holds only the seam vars, the plan, the
 packets, and the parked forks. Two things that buys, neither tradable: stage
 skills still author in *their* main context (§delegation is satisfied — the
@@ -89,7 +89,7 @@ a corrected packet; still malformed → one re-spawn at the ceiling, then surfac
 **only** the RDR's `Status:` line, `Profile` field, `Seam Lineage`, and — for
 `mid`/`large` — the fenced ` ```normative ` block under `#### Normative
 Contracts` (an h4 inside Proposed Solution, per TEMPLATE.md; reading it is not
-reading the body). Those are the cheap routing reads. Compute the lens row via **§lens-row** and write the
+reading the body). Compute the lens row via **§lens-row** and write the
 plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is otherwise its
 first writer):
 
@@ -100,14 +100,13 @@ lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
 
-On a demoted Draft the bracket is **required**, because the row alone overstates
-the run: the lens row is profile-derived and does not shrink, but each pass runs
-as a fresh iteration delta-scoped to `re-verify <IDs>` against an
-already-resolved draft (`stages/05-prelock.md`), not a full re-review. A plan
-that shows only the row asks a human to approve a cost the run will not spend.
-Don't compute an iteration number here — `iter-N` is **per-lens** (each lens
-numbers off its own dir, and a row's lenses can sit at different N), and the
-stage skill assigns it. Name the delta; let each lens number itself.
+On a demoted Draft the bracket is **required**: the row alone overstates the run.
+Each pass is a fresh iteration delta-scoped to `re-verify <IDs>` against an
+already-resolved draft (`stages/05-prelock.md`), not a full re-review, and a plan
+showing only the row asks a human to approve a cost the run will not spend.
+Don't compute an iteration number here — `iter-N` is **per-lens** (a row's lenses
+can sit at different N) and the stage skill assigns it. Name the delta; let each
+lens number itself.
 
 Then a **Ledger** — one row per planned stage (`verdict`, `blocking`, one-line
 note), appended as each packet lands, and any **decided fork disposition** with
