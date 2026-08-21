@@ -100,6 +100,7 @@ first writer):
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
 lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
+                                             (critique/repeatability run --auto)
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
 
@@ -142,6 +143,19 @@ the RDR, which would anchor the stage on a reading it did not do. On a
 STAGE-SCOPED re-entry the brief adds nothing either: stages 4/5 self-detect the
 `revised from Final` qualifier and delta-scope to `re-verify <IDs>` themselves
 (§run-prompt). Route to the right stage; let it scope itself.
+
+**Pass `--auto` on `critique` and `repeatability`** — and only there, since
+`/rdr-prelock` rejects it elsewhere (`stopped:auto-not-applicable:<lens>`).
+Their cross-model passes are otherwise hand CLI relaunches, which no delegated
+run can perform: without the flag those lenses park (an owed critique second
+pass, or `stopped:repeatability-needs-fresh-session:run-<N+1>` after every run)
+and the cascade stops for a human to type one command. With `--auto`,
+`repeatability` takes **no `run` arg** — it spawns the variant's whole set, so
+the brief names the lens alone. §auto-fanout owns the rest, degradation
+included: a harness that can't pin models per spawn emits the relaunch command
+and stamps `auto: unavailable (harness) — manual relaunch`, which parks exactly
+as before. Passing the flag never makes the run worse; withholding it
+guarantees the park.
 
 Then, per packet:
 
@@ -206,8 +220,9 @@ a second scale.
 
 The up-front confirm asks about **cost and posture** — the lens row's span and
 `stop-after` — never "is the row right?", which §lens-row already decided from
-the Profile and the human cannot answer better. State the row and its
-`iter-N`/delta bracket when demoted: that span is where the cost lands.
+the Profile and the human cannot answer better. State the row, its
+`iter-N`/delta bracket when demoted, and that `critique`/`repeatability` fan out
+under `--auto`: that span and that fan-out are where the cost lands.
 
 `--ask-each` overrides the table upward (confirm everywhere); nothing overrides
 it downward — a `foundational` run cannot be made silent. A **`Draft` Profile is
@@ -228,6 +243,8 @@ its own row until Stage 4 writes the field.
   the failure mode this skill must not have.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
+- `critique`/`repeatability` were spawned with `--auto`; a park on either names
+  a harness degradation or a real finding, never a missing flag.
 
 ## Next step (rdr-common §next-step)
 
