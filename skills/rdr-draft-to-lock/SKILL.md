@@ -1,8 +1,8 @@
 ---
 name: rdr-draft-to-lock
-argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--model-ceiling <model>] [--commit | --no-commit]"
+argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--commit | --no-commit]"
 metadata:
-  argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--model-ceiling <model>] [--commit | --no-commit]"
+  argument-hint: "<NNNN> [--to <stage>] [--ask-each] [--commit | --no-commit]"
 description: 'Use to drive one proposed RDR from Refine through Finalize as delegated stages, stopping at genuine human forks. Experimental. Trigger for run the flow, drive to final, $rdr-draft-to-lock, or /rdr-draft-to-lock.'
 ---
 
@@ -35,10 +35,14 @@ Claude: /rdr-draft-to-lock <NNNN> [--to reconcile] [--ask-each]
 
 `--to <stage>` stops after that stage (`refine|resolve|prelock|reconcile|finalize`;
 default `finalize`). `--ask-each` confirms before every stage — the training-wheels
-mode; use it the first few runs. `--model-ceiling` and `--commit`/`--no-commit`
-pass through to every spawn (§model-ceiling, §commit). Resolve the ceiling in
-Phase 0 and **record it in the plan**: an unset ceiling is a choice worth seeing
-rather than inheriting.
+mode; use it the first few runs. `--commit`/`--no-commit` passes through to every
+spawn (§commit).
+
+**No model flag.** Stages spawn at the session model. §model-ceiling is a *bump*
+for authoring sub-agents and forbids spawning below the session model, so it
+could never make this run cheaper — and the cross-model work that pre-lock does
+want is `§auto-fanout`'s, selected on model *identity*, not tier. To run the
+cascade on a different model, start the session on it.
 
 **Precondition.** `Status: Draft`, proposed — tested without reading the body:
 `### Technical Design` + `#### Normative Contracts` present, or `propose-premortem/`
@@ -81,7 +85,7 @@ orchestrator's context is not the stage's), and each stage's Review gate still
 runs inside it.
 
 Each stage returns a **§return-packet**. Reject a malformed one and ask only for
-a corrected packet; still malformed → one re-spawn at the ceiling, then surface.
+a corrected packet; still malformed → one re-spawn, then surface.
 
 ## Phase 0 — bind, then plan once
 
@@ -95,7 +99,6 @@ first writer):
 
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
-ceiling: <model | unset (session model)>
 lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
@@ -201,11 +204,10 @@ a second scale.
 | `large` | Hands-off, but confirm once before `/rdr-finalize` (lock is the irreversible step). |
 | `foundational` | Confirm the lens plan up front; confirm before finalize. Cross-RDR blast radius earns two interruptions. |
 
-The up-front confirm asks about **cost and posture** — the ceiling the lenses
-spawn at, and `stop-after` — never "is the row right?", which §lens-row already
-decided from the Profile and the human cannot answer better. State the row, its
-`iter-N`/delta bracket when demoted, and the ceiling; a plan whose `ceiling:` is
-`unset` at `large`/`foundational` says so, since that is where the cost lands.
+The up-front confirm asks about **cost and posture** — the lens row's span and
+`stop-after` — never "is the row right?", which §lens-row already decided from
+the Profile and the human cannot answer better. State the row and its
+`iter-N`/delta bracket when demoted: that span is where the cost lands.
 
 `--ask-each` overrides the table upward (confirm everywhere); nothing overrides
 it downward — a `foundational` run cannot be made silent. A **`Draft` Profile is
