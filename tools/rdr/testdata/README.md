@@ -37,7 +37,7 @@ conformant epoch D record whose tally the scanner tests pin by hand.
 | `wrapped-metadata.md` | the em-dash `Deferred — …` Status paragraph with a guidance comment under it; Predecessors, Overrides and Seam Lineage wrapped, with a nested labelled bullet; the legacy `Related`, the recognised `Release scope`, and an unknown `Referenced by` |
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
 
-`lint/` is a three-record corpus for the linking rules — the fixtures are
+`lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it
 names. Each is an epoch D record dated after the labelling rule landed.
 
@@ -46,3 +46,5 @@ names. Each is an epoch D record dated after the labelling rule landed.
 | `0010-frame-header-labelled.md` | the conforming case: `**C1**` / `**C2**` labels, a Peer-RDR Evidence citing `0011-…:C1` by element ID. Lints clean at a lock gate |
 | `0011-frame-header-unlabelled.md` | two unlabelled contracts on a post-rule record — advisory when grandfathered by date, blocking at lock when not |
 | `0012-frame-header-dangling.md` | a TERMINAL record citing a record that does not exist (`0099`) and an element that does not (`0010:C9`): both come back as non-blocking fix pointers with line ranges |
+| `0013-frame-header-order-v2.md` | ownership transfer: overrides `0010:C1` BY ID while leaving `0010:C2` and the whole of 0010 untouched, so the backlink query is the review worklist |
+| `0014-frame-header-debug-flag.md` | `Demoted [→ 0013-…]`, for the `moved-to` edge — and a terminal status that is not `Implemented` |

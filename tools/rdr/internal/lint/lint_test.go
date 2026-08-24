@@ -3,9 +3,11 @@ package lint
 import (
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
@@ -50,6 +52,15 @@ func codes(r Report) []string {
 		out = append(out, f.Code)
 	}
 	return out
+}
+
+func contains(hay []string, needle string) bool {
+	for _, h := range hay {
+		if h == needle {
+			return true
+		}
+	}
+	return false
 }
 
 func has(r Report, code string) bool {
@@ -233,6 +244,80 @@ func TestFindingsAreOrdered(t *testing.T) {
 	for i := 1; i < len(r.Findings); i++ {
 		if r.Findings[i-1].LineStart > r.Findings[i].LineStart {
 			t.Errorf("findings out of line order at %d: %v", i, codes(r))
+		}
+	}
+}
+
+// TestOwnershipTransferIsByIDAndBacklink is the linking rule's whole
+// point, at the moment it earns its keep: when responsibility MOVES, the
+// element keeps its ID, the old home is not edited, and the backlink
+// query — not a prose sweep — lists what needs review.
+//
+// 0013 overrides `0010:C1` by ID and cites it as Peer-RDR Evidence; 0014
+// is demoted to 0013. The assertions are that both typed edges resolve,
+// that they land on the ELEMENT rather than the document, and that the
+// overridden contract's backlinks name every citing element.
+func TestOwnershipTransferIsByIDAndBacklink(t *testing.T) {
+	docs := corpus(t)
+	list := make([]*scan.Document, 0, len(docs))
+	for _, d := range docs {
+		list = append(list, d)
+	}
+
+	kindTo := func(record string, kind edge.Kind) []string {
+		var out []string
+		for _, e := range docs[record].Edges {
+			if e.Kind == kind {
+				if e.Resolved == nil || !*e.Resolved {
+					t.Errorf("%s %s edge to %s did not resolve", record, kind, e.To)
+				}
+				out = append(out, e.To)
+			}
+		}
+		return out
+	}
+
+	// The override reaches the CONTRACT, not just the record: an
+	// Overrides field that resolved only to `0010` would say
+	// responsibility moved without saying for what. The field names more
+	// than one target here — it also says `0010:C2 stands` — so the
+	// assertion is that the element edge is among them, not that it is
+	// alone.
+	if got := kindTo("0013", edge.Overrides); !contains(got, "0010:C1") {
+		t.Errorf("overrides edges = %v, want one naming 0010:C1", got)
+	}
+	// A demotion leaves a moved-to edge to where the work went.
+	if got := kindTo("0014", edge.MovedTo); !contains(got, "0013") {
+		t.Errorf("moved-to edges = %v, want one naming 0013", got)
+	}
+
+	// The worklist: everything pointing at the moved contract, by element.
+	back := scan.Reverse(list)
+	var citing []string
+	for _, e := range back["0010:C1"] {
+		if e.Kind.Typed() {
+			citing = append(citing, string(e.Kind)+" from "+e.From)
+		}
+	}
+	sort.Strings(citing)
+	want := []string{"overrides from 0013", "peer-evidence from 0013:A1"}
+	if strings.Join(citing, "; ") != strings.Join(want, "; ") {
+		t.Errorf("backlinks for 0010:C1 = %v, want %v", citing, want)
+	}
+
+	// The contract the override did NOT touch keeps a clean sheet — the
+	// transfer is scoped to the element, never the whole record.
+	for _, e := range back["0010:C2"] {
+		if e.Kind == edge.Overrides {
+			t.Errorf("0010:C2 was overridden; the transfer leaked past its element")
+		}
+	}
+
+	// The old home is never rewritten: 0010 states no relation to either
+	// record that moved its contract.
+	for _, e := range docs["0010"].Edges {
+		if e.Kind.Typed() && strings.HasPrefix(e.To, "0013") {
+			t.Errorf("0010 was edited to point at its successor (%s); ownership transfer rewrites the citing side, not the old home", e.To)
 		}
 	}
 }
