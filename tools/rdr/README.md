@@ -113,6 +113,79 @@ Ownership transfer is by ID, never by renumbering: when responsibility
 moves between records, the element keeps its ID and the edge extraction
 (a separate change) records `overrides` / `moved-to` from the old home.
 
+### The citation form, and what authors owe
+
+Reading IDs is half of it; the other half is an authoring rule, because a
+reference is only resolvable if the target was given an identity and the
+citation reaches for it.
+
+Contracts carry `**C1**`, `**C2**` … in document order, on the line above
+the fence (TEMPLATE.md §Normative Contracts). The number is the contract's
+name for life: never reused, never renumbered — a deleted `C2` leaves a
+gap, because somewhere a peer cites it.
+
+A cross-record reference to a load-bearing element — an assumption, a
+contract, a scenario, a decision — is written as an ID: `0055:C4`,
+`cli/0055:A3`. The grammar reads the colon form, the spaced form
+(`cli/0055 A5`) and `§Section Name` alike, so older citations keep
+resolving; the colon form is what new ones use. A filename or heading-text
+reference is a `mentions` edge: fine for context, wrong for a claim, since
+it is exactly what a reword or a move breaks.
+
+`Method: Peer RDR` Evidence names an element, never a bare record. A
+citation that resolves to a whole 4,000-line record has named a document,
+not a reason — `rdr lint` reports it as `peer-evidence:no-element`.
+
+**None of this is retroactive.** Terminal records are never amended, and
+an ordinal-derived ID on a frozen file is exactly as stable as a written
+label, so the legacy corpus is fully citable at zero edit cost. Live
+records get labels the fix-forward way: `rdr lint` advises, and the stage
+already rewriting the file labels them in-pass.
+
+## Lint
+
+`rdr lint [<NNNN>] [--locking]` is the conformance authority: one pass,
+three severities, and a rule about which records each may speak about.
+With no argument it lints the whole records dir. It exits 0 on PASS —
+findings or not — and 1 when a finding blocks a lock.
+
+| tier | scope | blocks? |
+| --- | --- | --- |
+| `parse` | every record | never |
+| `conformance` | LIVE records only | never |
+| `resolution` | every record | at a lock gate, on a live record |
+
+**parse** republishes the scanner's warnings channel. On a terminal record
+a parse warning is a projector bug — the file cannot have changed, so the
+scanner is what is wrong — and the fix is a fixture.
+
+**conformance** is migration advice for a record that is going to be
+rewritten anyway: unlabelled contracts, a Required section the current
+template carries and this record's epoch predates. It is phrased for the
+stage already holding the file open, and it never blocks. Terminal records
+never generate it, because advice no one is permitted to act on is noise.
+Two exclusions keep it honest: a subsection whose parent is absent is not
+separately missing, and a gate subsection under a `gate.md` pointer is not
+missing at all — from epoch C on, lock moves those responses out of the
+record on purpose.
+
+**resolution** judges what a record EMITS: every typed edge resolves, every
+`Method: Peer RDR` Evidence names an element, and contracts are labelled on
+a record written after the rule landed. This is the tier that applies to
+terminal records too, because it is not about their shape. The DELIVERY
+differs — on a frozen record the finding is a fix pointer carrying the line
+range to open, and it does not block, because that record is not the one
+locking. Correcting the reference text in that range is the one sanctioned
+amendment to a locked RDR: the pointer only, never prose or structure.
+
+The label rule's boundary is the record's own `Date`, not an epoch
+fingerprint. A fingerprint would beg the question — the signal placing a
+record in a "labels its contracts" epoch is the presence of labelled
+contracts, so a new record that labelled nothing would fingerprint as
+legacy and escape the check the rule exists to apply. `Date` is written by
+Seed on every record and says when it entered the flow, which is what the
+grandfathering rule actually asks.
+
 The stability properties are tests, not intentions:
 
 | test | asserts |

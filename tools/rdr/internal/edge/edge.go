@@ -179,10 +179,18 @@ func (r Ref) Document() string {
 // The record half is one of `cli/0055`, `RDR cli/0055`, `RDR 0055`,
 // `R-0055`, `0055-some-slug` or, inside an edge-bearing field where a
 // bare number is unambiguous, `0055`. The element half is optional and
-// covers the three citation shapes authors write: `§Section Name`,
+// covers the citation shapes authors write: `§Section Name`,
 // `§A5` / `A5` / `CA-5` / `C2` / `D-4` (a labelled element), and
 // `REQ-13`, the implementation-time requirement id minted from a
 // contract.
+//
+// The separator before the element half is a space, a `§`, or a COLON.
+// The colon is the canonical ID form — `0055:C4`, `cli/0055:A3` — which
+// is what the citation rule asks authors to write, and which the corpus
+// did not have a way to express before element IDs existed. Reading it
+// here is what makes a cite-don't-restate reference resolvable rather
+// than merely well-intentioned: without it `0055:C4` parses as a bare
+// reference to the whole of 0055 and the element half is silently lost.
 //
 // EVERY ALTERNATIVE REQUIRES A MARKER — an `RDR`/`R-` prefix, a `cli/`
 // records-dir prefix, or a filename slug. A bare four-digit number is
@@ -199,9 +207,11 @@ var recordRef = regexp.MustCompile(
 		`|\b([a-z][a-z0-9_-]*)/(\d{4})()` + // `cli/0055`
 		`|\b()(\d{4})(-[a-z][a-z0-9-]*)` + // `0055-some-slug`
 		`)` +
-		`(?:\s*(?:§\s*)?` + // an optional section mark
+		`(?:\s*(?::|§\s*)?\s*` + // an optional separator: the ID colon or a section mark
 		`(?:(§)\s*` + sectionName + // §Section Name
-		`|(CA-|A|C|D-|D|S|F|RT|ALT|BR|G-|REQ-)(\d+[a-z]?)\b))?`, // an element label
+		`|(CA-|A|C|D-|D|S|F|RT|ALT|BR|G-|REQ-)(\d+[a-z]?)\b` + // an element label
+		`|(D|G)-([a-z0-9]+(?:-[a-z0-9]+)*)\b` + // a slug-keyed element: D-identity, G-scope
+		`|(MVV)\b))?`, // the one keyed-by-nothing element
 )
 
 // sectionName bounds a `§Section Name` citation. A section citation is a
@@ -262,12 +272,19 @@ func FindRefs(s string, bare bool) []Ref {
 			r.Kind, r.Key = ident.Section, ident.Slug(trimSectionTail(name))
 		case group(s, m, 14) != "":
 			r.Kind, r.Key = elementKind(group(s, m, 14)), group(s, m, 15)
+		case group(s, m, 16) != "":
+			r.Kind, r.Key = ident.Kind(group(s, m, 16)), group(s, m, 17)
+		case group(s, m, 18) != "":
+			r.Kind = ident.MVV
 		}
 		if r.Kind == ident.Section && r.Key == "" {
 			// `§` with nothing readable after it names the document.
 			r.Kind = ""
 		}
-		if r.Kind != "" && r.Kind != ident.Section && r.Key == "" {
+		// A kind that takes a key and got none names nothing inside the
+		// record, so it falls back to a document reference. MVV is the
+		// exception: it is one per record and carries no key by design.
+		if r.Kind != "" && r.Kind != ident.Section && r.Kind != ident.MVV && r.Key == "" {
 			r.Kind = ""
 		}
 		for i := m[0]; i < m[1]; i++ {

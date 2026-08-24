@@ -7,21 +7,22 @@
 //
 //	rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
 //	rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] ... [--records DIR]
-//	rdr lint <NNNN|path>
+//	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr version
 //
 // Exit codes:
 //
-//	0  success
+//	0  success, findings or not
+//	1  lint only: a finding blocks a lock
 //	2  unparseable input, an unresolvable selector, or a subcommand whose
 //	   scanner has not landed yet
 //
 // Findings never change inspect's exit code; lint owns PASS/BLOCK exits.
 //
-// inspect, index --derived and index --coverage are live. The remaining index facets and
-// lint report `stopped:not-implemented` and exit 2, which is the
-// contract's "degrade to a clear stopped:<reason> rather than a stack
-// trace" requirement.
+// inspect, lint, index --derived, --coverage and the edge facets are live.
+// The remaining index facets report `stopped:not-implemented` and exit 2,
+// which is the contract's "degrade to a clear stopped:<reason> rather than
+// a stack trace" requirement.
 package main
 
 import (
@@ -36,6 +37,7 @@ import (
 
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
+	"github.com/cwensel/rdr/tools/rdr/internal/lint"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
@@ -54,7 +56,7 @@ const usage = `rdr — read-only projector for RDR markdown records
 usage:
   rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<id>] [--project P] [--records DIR]
   rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] [--records DIR]
-  rdr lint <NNNN|path>
+  rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr version
 
 index --coverage is the drift alarm (README §The resilience contract): the
@@ -67,8 +69,15 @@ element ids (README §identifiers):
   scenario · NNNN:MVV · NNNN:F2 failure mode · NNNN:G-scope gate response ·
   NNNN:§approach section · cli/NNNN:C4 across records dirs
 
+lint is the conformance authority, one pass over three severities (README
+§lint): parse warnings on every record, conformance ADVICE on live records
+only, and resolution findings — dangling edges, Peer-RDR Evidence naming no
+element, unlabelled contracts on a post-rule record — that block a lock.
+With no argument it lints the whole records dir.
+
 exit codes:
-  0  success
+  0  success, findings or not
+  1  lint: a finding blocks a lock
   2  unparseable input, unresolvable selector, or unimplemented subcommand
 `
 
@@ -107,6 +116,8 @@ func run(args []string, stdout, stderr io.Writer) int {
 			if *f.backlinks || *f.unresolved || *f.clusterOf != "" {
 				return indexEdges(f, stdout, stderr)
 			}
+		case "lint":
+			return lintCmd(fs.Args(), f, stdout, stderr)
 		}
 		fmt.Fprintf(stderr, "stopped:not-implemented (%s: the record scanner has not landed)\n", args[0])
 		return 2
@@ -132,6 +143,7 @@ type flags struct {
 	status, inFlight, backlinks *bool
 	clusterOf                   *string
 	unresolved                  *bool
+	locking                     *bool
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -160,6 +172,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.unresolved = fs.Bool("unresolved", false, "edges with no resolvable target")
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
+		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
 	}
 	return f
 }
@@ -698,4 +711,107 @@ func recordOfID(id string) string {
 	}
 	before, _, _ := strings.Cut(id, ":")
 	return before
+}
+
+// lintCmd runs the conformance authority over one record, or over the
+// whole records dir when given no argument.
+//
+// Exit codes carry the verdict, because the callers are gates: 0 is
+// PASS, 1 is BLOCK. That is why lint and not inspect owns a non-zero
+// exit — a projection is never a verdict, and a gate needs one. A
+// findings-but-no-block run still exits 0: advice that stopped a stage
+// would be a block wearing another name.
+func lintCmd(args []string, f *flags, stdout, stderr io.Writer) int {
+	opts := lint.Options{Locking: *f.locking}
+
+	var docs []*scan.Document
+	switch len(args) {
+	case 0:
+		var code int
+		docs, _, code = records(f, stderr)
+		if code != 0 {
+			return code
+		}
+		scan.NewResolver(docs, *f.repo).ResolveAll(docs)
+	case 1:
+		path, err := resolve(args[0], *f.records)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		doc, err := scan.File(path, scan.Options{Project: *f.project})
+		if err != nil {
+			fmt.Fprintf(stderr, "stopped:unreadable (%v)\n", err)
+			return 2
+		}
+		if doc.Record == "" {
+			fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
+			return 2
+		}
+		resolveEdges(doc, f, stderr)
+		docs = []*scan.Document{doc}
+	default:
+		fmt.Fprintln(stderr, "stopped:usage (lint takes at most one NNNN or path)")
+		return 2
+	}
+
+	reports := make([]lint.Report, 0, len(docs))
+	block := false
+	for _, d := range docs {
+		r := lint.Run(d, opts)
+		reports = append(reports, r)
+		if r.Verdict == "BLOCK" {
+			block = true
+		}
+	}
+
+	if *f.json {
+		var out any = reports
+		if len(reports) == 1 {
+			out = reports[0]
+		}
+		if code := emit(out, stdout, stderr); code != 0 {
+			return code
+		}
+	} else {
+		lintText(reports, stdout)
+	}
+	if block {
+		return 1
+	}
+	return 0
+}
+
+// lintText is the human form: findings grouped under their record, tier
+// first so the reader can see at a glance which of the three authorities
+// spoke, and a verdict line per record.
+func lintText(reports []lint.Report, w io.Writer) {
+	for _, r := range reports {
+		state := "live"
+		if r.Terminal {
+			state = "terminal"
+		}
+		fmt.Fprintf(w, "%s  %s  epoch %s  %s  %s\n", r.Record, r.Status, r.Epoch, state, r.Verdict)
+		for _, fd := range r.Findings {
+			mark := " "
+			if fd.Blocking {
+				mark = "!"
+			}
+			fmt.Fprintf(w, "%s %-10s %-28s %5d-%-5d %s\n", mark, fd.Tier, fd.Code, fd.LineStart, fd.LineEnd, fd.Message)
+			if fd.Fix != "" {
+				fmt.Fprintf(w, "  %-10s %-28s %11s fix: %s\n", "", "", "", fd.Fix)
+			}
+		}
+	}
+	if len(reports) > 1 {
+		blocked := 0
+		findings := 0
+		for _, r := range reports {
+			findings += len(r.Findings)
+			if r.Verdict == "BLOCK" {
+				blocked++
+			}
+		}
+		fmt.Fprintf(w, "total %d records  %d findings  %d blocking\n", len(reports), findings, blocked)
+	}
 }

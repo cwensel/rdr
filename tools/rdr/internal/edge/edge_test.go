@@ -233,3 +233,37 @@ func TestRefID(t *testing.T) {
 		t.Errorf("bare document ID = %q", got)
 	}
 }
+
+// TestColonIDCitationIsRead: the canonical ID form is the citation the
+// linking rule asks authors to write, so the grammar must read it. Before
+// element IDs existed the corpus had no way to spell one, and a `0055:C4`
+// that parsed as a bare reference to the whole of 0055 would lose the
+// element half silently — the exact failure cite-don't-restate exists to
+// prevent.
+func TestColonIDCitationIsRead(t *testing.T) {
+	for _, tc := range []struct {
+		in, id string
+	}{
+		{"see cli/0055:C4 for the shape", "cli/0055:C4"},
+		{"rests on cli/0055:A3", "cli/0055:A3"},
+		{"0055-frame-widths:C2 fixes it", "0055:C2"},
+		{"RDR 0055:MVV covers it", "0055:MVV"},
+		{"cli/0055:D-identity is the key", "cli/0055:D-identity"},
+		// The older spellings keep working: the colon is an addition,
+		// not a replacement.
+		{"cli/0055 A5 says so", "cli/0055:A5"},
+		{"cli/0055 §Normative Contracts", "cli/0055:§normative-contracts"},
+		// A colon that is punctuation rather than an ID separator leaves
+		// a document reference, because what follows names no element.
+		{"cli/0055: the record that started it", "cli/0055"},
+	} {
+		refs := FindRefs(tc.in, false)
+		if len(refs) == 0 {
+			t.Errorf("%q: no reference found", tc.in)
+			continue
+		}
+		if got := refs[0].ID(); got != tc.id {
+			t.Errorf("%q: got %s, want %s", tc.in, got, tc.id)
+		}
+	}
+}

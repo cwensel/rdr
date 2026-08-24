@@ -36,3 +36,13 @@ conformant epoch D record whose tally the scanner tests pin by hand.
 | `status-parenthetical.md` | `Implemented (\`main\` sha)`; Evidence Record statuses as `**Verified**`, `REFUTED (…)`, `Verified as narrowed — …`, `Resolved — …`, and the template legend left unfilled |
 | `wrapped-metadata.md` | the em-dash `Deferred — …` Status paragraph with a guidance comment under it; Predecessors, Overrides and Seam Lineage wrapped, with a nested labelled bullet; the legacy `Related`, the recognised `Release scope`, and an unknown `Referenced by` |
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
+
+`lint/` is a three-record corpus for the linking rules — the fixtures are
+read together, because a citation is only resolvable against the record it
+names. Each is an epoch D record dated after the labelling rule landed.
+
+| file | exercises |
+| --- | --- |
+| `0010-frame-header-labelled.md` | the conforming case: `**C1**` / `**C2**` labels, a Peer-RDR Evidence citing `0011-…:C1` by element ID. Lints clean at a lock gate |
+| `0011-frame-header-unlabelled.md` | two unlabelled contracts on a post-rule record — advisory when grandfathered by date, blocking at lock when not |
+| `0012-frame-header-dangling.md` | a TERMINAL record citing a record that does not exist (`0099`) and an element that does not (`0010:C9`): both come back as non-blocking fix pointers with line ranges |

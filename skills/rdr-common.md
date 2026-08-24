@@ -426,6 +426,14 @@ four stages later; the Stage-7 sweep stays the backstop. (Mined: a Required
 contract section once survived propose, refine, resolve, and four lenses as
 verbatim template text.)
 
+Where installed, `rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
+does the structural share: unlabelled contracts, Peer-RDR Evidence naming a
+record not an element, unresolvable typed references. `conformance` findings
+are advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
+`resolution` findings are the fix-now class above. A dangling reference into
+a *terminal* peer comes back as a fix pointer with a line range — correcting
+that reference text is the one sanctioned amendment to a locked RDR.
+
 ## §amendment-sweep — propagate clause changes at disposition
 
 Amending OR adding a normative predicate/contract clause: (1) grep the draft

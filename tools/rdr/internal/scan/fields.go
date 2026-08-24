@@ -293,3 +293,24 @@ func (d *Document) coverage() {
 		d.Coverage.Rate = float64(d.Coverage.Unclassified) / float64(d.Coverage.Lines)
 	}
 }
+
+// MetadataValue returns the value of a Metadata field by its canonical
+// name, or "" when the record does not carry it. Canonical is what a
+// caller means: `Status` should find `**Status**` and the case- and
+// alias-variants the model maps to it, which is exactly what
+// classification already decided. A field the model does not know is
+// matched by its written label, so an author's own metadata is reachable
+// too.
+func (d *Document) MetadataValue(name string) string {
+	for _, f := range d.Metadata {
+		if strings.EqualFold(f.Canonical, name) {
+			return f.Value
+		}
+	}
+	for _, f := range d.Metadata {
+		if strings.EqualFold(f.Label, name) {
+			return f.Value
+		}
+	}
+	return ""
+}

@@ -10,8 +10,9 @@ section or disturb an evidence record an earlier stage had clean. For a small
 RDR that ran no lens it is the *only* mechanical check; for any RDR it is the
 conformance backstop when Refine/Resolve was skimped.
 
-**Status**: Not yet implemented as a script. Run as the AI prompt below until
-it is; it is the round most worth scripting (seconds, every RDR).
+**Status**: Partly scripted. CHECK 10 is `rdr lint --locking <NNNN>` where
+`rdr` is installed; the rest run as the AI prompt below until they are
+scripted too — this is the round most worth scripting (seconds, every RDR).
 
 **Cost**: ~5 min via AI; seconds when scripted.
 
@@ -106,8 +107,24 @@ load-bearing anchor still findable, and does the balance belong in
 `{ARTIFACT_DIR}` with the field keeping the anchor and a pointer? The author
 answers it per assumption at the Gate.
 
-Output: one bullet per finding, prefixed with the check ID (C1–C6, C9) and
-the section or assumption ID. End with a one-line verdict:
+CHECK 10 — Linking: labelled contracts and resolvable citations
+Where `rdr` is installed this check IS `rdr lint --locking {RDR_NUMBER}` —
+run it, report its findings, do not re-read for them. It covers:
+  - every normative block carries a `**Cn**` label (advisory on a record
+    predating the rule; the rewriting stage labels them C1..Cn in-pass);
+  - every `Method: Peer RDR` Evidence names an ELEMENT (`cli/0055:C4`),
+    not just a record — a citation landing on a whole file names a
+    document, not a reason;  [blocks]
+  - every typed reference (Predecessors, Overrides, Cluster, Peer-RDR
+    Evidence, joint-decision home) resolves — record AND, where named,
+    element.  [blocks]
+A dangling reference into a TERMINAL record is a data error in the citing
+record: fix the pointer text in the named range, nothing else. Without
+`rdr`, check the Peer-RDR citations by hand and report the rest SKIPPED —
+never as a pass.
+
+Output: one bullet per finding, prefixed with the check ID (C1–C6, C9, C10)
+and the section or assumption ID. End with a one-line verdict:
   PASS — no findings; proceed to the Gate's written responses.
   BLOCK — N findings, lock prohibited until resolved.
 ```
@@ -135,7 +152,8 @@ have a corresponding Critical Assumption Evidence Record above* is
 intentionally not mechanized here — it requires linking call-sites to records,
 an analytical judgment. Verify it during 3amigo (Implementer persona) or
 Action-items (Repeatability Probe). A future CHECK 7 can absorb it once the
-matching heuristic is reliable. (CHECK 9 is taken — Evidence-field budget.)
+matching heuristic is reliable. (CHECK 9 is taken — Evidence-field budget;
+CHECK 10 — linking.)
 
 A future CHECK 8 (cheap regex guard, no script yet) can flag any unqualified
 `ScheduleWakeup` / `wakeup` / `heartbeat` phrasing introduced into RDR skills or

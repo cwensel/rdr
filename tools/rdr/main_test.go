@@ -94,13 +94,18 @@ func TestResolveSkipsPostmortem(t *testing.T) {
 }
 
 // TestUnimplementedStillStops: the facets that have not landed keep the
-// stopped:<reason> contract.
+// stopped:<reason> contract, and one that HAS landed reports its own
+// failure rather than the not-implemented one — `lint` on a missing file
+// is unreadable, not unbuilt.
 func TestUnimplementedStillStops(t *testing.T) {
-	for _, args := range [][]string{{"lint", "x.md"}, {"index", "--status"}} {
+	for _, args := range [][]string{{"index", "--status"}} {
 		code, _, errb := runCapture(t, args...)
 		if code != 2 || !strings.Contains(errb, "stopped:not-implemented") {
 			t.Errorf("%v: exit %d, stderr %q", args, code, errb)
 		}
+	}
+	if code, _, errb := runCapture(t, "lint", "x.md"); code != 2 || !strings.Contains(errb, "stopped:unreadable") {
+		t.Errorf("lint on a missing file: exit %d, stderr %q", code, errb)
 	}
 	if code, _, errb := runCapture(t, "inspect", "--bogus", "x.md"); code != 2 || !strings.Contains(errb, "bogus") {
 		t.Errorf("unknown flag: exit %d, stderr %q", code, errb)

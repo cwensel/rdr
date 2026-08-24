@@ -226,3 +226,15 @@ func RecordOf(base string) string {
 	}
 	return ""
 }
+
+// documentID is a whole-record target: `0055` or `cli/0055`, with no
+// element after it.
+var documentID = regexp.MustCompile(`^(?:[A-Za-z0-9][A-Za-z0-9_.-]*/)?\d{4}$`)
+
+// IsRecord reports whether s names a record and nothing inside it. It is
+// what separates "read this file" from "this claim rests on that
+// element": a citation that resolves to a whole 4,000-line record has
+// named a document, not a reason.
+func IsRecord(s string) bool {
+	return documentID.MatchString(strings.TrimSpace(s))
+}

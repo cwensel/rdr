@@ -136,7 +136,12 @@ Evidence Record before marking this RDR Final.]
     literal snippet, or artifact path. A bare `file:line` or peer-RDR
     `~line N` is non-normative — drop or rewrite to a
     stable anchor unless the line number **is** the
-    behavior under test.]
+    behavior under test.
+    **Method: Peer RDR cites an element ID, not a record**:
+    `cli/0055:C4`, `0055:A3` — the element the claim rests
+    on, never the whole file. `rdr inspect NNNN` lists them.
+    A filename or heading-text reference is a *mention*:
+    fine for context, not for a load-bearing claim.]
   - **If wrong**: [single sentence — what fails; how
     it surfaces to a user or test]
 - **A2 [Statement]** — (same shape)
@@ -203,8 +208,14 @@ Phase 2).]
     interactive vs non-interactive, local vs remote,
     batch vs streaming, or equivalent execution modes
 
-State each Normative item in a clearly labeled block,
-e.g.:
+State each Normative item in a clearly labeled block.
+**Label every block `**C1**`, `**C2**`, … in document
+order** — the label is the contract's name for life: peers
+cite `NNNN:C2`, and it survives a heading rewrite, a split,
+or the contract moving to another RDR. Never reuse a number,
+never renumber (a deleted C2 leaves a gap).
+
+**C1**
 
 ```normative
 func Check(sealed []op.Op, proposed []op.Op) Report
