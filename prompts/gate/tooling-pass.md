@@ -47,10 +47,12 @@ is the design. Only a missing **Required** (spine) section is a BLOCK. Do not
 fire on a legitimately-omitted Conditional section.
 
 CHECK 2 — Method label vocabulary
-For every Critical Assumption Evidence Record, confirm the Method is exactly
-one of the eight sanctioned labels:
-  Source Search | Spike | Prior Art | Derivation |
-  Design Decision | Peer RDR | MVV Test | Docs Only
+For every Critical Assumption Evidence Record, confirm every Method label is
+sanctioned. Read the eight from README.md §Verifying load-bearing claims (the
+authority), not from memory.
+Strip any parenthetical gloss (`Spike (repro)`) before matching — gloss text is
+free, never a finding. A Method may be compound (`Source Search + Spike`): split
+on `+`, check each member, and flag only an unsanctioned member, by name.
 List every record whose Method is missing, paraphrased, or off-vocabulary —
 watch for records ADDED or relabeled during the rounds.
 
