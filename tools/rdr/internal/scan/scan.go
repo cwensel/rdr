@@ -25,8 +25,8 @@ import (
 )
 
 // SchemaVersion is the envelope contract consumers pin. It moves only when
-// the envelope's shape changes.
-const SchemaVersion = "1"
+// the envelope's shape changes. 2 adds edges[].
+const SchemaVersion = "2"
 
 // Document is the projection of one record.
 type Document struct {
@@ -45,6 +45,10 @@ type Document struct {
 	// fields nest under it). See fields.go.
 	Metadata []Field   `json:"metadata"`
 	Fields   []Field   `json:"fields"`
+	// Edges are the typed relations this record states — to other
+	// records and their elements, to code, to artifacts and to trackers.
+	// See edges.go.
+	Edges    []Edge    `json:"edges"`
 	Warnings []Warning `json:"warnings"`
 	Coverage Coverage  `json:"coverage"`
 	Counts   Counts    `json:"counts"`
@@ -52,6 +56,9 @@ type Document struct {
 	lines  []string
 	fenced []bool
 	nodes  []*Node
+	// fieldLines are the lines a field pass owns, which the body edge
+	// passes skip. See edges.go.
+	fieldLines map[int]bool
 }
 
 // Node is one heading and the lines it governs, subsections included.
@@ -169,6 +176,7 @@ func Bytes(raw []byte, opts Options) *Document {
 	doc.classify()
 	doc.extract()
 	doc.fields()
+	doc.edges()
 	doc.coverage()
 	doc.count()
 	return doc
@@ -566,6 +574,28 @@ func (d *Document) reassign() {
 			fs[j].Section = d.id(ident.Section, keyOf(fs[j].Section))
 		}
 	}
+	// Edges carry element IDs on both ends, and a self-edge's target is
+	// this record's own. They are re-read rather than patched: the pass
+	// is pure over the now-correct record number, and re-reading cannot
+	// drift from what a first-pass scan would have produced.
+	d.dropEdgeWarnings()
+	d.edges()
+	// Edge warnings count toward the unclassified-line rate, so the
+	// metric is recomputed over the re-read set.
+	d.Coverage = Coverage{}
+	d.coverage()
+}
+
+// dropEdgeWarnings removes the warnings the edge pass raised, so a
+// re-read does not double them.
+func (d *Document) dropEdgeWarnings() {
+	kept := d.Warnings[:0]
+	for _, w := range d.Warnings {
+		if !strings.HasPrefix(w.Code, "edge:") {
+			kept = append(kept, w)
+		}
+	}
+	d.Warnings = kept
 }
 
 // --- elements ----------------------------------------------------------

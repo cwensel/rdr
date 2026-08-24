@@ -7,18 +7,24 @@ model has drift to fix.
 
 `inspect` is live: it projects one record as an outline, a set of
 addressable elements, the classified fields of its Metadata block and of
-every element, and a warnings channel, and resolves any element ID back
-to the lines it names. `index --derived` reports the corpus's labelling
-backlog; `index --coverage` is the drift alarm. The remaining `index`
-facets and `lint` land separately; until they do, they print
-`stopped:not-implemented` and exit 2.
+every element, the typed edges it states, and a warnings channel, and
+resolves any element ID back to the lines it names. `index --derived`
+reports the corpus's labelling backlog; `index --coverage` is the drift
+alarm; `index --unresolved`, `--backlinks` and `--cluster-of` query the
+edge graph. `lint` lands separately; until it does, it prints
+`stopped:not-implemented` and exits 2.
+
+Flags precede the positional argument — Go's flag parser stops at the
+first non-flag word.
 
     rdr inspect 0055                       # one line per element, ids first
-    rdr inspect 0055 --json                # the envelope: outline, elements, metadata, fields, warnings, coverage, counts
-    rdr inspect 0055 --select 0055:C4      # the bytes the id names
-    rdr inspect path/to/0055-x.md --select outline
+    rdr inspect --json 0055                # the envelope: outline, elements, metadata, fields, edges, warnings, coverage, counts
+    rdr inspect --select 0055:C4 0055      # the bytes the id names
+    rdr inspect --select edges 0055        # the typed relations alone
     rdr index --derived --records ../rdr/cli
     rdr index --coverage --records ../rdr/cli
+    rdr index --unresolved --records ../rdr/cli --repo ../src
+    rdr index --cluster-of 0130 --records ../rdr/cli
 
 Go stdlib only — no third-party dependencies, by design. RDR markdown is
 line-oriented (headings, fences, bullet trees with bold labels), so a line
@@ -142,6 +148,111 @@ means they live outside the record.
 A `NNNN-slug-postmortem.md` beside a record is not a record: `NNNN`
 resolution and `index` skip it, and a file with no epoch fingerprint is
 listed as skipped rather than silently dropped.
+
+## Typed edges
+
+An RDR states its relations in a dozen syntaxes, none of them
+machine-checked. `edges[]` types every one of them, so "who cites this
+contract?" is a lookup rather than an LLM reading two files.
+
+Each edge is `{from, to, kind, resolved, line, line_end, evidence,
+field}`. `from` is an element ID, or the record when the relation is the
+document's own; `to` is what the kind's target class says it is.
+
+| kind | read from | target |
+| --- | --- | --- |
+| `predecessor` | `- **Predecessors**:` | record or element |
+| `overrides` | `- **Overrides**:` | record or element |
+| `cluster` | `- **Cluster**:` | record |
+| `moved-to` | `Demoted [→ …]` | issue or record |
+| `joint-decision-home` | `Final [joint decision → <home §anchor>: …]` | element |
+| `reverify` | `Draft [revised from Final …; re-verify A2,A4]` | this record's own assumptions |
+| `peer-evidence` | a `Method: Peer RDR` assumption's Evidence | element |
+| `transient-deleted-by` | the `Transient — scheduled deletion by …` marker | record |
+| `cross-cutting-owner` | a Cross-Cutting Concerns citation | record |
+| `source-anchor` | `path::Symbol`, anywhere in the body | symbol |
+| `artifact` | `{SPIKE_DIR}` / `{ARTIFACT_DIR}` / `{EVIDENCE_DIR}` paths | path |
+| `issue` | `_issues/NNNN`, `kata ahg1`, `kata #71` | tracker id |
+| `rfd` | `RFD 0004`, `rfd/0004/…` | RFD |
+| `mentions` | every other record reference in prose | record or element |
+
+**Mentions is a kind, not a fallback.** A bare `cli/NNNN` carries no
+stated relation, and there are thousands of them. Folding them into the
+typed kinds would make every typed answer wrong; dropping them would lose
+the only trace of most cross-references. `Kind.Typed()` separates them.
+
+**A bare four-digit number is not a record** — except inside
+`Predecessors`, `Overrides` and `Cluster`, whose whole value is a record
+list. In prose, four digits is `RFC 6962`, `2000 rows × 1000 elements` or
+`walker.go:1306` at least as often as a record, and a false edge is worse
+than an absent one. Even in a record list, a `NNNN-DD-DD` is a date.
+
+**A `REQ-N` names no element.** The implementation prompt mints REQ ids
+per run into a `req-list.md` artifact, over every clause of the record;
+they are not the record's C-numbers. The citation targets the document.
+
+### Resolution
+
+`resolved` is three-valued: `true`, `false`, or **absent**. Absent means
+nothing looked — no records dir was given, or a source anchor was read
+with no `--repo` to grep. An unchecked edge must never read as broken (a
+finding a consumer chases) nor as sound (a skipped check reading as a
+pass, which is the failure this flow exists to prevent).
+
+**Resolution is exact; the parser never guesses.** A record must exist,
+and a citation reaching inside it must land on an element that exists in
+that record's projection. A section citation that names no section is
+reported whether the author under-specified it (`§Semantic`, where the
+target has five such headings) or the citation grammar clipped it. A
+number whose filename slug names a different record is reported too.
+
+That is deliberate, and it is the division of labour: **structural
+variants are absorbed generically** by the template model's aliases and
+prefix matching, while **a dangling cross-document reference is record
+data, not a parser tolerance case**. A dangling edge on a terminal record
+is reported with its line range, and the fix is a minimal pointer
+correction to the reference text — the one sanctioned amendment to a
+terminal RDR. Nothing else about the record changes.
+
+`source-anchor` resolution is tooling-pass CHECK 5's rule exactly: the
+SYMBOL is what resolves, never the line number, and a symbol found
+anywhere in the repo counts (the anchor moved; the claim stands).
+
+An unmapped reference form — a citation shape no grammar reads — lands in
+`warnings[]` as `edge:unmapped-reference`. It is **not** an unclassified
+line: the rate measures structural drift against TEMPLATE.md, and a line
+whose structure is fully read but whose reference is untyped is not that.
+
+### Queries over the graph
+
+    rdr index --unresolved   # typed edges whose target was looked for and not found
+    rdr index --backlinks    # the reverse edge set, transposed — never re-parsed
+    rdr index --cluster-of N # Stage 7.1's membership rule, as a query
+
+`--cluster-of` is the 7.1 prompt's own definition — "mutual
+`**Predecessors**:`, Peer-RDR citations, or a shared Cross-Cutting
+Concern" — evaluated over `edges[]` instead of by reading every
+candidate. Mutual is strict: a one-way predecessor is the ordinary
+build-order dependency every record has several of, and it resolves by
+implementing one first. A declared `Cluster` field is authoritative on
+its own. Each member reports the relation that earned it.
+
+| test | asserts |
+| --- | --- |
+| `TestEveryEdgeSyntaxMaps` | every syntax in the table maps to its kind, on the fixtures |
+| `TestUnmappedFormWarns` | a form no grammar reads becomes a warning with its line |
+| `TestEdgesAreNotDuplicated` | a citation two passes reach is one edge |
+| `TestMetadataIsReadByFieldNotByLine` | no date's year is ever read as a record |
+| `TestPlaceholderFieldsMintNoEdges` | a seed's candidates are mentions, never declared relations |
+| `TestUnresolvedIsAFinding` | citing `0001 A9` when 0001 has only A1 is caught |
+| `TestStaleSlugIsUnresolved` | a number and slug naming two records is caught |
+| `TestSectionCitationResolvesExactly` | an under-specified section citation is reported, not guessed |
+| `TestUncheckedIsNotUnresolved` | with no corpus and no repo, `resolved` is absent |
+| `TestSymbolResolution` / `TestSymbolIsAWholeWord` | CHECK 5's rule; `Encode` does not resolve out of `EncodeAll` |
+| `TestUnresolvedEdgeCarriesARange` | a wrapped field's finding names its whole range |
+| `TestReverseEdgesDerive` | backlinks transpose the forward set, reading no file |
+| `TestClusterRuleIsAQuery` | 7.1 membership, including that a one-way predecessor is not a member |
+| `TestEdgesAreDeterministic` | same record, same edge bytes |
 
 ## The resilience contract
 
@@ -322,10 +433,13 @@ treating them as foreign would bury every real finding.
 ## Layout
 
     tools/rdr/
-      main.go              subcommand dispatch, flags, inspect, index --derived
+      main.go              subcommand dispatch, flags, inspect, index facets
       internal/ident/      the element ID grammar, slugs, content hash
+      internal/edge/       the typed relation model: kinds and reference grammars
       internal/scan/       the line scanner: outline, elements, warnings
         fields.go          the labelled-bullet pass: metadata, element and section fields; coverage
+        edges.go           the typed-edge pass: every stated relation, by kind
+        resolve.go         resolution against the records dir and the repo; backlinks; cluster derivation
       internal/model/      the template model
         template.go        sections, grammars, markers, the value-continuation rule
         fields.go          per-section label sets, prefix matching, the Evidence Record Status

@@ -259,9 +259,21 @@ func (d *Document) nodeByID(id string) *Node {
 }
 
 // coverage computes the unclassified-line rate from the warnings.
+//
+// EDGE WARNINGS ARE EXCLUDED. The rate measures what the projector could
+// not STRUCTURALLY classify — a heading, a bullet, a field it could not
+// place — and it is the drift alarm for TEMPLATE.md changes (README §The
+// resilience contract). A line carrying a reference form the edge grammar
+// cannot type is fully classified as structure; only the relation inside
+// it is unread. Counting it would move the alarm for a reason that has
+// nothing to do with template drift, and would mask a real rise behind
+// prose the corpus was always free to write.
 func (d *Document) coverage() {
 	flagged := make([]bool, len(d.lines)+1)
 	for _, w := range d.Warnings {
+		if strings.HasPrefix(w.Code, "edge:") {
+			continue
+		}
 		for i := w.LineStart; i <= w.LineEnd && i <= len(d.lines); i++ {
 			if i >= 1 {
 				flagged[i] = true

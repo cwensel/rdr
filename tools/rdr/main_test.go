@@ -184,3 +184,123 @@ func TestIndexCoverage(t *testing.T) {
 		t.Error("no recurring entries")
 	}
 }
+
+// TestInspectEdgesFacet: `--select edges` projects the typed relations,
+// and the envelope carries them under schema 2.
+func TestInspectEdgesFacet(t *testing.T) {
+	code, out, errb := runCapture(t, "inspect", "--json", "--select", "edges", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var edges []struct {
+		From, To, Kind string
+		Resolved       *bool
+	}
+	if err := json.Unmarshal([]byte(out), &edges); err != nil {
+		t.Fatalf("decoding edges: %v", err)
+	}
+	if len(edges) == 0 {
+		t.Fatal("no edges projected")
+	}
+	kinds := map[string]bool{}
+	for _, e := range edges {
+		kinds[e.Kind] = true
+	}
+	for _, want := range []string{"predecessor", "overrides", "cluster", "joint-decision-home", "peer-evidence", "source-anchor"} {
+		if !kinds[want] {
+			t.Errorf("no %s edge in the projection", want)
+		}
+	}
+
+	// The envelope carries edges too, at the schema that added them.
+	_, full, _ := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	var env struct {
+		Schema string `json:"schema"`
+		Edges  []struct {
+			Kind string `json:"kind"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(full), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Schema != "2" {
+		t.Errorf("schema = %q; edges[] is a schema-2 addition", env.Schema)
+	}
+	if len(env.Edges) != len(edges) {
+		t.Errorf("envelope has %d edges, the facet %d", len(env.Edges), len(edges))
+	}
+}
+
+// TestEdgesAreDeterministic: two projections of the same record produce
+// identical edge bytes, so a diff means the record changed.
+func TestEdgesAreDeterministic(t *testing.T) {
+	_, a, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("epoch-c.md"))
+	_, b, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("epoch-c.md"))
+	if a != b {
+		t.Error("edge projection is not byte-deterministic")
+	}
+}
+
+// TestIndexUnresolvedFacet: the facet reports typed edges whose target
+// was looked for and not found, and never mentions.
+func TestIndexUnresolvedFacet(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Profile makes these epoch B or later, which is what a record
+	// carrying Predecessors or Cluster actually is: those fields do not
+	// exist in epoch A, and the model is right to call them foreign there.
+	head := func(num, title string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	}
+	write("0001-alpha.md", head("0001", "Alpha")+"\n## Problem Statement\n\nSynthetic.\n")
+	write("0002-beta.md", head("0002", "Beta")+
+		"- **Predecessors**: 0001-alpha, 0099-missing\n\n## Problem Statement\n\nSee 0001-alpha for context.\n")
+
+	code, out, errb := runCapture(t, "index", "--unresolved", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "0099") {
+		t.Errorf("the missing record is not reported:\n%s", out)
+	}
+	if !strings.Contains(out, "total 1 unresolved") {
+		t.Errorf("want exactly one finding; got:\n%s", out)
+	}
+}
+
+// TestIndexClusterFacet: `--cluster-of` answers 7.1's membership question
+// from the CLI.
+func TestIndexClusterFacet(t *testing.T) {
+	dir := t.TempDir()
+	head := func(num, title string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	}
+	for name, body := range map[string]string{
+		"0001-alpha.md": head("0001", "Alpha") + "- **Cluster**: 0002-beta\n\n## Problem Statement\n\nSynthetic.\n",
+		"0002-beta.md":  head("0002", "Beta") + "\n## Problem Statement\n\nSynthetic.\n",
+		"0003-gamma.md": head("0003", "Gamma") + "\n## Problem Statement\n\nSynthetic.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errb := runCapture(t, "index", "--cluster-of", "0001", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "0002") || !strings.Contains(out, "declared") {
+		t.Errorf("the declared sibling is missing:\n%s", out)
+	}
+	if strings.Contains(out, "0003") {
+		t.Errorf("an unrelated record is in the cluster:\n%s", out)
+	}
+	if !strings.Contains(out, "2 members") {
+		t.Errorf("want a 2-member cluster:\n%s", out)
+	}
+}

@@ -34,6 +34,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
@@ -103,6 +104,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			if *f.coverage {
 				return indexCoverage(f, stdout, stderr)
 			}
+			if *f.backlinks || *f.unresolved || *f.clusterOf != "" {
+				return indexEdges(f, stdout, stderr)
+			}
 		}
 		fmt.Fprintf(stderr, "stopped:not-implemented (%s: the record scanner has not landed)\n", args[0])
 		return 2
@@ -124,6 +128,7 @@ type flags struct {
 	json, all, derived          *bool
 	coverage                    *bool
 	sel, project, records       *string
+	repo                        *string
 	status, inFlight, backlinks *bool
 	clusterOf                   *string
 	unresolved                  *bool
@@ -137,11 +142,12 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	f := &flags{}
 	records := fs.String("records", os.Getenv("RDR_RECORDS"), "records dir for NNNN lookup (default $RDR_RECORDS, else .)")
 	project := fs.String("project", "", "project prefix for ids (cli/NNNN:C4); omitted inside one records dir")
-	f.records, f.project = records, project
+	repo := fs.String("repo", os.Getenv("RDR_REPO"), "repo root for source-anchor symbol resolution (default $RDR_REPO); unset leaves those edges unchecked")
+	f.records, f.project, f.repo = records, project, repo
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
-		f.sel = fs.String("select", "", "project one facet: outline|elements|warnings|<element-id>")
+		f.sel = fs.String("select", "", "project one facet: outline|elements|edges|warnings|<element-id>")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
 		f.json = fs.Bool("json", false, "emit the index as JSON")
@@ -217,6 +223,7 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
 		return 2
 	}
+	resolveEdges(doc, f, stderr)
 
 	var out any = doc
 	switch sel := *f.sel; sel {
@@ -225,6 +232,8 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		out = doc.Outline
 	case "elements":
 		out = doc.Elements
+	case "edges":
+		out = doc.Edges
 	case "warnings":
 		out = doc.Warnings
 	default:
@@ -503,4 +512,190 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
 	}
 	return 0
+}
+
+// resolveEdges decides one record's edges against the records dir it
+// lives in. `inspect` is a single-record command, so it has no corpus of
+// its own; it builds one from the dir the record was resolved out of,
+// when there is one. With no dir — a loose path, no --records and no
+// $RDR_RECORDS — nothing is checked, and every edge says `resolved`
+// absent rather than claiming a verdict it did not reach.
+func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
+	dir := *f.records
+	if dir == "" && doc.Path != "" {
+		// A record inspected by path resolves against its own directory:
+		// that is where its peers are, and it is what the author means by
+		// `cli/0055` in a record already sitting in `cli/`.
+		if d := filepath.Dir(doc.Path); d != "" && d != "." {
+			dir = d
+		}
+	}
+	if dir == "" {
+		return
+	}
+	docs, _, err := scanDir(dir, *f.project)
+	if err != nil {
+		// Resolution is best-effort here: a records dir that cannot be
+		// walked leaves the edges unchecked, which is the honest state.
+		// It is never a reason to fail a projection of the record asked for.
+		fmt.Fprintf(stderr, "note:unresolved-edges (%v)\n", err)
+		return
+	}
+	scan.NewResolver(docs, *f.repo).Resolve(doc)
+}
+
+// scanDir scans every record in a directory. It is the corpus builder
+// both the index facets and inspect's resolver use.
+func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err error) {
+	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
+	paths = recordFiles(paths)
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		return nil, nil, fmt.Errorf("%s holds no NNNN-*.md", dir)
+	}
+	for _, p := range paths {
+		doc, e := scan.File(p, scan.Options{Project: project})
+		if e != nil {
+			return nil, nil, fmt.Errorf("%s: %w", p, e)
+		}
+		if doc.Epoch == "unknown" {
+			skipped = append(skipped, p)
+			continue
+		}
+		docs = append(docs, doc)
+	}
+	return docs, skipped, nil
+}
+
+// edgeRow is one edge as the index reports it, with the record it leaves.
+type edgeRow struct {
+	Record   string    `json:"record"`
+	From     string    `json:"from"`
+	To       string    `json:"to"`
+	Kind     edge.Kind `json:"kind"`
+	Resolved *bool     `json:"resolved,omitempty"`
+	Line     int       `json:"line"`
+	LineEnd  int       `json:"line_end"`
+	Field    string    `json:"field,omitempty"`
+	Evidence string    `json:"evidence,omitempty"`
+}
+
+// indexEdges serves the three corpus-level edge facets.
+//
+//	--unresolved  every typed edge whose target was looked for and not found
+//	--backlinks   the reverse edge set: who points at each target
+//	--cluster-of  the cluster of a record, derived from the edge graph
+func indexEdges(f *flags, stdout, stderr io.Writer) int {
+	docs, skipped, code := records(f, stderr)
+	if code != 0 {
+		return code
+	}
+	scan.NewResolver(docs, *f.repo).ResolveAll(docs)
+
+	switch {
+	case *f.unresolved:
+		return unresolvedFacet(docs, skipped, f, stdout, stderr)
+	case *f.backlinks:
+		return backlinksFacet(docs, f, stdout, stderr)
+	default:
+		return clusterFacet(docs, *f.clusterOf, f, stdout, stderr)
+	}
+}
+
+// unresolvedFacet is the lint finding class this issue names: a typed
+// edge whose target was looked for and is not there — a Peer-RDR record
+// citing `0055 A9` when 0055 has A1 through A7.
+//
+// Mentions are excluded. A bare prose reference states no relation, so a
+// missing target is not a broken promise; including them would bury the
+// typed findings under thousands of prose references to records that
+// live in another dir or were never written.
+func unresolvedFacet(docs []*scan.Document, skipped []string, f *flags, stdout, stderr io.Writer) int {
+	var rows []edgeRow
+	for _, d := range docs {
+		for _, e := range d.Edges {
+			if !e.Kind.Typed() || e.Resolved == nil || *e.Resolved {
+				continue
+			}
+			rows = append(rows, edgeRow{d.Record, e.From, e.To, e.Kind, e.Resolved, e.Line, e.LineEnd, e.Field, e.Evidence})
+		}
+	}
+	if *f.json {
+		if rows == nil {
+			rows = []edgeRow{}
+		}
+		return emit(map[string]any{"schema": schemaVersion, "unresolved": rows, "skipped": skipped}, stdout, stderr)
+	}
+	for _, r := range rows {
+		fmt.Fprintf(stdout, "%s:%d-%d %-22s %s -> %s  %s\n", r.Record, r.Line, r.LineEnd, r.Kind, r.From, r.To, r.Field)
+	}
+	fmt.Fprintf(stdout, "total %d unresolved typed edges over %d records\n", len(rows), len(docs))
+	if len(rows) > 0 {
+		fmt.Fprintln(stdout, "each is a record data error: correct the reference text in the named range, nothing else")
+	}
+	return 0
+}
+
+// backlinksFacet transposes the forward edges. Reverse edges are derived,
+// never re-parsed: an inbound query is a lookup in this table.
+func backlinksFacet(docs []*scan.Document, f *flags, stdout, stderr io.Writer) int {
+	back := scan.Reverse(docs)
+	targets := make([]string, 0, len(back))
+	for t := range back {
+		targets = append(targets, t)
+	}
+	sort.Strings(targets)
+	if *f.json {
+		out := map[string][]edgeRow{}
+		for _, t := range targets {
+			for _, e := range back[t] {
+				out[t] = append(out[t], edgeRow{recordOfID(e.From), e.From, e.To, e.Kind, e.Resolved, e.Line, e.LineEnd, e.Field, ""})
+			}
+		}
+		return emit(map[string]any{"schema": schemaVersion, "backlinks": out}, stdout, stderr)
+	}
+	for _, t := range targets {
+		var typed []string
+		for _, e := range back[t] {
+			if e.Kind.Typed() {
+				typed = append(typed, fmt.Sprintf("%s(%s)", e.From, e.Kind))
+			}
+		}
+		if len(typed) == 0 {
+			continue
+		}
+		sort.Strings(typed)
+		fmt.Fprintf(stdout, "%-28s <- %s\n", t, strings.Join(typed, " "))
+	}
+	return 0
+}
+
+// clusterFacet derives a record's cluster from the edge graph. It is the
+// 7.1 prompt's own membership rule, expressed as a query rather than as
+// an LLM reading every candidate: related = mutual Predecessors, Peer-RDR
+// citations, or a shared Cross-Cutting Concern owner.
+func clusterFacet(docs []*scan.Document, of string, f *flags, stdout, stderr io.Writer) int {
+	seed := ident.RecordOf(of)
+	if seed == "" {
+		fmt.Fprintf(stderr, "stopped:usage (--cluster-of takes a record number, got %q)\n", of)
+		return 2
+	}
+	members := scan.ClusterOf(docs, seed)
+	if *f.json {
+		return emit(map[string]any{"schema": schemaVersion, "seed": seed, "cluster": members}, stdout, stderr)
+	}
+	for _, m := range members {
+		fmt.Fprintf(stdout, "%s %-14s %s\n", m.Record, m.Relation, m.Title)
+	}
+	fmt.Fprintf(stdout, "cluster of %s: %d members\n", seed, len(members))
+	return 0
+}
+
+// recordOfID reads the record number out of an element or document ID.
+func recordOfID(id string) string {
+	if _, after, ok := strings.Cut(id, "/"); ok {
+		id = after
+	}
+	before, _, _ := strings.Cut(id, ":")
+	return before
 }
