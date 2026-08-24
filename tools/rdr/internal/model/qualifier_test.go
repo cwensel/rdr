@@ -1,0 +1,232 @@
+package model
+
+import "testing"
+
+func TestParseStatusBare(t *testing.T) {
+	for _, v := range StatusVocabulary.Canonical {
+		s := ParseStatus(v)
+		if s.Label != v || s.Tier != Canonical || s.QualifierForm != NoQualifier {
+			t.Errorf("ParseStatus(%q) = %+v, want a bare canonical label", v, s)
+		}
+	}
+}
+
+func TestParseStatusQualifiers(t *testing.T) {
+	cases := []struct {
+		name  string
+		raw   string
+		label string
+		tier  Tier
+		form  QualifierForm
+		qual  string
+	}{
+		{
+			name:  "demoted target",
+			raw:   "Demoted [→ tracker#412]",
+			label: "Demoted", tier: Canonical,
+			form: QualifierDemotedTarget, qual: "→ tracker#412",
+		},
+		{
+			name:  "revised from Final with re-verify list",
+			raw:   "Draft [revised from Final 2026-03-04; re-verify A2,A4 — the frame width was never pinned]",
+			label: "Draft", tier: Canonical,
+			form: QualifierRevisedFrom,
+			qual: "revised from Final 2026-03-04; re-verify A2,A4 — the frame width was never pinned",
+		},
+		{
+			name:  "revised from Final without a re-verify list",
+			raw:   "Draft [revised from Final 2026-03-04; — the sibling withdrew its half]",
+			label: "Draft", tier: Canonical,
+			form: QualifierRevisedFrom,
+			qual: "revised from Final 2026-03-04; — the sibling withdrew its half",
+		},
+		{
+			name:  "joint decision on Final",
+			raw:   "Final [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]",
+			label: "Final", tier: Canonical,
+			form: QualifierJointDecision,
+			qual: "joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte",
+		},
+		{
+			name:  "joint decision survives onto a terminal status",
+			raw:   "Implemented [joint decision → 0042-frame-grammar § A3: the pad-byte owner]",
+			label: "Implemented", tier: Canonical,
+			form: QualifierJointDecision,
+			qual: "joint decision → 0042-frame-grammar § A3: the pad-byte owner",
+		},
+		{
+			name:  "legacy parenthetical commit pin",
+			raw:   "Implemented (`main` c1926e1)",
+			label: "Implemented", tier: Canonical,
+			form: QualifierParenthetical, qual: "`main` c1926e1",
+		},
+		{
+			name:  "legacy parenthetical on an observed-accepted status",
+			raw:   "Rejected (scope shipped elsewhere; no design fork remained)",
+			label: "Rejected", tier: ObservedAccepted,
+			form: QualifierParenthetical, qual: "scope shipped elsewhere; no design fork remained",
+		},
+		{
+			name:  "bracketed free-text note",
+			raw:   "Draft [unblocked — the predecessor reached Implemented]",
+			label: "Draft", tier: Canonical,
+			form: QualifierBracketed, qual: "unblocked — the predecessor reached Implemented",
+		},
+		{
+			name:  "undelimited em-dash clause",
+			raw:   "Deferred — no solution decided; revisit when the upstream knob lands",
+			label: "Deferred", tier: ObservedAccepted,
+			form: QualifierDash, qual: "no solution decided; revisit when the upstream knob lands",
+		},
+		{
+			name:  "superseded target",
+			raw:   "Superseded [→ 0140-successor-slug]",
+			label: "Superseded", tier: Canonical,
+			form: QualifierDemotedTarget, qual: "→ 0140-successor-slug",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			s := ParseStatus(c.raw)
+			if s.Label != c.label {
+				t.Errorf("Label = %q, want %q", s.Label, c.label)
+			}
+			if s.Tier != c.tier {
+				t.Errorf("Tier = %s, want %s", s.Tier, c.tier)
+			}
+			if s.QualifierForm != c.form {
+				t.Errorf("QualifierForm = %s, want %s", s.QualifierForm, c.form)
+			}
+			if s.Qualifier != c.qual {
+				t.Errorf("Qualifier = %q, want %q", s.Qualifier, c.qual)
+			}
+		})
+	}
+}
+
+// TestParseStatusNestedQualifier covers a qualifier whose text contains its
+// own bracket or paren pair. Scanning for the first closer would cut the
+// value short; several corpus qualifiers nest this way.
+func TestParseStatusNestedQualifier(t *testing.T) {
+	raw := "Implemented [joint decision → 0133-window § A4: whether \"zero committed frames\" (the empty case) counts]"
+	s := ParseStatus(raw)
+	if s.Label != "Implemented" {
+		t.Errorf("Label = %q, want \"Implemented\"", s.Label)
+	}
+	want := "joint decision → 0133-window § A4: whether \"zero committed frames\" (the empty case) counts"
+	if s.Qualifier != want {
+		t.Errorf("Qualifier = %q,\n            want %q", s.Qualifier, want)
+	}
+}
+
+// TestParseStatusTruncatedQualifier covers a qualifier whose closing
+// delimiter is missing, which happens when an upstream reader truncated a
+// wrapped value. The label must still come out right.
+func TestParseStatusTruncatedQualifier(t *testing.T) {
+	s := ParseStatus("Draft [unblocked — the predecessor is Implemented, so the")
+	if s.Label != "Draft" || s.Tier != Canonical {
+		t.Errorf("ParseStatus of a truncated qualifier = %+v, want label Draft", s)
+	}
+}
+
+func TestQualifierGrammarCaptures(t *testing.T) {
+	m := RevisedFromGrammar.FindStringSubmatch(
+		"revised from Final 2026-03-04; re-verify A2,A4 — the frame width was never pinned")
+	if m == nil {
+		t.Fatal("RevisedFromGrammar did not match the template form")
+	}
+	if m[1] != "2026-03-04" {
+		t.Errorf("date capture = %q, want \"2026-03-04\"", m[1])
+	}
+	if m[2] != "A2,A4" {
+		t.Errorf("re-verify capture = %q, want \"A2,A4\"", m[2])
+	}
+	if m[3] != "the frame width was never pinned" {
+		t.Errorf("reason capture = %q", m[3])
+	}
+
+	j := JointDecisionGrammar.FindStringSubmatch(
+		"joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte")
+	if j == nil {
+		t.Fatal("JointDecisionGrammar did not match the template form")
+	}
+	if j[1] != "0042-frame-grammar § A3" {
+		t.Errorf("home capture = %q", j[1])
+	}
+	if j[2] != "who owns the trailing pad byte" {
+		t.Errorf("question capture = %q", j[2])
+	}
+
+	d := DemotedTargetGrammar.FindStringSubmatch("→ tracker#412")
+	if d == nil || d[1] != "tracker#412" {
+		t.Errorf("DemotedTargetGrammar capture = %v, want \"tracker#412\"", d)
+	}
+
+	c := CommitPinGrammar.FindStringSubmatch("`main` c1926e1")
+	if c == nil || c[1] != "main" || c[2] != "c1926e1" {
+		t.Errorf("CommitPinGrammar capture = %v, want [main c1926e1]", c)
+	}
+}
+
+func TestTransientMarker(t *testing.T) {
+	line := "Transient — scheduled deletion by 0044-reader-retire, Phase 2; the legacy reader goes with it"
+	m := TransientMarker.FindStringSubmatch(line)
+	if m == nil {
+		t.Fatal("TransientMarker did not match the template form")
+	}
+	if m[1] != "0044-reader-retire" {
+		t.Errorf("sibling capture = %q", m[1])
+	}
+	if m[2] != "Phase 2" {
+		t.Errorf("anchor capture = %q", m[2])
+	}
+	if m[3] != "the legacy reader goes with it" {
+		t.Errorf("disposition capture = %q", m[3])
+	}
+
+	if TransientMarker.MatchString("Transient - scheduled deletion by x, y; z") {
+		t.Error("the marker requires an em dash; a hyphen must not match")
+	}
+}
+
+func TestNormativeFence(t *testing.T) {
+	if !NormativeFenceOpen.MatchString("```normative") {
+		t.Error("NormativeFenceOpen must match a bare normative fence")
+	}
+	if NormativeFenceOpen.MatchString("```go") {
+		t.Error("NormativeFenceOpen must not match a language fence")
+	}
+	if !FenceDelimiter.MatchString("```normative") || !FenceDelimiter.MatchString("~~~") {
+		t.Error("FenceDelimiter must match both fence styles")
+	}
+}
+
+func TestAssumptionBullet(t *testing.T) {
+	m := AssumptionBullet.FindStringSubmatch("- **A3 [The reader tolerates a short final frame]**")
+	if m == nil {
+		t.Fatal("AssumptionBullet did not match the template form")
+	}
+	if m[1] != "A3" {
+		t.Errorf("ordinal capture = %q, want \"A3\"", m[1])
+	}
+	if m[2] != "The reader tolerates a short final frame" {
+		t.Errorf("statement capture = %q", m[2])
+	}
+}
+
+func TestEvidenceFieldBullet(t *testing.T) {
+	for _, label := range EvidenceFields {
+		line := "  - **" + label + "**: some value"
+		m := EvidenceFieldBullet.FindStringSubmatch(line)
+		if m == nil {
+			t.Fatalf("EvidenceFieldBullet did not match %q", line)
+		}
+		if m[1] != label {
+			t.Errorf("label capture = %q, want %q", m[1], label)
+		}
+		if m[2] != "some value" {
+			t.Errorf("value capture = %q", m[2])
+		}
+	}
+}

@@ -7,3 +7,6 @@
 # Created by stages/00-bootstrap.md in the project that runs the flow; never
 # versioned. See stages/README.md.
 .rdr/
+
+# Built binaries (rdr-init builds the projector here).
+bin/
