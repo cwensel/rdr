@@ -203,15 +203,29 @@ func TestNormativeFence(t *testing.T) {
 }
 
 func TestAssumptionBullet(t *testing.T) {
-	m := AssumptionBullet.FindStringSubmatch("- **A3 [The reader tolerates a short final frame]**")
-	if m == nil {
-		t.Fatal("AssumptionBullet did not match the template form")
+	// The template form and the three corpus forms all yield the label;
+	// the statement is the scanner's to read.
+	for line, want := range map[string]string{
+		"- **A3 [The reader tolerates a short final frame]**": "A3",
+		"- **A1 — A collision-free end line is choosable.**":  "A1",
+		"- **A2** The second statement":                       "A2",
+		"- **A7 The seventh statement holds**":                "A7",
+		"  - **A4b PostgreSQL scopes constraint names**":      "A4b",
+		"- **A1.b — the split half of A1**":                   "A1.b",
+	} {
+		m := AssumptionBullet.FindStringSubmatch(line)
+		if m == nil {
+			t.Errorf("AssumptionBullet did not match %q", line)
+			continue
+		}
+		if m[1] != want {
+			t.Errorf("label capture for %q = %q, want %q", line, m[1], want)
+		}
 	}
-	if m[1] != "A3" {
-		t.Errorf("ordinal capture = %q, want \"A3\"", m[1])
-	}
-	if m[2] != "The reader tolerates a short final frame" {
-		t.Errorf("statement capture = %q", m[2])
+	for _, line := range []string{"- **Status**: Verified", "- [ ] **A claim with no label**", "- **AB1 [x]**"} {
+		if AssumptionBullet.MatchString(line) {
+			t.Errorf("AssumptionBullet matched %q", line)
+		}
 	}
 }
 

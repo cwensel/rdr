@@ -22,7 +22,10 @@
 // record may write — see Vocabulary and its three tiers.
 package model
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 // Class is a section's omission rule, per TEMPLATE.md's legend at the top
 // of the file: "Section classes: **Required** (never omit). **Conditional**
@@ -149,8 +152,13 @@ const SectionClassRule = "unmarked template sections are Required; Conditional r
 var EvidenceFields = []string{"Status", "Method", "Evidence", "If wrong"}
 
 // AssumptionBullet matches the Evidence Record's parent bullet, capturing
-// the assumption ordinal and its statement.
-var AssumptionBullet = regexp.MustCompile(`^\s*-\s+\*\*(A\d+)\s*\[([^\]]*)\]\*\*`)
+// the assumption label. The template writes `**A1 [Statement]**`; the
+// corpus also writes `**A1 — Statement.**`, `**A1** Statement` and
+// `**A1 Statement**`, and splits labels (`A4b`), so only the label is
+// matched and a scanner reads the statement by its own rule. A split
+// label is written `A4b` or `A1.b`; the capture keeps the author's
+// punctuation and the scanner normalises it.
+var AssumptionBullet = regexp.MustCompile(`^\s*-\s+\*\*(A\d+(?:[.-]?[a-z])?)\b`)
 
 // EvidenceFieldBullet matches one Evidence Record sub-bullet, capturing
 // the label and the first line of its value.
@@ -260,4 +268,65 @@ func trimLeftSpace(s string) string {
 
 func hasPrefix(s, p string) bool {
 	return len(s) >= len(p) && s[:len(p)] == p
+}
+
+// --- element keys ------------------------------------------------------
+
+// DecisionClasses are the Load-Bearing Decisions classes TEMPLATE.md
+// names, in template order. A decision bullet whose bold label starts
+// with one of these is keyed by the class (`D-identity`); any other label
+// is an author's own class and gets a derived key.
+var DecisionClasses = []string{
+	"Identity",
+	"Wire / byte format",
+	"Naming",
+	"Selection / predicate",
+}
+
+// DecisionClassOf returns the template class a decision label opens with,
+// or "". `Selection / predicate (remainder)` and `Selection` both resolve
+// to `Selection / predicate`; the match is case-insensitive and takes
+// the longest class that is a prefix of the label, so the shorter
+// `Selection` cannot shadow the full name.
+func DecisionClassOf(label string) string {
+	l := strings.ToLower(strings.TrimSpace(label))
+	best := ""
+	for _, c := range DecisionClasses {
+		lc := strings.ToLower(c)
+		if hasPrefix(l, lc) && len(c) > len(best) {
+			best = c
+		}
+		// A one-word lead of a multi-word class (`Selection`, `Wire`) is
+		// the same class abbreviated.
+		if head, _, ok := strings.Cut(lc, " "); ok && head == firstWord(l) && len(c) > len(best) {
+			best = c
+		}
+	}
+	return best
+}
+
+func firstWord(s string) string {
+	head, _, _ := strings.Cut(s, " ")
+	return strings.TrimRight(head, ":—-")
+}
+
+// GateItems maps each Finalization Gate sub-section onto its G-key, so an
+// inlined gate response (epochs A and B) is addressable as `NNNN:G-scope`
+// regardless of the heading's exact wording.
+var GateItems = []struct{ Section, Key string }{
+	{"Contradiction Check", "contradiction"},
+	{"Assumption Verification", "assumptions"},
+	{"Scope Verification", "scope"},
+	{"Cross-Cutting Concerns", "cross-cutting"},
+	{"Proportionality", "proportionality"},
+}
+
+// GateItemKey returns the G-key for a canonical gate sub-section, or "".
+func GateItemKey(section string) string {
+	for _, g := range GateItems {
+		if g.Section == section {
+			return g.Key
+		}
+	}
+	return ""
 }

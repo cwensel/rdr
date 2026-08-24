@@ -345,3 +345,93 @@ func TestTypeVocabularyMatchesTemplate(t *testing.T) {
 		}
 	}
 }
+
+// TestDecisionClassesMatchTemplate reads the Load-Bearing Decisions
+// bullets out of TEMPLATE.md and asserts DecisionClasses lists exactly
+// them, in order — the same-commit rule for the D-key vocabulary.
+func TestDecisionClassesMatchTemplate(t *testing.T) {
+	body := sectionBody(t, "#### Load-Bearing Decisions")
+	var got []string
+	for _, l := range strings.Split(body, "\n") {
+		if m := regexp.MustCompile(`^- \*\*([^*]+)\*\*`).FindStringSubmatch(l); m != nil {
+			got = append(got, strings.TrimSpace(m[1]))
+		}
+	}
+	if fmt.Sprint(got) != fmt.Sprint(DecisionClasses) {
+		t.Fatalf("TEMPLATE.md Load-Bearing Decisions classes %v != model.DecisionClasses %v\n"+
+			"Update DecisionClasses in template.go in the same commit as the template.", got, DecisionClasses)
+	}
+}
+
+// TestGateItemsMatchTemplate asserts every `###` under Finalization Gate
+// has a G-key and no G-key names a section the template lacks.
+func TestGateItemsMatchTemplate(t *testing.T) {
+	body := sectionBody(t, "## Finalization Gate")
+	var got []string
+	for _, l := range strings.Split(body, "\n") {
+		if strings.HasPrefix(l, "### ") {
+			got = append(got, strings.TrimSpace(strings.TrimPrefix(l, "### ")))
+		}
+	}
+	var want []string
+	for _, g := range GateItems {
+		want = append(want, g.Section)
+		if g.Key == "" || GateItemKey(g.Section) != g.Key {
+			t.Errorf("GateItems entry %q has no usable key", g.Section)
+		}
+	}
+	if fmt.Sprint(got) != fmt.Sprint(want) {
+		t.Fatalf("TEMPLATE.md Finalization Gate sub-sections %v != model.GateItems %v\n"+
+			"Update GateItems in template.go in the same commit as the template.", got, want)
+	}
+}
+
+func TestDecisionClassOf(t *testing.T) {
+	for label, want := range map[string]string{
+		"Identity":                           "Identity",
+		"Identity — what makes two the same": "Identity",
+		"Selection / predicate (remainder)":  "Selection / predicate",
+		"Selection":                          "Selection / predicate",
+		"Wire":                               "Wire / byte format",
+		"wire / byte format":                 "Wire / byte format",
+		"Naming":                             "Naming",
+		"Verdict":                            "",
+		"The one immutability exemption":     "",
+		"Identification of the carrier":      "",
+	} {
+		if got := DecisionClassOf(label); got != want {
+			t.Errorf("DecisionClassOf(%q) = %q, want %q", label, got, want)
+		}
+	}
+}
+
+// sectionBody returns the lines of TEMPLATE.md from the given heading to
+// the next heading of the same or a higher level.
+func sectionBody(t *testing.T, heading string) string {
+	t.Helper()
+	raw, err := os.ReadFile(templatePath(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	level := len(heading) - len(strings.TrimLeft(heading, "#"))
+	var out []string
+	in := false
+	for _, l := range strings.Split(string(raw), "\n") {
+		if l == heading {
+			in = true
+			continue
+		}
+		if in && strings.HasPrefix(l, "#") {
+			if len(l)-len(strings.TrimLeft(l, "#")) <= level {
+				break
+			}
+		}
+		if in {
+			out = append(out, l)
+		}
+	}
+	if !in {
+		t.Fatalf("heading %q not found in TEMPLATE.md", heading)
+	}
+	return strings.Join(out, "\n")
+}

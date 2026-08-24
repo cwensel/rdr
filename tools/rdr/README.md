@@ -5,10 +5,18 @@ record: **markdown remains the source of truth**, and everything here is a
 view of it. If the model and a record disagree, the record is right and the
 model has drift to fix.
 
-This directory currently contains the plumbing and `internal/model`, the
-machine-readable model of `TEMPLATE.md`. The line scanner that feeds
-`inspect`, `index` and `lint` lands separately; until it does, those
-subcommands print `stopped:not-implemented` and exit 2.
+`inspect` is live: it projects one record as an outline, a set of
+addressable elements and a warnings channel, and resolves any element
+ID back to the lines it names. `index --derived` reports the corpus's
+labelling backlog. The remaining `index` facets and `lint` land
+separately; until they do, they print `stopped:not-implemented` and
+exit 2.
+
+    rdr inspect 0055                       # one line per element, ids first
+    rdr inspect 0055 --json                # the envelope: outline, elements, warnings, counts
+    rdr inspect 0055 --select 0055:C4      # the bytes the id names
+    rdr inspect path/to/0055-x.md --select outline
+    rdr index --derived --records ../rdr/cli
 
 Go stdlib only — no third-party dependencies, by design. RDR markdown is
 line-oriented (headings, fences, bullet trees with bold labels), so a line
@@ -40,11 +48,96 @@ It is enforced mechanically, not by good intentions:
 | `TestTypeVocabularyMatchesTemplate` | the canonical Type set matches its Type line |
 | `TestMethodVocabularyMatchesREADME` | the eight Method labels match `README.md`'s *Verifying load-bearing claims*, which declares itself authoritative |
 | `TestFixturesDetectTheirEpoch` | each synthetic fixture still fingerprints as its epoch |
+| `TestDecisionClassesMatchTemplate` | the D-key classes match the Load-Bearing Decisions bullets |
+| `TestGateItemsMatchTemplate` | the G-keys match the Finalization Gate sub-sections |
 
 A divergence names itself and says what to update. Gaining, losing,
 renaming or re-levelling a section, or flipping its class, all fail — each
 was verified by mutating `TEMPLATE.md` and watching the test fail before
 the file was restored.
+
+## Identifiers
+
+Every element of a record has one ID, in one grammar:
+
+    [<project>/]<NNNN>:<KIND><key>
+
+| id | element | key is |
+| --- | --- | --- |
+| `0055:A3` | assumption | the `A3` label, as written (`A4b` / `A1.b` → `A4b`, `A1b`) |
+| `0055:C4` | normative contract (a ```` ```normative ```` block) | a `**C4**` / `##### C4` label on the line above the fence; else the block's document ordinal |
+| `0055:D-identity` | load-bearing decision | the template's decision class (`DecisionClasses`); else the label's slug |
+| `0055:RT1` | round-trip invariant | an `RT1` / `INV-1` lead, or a unique list number; else ordinal |
+| `0055:ALT2` | alternative | the `Alternative 2` scaffold ordinal |
+| `0055:BR3` | briefly-rejected item | a unique list number; else ordinal |
+| `0055:S5` | validation scenario | a unique list number; else ordinal |
+| `0055:MVV` | minimum viable validation | none — one per record |
+| `0055:F2` | failure mode | a unique list number; else ordinal |
+| `0055:G-scope` | inlined gate response (epochs A, B) | the gate item (`GateItems`); else the heading's slug |
+| `0055:§approach` | outline section | the canonical section's slug; scaffolds and legacy aliases slug their own heading |
+| `cli/0055:C4` | any of the above, across records dirs | `--project` supplies the prefix; omitted inside one dir |
+
+An ID is **as written** when the author labelled the element and
+**derived** when the projector minted it from the element's ordinal.
+Derived is metadata, not a defect: on a terminal record an ordinal is as
+stable as a label because the file never changes again, and every
+legacy record is fully addressable at zero edit cost. On a live record a
+derived ID holds until a sibling is inserted before it — which is what
+labels are for, and what `index --derived` counts down.
+
+Two rules keep IDs unique when a live record is part-way through
+labelling: a label always wins its number (first writer; a repeated
+label is a `<kind>:duplicate` warning and the later element yields), and
+a derived ordinal a label has already claimed takes the first free
+number above the element count, with a `<kind>:collision` warning.
+Author numbering is never overridden.
+
+Every element and section carries `line_start` / `line_end` (1-based,
+inclusive) so an ID round-trips to bytes — `--select 0055:C4` prints
+them — and a `hash` (`ident.Hash`: SHA-256 over the trimmed non-blank
+lines, first 8 hex digits) that separates *same ID, same content* from
+*same ID, changed*. Reflowing or re-indenting an element leaves its hash
+alone; editing a word does not.
+
+Ownership transfer is by ID, never by renumbering: when responsibility
+moves between records, the element keeps its ID and the edge extraction
+(a separate change) records `overrides` / `moved-to` from the old home.
+
+The stability properties are tests, not intentions:
+
+| test | asserts |
+| --- | --- |
+| `TestStabilityUnderProseEdits` | editing prose elsewhere changes no element ID or hash |
+| `TestStabilityUnderReorder` | swapping two unrelated sections changes no ID or hash |
+| `TestDerivedIDChangesOnlyWithOwnContent` | editing a contract moves only its own hash, never its ID |
+| `TestLabelledContractIsAsWritten` | a `**C4**` is honoured; bold prose mentioning `C2` is not a label; collisions resolve as above |
+| `TestLineRangesRoundTrip` | every ID selects its own bytes, local and project-qualified |
+| `TestOutlineNestsAndCovers` | no non-blank line lies outside the outline |
+| `TestSelectRoundTripsToBytes` | `--select` prints exactly the record's lines |
+| `TestJSONIsDeterministic` | same bytes, same JSON |
+
+### What the scanner reads, and what it does not judge
+
+Contracts are read document-wide: records put ```` ```normative ```` blocks
+under their own `#####` sub-headings or beside the design they specify,
+and a block is a contract wherever it sits (`section` says where).
+Contracts written as prose are not addressable; that shows as a zero
+count, not a warning, because older epochs wrote them that way.
+
+Assumptions are read from wherever Critical Assumptions lives — `##`,
+`###`, or a legacy alias — in all four corpus forms (`**A1 [S]**`,
+`**A1 — S.**`, `**A1** S`, `**A1 S**`). A section that labels its
+assumptions also carries other bullets (a whole cohort copied the
+template's Method-vocabulary legend in verbatim); those are not
+assumptions. Only a label-free section — epoch A's checkbox list — has
+its bullets read as assumptions by position, derived.
+
+Gate responses exist only while the gate is inlined; a `gate.md` pointer
+means they live outside the record.
+
+A `NNNN-slug-postmortem.md` beside a record is not a record: `NNNN`
+resolution and `index` skip it, and a file with no epoch fingerprint is
+listed as skipped rather than silently dropped.
 
 ## The four epochs
 
@@ -160,7 +253,9 @@ treating them as foreign would bury every real finding.
 ## Layout
 
     tools/rdr/
-      main.go              subcommand dispatch, flags, version
+      main.go              subcommand dispatch, flags, inspect, index --derived
+      internal/ident/      the element ID grammar, slugs, content hash
+      internal/scan/       the line scanner: outline, elements, warnings
       internal/model/      the template model
         template.go        sections, grammars, markers, the value-continuation rule
         vocabulary.go      the four closed vocabularies; Method/Type/Profile parsing
@@ -168,4 +263,5 @@ treating them as foreign would bury every real finding.
         epoch.go           the four epoch tables and fingerprint detection
         alias.go           legacy names and the match kinds
         scaffold.go        filled-in template scaffolds
+        template.go        also DecisionClasses and GateItems, the D- and G-key tables
       testdata/            synthetic fixtures, one per epoch (see its README)
