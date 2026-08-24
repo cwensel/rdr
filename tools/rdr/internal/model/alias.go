@@ -39,6 +39,22 @@ const (
 	// to project it onto either. Kept distinct so a consumer can report
 	// "recognised, no home" separately from "never seen this".
 	MatchRecognizedUnmapped
+	// MatchAuthorSubsection means an unknown heading nested under a
+	// template-mapped section. It is the author's own sub-structure —
+	// `### Why not a cache` under Approach — not a foreign section, so
+	// it is not a finding; its lines belong to the section above it.
+	// Whether such a heading is in fact an unmodelled TEMPLATE.md
+	// addition is a corpus-level question (`rdr index --coverage`
+	// reports headings that recur across records), not a per-record one.
+	MatchAuthorSubsection
+	// MatchPrefix means an observed bullet label opens with a vocabulary
+	// label at a word boundary — `Evidence — the two channel reductions`
+	// for `Evidence`. Labels are matched by prefix, not literal, because
+	// authors extend them into clauses; see LookupLabel.
+	MatchPrefix
+	// MatchAuthor means a bullet label in no vocabulary: the author's
+	// own field, recorded so it is never dropped, and not a finding.
+	MatchAuthor
 )
 
 func (m MatchKind) String() string {
@@ -55,6 +71,12 @@ func (m MatchKind) String() string {
 		return "scaffold-instance"
 	case MatchRecognizedUnmapped:
 		return "recognized-unmapped"
+	case MatchAuthorSubsection:
+		return "author-subsection"
+	case MatchPrefix:
+		return "prefix"
+	case MatchAuthor:
+		return "author"
 	case MatchUnknown:
 		return "unknown"
 	}
@@ -188,6 +210,17 @@ var FieldAliases = []fieldAlias{
 	{"Split-out (sibling work item, NOT this RDR)", "", "author-added scope note"},
 	{"Release scope", "", "author-added release-scoping field"},
 	{"Visible", "", "author-added visibility note"},
+}
+
+// FieldAliasCanonical returns the canonical field a legacy label maps to,
+// or "" when the label is not a mapped alias.
+func FieldAliasCanonical(label string) string {
+	for _, a := range FieldAliases {
+		if strings.EqualFold(a.name, strings.TrimSpace(label)) {
+			return a.canonical
+		}
+	}
+	return ""
 }
 
 // LookupSection classifies an observed heading against a template epoch.

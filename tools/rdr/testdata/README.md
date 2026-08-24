@@ -23,3 +23,16 @@ One fixture per template epoch:
 Each fixture carries its epoch's fingerprint, so `DetectEpoch` places it,
 and at least one alias or qualifier form, so the tolerant-reading paths are
 exercised rather than only the happy path.
+
+`variants/` holds one fixture per known parser failure — the ways the
+corpus departs from the template that an exact-literal parser silently
+undercounts (README §The resilience contract). Each is an otherwise
+conformant epoch D record whose tally the scanner tests pin by hand.
+
+| file | exercises |
+| --- | --- |
+| `heading-level.md` | Critical Assumptions at `###` in an epoch D record; the joint-decision Status form |
+| `label-variants.md` | `**Status:**` with the colon inside the bold; `Evidence — …`, `If wrong (…)`, `Evidence (plan)` prefix labels; an author's `Note` inside an assumption; a glossed and a compound Method |
+| `status-parenthetical.md` | `Implemented (\`main\` sha)`; Evidence Record statuses as `**Verified**`, `REFUTED (…)`, `Verified as narrowed — …`, `Resolved — …`, and the template legend left unfilled |
+| `wrapped-metadata.md` | the em-dash `Deferred — …` Status paragraph with a guidance comment under it; Predecessors, Overrides and Seam Lineage wrapped, with a nested labelled bullet; the legacy `Related`, the recognised `Release scope`, and an unknown `Referenced by` |
+| `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |

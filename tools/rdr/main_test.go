@@ -106,3 +106,81 @@ func TestUnimplementedStillStops(t *testing.T) {
 		t.Errorf("unknown flag: exit %d, stderr %q", code, errb)
 	}
 }
+
+// TestIndexCoverage: the drift alarm reports the corpus rate, warnings by
+// code, and any unknown heading or author label that recurs across
+// records — and nothing that appears in fewer than recurThreshold.
+func TestIndexCoverage(t *testing.T) {
+	dir := t.TempDir()
+	clean, _ := os.ReadFile(fixturePath("epoch-d.md"))
+	author, _ := os.ReadFile(filepath.Join("testdata", "variants", "author-structure.md"))
+	if err := os.WriteFile(filepath.Join(dir, "0004-checksum.md"), clean, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// The same author structure in three records is a convention worth
+	// listing; the record number is rewritten so each is its own record.
+	for _, n := range []string{"0105", "0106", "0107"} {
+		raw := strings.Replace(string(author), "Recommendation 0105:", "Recommendation "+n+":", 1)
+		if err := os.WriteFile(filepath.Join(dir, n+"-fork-policy.md"), []byte(raw), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(dir, "0108-notes.md"), []byte("# Notes\n\nnot a record\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, errb := runCapture(t, "index", "--coverage", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	for _, want := range []string{
+		"total 4 records",
+		"warning section:unknown-to-template  3",
+		`recurring heading "Why not a vendored copy"`,
+		`recurring heading "Appendix A — Reader Catalog"`, // the alarm case: a foreign root in three records
+		`recurring label   "Forward-compat"`,
+		"§Cross-Cutting Concerns",
+		"skipped " + filepath.Join(dir, "0108-notes.md"),
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("output lacks %q:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, `"Category"`) || strings.Contains(out, `"Reader 1"`) {
+		t.Errorf("a heading or label inside a foreign section is that section's warning, not a recurrence:\n%s", out)
+	}
+
+	code, out, _ = runCapture(t, "index", "--coverage", "--json", "--records", dir)
+	if code != 0 {
+		t.Fatal(out)
+	}
+	var got struct {
+		Total struct {
+			Lines, Unclassified int
+			Rate                float64
+		}
+		Warnings  map[string]int
+		Recurring []struct {
+			Kind, Text string
+			Records    int
+		}
+		Skipped []string
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Total.Unclassified != 15 || got.Total.Rate <= 0 || got.Total.Rate > 0.05 {
+		t.Errorf("total = %+v, want 3×5 unclassified lines at a small rate", got.Total)
+	}
+	if got.Warnings["section:unknown-to-template"] != 3 || len(got.Skipped) != 1 {
+		t.Errorf("warnings %v skipped %v", got.Warnings, got.Skipped)
+	}
+	for _, r := range got.Recurring {
+		if r.Records != 3 {
+			t.Errorf("recurring %s %q in %d records, want 3", r.Kind, r.Text, r.Records)
+		}
+	}
+	if len(got.Recurring) == 0 {
+		t.Error("no recurring entries")
+	}
+}

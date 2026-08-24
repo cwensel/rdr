@@ -6,7 +6,7 @@
 // Usage:
 //
 //	rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
-//	rdr index [--derived] [--status] [--in-flight] [--backlinks] ... [--records DIR]
+//	rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] ... [--records DIR]
 //	rdr lint <NNNN|path>
 //	rdr version
 //
@@ -18,7 +18,7 @@
 //
 // Findings never change inspect's exit code; lint owns PASS/BLOCK exits.
 //
-// inspect and index --derived are live. The remaining index facets and
+// inspect, index --derived and index --coverage are live. The remaining index facets and
 // lint report `stopped:not-implemented` and exit 2, which is the
 // contract's "degrade to a clear stopped:<reason> rather than a stack
 // trace" requirement.
@@ -52,9 +52,13 @@ const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
   rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<id>] [--project P] [--records DIR]
-  rdr index [--derived] [--status] [--in-flight] [--backlinks] [--records DIR]
+  rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] [--records DIR]
   rdr lint <NNNN|path>
   rdr version
+
+index --coverage is the drift alarm (README §The resilience contract): the
+unclassified-line rate over the records dir, warnings by code, and any
+heading or label the model does not know that recurs across records.
 
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
@@ -96,6 +100,9 @@ func run(args []string, stdout, stderr io.Writer) int {
 			if *f.derived {
 				return indexDerived(f, stdout, stderr)
 			}
+			if *f.coverage {
+				return indexCoverage(f, stdout, stderr)
+			}
 		}
 		fmt.Fprintf(stderr, "stopped:not-implemented (%s: the record scanner has not landed)\n", args[0])
 		return 2
@@ -115,6 +122,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 // its own.
 type flags struct {
 	json, all, derived          *bool
+	coverage                    *bool
 	sel, project, records       *string
 	status, inFlight, backlinks *bool
 	clusterOf                   *string
@@ -138,6 +146,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "index":
 		f.json = fs.Bool("json", false, "emit the index as JSON")
 		f.derived = fs.Bool("derived", false, "count derived (unlabelled) element ids per record — the labelling backlog")
+		f.coverage = fs.Bool("coverage", false, "unclassified-line rate over the records dir, warnings by code, recurring unknown headings and labels — the drift alarm")
 		f.status = fs.Bool("status", false, "group records by status")
 		f.inFlight = fs.Bool("in-flight", false, "records not in a terminal status")
 		f.backlinks = fs.Bool("backlinks", false, "inbound predecessor/override edges")
@@ -293,33 +302,14 @@ type derivedRow struct {
 // total, how many elements carry derived ids — the backlog the labelling
 // rule burns down.
 func indexDerived(f *flags, stdout, stderr io.Writer) int {
-	dir := *f.records
-	if dir == "" {
-		dir = "."
-	}
-	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
-	paths = recordFiles(paths)
-	sort.Strings(paths)
-	if len(paths) == 0 {
-		fmt.Fprintf(stderr, "stopped:no-records (%s holds no NNNN-*.md)\n", dir)
-		return 2
+	docs, skipped, code := records(f, stderr)
+	if code != 0 {
+		return code
 	}
 	total := scan.Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}}
 	var rows []derivedRow
-	var skipped []string
-	for _, p := range paths {
-		doc, err := scan.File(p, scan.Options{Project: *f.project})
-		if err != nil {
-			fmt.Fprintf(stderr, "stopped:unreadable (%s: %v)\n", p, err)
-			return 2
-		}
-		if doc.Epoch == "unknown" {
-			// Not an RDR: no metadata block, no assumptions. Listed, never
-			// silently dropped.
-			skipped = append(skipped, p)
-			continue
-		}
-		rows = append(rows, derivedRow{doc.Record, p, doc.Epoch, doc.Counts.Elements, doc.Counts.Derived, len(doc.Warnings)})
+	for _, doc := range docs {
+		rows = append(rows, derivedRow{doc.Record, doc.Path, doc.Epoch, doc.Counts.Elements, doc.Counts.Derived, len(doc.Warnings)})
 		for k, n := range doc.Counts.Elements {
 			total.Elements[k] += n
 		}
@@ -334,6 +324,181 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "%s %s %3dw  %s\n", r.Record, r.Epoch, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived}))
 	}
 	fmt.Fprintf(stdout, "total %d records  %s\n", len(rows), derivedLine(total))
+	for _, p := range skipped {
+		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
+	}
+	return 0
+}
+
+// records walks the records dir, scanning every NNNN-*.md that is a
+// record. Files with no epoch fingerprint are returned as skipped, never
+// silently dropped.
+func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []string, code int) {
+	dir := *f.records
+	if dir == "" {
+		dir = "."
+	}
+	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
+	paths = recordFiles(paths)
+	sort.Strings(paths)
+	if len(paths) == 0 {
+		fmt.Fprintf(stderr, "stopped:no-records (%s holds no NNNN-*.md)\n", dir)
+		return nil, nil, 2
+	}
+	for _, p := range paths {
+		doc, err := scan.File(p, scan.Options{Project: *f.project})
+		if err != nil {
+			fmt.Fprintf(stderr, "stopped:unreadable (%s: %v)\n", p, err)
+			return nil, nil, 2
+		}
+		if doc.Epoch == "unknown" {
+			skipped = append(skipped, p)
+			continue
+		}
+		docs = append(docs, doc)
+	}
+	return docs, skipped, 0
+}
+
+// coverageRow is one record's unclassified-line count.
+type coverageRow struct {
+	Record       string  `json:"record"`
+	Path         string  `json:"path"`
+	Epoch        string  `json:"epoch"`
+	Lines        int     `json:"lines"`
+	Unclassified int     `json:"unclassified"`
+	Rate         float64 `json:"rate"`
+	Warnings     int     `json:"warnings"`
+}
+
+// recurring is a heading or label the model does not know, seen in more
+// than one record. One record's invention is the author's; the same text
+// across records is a convention — or a TEMPLATE.md addition whose epoch
+// entry was never written, which is what the drift alarm points at.
+type recurring struct {
+	Kind string `json:"kind"` // heading | label
+	Text string `json:"text"`
+	// Level is the heading level; Section is the label's template section.
+	Level   int    `json:"level,omitempty"`
+	Section string `json:"section,omitempty"`
+	Records int    `json:"records"`
+}
+
+// recurThreshold is how many records must share an unknown heading or
+// author label before index --coverage lists it.
+const recurThreshold = 3
+
+// indexCoverage is the drift alarm: the unclassified-line rate over the
+// corpus, warnings by code, and every unknown heading or author label
+// that recurs across records.
+func indexCoverage(f *flags, stdout, stderr io.Writer) int {
+	docs, skipped, code := records(f, stderr)
+	if code != 0 {
+		return code
+	}
+	var rows []coverageRow
+	total := scan.Coverage{}
+	byCode := map[string]int{}
+	type key struct {
+		kind, text, section string
+		level               int
+	}
+	seen := map[key]map[string]bool{}
+	note := func(k key, record string) {
+		if seen[k] == nil {
+			seen[k] = map[string]bool{}
+		}
+		seen[k][record] = true
+	}
+	for _, d := range docs {
+		c := d.Coverage
+		rows = append(rows, coverageRow{d.Record, d.Path, d.Epoch, c.Lines, c.Unclassified, c.Rate, len(d.Warnings)})
+		total.Lines += c.Lines
+		total.Unclassified += c.Unclassified
+		for _, w := range d.Warnings {
+			byCode[w.Code]++
+		}
+		// A heading or label inside a foreign section is that section's
+		// warning, not a recurrence of its own: only the foreign root and
+		// the author's structure inside recognised sections are counted.
+		byID := map[string]scan.Node{}
+		for _, n := range d.Outline {
+			byID[n.ID] = n
+		}
+		insideForeign := func(id string) bool {
+			for n, ok := byID[id]; ok && n.Parent != ""; n, ok = byID[n.Parent] {
+				if byID[n.Parent].Match == "unknown" {
+					return true
+				}
+			}
+			return false
+		}
+		canon := map[string]string{}
+		for _, n := range d.Outline {
+			canon[n.ID] = n.Canonical
+			if (n.Match == "unknown" || n.Match == "author-subsection") && !insideForeign(n.ID) {
+				note(key{"heading", n.Heading, "", n.Level}, d.Record)
+			}
+		}
+		fields := append([]scan.Field{}, d.Metadata...)
+		fields = append(fields, d.Fields...)
+		for _, e := range d.Elements {
+			fields = append(fields, e.Fields...)
+		}
+		for _, fl := range fields {
+			if fl.Match == "author" && !insideForeign(fl.Section) && byID[fl.Section].Match != "unknown" {
+				note(key{"label", fl.Label, canon[fl.Section], 0}, d.Record)
+			}
+		}
+	}
+	if total.Lines > 0 {
+		total.Rate = float64(total.Unclassified) / float64(total.Lines)
+	}
+	var recur []recurring
+	for k, recs := range seen {
+		if len(recs) >= recurThreshold {
+			recur = append(recur, recurring{k.kind, k.text, k.level, k.section, len(recs)})
+		}
+	}
+	sort.Slice(recur, func(i, j int) bool {
+		a, b := recur[i], recur[j]
+		if a.Records != b.Records {
+			return a.Records > b.Records
+		}
+		if a.Kind != b.Kind {
+			return a.Kind < b.Kind
+		}
+		return a.Text < b.Text
+	})
+	if recur == nil {
+		recur = []recurring{}
+	}
+	if *f.json {
+		return emit(map[string]any{"schema": schemaVersion, "records": rows, "total": total,
+			"warnings": byCode, "recurring": recur, "skipped": skipped}, stdout, stderr)
+	}
+	for _, r := range rows {
+		fmt.Fprintf(stdout, "%s %s %6d lines %4d unclassified %2dw\n", r.Record, r.Epoch, r.Lines, r.Unclassified, r.Warnings)
+	}
+	fmt.Fprintf(stdout, "total %d records  %d lines  %d unclassified  rate %.4f\n", len(rows), total.Lines, total.Unclassified, total.Rate)
+	codes := make([]string, 0, len(byCode))
+	for c := range byCode {
+		codes = append(codes, c)
+	}
+	sort.Strings(codes)
+	for _, c := range codes {
+		fmt.Fprintf(stdout, "warning %-28s %d\n", c, byCode[c])
+	}
+	for _, r := range recur {
+		where := fmt.Sprintf("level %d", r.Level)
+		if r.Kind == "label" {
+			where = "§" + r.Section
+			if r.Section == "" {
+				where = "outside any template section"
+			}
+		}
+		fmt.Fprintf(stdout, "recurring %-7s %-48q %-28s %d records\n", r.Kind, r.Text, where, r.Records)
+	}
 	for _, p := range skipped {
 		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
 	}

@@ -260,27 +260,31 @@ func TestFixturesExerciseTolerancePaths(t *testing.T) {
 // take rather than any particular name, so it keeps working as the repo
 // gains fixtures.
 func TestFixturesCarryNoConsumerIdentifiers(t *testing.T) {
-	entries, err := os.ReadDir(filepath.Join("..", "..", "testdata"))
-	if err != nil {
-		t.Fatalf("reading testdata: %v", err)
-	}
 	// Absolute paths and home-relative paths cannot appear in an invented
-	// record; either is a copy from a real one.
-	banned := []string{"/Users/", "/home/", "~/", "file:///"}
+	// record; either is a copy from a real one. A `cli/NNNN` citation is
+	// the consumer corpus's own record-reference shape.
+	banned := []string{"/Users/", "/home/", "~/", "file:///", "cli/0"}
 
-	for _, e := range entries {
-		if e.IsDir() || !strings.HasSuffix(e.Name(), ".md") {
-			continue
+	root := filepath.Join("..", "..", "testdata")
+	seen := 0
+	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") {
+			return err
 		}
-		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", e.Name()))
+		seen++
+		raw, err := os.ReadFile(p)
 		if err != nil {
-			t.Fatalf("reading %s: %v", e.Name(), err)
+			t.Fatalf("reading %s: %v", p, err)
 		}
 		text := string(raw)
 		for _, b := range banned {
 			if strings.Contains(text, b) {
-				t.Errorf("%s contains %q; fixtures must be synthetic, with no real paths", e.Name(), b)
+				t.Errorf("%s contains %q; fixtures must be synthetic, with no real paths or consumer identifiers", p, b)
 			}
 		}
+		return nil
+	})
+	if err != nil || seen < 9 {
+		t.Fatalf("walking testdata: %v (%d fixtures)", err, seen)
 	}
 }

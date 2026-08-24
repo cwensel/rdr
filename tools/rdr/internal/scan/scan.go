@@ -26,7 +26,7 @@ import (
 
 // SchemaVersion is the envelope contract consumers pin. It moves only when
 // the envelope's shape changes.
-const SchemaVersion = "0"
+const SchemaVersion = "1"
 
 // Document is the projection of one record.
 type Document struct {
@@ -40,7 +40,13 @@ type Document struct {
 
 	Outline  []Node    `json:"outline"`
 	Elements []Element `json:"elements"`
+	// Metadata is the Metadata block's fields, classified; Fields is every
+	// other labelled bullet that sits inside no element (an element's own
+	// fields nest under it). See fields.go.
+	Metadata []Field   `json:"metadata"`
+	Fields   []Field   `json:"fields"`
 	Warnings []Warning `json:"warnings"`
+	Coverage Coverage  `json:"coverage"`
 	Counts   Counts    `json:"counts"`
 
 	lines  []string
@@ -91,6 +97,10 @@ type Element struct {
 	LineEnd   int    `json:"line_end"`
 	// Transient marks a contract carrying the Transient marker.
 	Transient bool `json:"transient,omitempty"`
+	// Fields are the labelled bullets inside the element: an assumption's
+	// Evidence Record, a failure mode's Visible/Silent/Recovery, a step's
+	// Risk. Each is classified against the template (see fields.go).
+	Fields []Field `json:"fields,omitempty"`
 }
 
 // Warning is anything the scanner could not classify, with where it was.
@@ -108,6 +118,9 @@ type Warning struct {
 type Counts struct {
 	Elements map[ident.Kind]int `json:"elements"`
 	Derived  map[ident.Kind]int `json:"derived"`
+	// Fields counts every labelled bullet by how it matched the template;
+	// `author` is the count the model does not know.
+	Fields map[string]int `json:"fields"`
 }
 
 // Options tunes a scan.
@@ -155,6 +168,8 @@ func Bytes(raw []byte, opts Options) *Document {
 	doc.detectEpoch()
 	doc.classify()
 	doc.extract()
+	doc.fields()
+	doc.coverage()
 	doc.count()
 	return doc
 }
@@ -436,8 +451,21 @@ func (d *Document) classify() {
 				n.Derived = true
 			}
 			if m.Kind == model.MatchUnknown {
-				d.warn("section:unknown-to-template", n.LineStart, n.LineEnd,
-					"heading %q (level %d) matches no section of epoch %s", n.Heading, n.Level, d.Epoch)
+				switch {
+				case d.underUnknownSection(i):
+					// Inside a foreign section already reported: the
+					// ancestor's warning covers these lines.
+				case d.underTemplateSection(i):
+					// An author's own sub-heading inside a template
+					// section is that section's content, not a foreign
+					// section: no warning. Whether it is really an
+					// unmodelled template addition is a corpus-level
+					// question (index --coverage).
+					n.Match = model.MatchAuthorSubsection.String()
+				default:
+					d.warn("section:unknown-to-template", n.LineStart, n.LineEnd,
+						"heading %q (level %d) matches no section of epoch %s", n.Heading, n.Level, d.Epoch)
+				}
 			}
 		}
 		if key == "" {
@@ -467,6 +495,31 @@ func (d *Document) classify() {
 	for i, n := range d.nodes {
 		d.Outline[i] = *n
 	}
+}
+
+// underTemplateSection reports whether node i has an enclosing node,
+// below the title, that the template recognises — mapped to a canonical
+// section, or a recognised-unmapped one (`Rationale`, `Open Questions`),
+// whose own sub-headings are equally the author's.
+func (d *Document) underTemplateSection(i int) bool {
+	for p := d.parentOf(i); p >= 0; p = d.parentOf(p) {
+		n := d.nodes[p]
+		if n.Level > 1 && (n.Canonical != "" || n.Match == model.MatchRecognizedUnmapped.String()) {
+			return true
+		}
+	}
+	return false
+}
+
+// underUnknownSection reports whether node i sits inside a heading
+// already classified unknown.
+func (d *Document) underUnknownSection(i int) bool {
+	for p := d.parentOf(i); p >= 0; p = d.parentOf(p) {
+		if d.nodes[p].Match == model.MatchUnknown.String() {
+			return true
+		}
+	}
+	return false
 }
 
 func epochOf(s string) model.Epoch {
@@ -503,6 +556,15 @@ func (d *Document) reassign() {
 		e := &d.Elements[i]
 		e.ID = d.id(e.Kind, e.Key)
 		e.Section = d.id(ident.Section, keyOf(e.Section))
+		for j := range e.Fields {
+			e.Fields[j].Section = d.id(ident.Section, keyOf(e.Fields[j].Section))
+			e.Fields[j].Element = e.ID
+		}
+	}
+	for _, fs := range [][]Field{d.Metadata, d.Fields} {
+		for j := range fs {
+			fs[j].Section = d.id(ident.Section, keyOf(fs[j].Section))
+		}
 	}
 }
 
@@ -1038,7 +1100,18 @@ func (d *Document) gate() {
 }
 
 func (d *Document) count() {
-	d.Counts = Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}}
+	d.Counts = Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}, Fields: map[string]int{}}
+	for _, f := range d.Metadata {
+		d.Counts.Fields[f.Match]++
+	}
+	for _, f := range d.Fields {
+		d.Counts.Fields[f.Match]++
+	}
+	for _, e := range d.Elements {
+		for _, f := range e.Fields {
+			d.Counts.Fields[f.Match]++
+		}
+	}
 	for _, k := range ident.Kinds {
 		d.Counts.Elements[k] = 0
 		d.Counts.Derived[k] = 0

@@ -6,17 +6,19 @@ view of it. If the model and a record disagree, the record is right and the
 model has drift to fix.
 
 `inspect` is live: it projects one record as an outline, a set of
-addressable elements and a warnings channel, and resolves any element
-ID back to the lines it names. `index --derived` reports the corpus's
-labelling backlog. The remaining `index` facets and `lint` land
-separately; until they do, they print `stopped:not-implemented` and
-exit 2.
+addressable elements, the classified fields of its Metadata block and of
+every element, and a warnings channel, and resolves any element ID back
+to the lines it names. `index --derived` reports the corpus's labelling
+backlog; `index --coverage` is the drift alarm. The remaining `index`
+facets and `lint` land separately; until they do, they print
+`stopped:not-implemented` and exit 2.
 
     rdr inspect 0055                       # one line per element, ids first
-    rdr inspect 0055 --json                # the envelope: outline, elements, warnings, counts
+    rdr inspect 0055 --json                # the envelope: outline, elements, metadata, fields, warnings, coverage, counts
     rdr inspect 0055 --select 0055:C4      # the bytes the id names
     rdr inspect path/to/0055-x.md --select outline
     rdr index --derived --records ../rdr/cli
+    rdr index --coverage --records ../rdr/cli
 
 Go stdlib only — no third-party dependencies, by design. RDR markdown is
 line-oriented (headings, fences, bullet trees with bold labels), so a line
@@ -50,6 +52,8 @@ It is enforced mechanically, not by good intentions:
 | `TestFixturesDetectTheirEpoch` | each synthetic fixture still fingerprints as its epoch |
 | `TestDecisionClassesMatchTemplate` | the D-key classes match the Load-Bearing Decisions bullets |
 | `TestGateItemsMatchTemplate` | the G-keys match the Finalization Gate sub-sections |
+| `TestSectionFieldsMatchTemplate` | each section's canonical `- **Label**:` set matches the bullets `TEMPLATE.md` writes under it, at any indent |
+| `TestAssumptionStatusVocabularyMatchesTemplate` | the Evidence Record's Status set matches its `Verified \| Pending \| Unverified` line |
 
 A divergence names itself and says what to update. Gaining, losing,
 renaming or re-levelling a section, or flipping its class, all fail — each
@@ -138,6 +142,64 @@ means they live outside the record.
 A `NNNN-slug-postmortem.md` beside a record is not a record: `NNNN`
 resolution and `index` skip it, and a file with no epoch fingerprint is
 listed as skipped rather than silently dropped.
+
+## The resilience contract
+
+The corpus is not template-uniform, and every ad-hoc parser before this
+one silently undercounted because of it: Critical Assumptions at `###`
+in most records, Evidence labels extended into clauses, Status values
+carrying parentheticals and paragraphs, Metadata values wrapped across
+lines. A projector keyed on exact literals produces confident, wrong
+JSON — the worst outcome, because a downstream gate reads its silence
+as PASS. So the contract is stated before the parsing, and tested:
+
+- **Sections match by name, level-insensitively.** A section written at
+  another epoch's level is the same section (`level-variant`).
+- **Labels match by prefix.** A bullet label is the field followed by a
+  boundary, not the whole bold text: `Evidence — the two channel
+  reductions`, `If wrong (a refusal is owed)`, `Evidence (plan)` are the
+  Evidence and If-wrong fields (`prefix`). The longest vocabulary label
+  wins, so `Status / sentinel errors` is never read as `Status`.
+- **Status normalises to `{value, qualifier, raw}`.** The lifecycle
+  Status keeps its qualifier grammar (`form`); the Evidence Record's
+  Status matches its vocabulary by prefix under any emphasis or case
+  (`**Verified**`, `REFUTED`, `Verified as narrowed — …`). The template
+  legend left unfilled is a `placeholder`, never `Verified`.
+- **Nothing is dropped.** Every labelled bullet is a metadata field, a
+  field of the element it sits in, a field of its section, or a warning.
+  A label in no vocabulary is recorded as the author's (`author`) — not
+  a finding. A heading the template does not know, nested inside a
+  section it does, is the author's sub-structure
+  (`author-subsection`) — not a finding. Only a foreign top-level
+  section and an unknown Metadata label warn.
+- **Read, never judge.** A parse warning on a terminal record is always
+  a projector bug to fix with a fixture, never a reason to edit the
+  record.
+
+The **unclassified-line rate** is the property as a number: the share
+of a record's non-blank lines that lie inside a warning's range
+(`coverage` in the envelope). It is exactly zero on a record that
+conforms to its epoch and near zero over the whole corpus, and a rise
+after a `TEMPLATE.md` change is the drift alarm — it points at the
+epoch entry the same-commit rule required and did not get. `rdr index
+--coverage` reports it per record and in total, with warnings by code,
+and lists every unknown heading and author label that recurs across
+three or more records: one record's invention is the author's, the same
+text across records is a convention or an unmodelled template addition.
+
+The contract's tests run over every synthetic fixture, the four epochs
+and one variant per known failure (`testdata/README.md`):
+
+| test | asserts |
+| --- | --- |
+| `TestZeroSilentDrop` | every non-blank line lies inside the outline, nodes nest without overlap; every labelled bullet outside a fence is accounted for; `counts.fields` sums to the fields recorded; `coverage.unclassified` is exactly the warned non-blank lines |
+| `TestConformantFixturesHaveFullCoverage` | a record conformant to its epoch has no warnings and rate zero |
+| `TestHeadingLevelVariant` | Critical Assumptions at `###` in an epoch D record reads every assumption |
+| `TestLabelVariants` | clause-extended labels match by prefix; a colon inside the bold is a label; an author's sub-field is recorded, not warned |
+| `TestStatusForms` | the parenthetical, dash and joint-decision lifecycle forms; every Evidence Record Status form; the placeholder |
+| `TestWrappedMetadata` | wrapped values join, a guidance comment ends them, a nested bullet is not part of the value; legacy and author labels classify; an unknown one warns and is still recorded |
+| `TestAuthorStructure` | author sub-headings are not findings; a foreign section warns once; prose-named labels are observed, the author's are recorded |
+| `TestIndexCoverage` | the corpus rate, warnings by code, and the recurrence table with its threshold |
 
 ## The four epochs
 
@@ -244,7 +306,14 @@ epoch writes a template-drawn thing.
 | `scaffold-instance` | a template scaffold with its placeholder filled in (`Alternative 2: …` for `Alternative 1: [Name]`) |
 | `legacy-alias` | a recognised predecessor name, mapped to its canonical section |
 | `recognized-unmapped` | recognised as something authors wrote, with no canonical home |
+| `author-subsection` | unknown, but nested inside a recognised section: the author's own structure |
 | `unknown` | genuinely foreign — the only thing worth a warning |
+
+Bullet labels (`LookupLabel`) match `exact`, `case-variant` or `prefix`
+against the section's field set — its canonical labels from
+`TEMPLATE.md` and the labels its prose names (`SectionFields`) — and are
+otherwise `author`. Metadata labels additionally pass through the field
+alias table (`legacy-alias`, `recognized-unmapped`).
 
 `scaffold-instance` matters more than it looks: the filled-in scaffolds are
 the single largest class of heading a name-only lookup cannot place, and
@@ -256,12 +325,14 @@ treating them as foreign would bury every real finding.
       main.go              subcommand dispatch, flags, inspect, index --derived
       internal/ident/      the element ID grammar, slugs, content hash
       internal/scan/       the line scanner: outline, elements, warnings
+        fields.go          the labelled-bullet pass: metadata, element and section fields; coverage
       internal/model/      the template model
         template.go        sections, grammars, markers, the value-continuation rule
+        fields.go          per-section label sets, prefix matching, the Evidence Record Status
         vocabulary.go      the four closed vocabularies; Method/Type/Profile parsing
         qualifier.go       the status qualifier grammars
         epoch.go           the four epoch tables and fingerprint detection
         alias.go           legacy names and the match kinds
         scaffold.go        filled-in template scaffolds
         template.go        also DecisionClasses and GateItems, the D- and G-key tables
-      testdata/            synthetic fixtures, one per epoch (see its README)
+      testdata/            synthetic fixtures, one per epoch, plus variants/ (see its README)

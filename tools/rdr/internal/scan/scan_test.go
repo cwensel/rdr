@@ -621,7 +621,7 @@ func TestDeterministic(t *testing.T) {
 	if string(a) != string(b) {
 		t.Fatal("projection is not byte-deterministic")
 	}
-	if !strings.Contains(string(a), `"schema":"0"`) {
+	if !strings.Contains(string(a), `"schema":"`+SchemaVersion+`"`) {
 		t.Error("envelope lacks the schema version")
 	}
 }
