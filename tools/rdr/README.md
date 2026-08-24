@@ -298,9 +298,36 @@ whose structure is fully read but whose reference is untyped is not that.
 
 ### Queries over the graph
 
-    rdr index --unresolved   # typed edges whose target was looked for and not found
-    rdr index --backlinks    # the reverse edge set, transposed — never re-parsed
-    rdr index --cluster-of N # Stage 7.1's membership rule, as a query
+`rdr index` projects the whole records dir once — sub-second over a
+143-record corpus, byte-deterministic, no cache to go stale — and answers
+the corpus-level questions the flow used to answer by opening every file:
+
+    rdr index [--json]            # the graph: records, elements, edges, derived backlinks
+    rdr index --status            # records grouped by status
+    rdr index --in-flight         # the worklist: Draft and Final (rdr-status no-arg mode)
+    rdr index --backlinks         # the reverse edge set, transposed — never re-parsed
+    rdr index --backlinks=0055:C4 # who cites this contract — typed edges and mentions
+    rdr index --backlinks=0055    # who cites this record or anything in it
+    rdr index --cluster-of N      # Stage 7.1's membership rule, as a query
+    rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
+    rdr index --unresolved        # typed edges whose target was looked for and not found
+    rdr index --readme[=PATH]     # the README index table checked against the records
+    rdr index --derived           # the unlabelled-element backlog per record
+    rdr index --coverage          # the drift alarm (§The resilience contract)
+
+`--anchor-intersect` is the after-propose scan: two in-flight records
+citing the same `path::Symbol` with no edge of any kind between them are
+proposing to change one function without knowing of each other, which is
+the shape that otherwise surfaces as a joint decision five gate iterations
+later. Anchors match on the symbol with the path as a component-aligned
+suffix (`uniqueid.go::f` is `internal/validate/uniqueid.go::f`); the
+template's own `path::Symbol` is ignored; `--all` widens the scan past
+in-flight records. On the consumer corpus's propose snapshots it fires
+on the pair the flow missed.
+
+`--readme` is a check, not a generator: it names each row that disagrees
+with its record (status, title, priority, a missing or extra row) and the
+author decides which side is wrong. Nothing here writes.
 
 `--cluster-of` is the 7.1 prompt's own definition — "mutual
 `**Predecessors**:`, Peer-RDR citations, or a shared Cross-Cutting
@@ -308,7 +335,17 @@ Concern" — evaluated over `edges[]` instead of by reading every
 candidate. Mutual is strict: a one-way predecessor is the ordinary
 build-order dependency every record has several of, and it resolves by
 implementing one first. A declared `Cluster` field is authoritative on
-its own. Each member reports the relation that earned it.
+its own. Each member reports the relation that earned it and its status,
+so 7.1's Final-and-unimplemented scope is a filter, not a read.
+
+Checked against seven clusters 7.1 actually reconciled, the typed rule
+reproduced three exactly and missed members in the rest — records joined
+to the seed only by dense prose cross-reference. So two in-flight records
+that each mention the other are also reported, as `mutual-mentions` with
+`candidate: true`: a lead to confirm, not an assertion the records make.
+Two historical members had no citation in either direction; no rule over
+the records recovers a membership the records never state, and a declared
+`Cluster` field is the fix.
 
 | test | asserts |
 | --- | --- |
@@ -325,7 +362,13 @@ its own. Each member reports the relation that earned it.
 | `TestUnresolvedEdgeCarriesARange` | a wrapped field's finding names its whole range |
 | `TestReverseEdgesDerive` | backlinks transpose the forward set, reading no file |
 | `TestClusterRuleIsAQuery` | 7.1 membership, including that a one-way predecessor is not a member |
+| `TestIndexClusterCandidateTier` | mutual mentions between in-flight records are a candidate, one-way is nothing |
 | `TestEdgesAreDeterministic` | same record, same edge bytes |
+| `TestIndexGraphIsDeterministic` | the corpus graph carries every facet and two builds are the same bytes |
+| `TestAnchorIntersectFiresOnUncitedOverlap` | the uncited pair leads, spellings merge, the placeholder is ignored, implemented records need `--all` |
+| `TestIndexBacklinksToTarget` | `--backlinks=NNNN[:elem]` gathers typed edges and mentions for one target |
+| `TestReadmeDriftIsACheck` | every drift class is named; an escaped pipe stays in its cell |
+| `TestSummaryReadsMetadataNotBody` | in-flight is Draft or Final; terminal is the never-amended set |
 
 ## The resilience contract
 
@@ -506,13 +549,15 @@ treating them as foreign would bury every real finding.
 ## Layout
 
     tools/rdr/
-      main.go              subcommand dispatch, flags, inspect, index facets
+      main.go              subcommand dispatch, flags, inspect, the per-record index facets
+      corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars
       internal/scan/       the line scanner: outline, elements, warnings
         fields.go          the labelled-bullet pass: metadata, element and section fields; coverage
         edges.go           the typed-edge pass: every stated relation, by kind
         resolve.go         resolution against the records dir and the repo; backlinks; cluster derivation
+        corpus.go          corpus queries: record summaries, the graph document, anchor intersection, README drift
       internal/model/      the template model
         template.go        sections, grammars, markers, the value-continuation rule
         fields.go          per-section label sets, prefix matching, the Evidence Record Status

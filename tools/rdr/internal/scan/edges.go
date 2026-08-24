@@ -479,7 +479,13 @@ func (d *Document) anchorEdges(claimed map[int][][2]int) {
 
 // anchorsIn reads the source anchors and artifact paths of one string.
 func (d *Document) anchorsIn(from, s string, line, lineEnd int, field string, claimed map[int][][2]int) {
-	for _, m := range edge.SourceAnchorRe.FindAllStringSubmatchIndex(s, -1) {
+	// The `::` test is cheap and necessary; the regexp's per-position
+	// backtracking is not, and most lines carry no anchor.
+	var anchors [][]int
+	if strings.Contains(s, "::") {
+		anchors = edge.SourceAnchorRe.FindAllStringSubmatchIndex(s, -1)
+	}
+	for _, m := range anchors {
 		anchor := s[m[2]:m[3]] + "::" + s[m[4]:m[5]]
 		if d.claimedAt(claimed, line, m[0]) || !edge.IsSourceAnchor(s[m[2]:m[3]]) {
 			continue

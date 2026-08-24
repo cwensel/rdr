@@ -6,7 +6,7 @@
 // Usage:
 //
 //	rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
-//	rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] ... [--records DIR]
+//	rdr index [--json] [--status|--in-flight|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr version
 //
@@ -19,10 +19,8 @@
 //
 // Findings never change inspect's exit code; lint owns PASS/BLOCK exits.
 //
-// inspect, lint, index --derived, --coverage and the edge facets are live.
-// The remaining index facets report `stopped:not-implemented` and exit 2,
-// which is the contract's "degrade to a clear stopped:<reason> rather than
-// a stack trace" requirement.
+// Every subcommand and facet is live; an unknown subcommand degrades to a
+// clear stopped:<reason> rather than a stack trace.
 package main
 
 import (
@@ -55,13 +53,20 @@ const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
   rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<id>] [--project P] [--records DIR]
-  rdr index [--derived] [--coverage] [--status] [--in-flight] [--backlinks] [--records DIR]
+  rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr version
 
-index --coverage is the drift alarm (README §The resilience contract): the
-unclassified-line rate over the records dir, warnings by code, and any
-heading or label the model does not know that recurs across records.
+index with no facet is the corpus graph: every record, element and edge,
+plus the derived backlinks (README §Queries over the graph). Facets:
+  --status / --in-flight      records by status / the Draft+Final worklist
+  --backlinks[=NNNN[:elem]]   who points at each target / at one target
+  --cluster-of NNNN           7.1's membership rule as a query
+  --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
+  --unresolved                typed edges with no target — record data errors
+  --derived                   the unlabelled-element backlog per record
+  --coverage                  the drift alarm: unclassified-line rate, unknowns
+  --readme[=PATH]             the README index table checked against the records
 
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
@@ -113,13 +118,30 @@ func run(args []string, stdout, stderr io.Writer) int {
 			if *f.coverage {
 				return indexCoverage(f, stdout, stderr)
 			}
-			if *f.backlinks || *f.unresolved || *f.clusterOf != "" {
+			if f.backlinks.value != "" {
+				docs, _, code := corpus(f, stderr)
+				if code != 0 {
+					return code
+				}
+				return backlinksTo(docs, f.backlinks.value, f, stdout, stderr)
+			}
+			if f.backlinks.set || *f.unresolved || *f.clusterOf != "" {
 				return indexEdges(f, stdout, stderr)
 			}
+			if *f.status || *f.inFlight {
+				return statusFacet(f, *f.inFlight, stdout, stderr)
+			}
+			if *f.anchors {
+				return anchorFacet(f, stdout, stderr)
+			}
+			if f.readme.set {
+				return readmeFacet(f, f.readme.value, stdout, stderr)
+			}
+			return indexGraph(f, stdout, stderr)
 		case "lint":
 			return lintCmd(fs.Args(), f, stdout, stderr)
 		}
-		fmt.Fprintf(stderr, "stopped:not-implemented (%s: the record scanner has not landed)\n", args[0])
+		fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", args[0])
 		return 2
 
 	case "-h", "--help", "help":
@@ -136,14 +158,15 @@ func run(args []string, stdout, stderr io.Writer) int {
 // flags holds the values of every declared flag; a subcommand reads only
 // its own.
 type flags struct {
-	json, all, derived          *bool
-	coverage                    *bool
-	sel, project, records       *string
-	repo                        *string
-	status, inFlight, backlinks *bool
-	clusterOf                   *string
-	unresolved                  *bool
-	locking                     *bool
+	json, all, derived    *bool
+	coverage              *bool
+	sel, project, records *string
+	repo                  *string
+	status, inFlight      *bool
+	backlinks, readme     optString
+	clusterOf             *string
+	unresolved, anchors   *bool
+	locking               *bool
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -165,11 +188,14 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.json = fs.Bool("json", false, "emit the index as JSON")
 		f.derived = fs.Bool("derived", false, "count derived (unlabelled) element ids per record — the labelling backlog")
 		f.coverage = fs.Bool("coverage", false, "unclassified-line rate over the records dir, warnings by code, recurring unknown headings and labels — the drift alarm")
+		f.all = fs.Bool("all", false, "anchor-intersect: every record, not only those in flight")
 		f.status = fs.Bool("status", false, "group records by status")
-		f.inFlight = fs.Bool("in-flight", false, "records not in a terminal status")
-		f.backlinks = fs.Bool("backlinks", false, "inbound predecessor/override edges")
-		f.clusterOf = fs.String("cluster-of", "", "sibling records declaring the same cluster")
-		f.unresolved = fs.Bool("unresolved", false, "edges with no resolvable target")
+		f.inFlight = fs.Bool("in-flight", false, "the worklist: Draft and Final records")
+		fs.Var(&f.backlinks, "backlinks", "the reverse edge table; =NNNN[:elem] answers who cites one target, mentions included")
+		f.clusterOf = fs.String("cluster-of", "", "the record's cluster by 7.1's membership rule")
+		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
+		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
+		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
@@ -608,7 +634,7 @@ func indexEdges(f *flags, stdout, stderr io.Writer) int {
 	switch {
 	case *f.unresolved:
 		return unresolvedFacet(docs, skipped, f, stdout, stderr)
-	case *f.backlinks:
+	case f.backlinks.set:
 		return backlinksFacet(docs, f, stdout, stderr)
 	default:
 		return clusterFacet(docs, *f.clusterOf, f, stdout, stderr)
@@ -698,7 +724,7 @@ func clusterFacet(docs []*scan.Document, of string, f *flags, stdout, stderr io.
 		return emit(map[string]any{"schema": schemaVersion, "seed": seed, "cluster": members}, stdout, stderr)
 	}
 	for _, m := range members {
-		fmt.Fprintf(stdout, "%s %-14s %s\n", m.Record, m.Relation, m.Title)
+		fmt.Fprintf(stdout, "%s %-18s %-12s %s\n", m.Record, m.Relation, m.Status, m.Title)
 	}
 	fmt.Fprintf(stdout, "cluster of %s: %d members\n", seed, len(members))
 	return 0

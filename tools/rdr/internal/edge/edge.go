@@ -248,11 +248,32 @@ var bareNumber = regexp.MustCompile(`\b(\d{4})(-[a-z][a-z0-9-]*)?\b`)
 // sweep can decline it.
 var isoDateYear = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}`)
 
+// hasFourDigits reports whether s holds four consecutive ASCII digits —
+// the cheapest necessary condition for any record reference.
+func hasFourDigits(s string) bool {
+	run := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] >= '0' && s[i] <= '9' {
+			if run++; run == 4 {
+				return true
+			}
+		} else {
+			run = 0
+		}
+	}
+	return false
+}
+
 // FindRefs recovers every record reference in a string. Bare four-digit
 // numbers are read only when bare is true — which is correct inside
 // `Predecessors`, `Overrides` and `Cluster`, whose values are record
 // lists, and wrong in free prose, where four digits is as likely a year.
 func FindRefs(s string, bare bool) []Ref {
+	if !hasFourDigits(s) {
+		// Every grammar here needs a four-digit run; most lines have none,
+		// and the regexp's per-position backtracking is the scan's cost.
+		return nil
+	}
 	var out []Ref
 	claimed := make([]bool, len(s)+1)
 	for _, m := range recordRef.FindAllStringSubmatchIndex(s, -1) {

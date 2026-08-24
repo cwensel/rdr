@@ -93,16 +93,15 @@ func TestResolveSkipsPostmortem(t *testing.T) {
 	}
 }
 
-// TestUnimplementedStillStops: the facets that have not landed keep the
-// stopped:<reason> contract, and one that HAS landed reports its own
-// failure rather than the not-implemented one — `lint` on a missing file
-// is unreadable, not unbuilt.
-func TestUnimplementedStillStops(t *testing.T) {
-	for _, args := range [][]string{{"index", "--status"}} {
-		code, _, errb := runCapture(t, args...)
-		if code != 2 || !strings.Contains(errb, "stopped:not-implemented") {
-			t.Errorf("%v: exit %d, stderr %q", args, code, errb)
-		}
+// TestFailuresStop: every failure is a stopped:<reason> line and exit 2,
+// never a stack trace — an unknown subcommand, a records dir with no
+// records, `lint` on a missing file, an unknown flag.
+func TestFailuresStop(t *testing.T) {
+	if code, _, errb := runCapture(t, "bogus"); code != 2 || !strings.Contains(errb, "stopped:unknown-subcommand") {
+		t.Errorf("unknown subcommand: exit %d, stderr %q", code, errb)
+	}
+	if code, _, errb := runCapture(t, "index", "--status", "--records", t.TempDir()); code != 2 || !strings.Contains(errb, "stopped:no-records") {
+		t.Errorf("empty records dir: exit %d, stderr %q", code, errb)
 	}
 	if code, _, errb := runCapture(t, "lint", "x.md"); code != 2 || !strings.Contains(errb, "stopped:unreadable") {
 		t.Errorf("lint on a missing file: exit %d, stderr %q", code, errb)
@@ -307,5 +306,185 @@ func TestIndexClusterFacet(t *testing.T) {
 	}
 	if !strings.Contains(out, "2 members") {
 		t.Errorf("want a 2-member cluster:\n%s", out)
+	}
+}
+
+// corpusDir writes a small synthetic records dir: two Drafts rewriting one
+// function without citing each other, a Final that cites one of them, and
+// an Implemented record, plus a README index table that is stale for one.
+func corpusDir(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	head := func(num, title, status string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status +
+			"\n- **Profile**: standard\n- **Priority**: High\n"
+	}
+	ev := func(anchor string) string {
+		return "\n## Critical Assumptions\n\n- **A1**: claim\n  - **Method**: Source Search\n  - **Evidence**: `" + anchor + "`\n  - **Status**: Verified\n"
+	}
+	files := map[string]string{
+		"0001-alpha.md": head("0001", "Alpha", "Draft") + ev("uniqueid.go::checkUniqueNameIn"),
+		"0002-beta.md":  head("0002", "Beta", "Draft") + ev("internal/validate/uniqueid.go::checkUniqueNameIn"),
+		"0003-gamma.md": head("0003", "Gamma", "Final") + "- **Predecessors**: 0001-alpha\n" + ev("walk.go::Walk") +
+			"\n## Problem Statement\n\nSee 0001-alpha A1 and 0002-beta.\n",
+		"0004-delta.md": head("0004", "Delta", "Implemented") + ev("uniqueid.go::checkUniqueNameIn"),
+		"README.md": "| ID | Title | Status | Priority |\n| --- | --- | --- | --- |\n" +
+			"| [0001](0001-alpha.md) | Alpha | Draft | High |\n" +
+			"| [0002](0002-beta.md) | Beta | Final | High |\n" +
+			"| [0003](0003-gamma.md) | Gamma | Final | High |\n" +
+			"| [0004](0004-delta.md) | Delta | Implemented | High |\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+// TestIndexGraphIsDeterministic: the bare index is one document with
+// records, elements, edges and derived backlinks, and two builds are the
+// same bytes.
+func TestIndexGraphIsDeterministic(t *testing.T) {
+	dir := corpusDir(t)
+	code, a, errb := runCapture(t, "index", "--json", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	_, b, _ := runCapture(t, "index", "--json", "--records", dir)
+	if a != b {
+		t.Error("two builds of the graph differ")
+	}
+	var g struct {
+		Schema    string           `json:"schema"`
+		Records   []map[string]any `json:"records"`
+		Elements  []map[string]any `json:"elements"`
+		Edges     []map[string]any `json:"edges"`
+		Backlinks map[string]any   `json:"backlinks"`
+	}
+	if err := json.Unmarshal([]byte(a), &g); err != nil {
+		t.Fatal(err)
+	}
+	if g.Schema != schemaVersion || len(g.Records) != 4 || len(g.Elements) == 0 || len(g.Edges) == 0 || len(g.Backlinks) == 0 {
+		t.Errorf("graph is missing a facet: schema %q, %d records, %d elements, %d edges, %d backlink targets",
+			g.Schema, len(g.Records), len(g.Elements), len(g.Edges), len(g.Backlinks))
+	}
+	code, text, _ := runCapture(t, "index", "--records", dir)
+	if code != 0 || !strings.Contains(text, "total 4 records") {
+		t.Errorf("text form:\n%s", text)
+	}
+}
+
+// TestIndexInFlight: the worklist is Draft and Final, never Implemented.
+func TestIndexInFlight(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "index", "--in-flight", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if strings.Contains(out, "0004") || !strings.Contains(out, "total 3 in flight over 4 records") {
+		t.Errorf("worklist wrong:\n%s", out)
+	}
+	code, out, _ = runCapture(t, "index", "--status", "--records", dir)
+	if code != 0 || !strings.Contains(out, "Draft          2  0001 0002") || !strings.Contains(out, "Implemented    1  0004") {
+		t.Errorf("status groups wrong:\n%s", out)
+	}
+}
+
+// TestIndexBacklinksToTarget: `--backlinks=NNNN[:elem]` is the impact
+// query — typed edges and mentions, for one target or a whole record.
+func TestIndexBacklinksToTarget(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "index", "--backlinks=0001:A1", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "0001:A1: 0 typed, 1 mentions") {
+		t.Errorf("element target:\n%s", out)
+	}
+	code, out, _ = runCapture(t, "index", "--backlinks=0001", "--records", dir)
+	if code != 0 || !strings.Contains(out, "predecessor") || !strings.Contains(out, "0001: 1 typed, 1 mentions") {
+		t.Errorf("record target should gather the record and its elements:\n%s", out)
+	}
+	if code, _, _ := runCapture(t, "index", "--backlinks=nope", "--records", dir); code != 2 {
+		t.Errorf("a non-record target should stop with usage, got exit %d", code)
+	}
+	code, out, _ = runCapture(t, "index", "--backlinks", "--records", dir)
+	if code != 0 || !strings.Contains(out, "0001") {
+		t.Errorf("the bare form is still the whole table:\n%s", out)
+	}
+}
+
+// TestIndexAnchorIntersect: the after-propose scan fires on the uncited
+// pair, and only over in-flight records unless --all.
+func TestIndexAnchorIntersect(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "index", "--anchor-intersect", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.HasPrefix(out, "0001 0002 UNCITED 1 shared: internal/validate/uniqueid.go::checkUniqueNameIn") {
+		t.Errorf("the uncited pair should lead:\n%s", out)
+	}
+	if strings.Contains(out, "0004") || !strings.Contains(out, "1 with no cross-citation") {
+		t.Errorf("implemented records are out of scope:\n%s", out)
+	}
+	code, out, _ = runCapture(t, "index", "--anchor-intersect", "--all", "--records", dir)
+	if code != 0 || !strings.Contains(out, "0004") {
+		t.Errorf("--all should include the implemented record:\n%s", out)
+	}
+}
+
+// TestIndexReadmeDrift: the index table is checked against the records
+// and the one stale row is named with its line.
+func TestIndexReadmeDrift(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "index", "--readme", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, `0002 status          readme "Final"  record "Draft"`) || !strings.Contains(out, "total 1 drift over 4 rows, 4 records") {
+		t.Errorf("drift report:\n%s", out)
+	}
+	if code, _, _ := runCapture(t, "index", "--readme="+filepath.Join(dir, "missing.md"), "--records", dir); code != 2 {
+		t.Errorf("a missing README should stop, got exit %d", code)
+	}
+}
+
+// TestIndexClusterCandidateTier: two in-flight records that only mention
+// each other are reported as candidates, never as asserted members, and
+// a one-way mention is nothing.
+func TestIndexClusterCandidateTier(t *testing.T) {
+	dir := t.TempDir()
+	head := func(num, title, status string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: standard\n"
+	}
+	for name, body := range map[string]string{
+		"0001-alpha.md": head("0001", "Alpha", "Final") + "\n## Problem Statement\n\nSee 0002-beta and 0003-gamma and 0004-delta.\n",
+		"0002-beta.md":  head("0002", "Beta", "Final") + "\n## Problem Statement\n\nSee 0001-alpha.\n",
+		"0003-gamma.md": head("0003", "Gamma", "Final") + "\n## Problem Statement\n\nSynthetic.\n",
+		"0004-delta.md": head("0004", "Delta", "Implemented") + "\n## Problem Statement\n\nSee 0001-alpha.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errb := runCapture(t, "index", "--cluster-of", "0001", "--json", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var got struct {
+		Cluster []struct {
+			Record, Relation, Status string
+			Candidate                bool
+		}
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got.Cluster) != 2 || got.Cluster[1].Record != "0002" || got.Cluster[1].Relation != "mutual-mentions" || !got.Cluster[1].Candidate || got.Cluster[1].Status != "Final" {
+		t.Errorf("want the seed and one Final candidate with its status:\n%s", out)
 	}
 }

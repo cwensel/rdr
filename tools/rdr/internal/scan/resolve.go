@@ -274,9 +274,17 @@ func (r *Resolver) ResolveAll(docs []*Document) {
 type Member struct {
 	Record string `json:"record"`
 	Title  string `json:"title"`
+	// Status is the member's lifecycle status, so a caller applying 7.1's
+	// Final-and-unimplemented scope filters without opening the record.
+	Status string `json:"status,omitempty"`
 	// Relation is why the record is a member: `seed`, `declared`,
-	// `mutual-predecessor`, `peer-evidence` or `cross-cutting`.
+	// `mutual-predecessor`, `peer-evidence` or `cross-cutting` — or
+	// `mutual-mentions`, the candidate tier: two in-flight records that
+	// each name the other in prose with no typed relation between them.
 	Relation string `json:"relation"`
+	// Candidate marks the mutual-mentions tier: a member to confirm or
+	// dismiss, not one the records assert.
+	Candidate bool `json:"candidate,omitempty"`
 }
 
 // ClusterOf derives a record's cluster from the edge graph.
@@ -300,6 +308,20 @@ type Member struct {
 // Membership is reported one hop from the seed, with the relation that
 // earned it, so the caller sees why each member is in the set rather than
 // a bare list to take on trust.
+//
+// THE CANDIDATE TIER. Checked against the clusters Stage 7.1 actually
+// reconciled (seven snapshots of one consumer corpus), the typed rule
+// reproduced three exactly and missed members in the rest — members
+// joined to the seed only by dense prose cross-reference, twenty or
+// thirty bare mentions each way and no typed edge at all. So a pair of
+// in-flight records that each mention the other is reported too, marked
+// `mutual-mentions` and Candidate, one hop only. It is a lead the caller
+// confirms, not an assertion the records make; restricting it to
+// in-flight pairs and to mutual mention keeps it from pulling in the
+// implemented history every record cites. Two historical members had no
+// citation in either direction and were declared by the user; no rule
+// over the records can recover those, and a declared `Cluster` field is
+// the fix.
 func ClusterOf(docs []*Document, seed string) []Member {
 	byRecord := map[string]*Document{}
 	for _, d := range docs {
@@ -319,6 +341,12 @@ func ClusterOf(docs []*Document, seed string) []Member {
 		if _, seen := out[rec]; !seen {
 			out[rec] = relation
 		}
+	}
+	status := func(d *Document) string {
+		if f := d.MetadataField("Status"); f != nil && f.Status != nil {
+			return f.Status.Value
+		}
+		return ""
 	}
 	outbound := map[string]map[edge.Kind]bool{}
 	for _, e := range self.Edges {
@@ -365,15 +393,29 @@ func ClusterOf(docs []*Document, seed string) []Member {
 			note(rec, "cross-cutting")
 		}
 	}
+	if IsInFlight(status(self)) {
+		for _, d := range docs {
+			if d.Record == seed || !outbound[d.Record][edge.Mentions] || !IsInFlight(status(d)) {
+				continue
+			}
+			for _, e := range d.Edges {
+				if e.Kind == edge.Mentions && recordOf(e.To) == seed {
+					note(d.Record, "mutual-mentions")
+					break
+				}
+			}
+		}
+	}
 
-	members := []Member{{Record: seed, Title: self.Title, Relation: "seed"}}
+	members := []Member{{Record: seed, Title: self.Title, Status: status(self), Relation: "seed"}}
 	rest := make([]string, 0, len(out))
 	for rec := range out {
 		rest = append(rest, rec)
 	}
 	sortStrings(rest)
 	for _, rec := range rest {
-		members = append(members, Member{Record: rec, Title: byRecord[rec].Title, Relation: out[rec]})
+		members = append(members, Member{Record: rec, Title: byRecord[rec].Title, Status: status(byRecord[rec]),
+			Relation: out[rec], Candidate: out[rec] == "mutual-mentions"})
 	}
 	return members
 }
