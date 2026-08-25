@@ -151,8 +151,8 @@ RDR_PATH=$("$RDR_HOME/bin/rdr" inspect --json --filter path "$arg" |
 RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identity
 ```
 
-**Reading the record**: through the projector, never `sed -n`/`grep` on
-`$RDR_PATH` — `inspect NNNN` (the ~50-line id list; not `--select elements`, 25×
+**Reading a record** — this one or any peer — through the projector, never
+`sed -n`/`grep` on the file: `inspect NNNN` (the ~50-line id list; not `--select elements`, 25×
 larger), `--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:D-identity`
 (a section's or element's bytes — the ids are in the list; never `sed -n` on its
 line ranges), `--json --filter metadata,counts`. Those cost ~20ms; `edges`, bare
