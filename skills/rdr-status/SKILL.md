@@ -55,19 +55,40 @@ per-slug paths above count.
 | 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
 | 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending); `Premortem:`, `Ground-sweep:`, and `Joint-check:` verdict lines in Decision Rationale (legacy RDRs predate them — absence alone doesn't reopen propose when the sections are filled, but surface it as a Caveat naming the unrun check, since a skipped gate item otherwise reads as a passed one; a *paused* joint-decision fire or bridge choice is propose not done) |
 | 3 Refine | *human-judged* — certified only by **Stage 4's product**: an assumption at `Status: Verified`, or `{SPIKE_DIR}`. A `Method:`/`Evidence:` line is **not** a signal (TEMPLATE.md ships both as skeleton labels; Stage 2 lists CAs `Pending` by design) — an all-`Pending` list means Refine is un-run. Never certify it from Stage-2 output (CA count, `Premortem:`/`Joint-check:` verdicts, propose evidence) |
-| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, read from the RDR body); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
+| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, from the CA tallies above); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present (legacy RDRs: five responses inline in the RDR — either satisfies); README index row updated |
 | 8.1 Cluster | `<RDR_EVIDENCE>/<slug>/evidence/cluster-reconcile/<cluster>/` (only when the RDR is in a cluster) |
 | 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
-Read in one pass: the RDR's `**Status**:` line (verbatim, including any qualifier),
-its `Profile` field, its Critical Assumptions (count Verified vs Pending), and — for
-`mid`/`large` — its Normative Contracts (the Determinacy trigger, §lens-row), then `ls` each folder at the
-exact shape above — lenses, `reconcile`, and `spikes` under `<slug>/evidence/`
-(legacy: top-level `spikes/<slug>/`), plus `cluster-reconcile/` and
-`{ARTIFACT_DIR}/status.md`.
+### The record half — one projection, not a body read
+
+```sh
+[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+```
+
+Read literally, never re-parsed from the markdown:
+- **Status** — `metadata[]` where `label=="Status"` → `.status.{value,qualifier,form,raw}`.
+  `value` is the bare Status, `qualifier` the bracket contents already split out;
+  print `raw` where the Output section says "verbatim".
+- **Profile** — `metadata[]` where `label=="Profile"` → `.value`.
+- **CA tallies** — `elements[]` where `kind=="A"`; each one's `fields[]` where
+  `label=="Status"` → `.status.value`. Count `Verified` vs `Pending`.
+- **Determinacy trigger** — `counts.elements.C` > 0 (Normative Contracts present),
+  for `mid`/`large` per §lens-row.
+
+The `Premortem:` / `Ground-sweep:` / `Joint-check:` verdict lines are prose, not
+fields — the projection does not carry them. Read only that section's bytes:
+`"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale --records "$RDR_RECORDS" <NNNN>`
+(the id is stable across all four epochs).
+
+No binary → read the four items above from the RDR body by hand; the same
+interpretation rules apply either way.
+
+Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spikes`
+under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus
+`cluster-reconcile/` and `{ARTIFACT_DIR}/status.md`.
 For an in-flight Stage 9, the status.md capsule header is the single authoritative
 resume read — do not open the detailed implementation artifacts unless it is absent
 or contradicts what the tree shows.
@@ -158,14 +179,23 @@ No writes. Confirm `git status` would be unchanged (you ran only reads).
 
 ## No-arg mode
 
-List in-flight RDRs: glob the RDR dir, read each `**Status**:` line, and report
-every RDR whose Status is `Draft`/`Draft [revised…]` (and any `Final` not yet
-`Implemented`) as one line — `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
-Skip `Implemented`/`Demoted`/`Abandoned`/`Superseded`. List a `Deferred` RDR in a
-separate **parked** line with its revisit condition — it is not in flight, but it is
-not closed either, and a trigger nobody re-reads is how a park becomes an abandon by
-default. Keeps the standing
-worklist visible without opening each RDR. When several listed Drafts are
+One command, no glob and no per-file read:
+
+```sh
+[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" index --in-flight --records "$RDR_RECORDS"
+```
+
+It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
+qualifier already split; report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
+Parked RDRs are not in flight, so add `--status --json` and take the records with
+`terminal:false, in_flight:false` (`Deferred`) — list each on a separate **parked**
+line with its `status.qualifier` revisit condition verbatim: not in flight, not
+closed either, and a trigger nobody re-reads is how a park becomes an abandon by
+default. `--status` also groups the rest, so `Implemented`/`Demoted`/`Abandoned`/
+`Superseded` need no separate skip rule.
+
+No binary → glob the RDR dir and read each `**Status**:` line, applying the same
+classes. When several listed Drafts are
 pre-propose siblings, recommend proposing **all** of them before any refines —
 breadth-first keeps joint-decision fires against still-fluid drafts
 (stages/02-propose.md, batch ordering).
