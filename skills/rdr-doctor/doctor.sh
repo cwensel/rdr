@@ -59,6 +59,42 @@ for base in "$PROJECT/.claude/skills" "$PROJECT/.codex/skills"; do
   fi
 done
 [ -n "$seen10" ] || echo "  [INFO] 10 no consumer skill links here (engine repo, or hand-driven consumer) - n/a"
+# 11 - the projector binary rdr-init builds. Skills call it as "$RDR_HOME/bin/rdr";
+# it is gitignored, so a fresh clone/plugin install has none until /rdr-init runs.
+RDR_BIN="$RDR_HOME/bin/rdr"
+if [ ! -x "$RDR_BIN" ]; then
+  if command -v go >/dev/null 2>&1; then
+    fail "11 projector not built ($RDR_BIN) - \$rdr-init in Codex or /rdr-init in Claude builds it, or: (cd \"\$RDR_HOME/tools/rdr\" && go build -o \"\$RDR_HOME/bin/rdr\" .)"
+  else
+    fail "11 projector not built and 'go' is not on PATH - install Go (go.dev/dl), then \$rdr-init in Codex or /rdr-init in Claude"
+  fi
+else
+  ver=$("$RDR_BIN" version 2>/dev/null) || ver=""
+  if [ -z "$ver" ]; then
+    fail "11 projector present but 'rdr version' failed ($RDR_BIN) - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
+  else
+    pass "11 projector built - $RDR_BIN ($ver)"
+    # 11b - staleness. The binary is stamped with the engine revision it was built
+    # from (-X main.version). A plugin upgrade or a git pull moves the engine and
+    # leaves the old binary in place; it still answers, so this warns, never fails.
+    built=$(echo "$ver" | awk '{print $2}')
+    cur=""
+    if [ -d "$RDR_HOME/.git" ] || git -C "$RDR_HOME" rev-parse --git-dir >/dev/null 2>&1; then
+      cur=$(git -C "$RDR_HOME" rev-parse --short HEAD 2>/dev/null)
+    elif [ -f "$RDR_HOME/.claude-plugin/plugin.json" ]; then
+      cur=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RDR_HOME/.claude-plugin/plugin.json" | head -1)
+    fi
+    if [ -z "$cur" ]; then
+      warn "11b projector staleness unknown - engine has no git dir or plugin.json to compare against (built $built)"
+    elif [ "$built" = "dev" ]; then
+      warn "11b projector built outside the install path (version 'dev', engine at $cur) - \$rdr-init in Codex or /rdr-init in Claude stamps it"
+    elif [ "$built" = "$cur" ]; then
+      pass "11b projector matches the engine - $cur"
+    else
+      warn "11b projector stale - built $built, engine now $cur - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
+    fi
+  fi
+fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."
 elif [ "$nw" -gt 0 ]; then echo "Verdict: 0 FAIL, $nw WARN - healthy; WARNs are advisory."
 else echo "Verdict: all checks PASS - the seam is healthy."; fi

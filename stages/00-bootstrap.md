@@ -144,7 +144,30 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    them would drift; see `skills/rdr-common.md`). Leave an existing
    `README.md` untouched.
 
-6. OFFER (do not auto-install) the SessionStart seam hook. The `/rdr-*` skills
+6. BUILD the projector. `rdr` is the deterministic, read-only reader the skills
+   call as `"$RDR_HOME/bin/rdr" inspect …`; it is gitignored, so every fresh clone
+   or plugin install has none until this step runs. Go stdlib only — no module
+   downloads, so this works offline. Stamp it with the engine revision it was
+   built from, so `/rdr-doctor` can tell a current binary from a stale one:
+
+   ```sh
+   command -v go >/dev/null 2>&1 || { echo "stopped:no-go-toolchain — the projector needs Go (go.dev/dl); install it, then re-run"; exit 1; }
+   if [ -d "$RDR_HOME/.git" ] || git -C "$RDR_HOME" rev-parse --git-dir >/dev/null 2>&1; then
+     STAMP=$(git -C "$RDR_HOME" rev-parse --short HEAD)
+   else
+     STAMP=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RDR_HOME/.claude-plugin/plugin.json" 2>/dev/null | head -1)
+     [ -n "$STAMP" ] || STAMP=installed
+   fi
+   (cd "$RDR_HOME/tools/rdr" && go build -ldflags "-X main.version=$STAMP" -o "$RDR_HOME/bin/rdr" .) \
+     || { echo "stopped:projector-build-failed — run the go build above by hand to see the compiler error"; exit 1; }
+   "$RDR_HOME/bin/rdr" version
+   ```
+
+   The build is REQUIRED: with no `go` on PATH, stop with `stopped:no-go-toolchain`
+   and name the install (go.dev/dl) — the projector is not optional, and a seam
+   without it cannot answer a structural question. Report the stamped version line.
+
+7. OFFER (do not auto-install) the SessionStart seam hook. The `/rdr-*` skills
    work without it — they run §seam-bind each call — but a consumer can pre-resolve
    the seam once per session. Opt-in only; do not write it silently.
    - Claude Code: copy `$RDR_HOME/rdr-seam-context.sh.template` to
@@ -180,6 +203,7 @@ the two files written, whether a workspace marker was created or already present
 (and whether it exports the five contract vars `RDR_HOME` / `RDR_RECORDS` /
 `RDR_EVIDENCE` / `RDR_ENV` / `RDR_RESOURCES`), whether `$RDR_RECORDS` and its `README.md` index were
 created or already present, how `RDR_HOME` resolved (plugin vs sibling),
+whether the projector built and the version it stamped,
 which named corpora exist vs are missing (the degraded-mode TODO), whether the
 SessionStart hook was offered/installed/declined, and any TODO I must resolve.
 ```

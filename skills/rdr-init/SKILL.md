@@ -14,7 +14,8 @@ engine + paths from any cwd/worktree), and the RDR home's index `README.md`.
 
 **Scope.** Creates the untracked seam + marker, the RDR home, and its index
 README (the one tracked file it adds — inside `$RDR_RECORDS`, not the consumer's code;
-the flow needs it as its index/Status table). Does **not** install the `/rdr-*`
+the flow needs it as its index/Status table), and builds the `rdr` projector binary
+the skills read records through. Does **not** install the `/rdr-*`
 symlink farm (consumer-owned) — though a re-run **offers to complete** an
 *existing* `rdr-*` farm with newly shipped engine skills (never creates one) —
 and never copies the engine's `TEMPLATE.md`/prompts (read live from `$RDR_HOME`).
@@ -159,6 +160,10 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    - scaffolds the RDR home: `mkdir -p "$RDR_RECORDS"` and, if no index yet, copies
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
+   - **builds the projector** — `go build` of `$RDR_HOME/tools/rdr` to
+     `$RDR_HOME/bin/rdr` (gitignored), stamped with the engine revision so
+     `/rdr-doctor` can spot a stale binary. Required: no `go` on PATH is a
+     `stopped:no-go-toolchain`, since the skills read records through it,
    - **offers** (never auto-installs) the SessionStart seam hook
      [`rdr-seam-context.sh.template`](rdr-seam-context.sh.template) — on yes:
      Claude Code uses `.claude/hooks/rdr-seam-context.sh` + `.claude/settings.json`;
@@ -181,6 +186,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    [ -n "$RDR_EVIDENCE" ]                                   || echo "stopped:RDR_EVIDENCE-unset"
    [ -n "$RDR_ENV" ]       && [ -f "$RDR_ENV" ]             || echo "stopped:RDR_ENV-unset-or-missing"
    [ -n "$RDR_RESOURCES" ] && [ -f "$RDR_RESOURCES" ]       || echo "stopped:RDR_RESOURCES-unset-or-missing"
+   [ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" version || echo "stopped:projector-not-built"
    ```
    `$RDR_RECORDS` is created by step 2's scaffold (with the index `README.md`), so it
    must bind here as a dir holding that README — unless you deliberately deferred it.
@@ -196,6 +202,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    Seam:     .rdr/  (gitignored)            — to track: point RDR_ENV/RDR_RESOURCES at a tracked dir
    Records:  <RDR_RECORDS>                  — change: /rdr-init --reconfigure
    Evidence: <RDR_EVIDENCE> (= records)     — change: /rdr-init --reconfigure
+   Projector: <RDR_HOME>/bin/rdr <version>  — rebuilt by a bare /rdr-init re-run
    ```
 
 ## Reconfigure — `/rdr-init --reconfigure`
@@ -227,6 +234,9 @@ dirs to move by hand. Re-run `/rdr-doctor` after to confirm the new layout binds
 - **Scope honored?** Repo-local (default) wrote `$PROJECT/.rdr/workspace` and **left any
   shared `$WS/.rdr-workspace` untouched**; `--workspace` wrote/kept `$WS`'s. The report
   names which.
+- **Projector built?** `$RDR_HOME/bin/rdr version` runs and prints a stamp that is
+  not `dev` (a `dev` stamp means the build bypassed the install path). A missing Go
+  toolchain stopped the run rather than leaving the seam half-built.
 - **Marker binds?** Sourcing the resolved marker exports the five contract vars;
   `RDR_HOME` resolved plugin-first, else sibling; `RDR_EVIDENCE` set (defaults to
   `$RDR_RECORDS`).
