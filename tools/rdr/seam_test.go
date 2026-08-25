@@ -338,3 +338,85 @@ export RDR_RECORDS RDR_USAGE_LOG
 		t.Error("the sibling grew its own .rdr/")
 	}
 }
+
+// TestCommitRefusesARecordWithoutALintReceipt: §commit is the one
+// mechanical choke point a stage passes through, so it is where a gate
+// closed without lint is caught. The script is sourced exactly as a
+// skill sources it, against a built binary, in a real repo.
+func TestCommitRefusesARecordWithoutALintReceipt(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
+	home := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(home, "bin"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	build := exec.Command("go", "build", "-o", filepath.Join(home, "bin", "rdr"), ".")
+	if out, err := build.CombinedOutput(); err != nil {
+		t.Fatalf("build: %v\n%s", err, out)
+	}
+	script, err := filepath.Abs(filepath.Join("..", "..", "skills", "rdr-commit.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	repo := t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(repo); err == nil {
+		repo = resolved
+	}
+	git := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repo
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	git("init", "-q")
+	git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "root")
+	rec := filepath.Join(repo, "0007-receipt.md")
+	body := "# Recommendation 0007: Receipt\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Draft\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(rec, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(t.TempDir(), "usage.jsonl")
+
+	commit := func() (int, string) {
+		cmd := exec.Command("sh", "-c", `. "$1"; rdr_commit "docs(rdr): test" "$2"`, "_", script, rec)
+		cmd.Dir = repo
+		cmd.Env = append(os.Environ(), "RDR_HOME="+home, "RDR_USAGE_LOG="+log, "RDR_RECORDS="+repo,
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		out, err := cmd.CombinedOutput()
+		code := 0
+		if ee, ok := err.(*exec.ExitError); ok {
+			code = ee.ExitCode()
+		} else if err != nil {
+			t.Fatalf("sh: %v\n%s", err, out)
+		}
+		return code, string(out)
+	}
+
+	if code, out := commit(); code != 1 || !strings.Contains(out, "stopped:commit-unlinted") {
+		t.Fatalf("unlinted record: exit %d %q, want 1 stopped:commit-unlinted", code, out)
+	}
+	lint := exec.Command(filepath.Join(home, "bin", "rdr"), "lint", "--records", repo, "0007")
+	lint.Env = append(os.Environ(), "RDR_USAGE_LOG="+log)
+	if out, err := lint.CombinedOutput(); err != nil {
+		if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() > 1 {
+			t.Fatalf("lint: %v\n%s", err, out)
+		}
+	}
+	if code, out := commit(); code != 0 || !strings.Contains(out, "committed ") {
+		t.Fatalf("linted record: exit %d %q, want a commit", code, out)
+	}
+	// With no log bound the check cannot vouch either way: note, and commit.
+	if err := os.WriteFile(rec, []byte(body+"\nEdited.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log = "off"
+	if code, out := commit(); code != 0 || !strings.Contains(out, "note:stopped:no-usage-log") {
+		t.Fatalf("no log: exit %d %q, want a commit with a note", code, out)
+	}
+}

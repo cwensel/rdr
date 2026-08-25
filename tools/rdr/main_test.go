@@ -1090,3 +1090,71 @@ func TestUsageLogFacetCarriesTheFilter(t *testing.T) {
 		t.Errorf("facet = %v, want json:metadata,counts", line["facet"])
 	}
 }
+
+// TestReceiptVouchesOnlyForALintAfterTheLastWrite: the receipt is the
+// usage log's own lint line, and only one at or after the record's mtime
+// counts — a gate closed on stale lint is the case this exists to catch.
+func TestReceiptVouchesOnlyForALintAfterTheLastWrite(t *testing.T) {
+	dir := t.TempDir()
+	rec := filepath.Join(dir, "0007-receipt.md")
+	body := "# Recommendation 0007: Receipt\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Draft\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(rec, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	log := filepath.Join(t.TempDir(), "usage.jsonl")
+
+	t.Setenv(usageEnvVar, "off") // an empty env falls through to the marker, and this repo's is on
+	if code, _, errb := runCapture(t, "receipt", "--records", dir, "7"); code != 2 || !strings.Contains(errb, "no-usage-log") {
+		t.Fatalf("no log: exit %d %q, want 2 stopped:no-usage-log", code, errb)
+	}
+
+	t.Setenv(usageEnvVar, log)
+	if code, _, errb := runCapture(t, "receipt", "--records", dir, "7"); code != 1 || !strings.Contains(errb, "no-lint-receipt") || !strings.Contains(errb, "last lint never") {
+		t.Fatalf("never linted: exit %d %q, want 1 stopped:no-lint-receipt … last lint never", code, errb)
+	}
+
+	// A lint by number, then by path, then of the whole dir: each spelling covers the record.
+	for _, target := range [][]string{{"7"}, {rec}, {}} {
+		if code, _, errb := runCapture(t, append([]string{"lint", "--records", dir}, target...)...); code > 1 {
+			t.Fatalf("lint %v: exit %d %s", target, code, errb)
+		}
+		code, out, errb := runCapture(t, "receipt", "--records", dir, "0007")
+		if code != 0 {
+			t.Fatalf("after lint %v: exit %d %s", target, code, errb)
+		}
+		if !strings.Contains(out, `"cmd":"lint"`) {
+			t.Errorf("receipt line is not the lint line: %s", out)
+		}
+	}
+
+	// The record is written again, two seconds after that lint: stale.
+	var last struct {
+		TS string `json:"ts"`
+	}
+	raw, _ := os.ReadFile(log)
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.Contains(lines[i], `"cmd":"lint"`) {
+			if err := json.Unmarshal([]byte(lines[i]), &last); err != nil {
+				t.Fatal(err)
+			}
+			break
+		}
+	}
+	linted, _ := time.Parse(time.RFC3339, last.TS)
+	if err := os.WriteFile(rec, []byte(body+"\nEdited.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chtimes(rec, linted.Add(2*time.Second), linted.Add(2*time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, errb := runCapture(t, "receipt", "--records", dir, "0007"); code != 1 || !strings.Contains(errb, "last lint "+last.TS) {
+		t.Fatalf("stale lint: exit %d %q, want 1 naming the last lint", code, errb)
+	}
+	// --since is the caller's own instant, and outranks the mtime.
+	if code, _, _ := runCapture(t, "receipt", "--records", dir, "--since", linted.Add(-time.Second).Format(time.RFC3339), "0007"); code != 0 {
+		t.Errorf("--since before the lint: exit %d, want 0", code)
+	}
+}

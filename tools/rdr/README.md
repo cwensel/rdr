@@ -782,6 +782,22 @@ direction — `inspect --json` on the same record emits *more* than the
 file does. The saving is in `--select` and the index facets, never in
 the full envelope, and the log says so.
 
+## §receipt — was it linted since it was last written?
+
+    rdr receipt 0143          # 0: prints the lint's log line; 1: stopped:no-lint-receipt; 2: no log bound
+
+The log's first real audit found a record carried through four stages in
+a day with two `inspect` calls and no `lint`, every gate closed. The
+skills say "lint at stage exit"; nothing checked. `receipt` is the check:
+the newest `lint` line whose target covers the record (its number in any
+spelling, its path, or a whole-dir lint) at or after the record's mtime
+(`--since` overrides). A lint that exited 1 still counts — it ran. §commit
+in `rdr-commit.sh` runs it for every `NNNN-*.md` path it is handed and
+refuses the commit on 1; on 2 it proceeds with a note, because a project
+that never turned the log on did not opt into this either. That makes the
+commit the choke point: a gate closed without lint is caught where the
+history is written, not read about later.
+
 | field | |
 | --- | --- |
 | `ts` | RFC3339 with offset |

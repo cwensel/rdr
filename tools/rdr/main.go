@@ -57,6 +57,7 @@ usage:
   rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--project P] [--records DIR]
   rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
+  rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr version
 
 index with no facet is the corpus graph: every record, element and edge,
@@ -87,9 +88,14 @@ only, and resolution findings — dangling edges, Peer-RDR Evidence naming no
 element, unlabelled contracts on a post-rule record — that block a lock.
 With no argument it lints the whole records dir.
 
+receipt asks the usage log whether the record was linted at or after its
+last write (README §receipt): exit 0 and the lint's log line; 1 and
+stopped:no-lint-receipt; 2 when no log is bound. §commit refuses a record
+commit on 1 — the check that catches a gate closed without lint.
+
 exit codes:
   0  success, findings or not
-  1  lint: a finding blocks a lock
+  1  lint: a finding blocks a lock; receipt: no lint since the last write
   2  unparseable input, unresolvable selector, or unimplemented subcommand
 `
 
@@ -108,7 +114,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint":
+	case "inspect", "index", "lint", "receipt":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -184,6 +190,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return indexGraph(f, stdout, stderr)
 	case "lint":
 		return lintCmd(fs.Args(), f, stdout, stderr)
+	case "receipt":
+		return receipt(fs.Args(), f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -202,6 +210,7 @@ type flags struct {
 	clusterOf             *string
 	unresolved, anchors   *bool
 	locking               *bool
+	since                 *string // receipt: the instant a lint must postdate
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -217,7 +226,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
-		f.sel = fs.String("select", "", "project one facet: outline|elements|edges|warnings|<element-id>")
+		f.sel = fs.String("select", "", "project one facet: outline|elements|edges|warnings|metadata|fields|anchors|<element-id>")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
@@ -235,6 +244,8 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
+	case "receipt":
+		f.since = fs.String("since", "", "RFC3339 instant the lint must postdate (default: the record's mtime)")
 	}
 	return f
 }
