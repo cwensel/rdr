@@ -942,3 +942,89 @@ func TestSlugResolvesLikeANumber(t *testing.T) {
 		t.Errorf("a slug naming nothing exited %d, want 2", code)
 	}
 }
+
+// TestRecordsDirFailureSaysWhereItLooked: `docs/rdr holds no NNNN-*.md`
+// names no directory a reader can go and check — it is true of a hundred
+// places, and it does not say whether the cwd, the marker, or a join of
+// the two was read. A user hitting it spent a turn guessing, then a turn
+// re-running with absolute paths.
+func TestRecordsDirFailureSaysWhereItLooked(t *testing.T) {
+	marker := t.TempDir()
+	t.Chdir(t.TempDir())
+	t.Setenv("RDR_RECORDS", marker)
+
+	_, _, errb := runCapture(t, "index", "--in-flight", "--records", "nope/here")
+	if !strings.Contains(errb, "no-records") {
+		t.Fatalf("want a no-records stop, got %q", errb)
+	}
+	// The directory it actually read is named absolutely.
+	if !strings.Contains(errb, filepath.Join("nope", "here")) || !strings.HasPrefix(strings.TrimPrefix(errb, "stopped:no-records ("), "/") {
+		t.Errorf("failure does not name an absolute directory: %q", errb)
+	}
+	// And every candidate is listed, so the fix does not cost a turn.
+	if !strings.Contains(errb, "looked in:") {
+		t.Errorf("failure does not say where it looked: %q", errb)
+	}
+	if !strings.Contains(errb, "$RDR_RECORDS") {
+		t.Errorf("failure does not mention the marker it consulted: %q", errb)
+	}
+}
+
+// TestRelativeRecordsNeverSilentlyBecomesTheMarker: the rescue resolves a
+// relative path, it does not substitute for one. `--records nope/here`
+// under a valid marker must FAIL — answering out of $RDR_RECORDS would
+// return a real, plausible corpus for a path that names nothing, which is
+// worse than an error because the answer looks right.
+func TestRelativeRecordsNeverSilentlyBecomesTheMarker(t *testing.T) {
+	marker := t.TempDir()
+	body := "# Recommendation 0003: M\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(marker, "0003-m.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir())
+	t.Setenv("RDR_RECORDS", marker)
+
+	code, out, _ := runCapture(t, "index", "--in-flight", "--records", "nope/here")
+	if code == 0 {
+		t.Errorf("a --records naming nothing returned the marker's corpus:\n%s", out)
+	}
+
+	// With no --records at all, the marker IS the answer — that is the
+	// documented default, not a guess.
+	code, out, errb := runCapture(t, "index", "--in-flight")
+	if code != 0 {
+		t.Fatalf("bare --in-flight exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "0003-m") {
+		t.Errorf("the marker default did not resolve:\n%s", out)
+	}
+}
+
+// TestRecordsDirResolvesFromInsideItself: the shape that produced the
+// doubled `…/docs/rdr/docs/rdr` in the wild — $RDR_RECORDS ends with the
+// same relative path the caller passed, and the cwd is already inside it.
+func TestRecordsDirResolvesFromInsideItself(t *testing.T) {
+	root := t.TempDir()
+	recs := filepath.Join(root, "docs", "rdr")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Recommendation 0003: Nested\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(recs, "0003-nested.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_RECORDS", recs)
+	t.Chdir(recs) // already inside the records dir
+
+	code, out, errb := runCapture(t, "index", "--in-flight", "--records", "docs/rdr")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "0003-nested") {
+		t.Errorf("did not resolve from inside the records dir:\n%s", out)
+	}
+}

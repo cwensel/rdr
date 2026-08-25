@@ -265,7 +265,7 @@ func resolve(arg, records string) (string, error) {
 		}
 	}
 	if ident.RecordOf(arg) == arg {
-		dir := recordsDir(records)
+		dir, tried := resolveRecordsDir(records)
 		matches, _ := filepath.Glob(filepath.Join(dir, arg+"-*.md"))
 		if len(matches) == 0 {
 			matches, _ = filepath.Glob(filepath.Join(dir, arg+".md"))
@@ -273,7 +273,7 @@ func resolve(arg, records string) (string, error) {
 		matches = recordFiles(matches)
 		switch len(matches) {
 		case 0:
-			return "", fmt.Errorf("stopped:no-such-record (%s in %s)", arg, dir)
+			return "", fmt.Errorf("stopped:no-such-record (%s in %s%s)", arg, absOrSelf(dir), whereItLooked(tried))
 		case 1:
 			return matches[0], nil
 		default:
@@ -391,34 +391,91 @@ func shortRecordNumber(arg string) string {
 // one that does resolve from the cwd wins too: this only rescues the
 // case that would otherwise have found nothing.
 func recordsDir(records string) string {
+	dir, _ := resolveRecordsDir(records)
+	return dir
+}
+
+// resolveRecordsDir returns the directory to read and a one-line account
+// of how it was chosen, so a failure can say where it looked instead of
+// echoing back the relative word the caller typed.
+//
+// That echo is the whole reason this exists. `docs/rdr holds no NNNN-*.md`
+// names no directory a user can check: it is true of a hundred places,
+// and it does not say whether the tool read the cwd, the marker, or some
+// join of the two. Every candidate below is recorded, and the caller
+// prints the trail on failure.
+//
+// Candidates, in order, first hit wins:
+//
+//	absolute            obeyed exactly, always — a spelled-out path means itself
+//	the cwd             a relative path that resolves from here is what was meant
+//	$RDR_RECORDS        when it already ENDS with the relative path (the common
+//	                    shape: --records rdr/cli under a marker at …/x/rdr/cli)
+//	$RDR_RECORDS/<rel>  only when that really exists, never invented
+//	$RDR_RECORDS        the marker alone, when nothing else resolved
+func resolveRecordsDir(records string) (string, []string) {
+	env := os.Getenv("RDR_RECORDS")
+	var tried []string
+	note := func(what, path string) { tried = append(tried, what+" "+path) }
+
 	if records == "" {
-		if env := os.Getenv("RDR_RECORDS"); env != "" {
-			return env
+		if env != "" {
+			note("$RDR_RECORDS", env)
+			return env, tried
 		}
-		return "."
+		note("cwd", ".")
+		return ".", tried
 	}
 	if filepath.IsAbs(records) {
-		return records
+		note("--records", records)
+		return records, tried
 	}
-	if fi, err := os.Stat(records); err == nil && fi.IsDir() {
-		return records
+	if abs, err := filepath.Abs(records); err == nil && dirExists(abs) {
+		note("--records under the cwd", abs)
+		return records, tried
+	} else if err == nil {
+		note("--records under the cwd", abs)
 	}
-	env := os.Getenv("RDR_RECORDS")
 	if env == "" {
-		return records
+		return records, tried
 	}
-	// $RDR_RECORDS may itself be the dir the caller named relatively —
-	// `--records rdr/cli` under a marker pointing at `…/process/rdr/cli`.
+	// $RDR_RECORDS may already BE the dir the caller named relatively.
 	if strings.HasSuffix(filepath.Clean(env), string(filepath.Separator)+filepath.Clean(records)) {
-		return env
+		note("$RDR_RECORDS (already ends with it)", env)
+		return env, tried
 	}
-	if joined := filepath.Join(env, records); dirExists(joined) {
-		return joined
+	joined := filepath.Join(env, records)
+	if dirExists(joined) {
+		note("$RDR_RECORDS + --records", joined)
+		return joined, tried
 	}
-	if dirExists(env) {
-		return env
+	note("$RDR_RECORDS + --records", joined)
+	// Deliberately NOT falling back to $RDR_RECORDS alone. A caller who
+	// passed `--records nope/here` asked for a directory; answering out
+	// of the marker instead would return a real, plausible corpus for a
+	// path that names nothing — the tool guessing, and the one failure
+	// mode worse than an error, because the answer looks right. The
+	// relative path stands, and the trail says every place it was sought.
+	return records, tried
+}
+
+// absOrSelf prints a directory as an absolute path when it can, because
+// a relative one names no place a reader can go and check.
+func absOrSelf(dir string) string {
+	if abs, err := filepath.Abs(dir); err == nil {
+		return abs
 	}
-	return records
+	return dir
+}
+
+// whereItLooked renders the resolution trail, but only when more than
+// one candidate was considered — on the ordinary absolute path there is
+// nothing to explain and the noise would be pure cost.
+func whereItLooked(tried []string) string {
+	if len(tried) < 2 {
+		return ""
+	}
+	return "; looked in: " + strings.Join(tried, ", ")
 }
 
 func fileExists(p string) bool {
@@ -599,15 +656,13 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 // record. Files with no epoch fingerprint are returned as skipped, never
 // silently dropped.
 func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []string, code int) {
-	dir := *f.records
-	if dir == "" {
-		dir = "."
-	}
+	dir, tried := resolveRecordsDir(*f.records)
 	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
 	paths = recordFiles(paths)
 	sort.Strings(paths)
 	if len(paths) == 0 {
-		fmt.Fprintf(stderr, "stopped:no-records (%s holds no NNNN-*.md)\n", dir)
+		fmt.Fprintf(stderr, "stopped:no-records (%s holds no NNNN-*.md%s)\n",
+			absOrSelf(dir), whereItLooked(tried))
 		return nil, nil, 2
 	}
 	for _, p := range paths {
@@ -813,12 +868,12 @@ func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err 
 	// Same rescue as a single-record lookup: `index` and `lint` read a
 	// relative --records the way `inspect` does, so one wrong cwd does
 	// not report an empty corpus.
-	dir = recordsDir(dir)
+	dir, tried := resolveRecordsDir(dir)
 	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
 	paths = recordFiles(paths)
 	sort.Strings(paths)
 	if len(paths) == 0 {
-		return nil, nil, fmt.Errorf("%s holds no NNNN-*.md", dir)
+		return nil, nil, fmt.Errorf("%s holds no NNNN-*.md%s", absOrSelf(dir), whereItLooked(tried))
 	}
 	for _, p := range paths {
 		doc, e := scan.File(p, scan.Options{Project: project})
