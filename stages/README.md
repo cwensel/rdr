@@ -359,9 +359,20 @@ hops back into wherever the flow docs sit.
 **Two scopes, nearest wins.** The **default** is a repo-local marker at
 `$PROJECT/.rdr/workspace` (inside the gitignored `.rdr/`, so no project-level
 `.gitignore` edit) — each repo runs its own RDR process. §seam-bind prefers it over a
-shared `$WS/.rdr-workspace`, which several sibling repos opt into with
-`/rdr-init --workspace` (e.g. a code/records/evidence trio of sibling repos sharing one seam).
+shared `$WS/.rdr-workspace`, which sibling repos opt into with `/rdr-init --workspace`.
 A repo-local marker overrides the shared one for that repo without re-pointing it.
+
+**Workspace scope is ONE project whose parts span sibling repos — not many
+projects sharing a seam.** Every var a marker exports is single-valued, so a
+shared marker describes exactly one RDR home: one `RDR_RECORDS`, one
+`RDR_EVIDENCE`, one `RDR_ENV`. That is the right shape for a code/records/
+evidence trio (the worked example below), and the wrong one for two unrelated
+projects — `$PROJECT` selects *which marker file* to source, never which values
+inside it, so a second project under the same parent inherits the first's
+records rather than getting its own. **A second project takes a repo-local
+marker**, which is why repo-local is the default. `/rdr-init` will not silently
+adopt a shared marker that names a different project's records; rdr-doctor
+reports the same as check 1b.
 
 > **Worked example — a pinned-seam consumer.** A consumer may pin its seam this
 > way and **retire `.rdr/` entirely** — no gitignored scratch seam at all.

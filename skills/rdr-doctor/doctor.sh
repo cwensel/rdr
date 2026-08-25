@@ -20,6 +20,27 @@ pass "1 marker present - $MARKER  [$SCOPE]"
 m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval "[ -n \"\$$v\" ]" || m="$m $v"; done
 [ -z "$m" ] && pass "3 five-var contract set" || fail "3 unset:$m - re-run \$rdr-init in Codex or /rdr-init in Claude to write the marker"
 [ -n "$RDR_REPO" ] && { [ -d "$RDR_REPO" ] && pass "3b source root - $RDR_REPO" || fail "3b RDR_REPO set but missing ($RDR_REPO) - fix the marker; a wrong root makes anchor checks report false findings"; } || { [ "$PROJECT" = "$RDR_HOME" ] && echo "  [INFO] 3b RDR_REPO unset - engine repo, the flow runs in consumers - n/a" || warn "3b RDR_REPO unset - source-anchor checks report \"not run\" (correct when the RDRs cite no path::Symbol anchors; else set it in the marker)"; }
+# 1b - an inherited shared marker. Workspace scope describes ONE project whose
+# parts span sibling repos; its vars are single-valued. A repo that is NOT part of
+# that project silently inherits its records, so a /rdr-seed here lands an RDR in
+# the other project's dir with no error. Membership = this repo is the source root,
+# or holds the records / evidence / seam data the marker names.
+if [ "$SCOPE" = "workspace (shared)" ] && [ "$PROJECT" != "$RDR_HOME" ]; then
+  mine=""
+  for v in "$RDR_REPO" "$RDR_RECORDS" "$RDR_EVIDENCE" "$RDR_ENV"; do
+    case "$v" in "$PROJECT"|"$PROJECT"/*) mine=1;; esac
+  done
+  # A *_ROOT naming this repo is NOT membership: a marker lists sibling repos as
+  # conveniences, most with no RDR role. Only the four seam paths decide. With
+  # RDR_REPO unset the source repo cannot prove itself, so say that rather than
+  # accuse it - the fix is to set RDR_REPO, which 3b already asks for.
+  if [ -z "$mine" ] && [ -z "$RDR_REPO" ]; then
+    warn "1b shared marker (records=$RDR_RECORDS) - RDR_REPO unset, so whether this repo is the project's source root cannot be told. Set RDR_REPO in $MARKER, or write a repo-local marker if this is a different project"
+    mine=skip
+  fi
+  [ "$mine" = skip ] || { [ -n "$mine" ] && pass "1b shared marker describes this project" \
+    || warn "1b shared marker names another project (records=$RDR_RECORDS) - this repo is not in it; a /rdr-seed here writes there. Run \$rdr-init in Codex or /rdr-init in Claude to write a repo-local marker"; }
+fi
 [ -d "$RDR_HOME/stages" ] && [ -d "$RDR_HOME/skills" ] && [ -d "$RDR_HOME/prompts" ] && [ -f "$RDR_HOME/TEMPLATE.md" ] && pass "4 engine resolves - $RDR_HOME" || fail "4 RDR_HOME is not an engine root ($RDR_HOME) - re-run /rdr-init"
 [ -d "$RDR_RECORDS" ] && pass "5 records dir - $RDR_RECORDS" || fail "5 records dir missing ($RDR_RECORDS) - \$rdr-init in Codex or /rdr-init in Claude scaffolds it"
 [ -d "$RDR_RECORDS" ] && { [ -f "$RDR_RECORDS/README.md" ] && pass "5b index README present" || warn "5b no index README - \$rdr-init in Codex or /rdr-init in Claude scaffolds it"; }

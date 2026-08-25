@@ -93,8 +93,19 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      gitignored `.rdr/`, so no project-level `.gitignore` edit; anchored at
      `$PROJECT` so worktrees resolve it. Anchor the marker's paths on `$PROJECT`.
    - **workspace (`--workspace`)** → `$WS/.rdr-workspace`, shared above the repos,
-     anchored on `$WS`. If it already exists, leave it (just verify it exports
-     `RDR_HOME`; add a missing var rather than rewriting).
+     anchored on `$WS`. For **one project whose parts span sibling repos** (code,
+     records, evidence), never for two unrelated projects: the marker's vars are
+     single-valued, so the second project would inherit the first's `RDR_RECORDS`.
+     If it already exists, leave it (just verify it exports `RDR_HOME`; add a
+     missing var rather than rewriting).
+   **Adoption guard.** When no repo-local marker exists but `$WS/.rdr-workspace`
+   does, do NOT adopt it silently — that is how a second project's RDRs land in
+   the first's records dir, with no error. Adopt it only when this repo is part
+   of the project it already describes: `$PROJECT` is its `RDR_REPO`, or holds
+   its `RDR_RECORDS` / `RDR_EVIDENCE` / `RDR_ENV`. Otherwise report
+   `stopped:foreign-workspace-marker:<path> (records=<RDR_RECORDS>)` and write a
+   repo-local marker instead (the default), or take `--workspace` as the explicit
+   instruction to join that project.
    **Copy the tracked template** `workspace.example` (symlinked beside this skill) to
    the chosen path and fill its blocks (set `WS`/`PROJECT` at the top to match the
    anchor). A repo-local marker **never reads or writes** the shared one.
