@@ -19,8 +19,8 @@ C3, C4 and C9 remain judgment on a narrowed read.
 
 ```bash
 [ -x "$RDR_HOME/bin/rdr" ] || echo "stopped:projector-not-built"
-"$RDR_HOME/bin/rdr" lint --locking --records "$RDR_RECORDS" --repo "$RDR_REPO" {RDR_NUMBER}
-"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_REPO" {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" lint --locking --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" {RDR_NUMBER}
 ```
 
 `lint` exit 1 = at least one blocking finding (printed with a leading `!`).
@@ -92,7 +92,7 @@ and nothing was looked for — report those SKIPPED, never as pass or fail. A ba
 `file:line` with no symbol emits no source-anchor edge at all; that absence is
 itself a finding (rewrite as `path::Symbol`). A stale line number alone, where
 the symbol still resolves, is a NON-finding and does not block Final.
-Corpus-wide: `rdr index --unresolved --records "$RDR_RECORDS" --repo "$RDR_REPO"`.
+Corpus-wide: `rdr index --unresolved --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"`.
 
 CHECK 6 — Status consistency  (projection-narrowed)
 `metadata[]` Status carries `status.{value,qualifier,form,tier}`; each

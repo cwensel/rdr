@@ -101,7 +101,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    **Adoption guard.** When no repo-local marker exists but `$WS/.rdr-workspace`
    does, do NOT adopt it silently — that is how a second project's RDRs land in
    the first's records dir, with no error. Adopt it only when this repo is part
-   of the project it already describes: `$PROJECT` is its `RDR_REPO`, or holds
+   of the project it already describes: `$PROJECT` is its `RDR_SOURCE_REPO`, or holds
    its `RDR_RECORDS` / `RDR_EVIDENCE` / `RDR_ENV`. Otherwise report
    `stopped:foreign-workspace-marker:<path> (records=<RDR_RECORDS>)` and write a
    repo-local marker instead (the default), or take `--workspace` as the explicit
@@ -112,6 +112,12 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    If the selected marker already exists and this is not `--reconfigure`, do not
    rewrite it; verify + report the five-var contract, then continue to the optional
    hook offer.
+   **Migrate a pre-rename marker in place, either way.** A marker exporting
+   `RDR_REPO` predates the rename and is no longer read, so its anchor checks
+   silently report "not run". Rename that one var to `RDR_SOURCE_REPO` — keeping
+   its value and its place on the `export` line — and say so; this is the one
+   edit permitted without `--reconfigure`, because leaving it turns a configured
+   consumer into an unconfigured one. Add nothing else to an existing marker.
    Fill the **five-var engine contract** (all required — the skills read only these):
    - **`RDR_HOME`** — the RDR engine (holds `stages/`, `prompts/`, `skills/`,
      `TEMPLATE.md`). Resolve by install shape, first that binds:
@@ -137,7 +143,7 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      explicit.
    - **`RDR_ENV` / `RDR_RESOURCES`** → the seam files just written (the `.rdr/`
      ones, or the pinned location if this project pins one).
-   - **`RDR_REPO`** — the checkout whose `path::Symbol` anchors the RDRs cite (the
+   - **`RDR_SOURCE_REPO`** — the checkout whose `path::Symbol` anchors the RDRs cite (the
      tree `rdr --repo` greps, rdr-common §source-root); usually this project's own
      source root. Write it explicitly — under a workspace-scope marker the cwd may
      be the records or evidence repo, so it cannot be derived. Omit only when the

@@ -19,7 +19,14 @@ pass "1 marker present - $MARKER  [$SCOPE]"
 . "$MARKER" 2>/tmp/rdrdoc.err && pass "2 marker sources clean" || fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
 m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval "[ -n \"\$$v\" ]" || m="$m $v"; done
 [ -z "$m" ] && pass "3 five-var contract set" || fail "3 unset:$m - re-run \$rdr-init in Codex or /rdr-init in Claude to write the marker"
-[ -n "$RDR_REPO" ] && { [ -d "$RDR_REPO" ] && pass "3b source root - $RDR_REPO" || fail "3b RDR_REPO set but missing ($RDR_REPO) - fix the marker; a wrong root makes anchor checks report false findings"; } || { [ "$PROJECT" = "$RDR_HOME" ] && echo "  [INFO] 3b RDR_REPO unset - engine repo, the flow runs in consumers - n/a" || warn "3b RDR_REPO unset - source-anchor checks report \"not run\" (correct when the RDRs cite no path::Symbol anchors; else set it in the marker)"; }
+# 3b-legacy - a marker written before the rename still exports RDR_REPO. The
+# skills no longer read it, so anchor checks silently report "not run" on a
+# consumer that was correctly configured. Name the migration, do not guess it.
+if [ -z "$RDR_SOURCE_REPO" ] && [ -n "$RDR_REPO" ]; then
+  warn "3b RDR_REPO is the pre-rename name and is no longer read - rename it to RDR_SOURCE_REPO in $MARKER (value unchanged: $RDR_REPO), or re-run \$rdr-init --reconfigure in Codex / /rdr-init --reconfigure in Claude"
+else
+  [ -n "$RDR_SOURCE_REPO" ] && { [ -d "$RDR_SOURCE_REPO" ] && pass "3b source root - $RDR_SOURCE_REPO" || fail "3b RDR_SOURCE_REPO set but missing ($RDR_SOURCE_REPO) - fix the marker; a wrong root makes anchor checks report false findings"; } || { [ "$PROJECT" = "$RDR_HOME" ] && echo "  [INFO] 3b RDR_SOURCE_REPO unset - engine repo, the flow runs in consumers - n/a" || warn "3b RDR_SOURCE_REPO unset - source-anchor checks report \"not run\" (correct when the RDRs cite no path::Symbol anchors; else set it in the marker)"; }
+fi
 # 1b - an inherited shared marker. Workspace scope describes ONE project whose
 # parts span sibling repos; its vars are single-valued. A repo that is NOT part of
 # that project silently inherits its records, so a /rdr-seed here lands an RDR in
@@ -27,15 +34,15 @@ m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval 
 # or holds the records / evidence / seam data the marker names.
 if [ "$SCOPE" = "workspace (shared)" ] && [ "$PROJECT" != "$RDR_HOME" ]; then
   mine=""
-  for v in "$RDR_REPO" "$RDR_RECORDS" "$RDR_EVIDENCE" "$RDR_ENV"; do
+  for v in "$RDR_SOURCE_REPO" "$RDR_RECORDS" "$RDR_EVIDENCE" "$RDR_ENV"; do
     case "$v" in "$PROJECT"|"$PROJECT"/*) mine=1;; esac
   done
   # A *_ROOT naming this repo is NOT membership: a marker lists sibling repos as
   # conveniences, most with no RDR role. Only the four seam paths decide. With
-  # RDR_REPO unset the source repo cannot prove itself, so say that rather than
-  # accuse it - the fix is to set RDR_REPO, which 3b already asks for.
-  if [ -z "$mine" ] && [ -z "$RDR_REPO" ]; then
-    warn "1b shared marker (records=$RDR_RECORDS) - RDR_REPO unset, so whether this repo is the project's source root cannot be told. Set RDR_REPO in $MARKER, or write a repo-local marker if this is a different project"
+  # RDR_SOURCE_REPO unset the source repo cannot prove itself, so say that rather than
+  # accuse it - the fix is to set RDR_SOURCE_REPO, which 3b already asks for.
+  if [ -z "$mine" ] && [ -z "$RDR_SOURCE_REPO" ]; then
+    warn "1b shared marker (records=$RDR_RECORDS) - RDR_SOURCE_REPO unset, so whether this repo is the project's source root cannot be told. Set RDR_SOURCE_REPO in $MARKER, or write a repo-local marker if this is a different project"
     mine=skip
   fi
   [ "$mine" = skip ] || { [ -n "$mine" ] && pass "1b shared marker describes this project" \

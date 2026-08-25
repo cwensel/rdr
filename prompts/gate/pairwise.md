@@ -21,7 +21,7 @@ SELECT THE PAIRS by query, not by reading the cluster. If
 `[ -x "$RDR_HOME/bin/rdr" ]`:
 
 ```sh
-"$RDR_HOME/bin/rdr" index --json --anchor-intersect --records "$RDR_RECORDS" --repo "$RDR_REPO"
+"$RDR_HOME/bin/rdr" index --json --anchor-intersect --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
 "$RDR_HOME/bin/rdr" index --json --backlinks=<NNNN> --records "$RDR_RECORDS"
 ```
 

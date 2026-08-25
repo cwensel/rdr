@@ -177,7 +177,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	f := &flags{}
 	records := fs.String("records", os.Getenv("RDR_RECORDS"), "records dir for NNNN lookup (default $RDR_RECORDS, else .)")
 	project := fs.String("project", "", "project prefix for ids (cli/NNNN:C4); omitted inside one records dir")
-	repo := fs.String("repo", os.Getenv("RDR_REPO"), "repo root for source-anchor symbol resolution (default $RDR_REPO); unset leaves those edges unchecked")
+	repo := fs.String("repo", os.Getenv("RDR_SOURCE_REPO"), "repo root for source-anchor symbol resolution (default $RDR_SOURCE_REPO); unset leaves those edges unchecked")
 	f.records, f.project, f.repo = records, project, repo
 	switch cmd {
 	case "inspect":

@@ -52,14 +52,14 @@ projection — one pass, no seed body read:
 
 ```sh
 [ -x "$RDR_HOME/bin/rdr" ] && {
-  "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all --records "$RDR_RECORDS" --repo "$RDR_REPO"
+  "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
   "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
   "$RDR_HOME/bin/rdr" index --in-flight --records "$RDR_RECORDS"
 }
 ```
 
 `overlaps[]` `{records[], anchors[], cited}` **is** the overlap graph — seeds
-are pre-proposal, so `--all` widens past in-flight. `$RDR_REPO` is the source
+are pre-proposal, so `--all` widens past in-flight. `$RDR_SOURCE_REPO` is the source
 root (rdr-common §source-root); `--repo` is required or source-anchor edges carry
 no `resolved` key (absent ≠ false, never "no overlap"). Contract literals: `elements[]`
 `kind=="C"`, equal `hash` across two records = same contract text. `overlaps[]`

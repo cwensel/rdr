@@ -67,13 +67,13 @@ peer, and only the true joint forks surfaced to the user.
 
   ```sh
   [ -x "$RDR_HOME/bin/rdr" ] && {
-    "$RDR_HOME/bin/rdr" index --anchor-intersect --json --records "$RDR_RECORDS" --repo "$RDR_REPO"
+    "$RDR_HOME/bin/rdr" index --anchor-intersect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
     "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
   }
   ```
 
   Anchors: `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited
-  first — the fire shape. `$RDR_REPO` is the source root (rdr-common
+  first — the fire shape. `$RDR_SOURCE_REPO` is the source root (rdr-common
   §source-root); **`--repo` is required** — without it source-anchor edges carry
   no `resolved` key at all (absent ≠ false), and an unchecked scan must not read
   as "no intersection". Contracts: `elements[]` `kind=="C"` carries

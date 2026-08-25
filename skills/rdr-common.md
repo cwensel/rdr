@@ -103,7 +103,7 @@ directly for the records and evidence roots. **Never** hardcode a repo root or a
 `/rdr/cli` path shape, and never parse `$RDR_ENV`'s cwd-relative strings — the marker
 already gives you absolute values.
 
-**§source-root — the tree `--repo` greps.** `$RDR_REPO`, exported by the marker:
+**§source-root — the tree `--repo` greps.** `$RDR_SOURCE_REPO`, exported by the marker:
 the checkout whose `path::Symbol` anchors an RDR cites. `/rdr-init` writes it;
 never derive it. It is **not** `$PROJECT` — under a workspace-scope marker
 `$PROJECT` is whichever sibling you invoked from (records and evidence repos are
@@ -111,7 +111,7 @@ both valid cwds), so it names the wrong tree. `$RDR_ENV` cannot supply it either
 that file lists *modules* (`internal/…/x.go`) anchored at this root, never the
 root itself.
 
-Pass `--repo "$RDR_REPO"`. Unset, or an anchor naming a foreign codebase (a
+Pass `--repo "$RDR_SOURCE_REPO"`. Unset, or an anchor naming a foreign codebase (a
 third-party library cited for contrast), leaves those edges unresolved — say so.
 **A wrong root is worse than none**: grepping a tree the symbol was never in
 returns `resolved:false`, a false finding a consumer chases, where omitting
@@ -483,11 +483,11 @@ that reference text is the one sanctioned amendment to a locked RDR.
 
 ```sh
 [ -x "$RDR_HOME/bin/rdr" ] && {
-  "$RDR_HOME/bin/rdr" lint "$NNNN" --records "$RDR_RECORDS" --repo "$RDR_REPO"
+  "$RDR_HOME/bin/rdr" lint "$NNNN" --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
   # scope the bracket/placeholder grep: outline[] gives each section its canonical + line_start/line_end
   "$RDR_HOME/bin/rdr" inspect --select outline --records "$RDR_RECORDS" "$NNNN"
   # NEW path::Symbol: edges[] kind=="source-anchor" -> resolved
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_REPO" "$NNNN"
+  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" "$NNNN"
 }
 ```
 
@@ -500,7 +500,7 @@ only narrows it to the `line_start`..`line_end` of the sections this stage owes.
 For anchors, `resolved` is **three-valued** (§source-root): `true`, `false`, or
 **absent** — nothing looked. Absent is neither pass nor fail; the gate says the
 check did not run rather than closing over it. `rdr index --unresolved --records
-"$RDR_RECORDS" --repo "$RDR_REPO"` is the corpus-wide form.
+"$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"` is the corpus-wide form.
 
 ## §amendment-sweep — propagate clause changes at disposition
 
