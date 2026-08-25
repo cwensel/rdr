@@ -19,8 +19,8 @@ Codex: $rdr-reconcile <NNNN>
 Claude: /rdr-reconcile <NNNN>
 ```
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
-   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
+   Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `$RDR_ENV`, `RDR_PATH`, `{SPIKE_DIR}`. Have the Pre-Lock
    needs-verification list(s) ready to paste.
    - **Preflight Stage 5 completeness before reconciling.** Re-read `Profile` and
