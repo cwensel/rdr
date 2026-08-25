@@ -145,11 +145,9 @@ else
       case "$RDR_USAGE_LOG" in
         ""|0|false|off|no|OFF|FALSE|No|NO) echo "  [INFO] 11d usage log off - /rdr-init --usage-log turns it on" ;;
         1|true|on|yes|TRUE|ON|Yes|YES)
-          if [ -d "$PROJECT/.rdr" ]; then
-            echo "  [INFO] 11d usage log on - $PROJECT/.rdr/usage.jsonl"
-          else
-            warn "11d usage log on but $PROJECT/.rdr is missing - nothing will be written"
-          fi ;;
+          # Beside the marker, whichever scope resolved: the log follows the
+          # seam rather than assuming a .rdr/ a workspace consumer never had.
+          echo "  [INFO] 11d usage log on - $(dirname "$MARKER")/usage.jsonl" ;;
         *)
           if [ -d "$(dirname "$RDR_USAGE_LOG")" ]; then
             echo "  [INFO] 11d usage log on - $RDR_USAGE_LOG"

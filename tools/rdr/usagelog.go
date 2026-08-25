@@ -62,12 +62,8 @@ import (
 // logging on once for a project instead of every call setting it.
 const usageEnvVar = "RDR_USAGE_LOG"
 
-// usageDefaultName is where the log lands when the marker says to log
-// but not where. `.rdr/` is this flow's repo-local run-output directory,
-// the counterpart of the sibling codebase's `$REPO/.retrofit/`: beside
-// the project, not in a user-wide state dir, because the log is about
-// THIS project's records and means nothing away from them. It carries
-// its own `.gitignore` of `*`, so nothing written here can reach a commit.
+// usageDefaultName is the log's filename. Where it lands is decided by
+// the marker that turned logging on — see usageLogPath.
 const usageDefaultName = "usage.jsonl"
 
 // usageLogPath decides where a line goes, or "" for nowhere.
@@ -76,12 +72,23 @@ const usageDefaultName = "usage.jsonl"
 //
 //	unset            off — the tool writes nothing at all, the default
 //	a path           that file
-//	"1"/"true"/"on"  on, at the default location under the project's .rdr/
+//	"1"/"true"/"on"  on, beside the marker that said so
 //
 // The bare-truthy form is what `/rdr-init` writes into a marker: a
-// project opts in once, and no call site has to know a path. If the
-// marker says on but no project can be found, logging stays off rather
-// than inventing a location somewhere arbitrary.
+// project opts in once, and no call site has to know a path.
+//
+// **Beside the marker** is the whole rule, and it follows the seam's own
+// scope rather than assuming one. A repo-local marker lives at
+// `$PROJECT/.rdr/workspace`, so the log joins it in that already-
+// self-ignoring directory. A workspace marker lives at
+// `$WS/.rdr-workspace`, above repos that deliberately have no `.rdr/` —
+// creating one there would invent seam structure the user opted out of,
+// and scatter a shared setting into per-repo files nobody ignored. The
+// log goes beside the shared marker instead, one file for the workspace
+// that turned it on, in a directory that is not a repo.
+//
+// If no marker can be found, logging stays off rather than inventing a
+// location: the same discovery-never-invention rule the seam follows.
 func usageLogPath() string {
 	v := strings.TrimSpace(os.Getenv(usageEnvVar))
 	if v == "" {
@@ -93,11 +100,11 @@ func usageLogPath() string {
 	case "0", "false", "off", "no":
 		return ""
 	case "1", "true", "on", "yes":
-		_, project, _ := findMarker()
-		if project == "" {
+		marker, _, _ := findMarker()
+		if marker == "" {
 			return ""
 		}
-		return filepath.Join(project, ".rdr", usageDefaultName)
+		return filepath.Join(filepath.Dir(marker), usageDefaultName)
 	}
 	return v
 }

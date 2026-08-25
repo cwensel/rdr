@@ -740,16 +740,25 @@ and no call site has to know a path:
 | value | |
 | --- | --- |
 | unset, or `off`/`false`/`0`/`no` | no log — the default |
-| `true`/`on`/`1`/`yes` | `$PROJECT/.rdr/usage.jsonl` |
+| `true`/`on`/`1`/`yes` | beside the marker that said so |
 | a path | that file |
 
-The default lives in `.rdr/` because that is this flow's repo-local
-run-output directory — the counterpart of the sibling codebase's
-`$REPO/.retrofit/` — and it carries its own `.gitignore` of `*`, so
-nothing written there can reach a commit. It is beside the project on
-purpose, not in a user-wide state directory: the log is about *these*
-records and means nothing away from them. A truthy setting with no
-project to anchor to writes nothing rather than inventing a location.
+**Beside the marker** follows the seam's own scope instead of assuming
+one. A repo-local marker sits at `$PROJECT/.rdr/workspace`, so the log
+joins it in that already self-ignoring directory — the counterpart of
+the sibling codebase's `$REPO/.retrofit/`. A workspace marker sits at
+`$WS/.rdr-workspace`, above sibling repos that deliberately have no
+`.rdr/`; the log goes there, at `$WS/usage.jsonl`, inside no repo and
+needing no ignore rule.
+
+Creating a `.rdr/` for the log would be wrong twice over: it invents
+seam structure a workspace consumer opted out of, and it scatters one
+shared setting into per-repo files nobody ignored. One marker, one log.
+
+It is beside the project on purpose, not in a user-wide state directory:
+the log is about *these* records and means nothing away from them. A
+truthy setting with no marker to anchor to writes nothing rather than
+inventing a location.
 
     rdr inspect --select 0142:C1 0142        # with the marker's RDR_USAGE_LOG="true"
 

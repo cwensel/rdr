@@ -150,8 +150,11 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      RDRs cite no source anchors.
    Then the one optional var, `RDR_USAGE_LOG` (template line, commented):
    - **on** (`/rdr-init --usage-log`, or answered yes when interactive) → uncomment it
-     as `RDR_USAGE_LOG="true"`. The projector then logs one JSONL line per call to
-     `$PROJECT/.rdr/usage.jsonl`, which `.rdr/.gitignore`'s `*` already excludes. A
+     as `RDR_USAGE_LOG="true"`. The projector logs one JSONL line per call **beside
+     this marker**: repo-local → `$PROJECT/.rdr/usage.jsonl`, already excluded by
+     `.rdr/.gitignore`'s `*`; workspace → `$WS/usage.jsonl`, above the repos and
+     inside none of them. **Create no `.rdr/` for it** — a workspace-scope consumer
+     deliberately has none, and a log is not a reason to invent seam structure. A
      path may be written instead of `true` to log elsewhere.
    - **off** (the default, or `--no-usage-log`) → leave it commented, or delete the
      line from an existing marker.

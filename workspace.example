@@ -64,7 +64,9 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 #   line per invocation (tools/rdr/README.md §The usage log). It is the only thing
 #   the projector ever writes, and it is off unless this says otherwise.
 #     unset / "off"  no log — the default
-#     "true"         log to $PROJECT/.rdr/usage.jsonl (gitignored by .rdr/'s own *)
+#     "true"         log beside THIS marker: a repo-local marker puts it in the
+#                    already self-ignoring $PROJECT/.rdr/; a workspace marker puts
+#                    it at $WS/usage.jsonl, which is not inside any repo
 #     <a path>       log there instead
 #   Turn it on to measure whether the flow's reads are getting cheaper; the
 #   numbers accumulate over ordinary use, with no dashboard and nothing to run.

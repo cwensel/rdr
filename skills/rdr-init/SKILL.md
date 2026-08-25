@@ -57,15 +57,16 @@ touches** it.
 | `--reconfigure` | always, against the **existing** marker | changing placement after the fact (see *Reconfigure* below) |
 
 **Location defaults**: seam at gitignored `.rdr/`; `RDR_RECORDS` under the project;
-`RDR_EVIDENCE=$RDR_RECORDS`; usage log **off**, and when on it writes
-`$PROJECT/.rdr/usage.jsonl`. Every mode **discloses** the resolved scope + locations +
+`RDR_EVIDENCE=$RDR_RECORDS`; usage log **off**, and when on it writes beside the
+marker that turned it on. Every mode **discloses** the resolved scope + locations +
 overrides in its closing report.
 
 **Usage log** (`RDR_USAGE_LOG`, off by default): one JSONL line per `rdr` call —
 what was asked and what it cost. It is the only thing the projector ever writes.
-`--usage-log` writes `RDR_USAGE_LOG="true"` into the marker (the binary then logs to
-`$PROJECT/.rdr/usage.jsonl`, gitignored by `.rdr/`'s own `*`); `--no-usage-log`
-removes it. `--interactive` asks. A marker value of a *path* logs there instead, and
+`--usage-log` writes `RDR_USAGE_LOG="true"` into the marker and the binary logs
+**beside that marker** — `$PROJECT/.rdr/usage.jsonl` repo-local, `$WS/usage.jsonl`
+under a workspace marker, where no repo is. It never creates a `.rdr/` a project
+does not already have. `--no-usage-log` removes it. `--interactive` asks. A marker value of a *path* logs there instead, and
 an env var overrides the marker for one run (`off` silences it).
 
 **Run from inside the project that will use the flow** — never globally. `/rdr-init`

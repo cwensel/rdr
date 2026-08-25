@@ -267,3 +267,74 @@ func TestUsageLogOnWithNoProjectStaysOff(t *testing.T) {
 		t.Errorf("with no project, logging resolved to %q", got)
 	}
 }
+
+// TestUsageLogUnderAWorkspaceMarkerStaysOutOfTheRepo: the log goes beside
+// the marker that turned it on. Under a workspace-scope marker that is
+// `$WS`, above sibling repos which deliberately have no `.rdr/` — putting
+// it in `$PROJECT/.rdr/` would invent seam structure the consumer opted
+// out of, and scatter one shared setting into per-repo files nobody
+// ignored.
+func TestUsageLogUnderAWorkspaceMarkerStaysOutOfTheRepo(t *testing.T) {
+	body := `: "${WS:?needs the canonical resolver}"
+RDR_RECORDS="$WS/consumer/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "shared", body)
+	ws := filepath.Dir(project)
+	t.Chdir(project)
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_USAGE_LOG", "")
+
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "path", "7"); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if _, err := os.ReadFile(filepath.Join(ws, "usage.jsonl")); err != nil {
+		t.Errorf("no log beside the workspace marker: %v", err)
+	}
+	// The whole point: no .rdr/ was conjured inside the repo.
+	if _, err := os.Stat(filepath.Join(project, ".rdr")); err == nil {
+		t.Error("a .rdr/ was created in a workspace-scope project")
+	}
+}
+
+// TestUsageLogIsOnePerWorkspace: siblings sharing a marker share its log,
+// rather than each growing an untracked file of its own.
+func TestUsageLogIsOnePerWorkspace(t *testing.T) {
+	body := `: "${WS:?needs the canonical resolver}"
+RDR_RECORDS="$WS/consumer/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "shared", body)
+	ws := filepath.Dir(project)
+
+	// A second repo under the same workspace, inheriting the same marker.
+	sibling := filepath.Join(ws, "sibling")
+	if err := os.MkdirAll(sibling, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command("git", "init", "-q")
+	cmd.Dir = sibling
+	if err := cmd.Run(); err != nil {
+		t.Skipf("git unavailable: %v", err)
+	}
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_USAGE_LOG", "")
+
+	for _, dir := range []string{project, sibling} {
+		t.Chdir(dir)
+		runCapture(t, "inspect", "--json", "--filter", "path", "7")
+	}
+
+	raw, err := os.ReadFile(filepath.Join(ws, "usage.jsonl"))
+	if err != nil {
+		t.Fatalf("no shared log: %v", err)
+	}
+	if n := strings.Count(strings.TrimSpace(string(raw)), "\n") + 1; n != 2 {
+		t.Errorf("want both siblings' lines in one log, got %d", n)
+	}
+	if _, err := os.Stat(filepath.Join(sibling, ".rdr")); err == nil {
+		t.Error("the sibling grew its own .rdr/")
+	}
+}
