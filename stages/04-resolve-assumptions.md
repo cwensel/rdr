@@ -13,7 +13,7 @@ marker (see README *Where the seam lives* — `. "$WS/.rdr-workspace"` exports
 
 **Prompt**: [`../prompts/stages/04-resolve.prompt.md`](../prompts/stages/04-resolve.prompt.md)
 — the `/rdr-resolve` skill runs it (it self-detects the scoped-re-entry path from
-the RDR's Status line). Paste its body by hand if driving without the skill.
+the projected Status field). Paste its body by hand if driving without the skill.
 
 **Run when**: the draft has a chosen, tightened approach with a Critical
 Assumptions list (almost always — any load-bearing assumption). **Produces**:
@@ -52,10 +52,13 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   Strategy and Performance Expectations are real, not placeholders, and the
   seed-skeleton header is gone — the implementer reads these as the contract.
 
-- **On a `revised from Final` re-entry, was scope honored?** Only the
-  qualifier's listed IDs (and anchors the edit touched) get re-verified; a full
+- **On a `revised from Final` re-entry, was scope honored?** With the projector
+  the scope set is a lookup, not a parse: `.status.form == "revised-from"` on the
+  Status field, and `edges[]` `kind=="reverify"` names the assumption ids — each
+  read by `inspect --select <NNNN>:A<n>`, not by opening Critical Assumptions
+  entire. Only those ids (and anchors the edit touched) get re-verified; a full
   re-verify of lock-audited assumptions is the wasted pass this scoping exists to
-  prevent.
+  prevent. A `resolved:false` target is a defect in the qualifier — report it.
 
 Re-run for the *subset* of assumptions that didn't verify — narrow to the
 unresolved ones, don't re-run the whole stage.

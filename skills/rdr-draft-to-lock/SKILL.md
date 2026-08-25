@@ -44,34 +44,55 @@ could never make this run cheaper — and the cross-model work that pre-lock doe
 want is `§auto-fanout`'s, selected on model *identity*, not tier. To run the
 cascade on a different model, start the session on it.
 
-**Precondition.** `Status: Draft`, proposed — tested without reading the body:
-`### Technical Design` + `#### Normative Contracts` present, or `propose-premortem/`
-on disk. Neither → `stopped:not-proposed:<NNNN>` → `/rdr-propose
-NNNN`. Refuse `Final` (`stopped:already-final`). A **first** run enters at Stage 3
-— refine always runs, so the cascade starts at its head rather than mid-way on an
-assumption; a re-invocation enters at the skip guard's first open stage (below).
-Stage 8 is out of scope (`launch.md` owns it).
+**Precondition — one projection, no body read.**
+
+```sh
+[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+```
+
+Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifier,form}`;
+`outline[]` for section presence (`canonical=="Technical Design"` and
+`"Normative Contracts"`); `counts.elements.C`.
+
+- `.status.value == "Final"` → `stopped:already-final` (the qualifier is not part
+  of this test — that is why `value` is read, not the line).
+- Proposed = both sections present in `outline[]`, **or** `propose-premortem/` on
+  disk (still a disk check). Neither → `stopped:not-proposed:<NNNN>` →
+  `/rdr-propose NNNN`. `counts.elements.C` corroborates only: prose contracts are
+  not addressable, so `C == 0` on an older record means unlabelled, **not**
+  absent — never route `stopped:not-proposed` off the count.
+
+No binary → test the two headings and the premortem dir by hand; same rules.
+
+A **first** run enters at Stage 3 — refine always runs, so the cascade starts at
+its head rather than mid-way on an assumption; a re-invocation enters at the skip
+guard's first open stage (below). Stage 8 is out of scope (`launch.md` owns it).
 
 **A demoted Draft carries its own re-entry scope — honor it, don't re-derive it.**
-`Status: Draft [revised from Final …; re-verify <IDs>]` means 7.1 (or a Stage-8
-spec defect) sent it back with a scope the report already sized
-(`$RDR_HOME/stages/07.1-cluster-reconcile.md`). Only one scope is this skill's:
+`.status.form == "revised-from"` means 7.1 (or a Stage-8 spec defect) sent it back
+with a scope the report already sized (`$RDR_HOME/stages/07.1-cluster-reconcile.md`).
+The scope word is in `.status.qualifier`; the delta set is `edges[]` where
+`kind=="reverify"` — each `to` is one of this record's own `NNNN:A*` assumptions,
+already split out and resolved. `resolved:false` is a **reportable** finding (the
+qualifier names an assumption that does not exist); `resolved` **absent** means
+nothing looked — never read it as either. Only one scope is this skill's:
 
 | Scope | Prescribed re-walk | Here |
 | --- | --- | --- |
 | RE-LOCK-ONLY | the fix, then Stage 7 re-locks | `stopped:scope-relock-only:<NNNN>` → `/rdr-finalize NNNN` |
-| STAGE-SCOPED | re-enter at 3 or 4, forward to 7 | **run it** — enter at the named stage, `re-verify <IDs>` is the delta |
+| STAGE-SCOPED | re-enter at 3 or 4, forward to 7 | **run it** — enter at the named stage, the `reverify` targets are the delta |
 | FULL-FLOW | the full 2 → 7 cascade | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
 
 Scope picks *which stages* re-walk; it never edits the lens row. A STAGE-SCOPED
 demotion to Stage 3 therefore keeps the profile's whole row — what shrinks is
-each pass (delta-scoped to `re-verify <IDs>`), not the sequence. Don't drop lenses to make a
-re-entry cheaper; that is what RE-LOCK-ONLY exists for, and 7.1 already chose.
+each pass (delta-scoped to the `reverify` targets), not the sequence. Don't drop
+lenses to make a re-entry cheaper; that is what RE-LOCK-ONLY exists for, and 7.1
+already chose.
 
 Running the wrong one is not a slow path but a wrong one: RE-LOCK-ONLY re-walks
 gates the defect never touched (cost, not defect yield), and FULL-FLOW skips the
 approach rework that voided the lock. If the qualifier names no scope, stop
-(`stopped:scope-unstated:<NNNN>`) — don't guess it from the `re-verify` set.
+(`stopped:scope-unstated:<NNNN>`) — don't guess it from the `reverify` set.
 
 ## Posture — delegate everything, hold only the ledger
 

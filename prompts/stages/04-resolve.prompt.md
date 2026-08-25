@@ -31,12 +31,30 @@ citations + rejected branches to {EVIDENCE_DIR}research/; a SCOPED RE-ENTRY or
 Draft re-run reuses that file and re-searches ONLY assumptions not already cited
 there.
 
-SCOPED RE-ENTRY: if the Status reads `Draft [revised from Final …; re-verify
-<IDs>]`, this RDR was lock-audited and demoted by the 07.1 cluster gate for a
-named defect. Re-verify ONLY the listed assumption IDs (plus any whose Evidence
-anchor the demotion's edit touched); carry the rest forward as already Verified
-— do NOT re-derive them. A bare `Draft` (no qualifier) is the cold path: verify
-every assumption from scratch as below.
+SCOPED RE-ENTRY. Ask the projector, don't parse the Status line:
+
+```sh
+[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+```
+
+`metadata[]` where `label=="Status"` → `.status.form == "revised-from"` means this
+RDR was lock-audited and demoted by the 07.1 cluster gate for a named defect. The
+scope set is `edges[]` where `kind=="reverify"`: each `to` is one of this record's
+own `NNNN:A*` ids. Re-verify ONLY those (plus any whose Evidence anchor the
+demotion's edit touched — a diff signal, not a projection); carry the rest forward
+as already Verified — do NOT re-derive them. Read each named assumption by id, not
+the whole Critical Assumptions section:
+
+```sh
+"$RDR_HOME/bin/rdr" inspect --select <NNNN>:A2 --records "$RDR_RECORDS" <NNNN>
+```
+
+A `resolved:false` target names an assumption that does not exist — report it
+rather than skipping silently; `resolved` absent means nothing looked, neither
+sound nor broken. `.status.form` anything else (a bare `Draft`) is the cold path:
+verify every assumption from scratch as below.
+
+No binary → read the Status line and split the `re-verify` list by hand; same rules.
 
 For each Critical Assumption in scope:
 - Pick exactly one Method: Source Search | Spike | Prior Art | Derivation |
