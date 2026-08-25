@@ -52,8 +52,21 @@ type Status struct {
 	// Tier is the value's standing in its vocabulary (model.Tier).
 	Tier string `json:"tier"`
 	// Placeholder marks the template legend left unfilled.
-	Placeholder bool   `json:"placeholder,omitempty"`
-	Raw         string `json:"raw"`
+	Placeholder bool `json:"placeholder,omitempty"`
+	// OpenJointDecisions names the joint decisions this record is still
+	// waiting on, and ONLY those. It is present whenever the record's
+	// status is a lifecycle status, empty list included, so a consumer can
+	// tell "none open" from "this field does not apply".
+	//
+	// It exists because the qualifier is prose and prose lies to a regex.
+	// A record that has FINISHED answering its joint decisions writes them
+	// down — `Final [all joint decisions answered — JDR 0001 §D8 (§JD-9),
+	// §D9 (§JD-19)…]` — so scraping `JD-\d+` out of the qualifier reports
+	// five open decisions on a record with none. Only the routing form,
+	// `Final [joint decision → <home>: …]`, means one is open, and the
+	// projector already knows which form it matched.
+	OpenJointDecisions []string `json:"open_joint_decisions,omitempty"`
+	Raw                string   `json:"raw"`
 }
 
 // Method is a parsed Method value.
@@ -178,6 +191,35 @@ func lifecycleStatus(raw string) *Status {
 	out := &Status{Value: s.Label, Qualifier: s.Qualifier, Tier: s.Tier.String(), Raw: raw}
 	if s.QualifierForm != model.NoQualifier {
 		out.Form = s.QualifierForm.String()
+	}
+	out.OpenJointDecisions = openJointDecisions(s)
+	return out
+}
+
+// jdRef matches a joint-decision anchor as the corpus writes it: `§JD-18`,
+// `JD-18`, with or without the section mark.
+var jdRef = regexp.MustCompile(`§?\bJD-(\d+[a-z]?)\b`)
+
+// openJointDecisions reads the anchors out of a qualifier, but only when
+// the qualifier's FORM says one is open.
+//
+// The form is the whole rule. `joint-decision` is the routing grammar —
+// `Final [joint decision → JDR 0001 §JD-18: …]` — and names what this
+// record waits on. Every other form that mentions a JD is talking ABOUT
+// them, usually to say they are done, and a reader that does not check
+// the form turns a finished record into five open questions.
+func openJointDecisions(s model.StatusValue) []string {
+	if s.QualifierForm != model.QualifierJointDecision {
+		return nil
+	}
+	seen := map[string]bool{}
+	out := []string{}
+	for _, m := range jdRef.FindAllStringSubmatch(s.Qualifier, -1) {
+		id := "JD-" + m[1]
+		if !seen[id] {
+			seen[id] = true
+			out = append(out, id)
+		}
 	}
 	return out
 }

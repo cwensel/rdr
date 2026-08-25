@@ -618,6 +618,35 @@ alias table (`legacy-alias`, `recognized-unmapped`).
 the single largest class of heading a name-only lookup cannot place, and
 treating them as foreign would bury every real finding.
 
+## A field, not a regex
+
+`status.open_joint_decisions` names the joint decisions a record is
+still waiting on, and only those. It is present on every lifecycle
+status, empty list included, so "none open" is distinguishable from
+"this does not apply".
+
+It exists because the qualifier is prose, and prose lies to a regex. A
+record that has FINISHED answering its joint decisions writes them down:
+
+    Final [all joint decisions answered — JDR 0001 §D8 (§JD-9), §D9 (§JD-19), …]
+
+Scraping `JD-\d+` out of that reports five open decisions on a record
+with none. Only the routing form means one is open:
+
+    Final [joint decision → JDR 0001 §JD-18: conforming-view enforcer]
+
+The projector already knew the difference — `status.form` is
+`joint-decision` for the second and `bracketed` for the first — but a
+caller had to know to check it, and a caller in a hurry greps the text.
+On the corpus that mistake was twelve false positives across three
+records, each one a record reported as blocked when it was finished.
+
+The general rule this stands for: **when a consumer has to parse a
+projected string, the projection is missing a field.** The tool holds
+the grammar; re-deriving it at the call site is where the flow's own
+doctrine — a skipped check must never read as a passed one — quietly
+inverts into a passed check reading as a failed one.
+
 ## The seam binds itself
 
 Every var this binary reads is written in a marker file the flow already

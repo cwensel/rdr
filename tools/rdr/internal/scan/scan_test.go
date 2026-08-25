@@ -625,3 +625,55 @@ func TestDeterministic(t *testing.T) {
 		t.Error("envelope lacks the schema version")
 	}
 }
+
+// TestOpenJointDecisionsReadsTheFormNotTheProse: a record that has
+// FINISHED answering its joint decisions lists them in its qualifier, so
+// scraping `JD-\d+` out of the text reports open questions on a record
+// that has none — 12 false positives over 3 records on the corpus that
+// prompted this. Only the routing form means one is open.
+func TestOpenJointDecisionsReadsTheFormNotTheProse(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		raw  string
+		want []string
+	}{
+		{
+			name: "the routing form is the only open one",
+			raw:  "Final [joint decision → JDR 0001 §JD-18: conforming-view enforcer]",
+			want: []string{"JD-18"},
+		},
+		{
+			name: "several on one routing qualifier",
+			raw:  "Final [joint decision → JDR 0001 §JD-9, §JD-19, §JD-20: owned-state assembly]",
+			want: []string{"JD-9", "JD-19", "JD-20"},
+		},
+		{
+			name: "answered prose names them and opens nothing",
+			raw: "Final [all joint decisions answered 2026-08-24 — JDR 0001 §D8 (§JD-9), " +
+				"§D9 (§JD-19), §D11 (§JD-20). No joint decision is open against this RDR.]",
+			want: nil,
+		},
+		{
+			name: "a plain status opens nothing",
+			raw:  "Implemented (`main` c1926e1)",
+			want: nil,
+		},
+		{
+			name: "a JD named in a revised-from qualifier is not open",
+			raw:  "Draft [revised from Final; re-verify A2 — §JD-18 moved]",
+			want: nil,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := lifecycleStatus(tc.raw).OpenJointDecisions
+			if len(got) != len(tc.want) {
+				t.Fatalf("open = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("open[%d] = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
