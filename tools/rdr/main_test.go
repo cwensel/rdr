@@ -1248,3 +1248,20 @@ func TestIndexCyclesFacet(t *testing.T) {
 		t.Errorf("lint --locking 0003: exit %d, want 0 and no ownership finding:\n%s", code, out)
 	}
 }
+
+// TestSummaryListsSections: the text summary is the read plan for a large
+// record, so it carries the outline's line ranges as well as the elements.
+func TestSummaryListsSections(t *testing.T) {
+	code, out, errb := runCapture(t, "inspect", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "§ ") || !strings.Contains(out, ":§metadata ") {
+		t.Errorf("no section rows in the summary:\n%s", out)
+	}
+	sec := strings.Index(out, "§ ")
+	el := strings.Index(out, ":A1 ")
+	if el >= 0 && sec > el {
+		t.Errorf("sections should precede elements")
+	}
+}

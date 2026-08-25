@@ -618,6 +618,13 @@ func emit(v any, stdout, stderr io.Writer) int {
 // output is greppable and pipes into --select.
 func summary(doc *scan.Document, w io.Writer) int {
 	fmt.Fprintf(w, "%s  %s  epoch %s  %d lines\n", doc.Record, doc.Title, doc.Epoch, doc.Lines)
+	// Sections first, nested by level: the read plan for a record too big
+	// for one call, without the 700-line JSON outline that used to be the
+	// only way to get these ranges.
+	for _, n := range doc.Outline {
+		indent := strings.Repeat("  ", n.Level-1)
+		fmt.Fprintf(w, "§ %-24s %5d-%-5d %s%s\n", n.ID, n.LineStart, n.LineEnd, indent, n.Heading)
+	}
 	for _, e := range doc.Elements {
 		mark := " "
 		if e.Derived {
