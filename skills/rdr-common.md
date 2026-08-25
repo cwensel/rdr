@@ -152,13 +152,15 @@ RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identit
 ```
 
 **Reading a record** — this one or any peer — through the projector, never
-`sed -n`/`grep` on the file: `inspect NNNN` (the ~50-line id list; not `--select elements`, 25×
-larger), `--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:D-identity`
-(a section's or element's bytes — the ids are in the list; never `sed -n` on its
-line ranges), `--json --filter metadata,counts`. Those cost ~20ms; `edges`, bare
-`--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
+`sed -n`/`grep` on the file. `inspect NNNN` first: its `§` rows are the sections
+with line ranges, then every element — the whole read plan in ~150 lines (not
+`--filter outline`, ~800, nor `--select elements`, 25× larger). Then read by id:
+`--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:ALT5` — each `§`
+row is a selector, and ids survive edits where line numbers shift.
+`--json --filter metadata,counts` for the status line. Those cost ~20ms; `edges`,
+bare `--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
 rewrite the file reads it whole, in one call; if that exceeds one call's output,
-chunk by `--select NNNN:§section`, never arbitrary windows.
+chunk by `--select NNNN:§section`, never `sed -n` windows.
 
 Pass `$arg` through as the user typed it: a number with or without leading zeros,
 a slug, or a full path all resolve. `--filter path` keeps the answer to a few
