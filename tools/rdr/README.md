@@ -710,6 +710,14 @@ spent a second invocation to avoid it. On 0142:
 | `--json` | 160,092 | the whole envelope |
 | `--filter metadata,counts` | 5,643 | −96.5% |
 | `--filter warnings,coverage` | 1,242 | −99.2% |
+
+Bytes are not the only cost. Deciding `resolved` is the one thing
+`inspect` does beyond reading the record — a scan of every record in the
+dir and a walk of `--repo` — and only `edges[]` can show the verdict. So
+resolution runs only when the projection can carry it: the whole
+envelope, `--select edges`, or a `--filter` naming `edges`. On 157
+records over a 4k-file repo that is ~1.5s against ~20ms for every other
+facet, including `--select <id>` and the text summary (`showsEdges`).
 | `--filter path` | 140 | what `§rdr-resolve` needs |
 
 `schema`, `record` and `path` come back unasked: ~120 bytes that answer
@@ -763,6 +771,9 @@ inventing a location.
     rdr inspect --select 0142:C1 0142        # with the marker's RDR_USAGE_LOG="true"
 
     {"bytes_out":490,"cmd":"inspect","elapsed_ms":551,"exit":0,"facet":"select:element","target":"0142","ts":"2026-08-24T20:38:11-07:00"}
+
+A filtered envelope logs as `"facet":"json:metadata,counts"`, so the
+log can say what `--filter` saved rather than spelling both `json`.
 
 That line is the whole argument for the tool, measured rather than
 estimated: quoting one contract costs **490 bytes** where reading the

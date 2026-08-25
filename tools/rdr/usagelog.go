@@ -210,6 +210,12 @@ func usageFacet(cmd string, f *flags) string {
 			return "select:" + selectorClass(*f.sel)
 		}
 		if f.json != nil && *f.json {
+			if f.filter != nil && *f.filter != "" {
+				// The filter is the whole difference between the 150KB
+				// envelope and an 800-byte answer; a log that cannot tell
+				// them apart cannot audit what --filter saves.
+				return "json:" + strings.ReplaceAll(*f.filter, " ", "")
+			}
 			return "json"
 		}
 		return "text"

@@ -521,7 +521,9 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
 		return 2
 	}
-	resolveEdges(doc, f, stderr)
+	if showsEdges(f) {
+		resolveEdges(doc, f, stderr)
+	}
 
 	if f.filter != nil && *f.filter != "" {
 		out, err := filterEnvelope(doc, *f.filter)
@@ -823,6 +825,28 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
 	}
 	return 0
+}
+
+// showsEdges reports whether the projection asked for can carry a
+// `resolved` verdict. Only edges[] does: the whole envelope, `--select
+// edges`, or a --filter naming edges. Every other facet is answered from
+// the record alone, so the corpus scan and repo walk resolution costs —
+// ~1.5s at 157 records over a 4k-file repo, ~30ms without — are not paid
+// for a `--filter counts` or a `--select 0055:A3` that could not show it.
+func showsEdges(f *flags) bool {
+	if f.filter != nil && *f.filter != "" {
+		for _, k := range strings.Split(*f.filter, ",") {
+			if strings.TrimSpace(k) == "edges" {
+				return true
+			}
+		}
+		return false
+	}
+	sel := ""
+	if f.sel != nil {
+		sel = *f.sel
+	}
+	return sel == "edges" || (sel == "" && f.json != nil && *f.json)
 }
 
 // resolveEdges decides one record's edges against the records dir it

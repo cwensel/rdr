@@ -1028,3 +1028,65 @@ func TestRecordsDirResolvesFromInsideItself(t *testing.T) {
 		t.Errorf("did not resolve from inside the records dir:\n%s", out)
 	}
 }
+
+// TestInspectResolvesOnlyWhenEdgesShow: resolution is the only thing
+// inspect does that reads beyond the record — a corpus scan and a repo
+// walk — and only edges[] can show its verdict. A facet that cannot show
+// `resolved` must not pay for it; a facet that can must still get it.
+func TestInspectResolvesOnlyWhenEdgesShow(t *testing.T) {
+	dir := t.TempDir()
+	rec := filepath.Join(dir, "0001-anchored.md")
+	body := "# Recommendation 0001: Anchored\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSee `widget.go::KnownSymbol` for the site.\n"
+	if err := os.WriteFile(rec, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// An unwalkable --records makes resolveEdges announce itself on
+	// stderr, so the note is the witness for whether resolution ran.
+	bad := filepath.Join(dir, "nonexistent")
+	for _, tc := range []struct {
+		name string
+		args []string
+		runs bool
+	}{
+		{"filter counts", []string{"--json", "--filter", "counts"}, false},
+		{"filter metadata,counts", []string{"--json", "--filter", "metadata,counts"}, false},
+		{"select outline", []string{"--select", "outline"}, false},
+		{"select element", []string{"--select", "0001:P"}, false},
+		{"text summary", nil, false},
+		{"filter edges", []string{"--json", "--filter", "metadata,edges"}, true},
+		{"select edges", []string{"--select", "edges"}, true},
+		{"whole envelope", []string{"--json"}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"inspect", "--records", bad}, tc.args...)
+			_, _, errb := runCapture(t, append(args, rec)...)
+			if got := strings.Contains(errb, "note:unresolved-edges"); got != tc.runs {
+				t.Errorf("resolution ran = %v, want %v (stderr: %q)", got, tc.runs, errb)
+			}
+		})
+	}
+}
+
+// TestUsageLogFacetCarriesTheFilter: `--json` and `--json --filter counts`
+// differ by two orders of magnitude in bytes; a log that spells both
+// "json" cannot say what --filter saved.
+func TestUsageLogFacetCarriesTheFilter(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "usage.jsonl")
+	t.Setenv(usageEnvVar, log)
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "metadata, counts", fixturePath("epoch-d.md")); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("log not written: %v", err)
+	}
+	var line map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &line); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if line["facet"] != "json:metadata,counts" {
+		t.Errorf("facet = %v, want json:metadata,counts", line["facet"])
+	}
+}
