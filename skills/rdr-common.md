@@ -282,6 +282,12 @@ property of the RDR's on-disk state, which the prompt already inspects.
   Stage 8 (`launch.md`) is the exception that proves the rule: its orchestrator
   delegates *everything*, by its own stricter contract — do not loosen it.
   Each delegated read returns a **§return-packet**, not prose.
+  **The spawn prompt carries the projector.** A sub-agent loads no SKILL.md and
+  no rdr-common, so it reads the record however it can — `sed -n`/`grep`/`awk`
+  by line range, every call a turn. Paste into its prompt: the absolute
+  `$RDR_HOME/bin/rdr`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list),
+  `inspect --select NNNN:A7 NNNN` / `NNNN:§section`, `--json --filter metadata` —
+  with "never `sed`/`grep` the record".
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
@@ -532,10 +538,12 @@ binding is the **barrier**: the diff/compare pass runs only after every pass lan
 in a further fresh sub-agent that authored none of them (an authoring context
 diffs toward the interpretation it already wrote). Fan-out → barrier → diff.
 
-**A fanned-out pass is a leaf.** It reads and grounds inline — its context is the
-disposable one, which is the point of the spawn — and spawns nothing: a sub-agent
-cannot yield to await a nested completion, so it `sleep`-polls (a turn per poll)
-and then redoes the grounding itself. "Delegate heavy reads" (above) is the parent's rule.
+**A spawned pass is a leaf** — fanned-out, barrier diff, or grounding alike. It
+reads and grounds inline (its context is the disposable one, which is the point
+of the spawn) and spawns nothing: a sub-agent cannot yield to await a nested
+completion, so it `sleep`-polls (a turn per poll) and then redoes the work itself.
+"Delegate heavy reads" (above) is the parent's rule, and the parent's prompt hands
+the leaf the projector.
 
 **Degrade, never fake.** A harness without per-spawn model control or concurrent
 spawns runs the documented hand-relaunch path instead — emit the relaunch command
