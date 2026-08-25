@@ -24,7 +24,8 @@ Takes a cluster (a name you give the set, or the list of RDR numbers in it) — 
 a single RDR**. If only one RDR is Final-and-unimplemented, there is no cluster;
 say so and point at `/rdr-implement NNNN`.
 
-1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** to bind `$RDR_ENV`,
+1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
+   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** to bind `$RDR_ENV`,
    `$RDR_RESOURCES`, and `$RDR_RECORDS` (the consumer's RDR directory, exported by the
    marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<cluster>/`.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_RECORDS}`;

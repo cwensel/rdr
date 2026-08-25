@@ -30,7 +30,8 @@ collision loop), §commit per seed. A member tripping the duplicate-seed guard i
 `batch:*` at re-route, so re-invoking an interrupted `--label` run resumes the
 remaining members.
 
-1. Read [`rdr-common.md`](rdr-common.md); run **§seam-bind** to bind `$RDR_ENV`.
+1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
+   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** to bind `$RDR_ENV`.
    **Duplicate-seed guard (before claiming):** a kata-id `{IDEA}` already labeled
    `kind:rdr-tracked` means a prior seed was consumed — report its `tracks:`
    target and stop; never mint a duplicate RDR. (`kind:rdr-seed` proceeds normally.)

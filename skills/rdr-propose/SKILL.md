@@ -19,8 +19,8 @@ Codex: $rdr-propose <NNNN>
 Claude: /rdr-propose <NNNN>
 ```
 
-1. Read [`rdr-common.md`](rdr-common.md) **in one Read call** (never `sed`/`grep`
-   sections out of it — each slice is a turn); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
+   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `RDR_PATH`. Bind `{EVIDENCE_DIR}` =
    `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/` (§evidence) — the prompt's
    `research/` and `propose-premortem/` outputs land under it.
