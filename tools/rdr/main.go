@@ -77,6 +77,9 @@ Only edges[] carries "resolved", and deciding it scans the records dir and
 walks --repo: the whole envelope, --select edges, --filter …edges and lint
 pay that (~1.5s on a large corpus); every other facet answers from the
 record alone (~20ms).
+inspect with no flag is the summary: one line per element, id and line range —
+the cheap id list (~50 lines); --select elements is every element as JSON,
+~25× larger. --select <id> then names a section or element to read.
 A record is named by number (3, 03, 0003), slug, or path; --records defaults
 to $RDR_RECORDS and a relative one resolves against it.
 

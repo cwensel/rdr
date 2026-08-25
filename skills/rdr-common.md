@@ -152,12 +152,13 @@ RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identit
 ```
 
 **Reading the record**: through the projector, never `sed -n`/`grep` on
-`$RDR_PATH` — `inspect NNNN` (ids + line ranges), `--select NNNN:A3 NNNN` (one
-element's bytes), `--select outline`, `--json --filter metadata,counts`. Those
-cost ~20ms; `edges`, bare `--json` and `lint` pay a corpus scan + repo walk
-(~1.5s). A stage that must rewrite the file reads it whole, in one call; if it
-exceeds one call's output, chunk on `inspect NNNN`'s section line ranges, never
-arbitrary windows.
+`$RDR_PATH` — `inspect NNNN` (the ~50-line id list; not `--select elements`, 25×
+larger), `--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:D-identity`
+(a section's or element's bytes — the ids are in the list; never `sed -n` on its
+line ranges), `--json --filter metadata,counts`. Those cost ~20ms; `edges`, bare
+`--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
+rewrite the file reads it whole, in one call; if that exceeds one call's output,
+chunk by `--select NNNN:§section`, never arbitrary windows.
 
 Pass `$arg` through as the user typed it: a number with or without leading zeros,
 a slug, or a full path all resolve. `--filter path` keeps the answer to a few
