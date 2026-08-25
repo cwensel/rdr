@@ -58,6 +58,7 @@ const (
 	MVV         Kind = "MVV"
 	Failure     Kind = "F"
 	Gate        Kind = "G"
+	JointCheck  Kind = "JC"
 	Section     Kind = "§"
 )
 
@@ -90,7 +91,7 @@ type ID struct {
 // one is a prefix of another (ALT before A, RT before nothing, MVV alone).
 var grammar = regexp.MustCompile(
 	`^(?:([A-Za-z0-9][A-Za-z0-9_.-]*)/)?(\d{4}):(?:` +
-		`(ALT|BR|RT|S|F|A|C)(\d+[a-z]?)` + // ordinal kinds; A4b is written
+		`(ALT|BR|RT|JC|S|F|A|C)(\d+[a-z]?)` + // ordinal kinds; A4b is written
 		`|(D|G)-([a-z0-9]+(?:-[a-z0-9]+)*)` + // slug kinds
 		`|(§)([a-z0-9]+(?:-[a-z0-9]+)*)` + // outline sections
 		`|(MVV)` +

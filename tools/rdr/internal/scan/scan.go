@@ -135,6 +135,23 @@ type Element struct {
 	// Evidence Record, a failure mode's Visible/Silent/Recovery, a step's
 	// Risk. Each is classified against the template (see fields.go).
 	Fields []Field `json:"fields,omitempty"`
+	// Joint is set on a JC element: the parsed `Joint-check:` line.
+	Joint *JointCheck `json:"joint,omitempty"`
+}
+
+// JointCheck is one `Joint-check:` line, read as data. The line is the
+// record's own account of a shared decision with its peers, and the one
+// fact a gate needs from it — is it still OPEN — was being scraped out of
+// prose with grep, truncated by `| head`, and misread. The field cannot be.
+type JointCheck struct {
+	// Verdict is `fired`, `clear` or `re-run`, as written after the label.
+	Verdict string `json:"verdict"`
+	// Targets are the peer records a fired check names, as written.
+	Targets []string `json:"targets,omitempty"`
+	// Home is the text inside `(home: …)`: where the decision is ruled.
+	Home string `json:"home,omitempty"`
+	// Open is true when the home is OPEN — the decision has no ruling yet.
+	Open bool `json:"open"`
 }
 
 // Warning is anything the scanner could not classify, with where it was.
@@ -383,7 +400,16 @@ func (d *Document) parentOf(i int) int {
 var (
 	listItem   = regexp.MustCompile(`^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$`)
 	numberItem = regexp.MustCompile(`^(\s*)(\d+)[.)]\s+(.*)$`)
-	boldLead   = regexp.MustCompile(`^\*\*(.+?)\*\*`)
+	// tableRowLead is a table row whose first cell is a lettered ordinal
+	// (`T-6`, `**T-34**`, `F-2`); header and rule rows have none.
+	tableRowLead = regexp.MustCompile(`^\|\s*(?:\*\*)?[A-Z]{1,3}-?(\d+[a-z]?)(?:\*\*)?\s*\|`)
+	// jointCheckLine is a `Joint-check:` line in any of its three verdicts,
+	// at line start or after a sentence (`Premortem: hardened. Joint-check: …`);
+	// a mention inside backticks or mid-sentence is prose, not a check.
+	jointCheckLine = regexp.MustCompile(`^(?:\s*(?:[-*]\s+)?|.*[.!]\s+)Joint-check:\s*(fired|clear|re-run)\s*(?:→\s*)?(.*)$`)
+	jointHome      = regexp.MustCompile(`\(home:\s*([^)]*)\)`)
+	jointTarget    = regexp.MustCompile(`^(?:[a-z][a-z0-9-]*/)?\d{4}$`)
+	boldLead       = regexp.MustCompile(`^\*\*(.+?)\*\*`)
 )
 
 // metadata reads the Metadata block's fields, values line-joined per
@@ -792,6 +818,7 @@ func (d *Document) extract() {
 	d.mvv()
 	d.listKind(ident.Failure, "Failure Modes", nil)
 	d.gate()
+	d.jointChecks()
 	d.anchors()
 	sort.SliceStable(d.Elements, func(i, j int) bool {
 		return d.Elements[i].LineStart < d.Elements[j].LineStart
@@ -1189,7 +1216,16 @@ func (d *Document) listKind(kind ident.Kind, section string, labeller func(strin
 			}
 			items = append(items, it)
 		}
+		// A section written as a table — `| T-6 | …` — is the same list in
+		// another shape: one row, one element, keyed by the row's lead.
+		for i := n.LineStart + 1; i <= n.LineEnd; i++ {
+			if m := tableRowLead.FindStringSubmatch(d.lines[i-1]); m != nil {
+				items = append(items, item{n: n, line: i, end: i,
+					label: collapse(strings.Trim(d.lines[i-1], "| ")), key: strings.TrimLeft(m[1], "0")})
+			}
+		}
 	}
+	sort.SliceStable(items, func(a, b int) bool { return items[a].line < items[b].line })
 	// Author-written numbers are keys only if they are unique; a list
 	// that restarts at 1 (two phases of scenarios) is addressed by
 	// ordinal, with a warning naming the clash.
@@ -1319,5 +1355,44 @@ func (d *Document) count() {
 		if n.Derived {
 			d.Counts.Derived[ident.Section]++
 		}
+	}
+}
+
+// jointChecks projects every `Joint-check:` line as a JC element with the
+// line parsed: verdict, the peers it names, and the home — OPEN or ruled.
+// They are keyed by document ordinal; the line carries no label of its own.
+func (d *Document) jointChecks() {
+	ord := 0
+	for j, raw := range d.lines {
+		m := jointCheckLine.FindStringSubmatch(raw)
+		if m == nil {
+			continue
+		}
+		ord++
+		line := j + 1
+		jc := &JointCheck{Verdict: m[1]}
+		rest := m[2]
+		if h := jointHome.FindStringSubmatch(rest); h != nil {
+			jc.Home = strings.TrimSpace(h[1])
+			jc.Open = strings.HasPrefix(strings.ToUpper(jc.Home), "OPEN")
+		}
+		if jc.Verdict == "fired" {
+			head := rest
+			if k := strings.Index(head, "(home:"); k >= 0 {
+				head = head[:k]
+			}
+			for _, t := range strings.Split(head, ",") {
+				t = strings.TrimSpace(t)
+				if jointTarget.MatchString(t) {
+					jc.Targets = append(jc.Targets, t)
+				}
+			}
+		}
+		e := Element{Kind: ident.JointCheck, Key: strconv.Itoa(ord), Label: collapse(strings.TrimSpace(raw)),
+			LineStart: line, LineEnd: line, Joint: jc}
+		if n := d.nodeAt(line); n != nil {
+			e.Section = n.ID
+		}
+		d.add(e)
 	}
 }

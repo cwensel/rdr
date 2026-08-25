@@ -80,9 +80,10 @@ Every element of a record has one ID, in one grammar:
 | `0055:RT1` | round-trip invariant | an `RT1` / `INV-1` lead, or a unique list number; else ordinal |
 | `0055:ALT2` | alternative | the `Alternative 2` scaffold ordinal |
 | `0055:BR3` | briefly-rejected item | a unique list number; else ordinal |
-| `0055:S5` | validation scenario | a unique list number; else ordinal |
+| `0055:S5` | validation scenario | a unique list number, or a table row's lead (`T-5`); else ordinal |
 | `0055:MVV` | minimum viable validation | none — one per record |
 | `0055:F2` | failure mode | a unique list number; else ordinal |
+| `0055:JC2` | `Joint-check:` line, parsed (`joint`: verdict, targets, home, `open`) | document ordinal |
 | `0055:G-scope` | inlined gate response (epochs A, B) | the gate item (`GateItems`); else the heading's slug. The namespace is CLOSED to those five keys — a citation of a record's own `G-a` guard table names the document, as `REQ-N` does |
 | `0055:§approach` | outline section | the canonical section's slug; scaffolds and legacy aliases slug their own heading |
 | `0055:§the-values` | bold paragraph lead | the lead's own slug — addressable text, not structure; matched exactly, never by prefix |

@@ -86,7 +86,8 @@ to $RDR_RECORDS and a relative one resolves against it.
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
   invariant · NNNN:ALT2 alternative · NNNN:BR3 briefly rejected · NNNN:S5
-  scenario · NNNN:MVV · NNNN:F2 failure mode · NNNN:G-scope gate response ·
+  scenario (list item or T-5 table row) · NNNN:MVV · NNNN:F2 failure mode ·
+  NNNN:JC2 Joint-check line (joint.open says whether it is ruled) · NNNN:G-scope gate response ·
   NNNN:§approach section · cli/NNNN:C4 across records dirs
 
 lint is the conformance authority, one pass over three severities (README

@@ -677,3 +677,64 @@ func TestOpenJointDecisionsReadsTheFormNotTheProse(t *testing.T) {
 		})
 	}
 }
+
+// TestTableRowsAndJointChecksAreElements: a Testing Strategy written as a
+// table is the same list in another shape, and a `Joint-check:` line is
+// data — the open/ruled fact was being scraped out of prose by grep,
+// truncated by `| head`, and misread.
+func TestTableRowsAndJointChecksAreElements(t *testing.T) {
+	doc := Bytes([]byte(`# Recommendation 0009: Rows
+
+## Metadata
+
+- **Date**: 2026-08-01
+- **Status**: Draft
+- **Profile**: standard
+
+## Validation
+
+### Testing Strategy
+
+| Test | Asserts |
+| --- | --- |
+| T-6 | an engine-scoped counter is zero |
+| **T-34** | report-only agrees with emitting |
+
+## Finalization Gate
+
+Joint-check: fired → 0113 (home: cli/0113 §Normative Contracts) — shared literals
+Joint-check: fired → 0106, 0110, cli/0142 (home: OPEN) — the retention seam
+Joint-check: clear
+`), Options{})
+	var s, jc []Element
+	for _, e := range doc.Elements {
+		switch e.Kind {
+		case ident.Scenario:
+			s = append(s, e)
+		case ident.JointCheck:
+			jc = append(jc, e)
+		}
+	}
+	if len(s) != 2 || s[0].ID != "0009:S6" || s[1].ID != "0009:S34" || s[0].Derived {
+		t.Fatalf("scenarios = %+v, want S6 and S34 keyed by their leads", s)
+	}
+	if len(jc) != 3 {
+		t.Fatalf("joint checks = %d, want 3", len(jc))
+	}
+	if jc[0].ID != "0009:JC1" || jc[0].Joint.Verdict != "fired" || jc[0].Joint.Open || jc[0].Joint.Home != "cli/0113 §Normative Contracts" ||
+		len(jc[0].Joint.Targets) != 1 || jc[0].Joint.Targets[0] != "0113" {
+		t.Errorf("JC1 = %+v", jc[0].Joint)
+	}
+	if !jc[1].Joint.Open || len(jc[1].Joint.Targets) != 3 || jc[1].Joint.Targets[2] != "cli/0142" {
+		t.Errorf("JC2 = %+v, want open with three targets", jc[1].Joint)
+	}
+	if jc[2].Joint.Verdict != "clear" || jc[2].Joint.Targets != nil || jc[2].Joint.Open {
+		t.Errorf("JC3 = %+v, want clear", jc[2].Joint)
+	}
+	if jc[0].Section != "0009:§finalization-gate" {
+		t.Errorf("JC1 section = %q", jc[0].Section)
+	}
+	if start, end, ok := doc.Select("0009:JC2"); !ok || start != end {
+		t.Errorf("select JC2 = %d-%d %v, want one line", start, end, ok)
+	}
+}
