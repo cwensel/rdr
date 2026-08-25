@@ -532,6 +532,11 @@ binding is the **barrier**: the diff/compare pass runs only after every pass lan
 in a further fresh sub-agent that authored none of them (an authoring context
 diffs toward the interpretation it already wrote). Fan-out → barrier → diff.
 
+**A fanned-out pass is a leaf.** It reads and grounds inline — its context is the
+disposable one, which is the point of the spawn — and spawns nothing: a sub-agent
+cannot yield to await a nested completion, so it `sleep`-polls (a turn per poll)
+and then redoes the grounding itself. "Delegate heavy reads" (above) is the parent's rule.
+
 **Degrade, never fake.** A harness without per-spawn model control or concurrent
 spawns runs the documented hand-relaunch path instead — emit the relaunch command
 (the `{RDR_RESOURCES}` alt-model roster) and note `auto: unavailable (harness) —
