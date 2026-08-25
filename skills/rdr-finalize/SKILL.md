@@ -19,8 +19,8 @@ Codex: $rdr-finalize <NNNN>
 Claude: /rdr-finalize <NNNN>
 ```
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
-   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
+   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_ENV`, `RDR_PATH`, `{EVIDENCE_DIR}`, `{ARTIFACT_DIR}`
    (= `<RDR_RECORDS>/<RDR_SLUG>/artifacts/`).
 2. Run [`07-finalize.prompt.md`](07-finalize.prompt.md). It runs the mechanical

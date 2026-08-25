@@ -57,8 +57,8 @@ Refuse with the named code if any is false (the RDR is not ready — return to
 - **Predecessors COMPLETE** — every `**Predecessors**:` entry's
   `{ARTIFACT_DIR}/status.md` reads `COMPLETE` (`stopped:predecessor-incomplete:<id>`).
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
-   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
+   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `RDR_PATH`, `{ARTIFACT_DIR}` (= `<RDR_RECORDS>/<RDR_SLUG>/artifacts/`).
 2. **Self-detected resume (no flag).** launch.md's PRECHECKS read
    `{ARTIFACT_DIR}/status.md`; if it names a phase, resume at the next one. A reader

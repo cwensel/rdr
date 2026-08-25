@@ -18,8 +18,8 @@ Codex: $rdr-refine <NNNN>
 Claude: /rdr-refine <NNNN>
 ```
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
-   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
+   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `RDR_PATH`.
 2. **Run the prompt** [`03-refine.prompt.md`](03-refine.prompt.md).
    The RDR is a **Draft** — edit it in place; rewrite to reflect the current world,

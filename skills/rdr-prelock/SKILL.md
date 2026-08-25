@@ -47,8 +47,8 @@ plan, stop with `stopped:assumptions-unverified` and point at `/rdr-resolve NNNN
 
 One invocation runs the full loop for one lens:
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
-   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**.
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
+   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**.
    Bind `{EVIDENCE_DIR}` = `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/` (§evidence). **Re-entry** is
    self-detected: a `Status: Draft [revised from Final …; re-verify <IDs>]`
    qualifier → write to `iter-N/` (N = 1 + highest existing; loose files = iter-1)

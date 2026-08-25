@@ -18,8 +18,8 @@ Codex: $rdr-resolve <NNNN>
 Claude: /rdr-resolve <NNNN>
 ```
 
-1. Read [`rdr-common.md`](rdr-common.md) **whole, in one call** (`cat` or Read —
-   never `sed`/`grep` §-slices; each slice is a turn); run **§seam-bind** + **§rdr-resolve**
+1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (43KB — `cat`
+   truncates at 30KB and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_ENV`, `$RDR_RESOURCES`, `RDR_PATH`, `RDR_SLUG`, `{SPIKE_DIR}`.
 2. **Run the prompt** [`04-resolve.prompt.md`](04-resolve.prompt.md)
    with those bound. Have a live spike target reachable. The prompt is read-heavy —
