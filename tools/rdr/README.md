@@ -474,10 +474,16 @@ correct it, so a reader that called its values off-vocabulary would be
 permanently and unfixably wrong about it. The model's job is to **read
 those records, never to judge them**.
 
-In practice only Status has an observed set: `Rejected` and `Deferred`,
-both written as real terminal dispositions by frozen records that
-`TEMPLATE.md` never listed. Method's observed set is empty, and that is a
-finding rather than an oversight — every Method value in the corpus
+In practice only Status has an observed set: `Rejected`, written as a real
+terminal disposition by frozen records that `TEMPLATE.md` never listed.
+`Deferred` was in that set too, and its promotion out shows what the tier
+is for. A frozen record had improvised it for a state the template could
+not spell — parked with a revisit trigger, which is not `Abandoned` — so
+the reader accepted it while the template gained the word; it is Canonical
+now, and reading did not change. That is the tier working as intended: it
+holds a value the corpus needs, visibly, until the template answers for it.
+Method's observed set is empty, and that is a finding rather than an
+oversight — every Method value in the corpus
 resolves to one of the eight sanctioned labels once compounds are split and
 parenthetical glosses are stripped.
 

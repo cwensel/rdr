@@ -433,9 +433,9 @@ var ArtifactRe = regexp.MustCompile(`\{(SPIKE_DIR|ARTIFACT_DIR|EVIDENCE_DIR|RDR_
 
 // IssueRe matches the tracker forms the corpus writes: an `_issues/NNNN`
 // path, and a tracker id spelled with its tracker — `kata #71`, `kata
-// ahg1`, `` kata `54ws` ``. Both id shapes the corpus uses are read: the
-// numeric one the tracker started with, and the short alphanumeric one it
-// mints now.
+// ahg1`, and the same with the id itself backticked. Both id shapes the
+// corpus uses are read: the numeric one the tracker started with, and the
+// short alphanumeric one it mints now.
 //
 // A BARE `#N` IS NOT READ. It is the corpus's ordinary way of numbering
 // prose, not of citing a tracker: of 1,615 `#N` occurrences, 635 are

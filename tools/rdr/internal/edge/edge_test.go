@@ -127,9 +127,9 @@ func TestNonRecordReferences(t *testing.T) {
 
 	t.Run("artifact", func(t *testing.T) {
 		for in, want := range map[string]string{
-			"{SPIKE_DIR}/RESULTS.md":         "RESULTS.md",
+			"{SPIKE_DIR}/RESULTS.md":          "RESULTS.md",
 			"{EVIDENCE_DIR}research/prior.md": "research/prior.md",
-			"{ARTIFACT_DIR}/gate.md":         "gate.md",
+			"{ARTIFACT_DIR}/gate.md":          "gate.md",
 		} {
 			m := ArtifactRe.FindStringSubmatch(in)
 			if m == nil {

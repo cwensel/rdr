@@ -24,7 +24,13 @@ func TestSummaryReadsMetadataNotBody(t *testing.T) {
 	cases := map[string]struct{ inFlight, terminal bool }{
 		"Draft": {true, false}, "Final": {true, false}, "Draft [revised from Final; re-verify A2]": {true, false},
 		"Implemented": {false, true}, "Demoted [→ kata 1234]": {false, true},
-		"Deferred": {false, false}, "Rejected": {false, true},
+		// Parked is the tri-state: a Deferred record is not in flight (no
+		// stage is running) and not terminal (it re-enters when its
+		// trigger fires). Both spellings are pinned — the bracketed form
+		// a new record writes, and the bare one a frozen record left.
+		"Deferred": {false, false},
+		"Deferred [revisit when upstream exposes a pool knob]": {false, false},
+		"Rejected": {false, true},
 	}
 	for status, want := range cases {
 		d := synth(t, "0007", head("0007", "Gamma — a title", status)+"\n## Problem Statement\n\nSynthetic.\n")

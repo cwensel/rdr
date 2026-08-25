@@ -43,8 +43,8 @@ type Document struct {
 	// Metadata is the Metadata block's fields, classified; Fields is every
 	// other labelled bullet that sits inside no element (an element's own
 	// fields nest under it). See fields.go.
-	Metadata []Field   `json:"metadata"`
-	Fields   []Field   `json:"fields"`
+	Metadata []Field `json:"metadata"`
+	Fields   []Field `json:"fields"`
 	// Edges are the typed relations this record states — to other
 	// records and their elements, to code, to artifacts and to trackers.
 	// See edges.go.
