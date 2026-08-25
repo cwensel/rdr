@@ -122,6 +122,22 @@ else
     else
       warn "11b projector stale - built $built, engine now $cur - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
     fi
+
+    # 11c - self-binding. The projector finds the marker itself and reads
+    # $RDR_RECORDS from it, so a skill reaches it with no seam bound and no
+    # exported prefix carried between calls. If that stops working the flow
+    # still runs - every call site may still export - but it pays the baggage
+    # again on every turn, silently. Checked with the environment CLEARED, so
+    # a var this session happens to export cannot mask a broken bind.
+    if [ -n "$RDR_RECORDS" ] && [ -d "$RDR_RECORDS" ]; then
+      probe=$(cd "$PROJECT" 2>/dev/null && env -u RDR_RECORDS -u RDR_SOURCE_REPO "$RDR_BIN" index --status 2>&1 | tail -1)
+      case "$probe" in
+        *"no-records"*|*"stopped:"*)
+          warn "11c projector does not self-bind the seam from $PROJECT - skills must export \$RDR_RECORDS per call ($probe)" ;;
+        *)
+          pass "11c projector self-binds the seam - no per-call export needed" ;;
+      esac
+    fi
   fi
 fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."

@@ -618,6 +618,38 @@ alias table (`legacy-alias`, `recognized-unmapped`).
 the single largest class of heading a name-only lookup cannot place, and
 treating them as foreign would bury every real finding.
 
+## The seam binds itself
+
+Every var this binary reads is written in a marker file the flow already
+maintains, so it reads the marker rather than waiting to be told.
+
+    cd anywhere/in/the/project
+    rdr index --in-flight          # no --records, no exports, no seam bound
+
+From the working directory it walks up for the project root, applies the
+flow's own nearest-marker-wins rule (a repo-local `.rdr/workspace` beats
+the shared `../.rdr-workspace`), sources the marker with `sh` — markers
+are plain assignments that expand `$WS`/`$PROJECT` internally, so they
+need a real shell, not a regex — and reads `RDR_RECORDS` and
+`RDR_SOURCE_REPO` back out.
+
+The binding order is **flag, then environment, then marker**. A flag is
+someone spelling out a path; an exported var is a decision someone made;
+the marker is only what fills the gap that would otherwise be an error.
+No marker binds nothing at all — discovery, never invention — and the
+caller fails exactly as it did before.
+
+This exists because shell state dies between agent tool calls. A skill
+that needed `$RDR_RECORDS` had to re-run a fifteen-line resolver or carry
+an `export RDR_HOME=… RDR_RECORDS=… RDR_EVIDENCE=…` prefix on every
+invocation — bytes on each call, a fresh chance to get a path wrong, and
+neither carrying anything the marker did not already hold. `rdr-doctor`
+check 11c watches that this keeps working, with the environment cleared
+so an exported var cannot mask a broken bind.
+
+`§seam-bind` is still the authority for what this tool does *not* read —
+`$RDR_EVIDENCE`, `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+
 ## Naming a record, and reading part of one
 
 A record is named by **number, slug or path**, and the number needs no
@@ -719,6 +751,7 @@ could break an answer would be worse than no log.
     tools/rdr/
       main.go              subcommand dispatch, flags, inspect, the per-record index facets
       usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
+      seam.go              marker discovery: the records dir and source root, bound without a shell
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars

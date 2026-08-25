@@ -55,11 +55,20 @@ cwd, a consumer worktree, or the flow repo. **Nearest marker wins**: a repo-loca
 `$PROJECT/.rdr/workspace` (this repo's own RDR env, inside its gitignored `.rdr/` — the
 default) takes precedence over the shared `$WS/.rdr-workspace` (a workspace seam siblings
 opt into via `--workspace`) — like `.git` or `.editorconfig`, the closest one governs. `$PROJECT`
-is `dirname` of the git-common-dir, so a worktree still resolves its main repo's local marker. Shell
-state dies between Bash tool calls — run §seam-bind and §rdr-resolve **in one call**
-(or re-run this block first in any later call), else `$RDR_RECORDS`/`$RDR_ENV` are
-empty when the glob runs (the classic empty-`RDR_PATH` miss). Source the marker
-**only** via this block; `$RDR_MARKER` records which one resolved.
+is `dirname` of the git-common-dir, so a worktree still resolves its main repo's local marker.
+Source the marker **only** via this block; `$RDR_MARKER` records which one resolved.
+
+**Shell state dies between Bash tool calls**, so anything you still need from the
+marker must be bound in the *same* call that uses it. Bind once per call, at the
+top — never carry an `export RDR_…=…` prefix from one call to the next, and never
+re-run this block just to reach `rdr`.
+
+**`rdr` never needs it.** The binary finds the marker itself, by the same
+nearest-wins rule, and reads `$RDR_RECORDS` and `$RDR_SOURCE_REPO` from it — so a
+bare `"$RDR_HOME/bin/rdr" inspect …` works from any directory in the project with
+no seam bound at all. An exported var still wins over the marker, and a flag over
+both. Run §seam-bind for what the tool does *not* read: `$RDR_EVIDENCE`,
+`$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
 
 ```sh
 # §seam-bind — copy/run verbatim; do NOT source the marker file directly (exits 1 without $WS).
@@ -130,14 +139,15 @@ under `$FLOW_ROOT/rdr/evidence/` (per-lens, tooling-pass, spikes — e.g. a real
 `evidence/tooling-pass/0039-*.md` is **not** an RDR) can never be picked:
 
 ```sh
-# One call. `rdr` pads the number itself (3 -> 0003, decimal, never octal),
-# defaults --records to $RDR_RECORDS, skips a NNNN-slug-postmortem.md sibling,
-# and names both files on a real collision. On failure it exits 2 having already
-# printed stopped:no-such-record / stopped:ambiguous-record — let that stand as
+# One call, no seam needed. `rdr` finds the marker itself for the records dir,
+# pads the number (3 -> 0003, decimal, never octal), skips a
+# NNNN-slug-postmortem.md sibling, and names both files on a real collision.
+# On failure it exits 2 having already printed stopped:no-such-record /
+# stopped:ambiguous-record with the directories it searched — let that stand as
 # the stop reason; do not restate it as something else.
 RDR_PATH=$("$RDR_HOME/bin/rdr" inspect --json --filter path "$arg" |
            sed -n 's/.*"path": "\([^"]*\)".*/\1/p' | head -1) || exit 1
-[ -n "$RDR_PATH" ] || { echo "stopped:rdr-not-found:$arg in $RDR_RECORDS" >&2; exit 1; }
+[ -n "$RDR_PATH" ] || { echo "stopped:rdr-not-found:$arg" >&2; exit 1; }
 RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identity
 ```
 

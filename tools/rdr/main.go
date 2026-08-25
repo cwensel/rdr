@@ -210,9 +210,9 @@ type flags struct {
 // fails loudly today rather than silently once it does.
 func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	f := &flags{}
-	records := fs.String("records", os.Getenv("RDR_RECORDS"), "records dir for NNNN lookup (default $RDR_RECORDS, else .)")
+	records := fs.String("records", envOrSeam("RDR_RECORDS"), "records dir for NNNN lookup (default $RDR_RECORDS, else the marker's, else .)")
 	project := fs.String("project", "", "project prefix for ids (cli/NNNN:C4); omitted inside one records dir")
-	repo := fs.String("repo", os.Getenv("RDR_SOURCE_REPO"), "repo root for source-anchor symbol resolution (default $RDR_SOURCE_REPO); unset leaves those edges unchecked")
+	repo := fs.String("repo", envOrSeam("RDR_SOURCE_REPO"), "repo root for source-anchor symbol resolution (default $RDR_SOURCE_REPO, else the marker's); unset leaves those edges unchecked")
 	f.records, f.project, f.repo = records, project, repo
 	switch cmd {
 	case "inspect":
@@ -414,7 +414,7 @@ func recordsDir(records string) string {
 //	$RDR_RECORDS/<rel>  only when that really exists, never invented
 //	$RDR_RECORDS        the marker alone, when nothing else resolved
 func resolveRecordsDir(records string) (string, []string) {
-	env := os.Getenv("RDR_RECORDS")
+	env := envOrSeam("RDR_RECORDS")
 	var tried []string
 	note := func(what, path string) { tried = append(tried, what+" "+path) }
 
