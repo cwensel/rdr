@@ -47,32 +47,52 @@ proposal content.
 
 ## Phase 0 — bind & pre-order
 
-§seam-bind, then §rdr-resolve each member. Pre-order with the joint-check's own
-vocabulary (prompt step 8) pointed at seeds: per member collect modify-anchors
-(the `Seam Lineage` locus + backticked `path::Symbol` tokens — from
-Problem/Context, since Proposed Solution is placeholder) and contract literals,
-**dropping any token also backticked in `TEMPLATE.md`** (template-shipped
-literals appear in every seed and would falsely link all pairs); build the
-overlap graph. `Predecessors` metadata are hard edges — topo-sort
-those first. Within an overlap group the likely **contract owner** proposes
-first: locus *is* the shared anchor > lower-level seam > Priority > number
-order. The order is a prior, not a promise — the loop corrects it; this pass
-makes corrections rare. Grep-cheap: orchestrator-local, or one small sub-agent
-(mechanical extraction is the one job here a lesser model suits).
+§seam-bind, then §rdr-resolve each member. Build the overlap graph from the
+projection — one pass, no seed body read:
+
+```sh
+[ -x "$RDR_HOME/bin/rdr" ] && {
+  "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all --records "$RDR_RECORDS" --repo "$SRC"
+  "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
+  "$RDR_HOME/bin/rdr" index --in-flight --records "$RDR_RECORDS"
+}
+```
+
+`overlaps[]` `{records[], anchors[], cited}` **is** the overlap graph — seeds
+are pre-proposal, so `--all` widens past in-flight. `$SRC` = the source root the
+anchors name; `--repo` is required or source-anchor edges carry no `resolved`
+key (absent ≠ false, never "no overlap"). Contract literals: `elements[]`
+`kind=="C"`, equal `hash` across two records = same contract text. `overlaps[]`
+already ignores the template's own `path::Symbol`, but **`C` hashes are not** —
+a template-shipped contract hashes identically in every seed that kept it
+(observed: one hash across 13 records), so **drop any hash also carried by
+`TEMPLATE.md`** before linking a pair, as the token filter did. `Predecessors`
+edges (`edges[]` `kind=="predecessor"`) are hard edges — topo-sort those first.
+Within an overlap group the likely **contract owner** proposes first: locus *is*
+the shared anchor > lower-level seam > Priority > number order. The order is a
+prior, not a promise — the loop corrects it; this pass makes corrections rare.
+
+Absent binary: collect modify-anchors per member by hand (the `Seam Lineage`
+locus + backticked `path::Symbol` from Problem/Context, since Proposed Solution
+is placeholder) plus contract literals, **dropping any token also backticked in
+`TEMPLATE.md`**; grep-cheap — orchestrator-local, or one small sub-agent.
 
 ## The loop — one proposer at a time
 
 Spawn one proposer per member, sequentially in order (§delegation `Task` tool;
 model per §model-ceiling). Brief = the bound seam vars + `{RDR_PATH}`, the peer
-roster (NNNN + title — awareness, never solutions), and: run the sibling
+roster (NNNN + title — awareness, never solutions; `index --in-flight` prints
+exactly that, no body — do not widen it), and: run the sibling
 [`02-propose.prompt.md`](02-propose.prompt.md) **in full — including step 8**,
-which now greps real peer proposals — plus two batch-only additions:
+which now compares real peer proposals — plus two batch-only additions:
 
 - **Fail-fast order sniff.** After prompt step 1 (prior art), before drafting:
   if a still-unproposed roster peer owns a decision this RDR must bind against
   (the consumer side of a shared anchor), stop — return `NEEDS_DECISION`,
   `next_action: propose NNNN first` (code `stopped:propose-order:NNNN-first`).
-  Never author a proposal doomed to re-run.
+  Who shares which anchor is Phase 0's `overlaps[]` — read it, don't re-derive;
+  which side *owns* the contract stays judgment. Never author a proposal doomed
+  to re-run.
 - **Self-commit** via §commit before returning.
 
 Orchestrator, per packet:

@@ -36,7 +36,7 @@ open RDRs from silently coupling on the same decision before either locks.
 
 **Order a seeded batch breadth-first: propose every sibling before any
 refines.** The check collects anchors from *this* RDR's written proposal and
-greps peers' bodies — a bare seed has no anchors to collide with, so
+compares them against peers' — a bare seed has no anchors to collide with, so
 depth-first (one RDR seed→Final at a time) blinds the early checks and lands
 any late fire against locked text, where the fix is a recorded tolerance
 instead of free switching. The tandem barrier enforces this order for declared
@@ -60,13 +60,34 @@ peer, and only the true joint forks surfaced to the user.
   switch case, or identity rule, confirm a grep for an existing sibling path was
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Did the joint-decision check run, and was any fire paused on?** The prompt's
-  final step greps every open peer for shared modify-anchors / contract literals
-  (mechanics live there; citation does not suppress a fire) and records a
-  `Joint-check:` line in Decision Rationale either way. A fire clears only onto a
-  resolvable §-anchor `home:` or `OPEN` — prose naming no authority does not.
-  No such line → it did not run, re-run
-  it (a skipped gate item must not read as a passed one). A fire PAUSES propose
-  before refine, as a user question — advanced over silently → re-run.
+  final step compares every open peer for shared modify-anchors / contract
+  literals (mechanics live there; citation does not suppress a fire) and records
+  a `Joint-check:` line in Decision Rationale either way. With the projector, the
+  two halves are queries, not peer reads — one pass, no peer body opened:
+
+  ```sh
+  [ -x "$RDR_HOME/bin/rdr" ] && {
+    "$RDR_HOME/bin/rdr" index --anchor-intersect --json --records "$RDR_RECORDS" --repo "$SRC"
+    "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
+  }
+  ```
+
+  Anchors: `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited
+  first — the fire shape. `$SRC` = the source root the anchors name (the checkout
+  under review); **`--repo` is required** — without it source-anchor edges carry
+  no `resolved` key at all (absent ≠ false), and an unchecked scan must not read
+  as "no intersection". Contracts: `elements[]` `kind=="C"` carries
+  `record`, `label` and a content `hash` — equal hash across two records is the
+  same contract text, stable under reflow; **drop any hash `TEMPLATE.md` also
+  carries** (a template-shipped contract hashes the same in every seed that kept
+  it, and would link every pair). `cited: true` is context beside a fire, never
+  suppression. Absent binary → the prose grep the prompt states.
+  No `Joint-check:` line → it did not run, re-run it (a skipped gate item must
+  not read as a passed one). A fire PAUSES propose before refine, as a user
+  question — advanced over silently → re-run. A fire clears only onto a
+  resolvable §-anchor `home:` or `OPEN` — prose naming no authority does not;
+  check it as an edge, not a string: `edges[]` `kind=="joint-decision-home"`
+  needs `resolved: true` (`false` or **absent** is not a pass).
 - **Was the bridge question surfaced and answered when its cues were present?**
   Behind the tandem barrier, a plan-introduced surface a Cluster sibling
   schedules for deletion puts the (a) skip-to-end-state / (b) `Transient`-marker
