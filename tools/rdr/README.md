@@ -35,6 +35,97 @@ and a static binary gives `rdr-doctor` one thing to check for.
     go vet ./...
     go test ./...
 
+## What this tool is for
+
+`rdr` exists to make the **skills in this repo** cheaper and more
+reliable, and that is the only measure of a change to it. Before it
+existed, every turn of the flow that needed a structural fact about a
+record — its Status, which sections are filled, how many assumptions are
+Verified, which peers it cites — answered by having a model re-read the
+markdown. Records run ~1,200 lines at the median and past 5,000 at the
+tail, so a structural question cost a whole-file read, and the ad-hoc
+parses were wrong in known ways: a section that is `###` in most records
+and `##` in a few, Evidence labels that vary, Status values carrying
+qualifiers. A parser keyed on the template literal silently undercounts,
+and a skipped check must never read as a passed one.
+
+So the tool answers those questions deterministically, and the skills
+call it instead of reading. The saving is real but it is **not uniform**,
+and the shape matters more than the headline:
+
+    --select NNNN:C1      ~500 B    the contract-quoting path
+    index --in-flight     ~2 KB     replaces opening every record
+    lint --locking        ~3 KB
+    inspect --json        LARGER than the record it read
+
+The full envelope costs more than the file. The saving lives in
+`--select` and the index facets — the narrow reads — which is why the
+skills are written to ask narrow questions. `$RDR_USAGE_LOG` measures
+this per invocation; it is opt-in and off by default.
+
+Consumption is deliberately **not a hard dependency**. The projection is
+an accelerator, not a prerequisite: a caller without the binary degrades
+to the old hand read rather than stopping, and the sites that must not
+fail — the commit receipt among them — check for it and proceed with a
+note. A skill spawning a sub-agent that has no access to this file says
+the same thing the long way, by pasting the three reads it wants.
+
+### What it refuses to do
+
+- **It never writes to a record.** Markdown is the source of truth; the
+  projection is derived and never authoritative. If the two disagree,
+  the record is right and the model has drift to fix.
+- **It makes no semantic judgment.** Contradiction, hollow-vs-thin
+  prose, whether a claim is any good — none of that lives here. The
+  projector reads structure; lint applies mechanical rules.
+- **It never guesses.** Resolution is exact, `resolved` is three-valued,
+  and an ambiguous citation stays unresolved rather than taking a first
+  or longest match. A tiebreak is a guess by another name.
+
+### Reading a finding before acting on it
+
+**Findings are the intended output, not a defect.** The conformance
+rules are forward-only: terminal records are never amended, and a live
+record carries findings until the stage already rewriting it fixes them
+in-pass. A Final record exiting non-zero under `--locking` is an
+ordinary state, not a broken lock.
+
+The corpus audit that closed this tool's build-out is the cautionary
+tale, and it is worth restating because the mistake is easy to repeat.
+Of the record-to-record findings examined, **a clear majority were
+tool-grammar gaps, a minority were real record errors, and several were
+correctly unresolved.** Bulk-editing records to satisfy the tool would
+have rewritten a large number of *correct* citations. The discipline
+that follows:
+
+**Classify before editing anything.** Sort each finding into
+tool-grammar gap, record error, or correctly-unresolved, and fix the
+class — never the symptom. A high finding count is evidence about the
+grammar as often as about the records.
+
+**A false finding is strictly worse than an absent one.** An unchecked
+edge that reads as broken sends a consumer chasing it. This is why a
+wrong `--repo` root is worse than none, why receiver-qualified anchors
+match their member, and why `REQ-N` and an author's own `G-<slug>`
+resolve to the document rather than asserting an element the target
+cannot have.
+
+**The rule's stated rationale may be narrower than its purpose.** A
+comment gives one reason a rule exists; TEMPLATE.md and the commit that
+introduced it give the rule. Read those before concluding a finding is
+spurious — the guard in a neighbouring rule is usually that rule's own
+plumbing, not shared doctrine.
+
+Known-open work is tracked outside this repo. Source anchors span more
+than one repo: over one corpus audit, 142 of 173 unresolved edges were
+source anchors, nearly all naming third-party codebases cited for
+contrast, which want a multi-root `--repo` and an `external` verdict
+rather than `false`. The remainder of the mechanical tooling pass is
+still an AI prompt where it could be a script. The lint receipt
+(§receipt) closes the gap where a stage could close a gate without lint
+ever running; it is built and enforced at commit, pending confirmation
+over a full stage run.
+
 ## The same-commit rule
 
 **A `TEMPLATE.md` change that adds, removes, renames or re-levels a
