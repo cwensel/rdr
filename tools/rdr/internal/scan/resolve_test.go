@@ -190,6 +190,75 @@ func TestSymbolIsAWholeWord(t *testing.T) {
 	}
 }
 
+// TestReceiverQualifiedSymbolResolvesToItsMember is CHECK 5 applied to a
+// `Type.Method` anchor. No language writes the qualifier adjacent to the
+// member at the definition, so grepping the dotted string whole reports a
+// live method as missing — a false finding, which is strictly worse than
+// the absent verdict a skipped check gives. The member is what must
+// resolve; a method that is genuinely gone still reports false.
+func TestReceiverQualifiedSymbolResolvesToItsMember(t *testing.T) {
+	repo := t.TempDir()
+	src := "package genealogy\n\nfunc (v *TableVertex) LiveConstraints() []string { return nil }\n"
+	if err := os.WriteFile(filepath.Join(repo, "views.go"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "- **Seam Lineage**: `views.go::TableVertex.LiveConstraints` "+
+			"and `views.go::TableVertex.Vanished`"),
+	})
+	NewResolver(docs, repo).ResolveAll(docs)
+
+	live := findEdge(t, docs[0], edge.SourceAnchor, "views.go::TableVertex.LiveConstraints")
+	if live.Resolved == nil || !*live.Resolved {
+		t.Errorf("LiveConstraints is declared on TableVertex but resolved = %v", show(live.Resolved))
+	}
+	gone := findEdge(t, docs[0], edge.SourceAnchor, "views.go::TableVertex.Vanished")
+	if gone.Resolved == nil || *gone.Resolved {
+		t.Errorf("Vanished is nowhere but resolved = %v", show(gone.Resolved))
+	}
+}
+
+// TestQualifiedFallbackKeepsTheWholeWordRule: falling back to the member
+// must not resolve `Type.Encode` out of `EncodeAll`, or the fallback would
+// undo the rule TestSymbolIsAWholeWord exists to hold.
+func TestQualifiedFallbackKeepsTheWholeWordRule(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "f.go"), []byte("func EncodeAll() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "- **Seam Lineage**: `frame.go::Codec.Encode`"),
+	})
+	NewResolver(docs, repo).ResolveAll(docs)
+	e := findEdge(t, docs[0], edge.SourceAnchor, "frame.go::Codec.Encode")
+	if e.Resolved == nil || *e.Resolved {
+		t.Errorf("Codec.Encode resolved out of EncodeAll (resolved = %v)", show(e.Resolved))
+	}
+}
+
+// TestWordBoundaryHoldsAtEveryPosition pins the boundary rule against the
+// index-based matcher: a leading, trailing or embedded identifier byte all
+// disqualify a hit, and a later standalone occurrence still resolves.
+func TestWordBoundaryHoldsAtEveryPosition(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{"EncodeAll()", false},
+		{"reEncode()", false},
+		{"x.reEncodeAll()", false},
+		{"Encode()", true},
+		{"EncodeAll(); Encode()", true},
+		{"// Encode\n", true},
+		{"Encode", true},
+		{"NotEncode", false},
+	} {
+		if got := containsWord([]byte(tc.body), []byte("Encode")); got != tc.want {
+			t.Errorf("containsWord(%q, Encode) = %v, want %v", tc.body, got, tc.want)
+		}
+	}
+}
+
 // TestSectionCitationResolvesExactly: resolution never guesses which
 // section a partial citation meant. A reference that lands on no section
 // of the target is reported — whether the author under-specified it or

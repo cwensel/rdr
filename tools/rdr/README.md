@@ -11,8 +11,7 @@ every element, the typed edges it states, and a warnings channel, and
 resolves any element ID back to the lines it names. `index --derived`
 reports the corpus's labelling backlog; `index --coverage` is the drift
 alarm; `index --unresolved`, `--backlinks` and `--cluster-of` query the
-edge graph. `lint` lands separately; until it does, it prints
-`stopped:not-implemented` and exits 2.
+edge graph. `lint` is the conformance authority (§Lint).
 
 Flags precede the positional argument — Go's flag parser stops at the
 first non-flag word.
@@ -291,6 +290,16 @@ terminal RDR. Nothing else about the record changes.
 SYMBOL is what resolves, never the line number, and a symbol found
 anywhere in the repo counts (the anchor moved; the claim stands).
 
+A **receiver-qualified** anchor (`views.go::TableVertex.LiveConstraints`)
+resolves to its member. No language writes the qualifier adjacent to the
+member where it is declared — Go has `func (v *TableVertex)
+LiveConstraints()` — so matching the dotted string whole reports a live
+method as missing. That is a FALSE finding, strictly worse than the absent
+verdict a skipped check gives, because a consumer chases it. The qualifier
+is the author saying where the symbol lived; a move is a note, not a
+finding. The member still matches as a whole word, so `Codec.Encode` does
+not resolve out of `EncodeAll`.
+
 An unmapped reference form — a citation shape no grammar reads — lands in
 `warnings[]` as `edge:unmapped-reference`. It is **not** an unclassified
 line: the rate measures structural drift against TEMPLATE.md, and a line
@@ -300,7 +309,10 @@ whose structure is fully read but whose reference is untyped is not that.
 
 `rdr index` projects the whole records dir once — sub-second over a
 143-record corpus, byte-deterministic, no cache to go stale — and answers
-the corpus-level questions the flow used to answer by opening every file:
+the corpus-level questions the flow used to answer by opening every file.
+With `--repo`, symbol resolution adds one walk of the source tree (~13s
+over a 110MB checkout citing ~1.2k symbols); every symbol is tested per
+file, so the cost is one traversal, not one per citation:
 
     rdr index [--json]            # the graph: records, elements, edges, derived backlinks
     rdr index --status            # records grouped by status

@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -157,9 +158,36 @@ func (r *Resolver) resolveSymbol(anchor string) *bool {
 	if v, seen := r.symbols[sym]; seen {
 		return truth(v)
 	}
-	found := r.grep(sym)
+	found := r.lookup(sym)
+	// A receiver-qualified anchor (`views.go::TableVertex.LiveConstraints`)
+	// names one symbol, but no language writes the qualifier adjacent to the
+	// member at the definition — Go declares `func (v *TableVertex)
+	// LiveConstraints()` and calls it `tv.LiveConstraints()`. Grepping the
+	// dotted string whole therefore reports a live method as missing, which
+	// is a FALSE finding: worse than the absent verdict a skipped check
+	// gives, because a consumer chases it. CHECK 5 asks whether the SYMBOL
+	// resolves anywhere, so fall back to the member — the qualifier is the
+	// author saying where it lived, and a move is a note, not a finding.
+	if !found {
+		if member := sym[strings.LastIndex(sym, ".")+1:]; member != sym && member != "" {
+			found = r.lookup(member)
+		}
+	}
 	r.symbols[sym] = found
 	return truth(found)
+}
+
+// lookup is grep behind the symbol cache. The fallback below queries a
+// second key (the member of a qualified anchor), and many records cite the
+// same member, so an uncached second walk would turn one pass over the repo
+// into one per citation.
+func (r *Resolver) lookup(sym string) bool {
+	if v, seen := r.symbols[sym]; seen {
+		return v
+	}
+	found := r.grep(sym)
+	r.symbols[sym] = found
+	return found
 }
 
 // grep walks the repo for the symbol as a whole word. It is a plain walk
@@ -169,8 +197,23 @@ func (r *Resolver) resolveSymbol(anchor string) *bool {
 func (r *Resolver) grep(sym string) bool {
 	needle := []byte(sym)
 	found := false
+	r.walk(func(body []byte) bool {
+		if containsWord(body, needle) {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
+}
+
+// walk reads every searchable file under the repo once, handing each body
+// to visit; visit returns false to stop the walk. Callers that need many
+// symbols test them all per file rather than walking per symbol.
+func (r *Resolver) walk(visit func(body []byte) bool) {
+	done := false
 	filepath.WalkDir(r.repo, func(p string, e os.DirEntry, err error) error {
-		if err != nil || found {
+		if err != nil || done {
 			return nil
 		}
 		if e.IsDir() {
@@ -191,12 +234,11 @@ func (r *Resolver) grep(sym string) bool {
 		if err != nil {
 			return nil
 		}
-		if containsWord(body, needle) {
-			found = true
+		if !visit(body) {
+			done = true
 		}
 		return nil
 	})
-	return found
 }
 
 // maxSearchBytes skips a file too large to be source. A generated blob is
@@ -218,19 +260,24 @@ func searchable(path string) bool {
 // containsWord reports whether body holds needle bounded by non-identifier
 // bytes on both sides, so `Encode` does not match inside `EncodeAll`.
 func containsWord(body, needle []byte) bool {
-	for i := 0; i+len(needle) <= len(body); i++ {
-		if string(body[i:i+len(needle)]) != string(needle) {
-			continue
-		}
-		if i > 0 && identByte(body[i-1]) {
-			continue
-		}
-		if j := i + len(needle); j < len(body) && identByte(body[j]) {
-			continue
-		}
-		return true
+	if len(needle) == 0 {
+		return false
 	}
-	return false
+	// bytes.Index jumps to each candidate rather than comparing at every
+	// offset; the old scan allocated two strings per byte position, which
+	// over a corpus-sized walk (100MB+ x ~1.2k symbols) dominated the run.
+	for off := 0; ; {
+		i := bytes.Index(body[off:], needle)
+		if i < 0 {
+			return false
+		}
+		i += off
+		j := i + len(needle)
+		if (i == 0 || !identByte(body[i-1])) && (j >= len(body) || !identByte(body[j])) {
+			return true
+		}
+		off = i + 1
+	}
 }
 
 func identByte(b byte) bool {
@@ -262,10 +309,61 @@ func Reverse(docs []*Document) Backlinks {
 	return out
 }
 
-// ResolveAll decides the edges of a whole corpus.
+// ResolveAll decides the edges of a whole corpus. It primes the symbol
+// cache first: a corpus cites ~1.2k distinct symbols, and one walk per
+// symbol is one walk per citation over the same tree. Priming tests every
+// symbol against each file as it is read, so the repo is walked ONCE.
 func (r *Resolver) ResolveAll(docs []*Document) {
+	r.primeSymbols(docs)
 	for _, d := range docs {
 		r.Resolve(d)
+	}
+}
+
+// primeSymbols greps every source-anchor symbol the corpus cites in a
+// single walk. Each anchor contributes its symbol and, for a qualified
+// one, its member (resolveSymbol's fallback), so both cache keys are
+// filled before any edge is decided and no later grep walks the tree.
+func (r *Resolver) primeSymbols(docs []*Document) {
+	if r.repo == "" {
+		return
+	}
+	want := map[string][]byte{}
+	for _, d := range docs {
+		for i := range d.Edges {
+			e := &d.Edges[i]
+			if e.Kind != edge.SourceAnchor {
+				continue
+			}
+			_, sym, ok := strings.Cut(e.To, "::")
+			if !ok || sym == "" {
+				continue
+			}
+			want[sym] = []byte(sym)
+			if m := sym[strings.LastIndex(sym, ".")+1:]; m != sym && m != "" {
+				want[m] = []byte(m)
+			}
+		}
+	}
+	if len(want) == 0 {
+		return
+	}
+	// Seed every symbol absent, then flip the ones a file proves present.
+	// The seed must be written AFTER the walk for symbols still missing:
+	// resolveSymbol's qualified fallback keys off a cache MISS, so seeding
+	// false up front would answer it before the member is ever tried.
+	hit := map[string]bool{}
+	r.walk(func(body []byte) bool {
+		for sym, needle := range want {
+			if containsWord(body, needle) {
+				hit[sym] = true
+				delete(want, sym)
+			}
+		}
+		return len(want) > 0
+	})
+	for sym := range hit {
+		r.symbols[sym] = true
 	}
 }
 
