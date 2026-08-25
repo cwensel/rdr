@@ -636,6 +636,10 @@ func summary(doc *scan.Document, w io.Writer) int {
 		fmt.Fprintf(w, "! %-24s %5d-%-5d %s\n", wn.Code, wn.LineStart, wn.LineEnd, wn.Message)
 	}
 	fmt.Fprintf(w, "derived: %s\n", derivedLine(doc.Counts))
+	// The read instruction lands where the ranges are read: a model that
+	// has just seen `118-1128` reaches for sed -n; the id beside it is the
+	// call that returns the same bytes and survives the next edit.
+	fmt.Fprintf(w, "read: rdr inspect --select <id> %s   (one section or element; never sed -n on these ranges)\n", doc.Record)
 	return 0
 }
 

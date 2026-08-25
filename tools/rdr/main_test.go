@@ -1259,6 +1259,9 @@ func TestSummaryListsSections(t *testing.T) {
 	if !strings.Contains(out, "§ ") || !strings.Contains(out, ":§metadata ") {
 		t.Errorf("no section rows in the summary:\n%s", out)
 	}
+	if !strings.Contains(out, "read: rdr inspect --select <id>") {
+		t.Errorf("the summary should end with the read instruction:\n%s", out)
+	}
 	sec := strings.Index(out, "§ ")
 	el := strings.Index(out, ":A1 ")
 	if el >= 0 && sec > el {
