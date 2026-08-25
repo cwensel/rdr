@@ -5,7 +5,7 @@
 //
 // Usage:
 //
-//	rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
+//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--in-flight|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr version
@@ -31,6 +31,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -53,7 +54,7 @@ const schemaVersion = scan.SchemaVersion
 const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
-  rdr inspect <NNNN|path> [--json] [--select outline|elements|warnings|<id>] [--project P] [--records DIR]
+  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--project P] [--records DIR]
   rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr version
@@ -68,6 +69,11 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --derived                   the unlabelled-element backlog per record
   --coverage                  the drift alarm: unclassified-line rate, unknowns
   --readme[=PATH]             the README index table checked against the records
+
+--filter keeps only the named top-level envelope keys (metadata,counts,…),
+identity keys always included — one call where --select would need several.
+A record is named by number (3, 03, 0003), slug, or path; --records defaults
+to $RDR_RECORDS and a relative one resolves against it.
 
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
@@ -189,6 +195,7 @@ type flags struct {
 	json, all, derived    *bool
 	coverage              *bool
 	sel, project, records *string
+	filter                *string
 	repo                  *string
 	status, inFlight      *bool
 	backlinks, readme     optString
@@ -211,6 +218,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
 		f.sel = fs.String("select", "", "project one facet: outline|elements|edges|warnings|<element-id>")
+		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
 		f.json = fs.Bool("json", false, "emit the index as JSON")
@@ -234,11 +242,30 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 // resolve turns a NNNN or a path into a record path. A bare number is
 // looked up as NNNN-*.md in the records dir.
 func resolve(arg, records string) (string, error) {
-	if ident.RecordOf(arg) == arg {
-		dir := records
-		if dir == "" {
-			dir = "."
+	// A caller who types `3` means record 0003. Only the flow's own shell
+	// helpers zero-pad today, so a direct call — which is how a stage
+	// prompt reaches this binary — used to fall through to the path
+	// branch and fail with `open 3: no such file`, an error naming a file
+	// nobody asked for. The number is the flow's vocabulary; read it.
+	if n := shortRecordNumber(arg); n != "" {
+		arg = n
+	}
+	// A bare slug (`0142-data-cli-surfaces-label-opt-in`) names a record
+	// as surely as its number does, and the flow writes slugs constantly
+	// — `$RDR_SLUG` is bound beside `$RDR_PATH`. Treated as a cwd-relative
+	// path it failed with `no such file`, the same misdirection as a bare
+	// number. It is a record name when it leads with NNNN- and carries no
+	// separator of its own.
+	if ident.RecordOf(arg) != arg && ident.RecordOf(arg) != "" &&
+		!strings.ContainsRune(arg, filepath.Separator) && !strings.HasSuffix(arg, ".md") {
+		if dir := recordsDir(records); dir != "" {
+			if p := filepath.Join(dir, arg+".md"); fileExists(p) {
+				return p, nil
+			}
 		}
+	}
+	if ident.RecordOf(arg) == arg {
+		dir := recordsDir(records)
 		matches, _ := filepath.Glob(filepath.Join(dir, arg+"-*.md"))
 		if len(matches) == 0 {
 			matches, _ = filepath.Glob(filepath.Join(dir, arg+".md"))
@@ -255,6 +282,153 @@ func resolve(arg, records string) (string, error) {
 		}
 	}
 	return arg, nil
+}
+
+// identityKeys are carried by every filtered envelope, unasked. They cost
+// ~120 bytes together and answer "which record is this, and is the
+// projection I am reading the one I asked for" — a question whose absence
+// costs a whole turn to re-establish.
+var identityKeys = []string{"schema", "record", "path"}
+
+// filterEnvelope projects only the named top-level keys.
+//
+// `--select` answers "give me exactly one facet" and is the right tool
+// when one facet is what you need. This answers the other question: a
+// caller who needs metadata AND counts had to spend two invocations —
+// and in an agent loop an invocation is a TURN, which re-sends the whole
+// conversation. Two turns to read 5 KB out of a 130 KB envelope is the
+// expensive shape this closes.
+//
+// The saving is real because the envelope is lopsided: on a large record
+// `elements` and `edges` are ~80% of it, so a caller wanting status and
+// counts pays 130 KB for 5 KB of answer, and `inspect --json` is bigger
+// than the record it read on a quarter of the corpus.
+//
+// Keys are the envelope's own JSON names, read off the marshalled
+// document rather than a hand-kept list, so a filter can never name a
+// key the envelope does not have and no second list can drift from the
+// struct. An unknown key is a stop, never a silent empty result: a
+// consumer that asked for `elments` must be told, not handed `{}` and
+// left to conclude the record has none.
+func filterEnvelope(doc *scan.Document, filter string) (map[string]json.RawMessage, error) {
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
+	}
+	var full map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &full); err != nil {
+		return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
+	}
+
+	out := map[string]json.RawMessage{}
+	for _, k := range identityKeys {
+		if v, ok := full[k]; ok {
+			out[k] = v
+		}
+	}
+	for _, name := range strings.Split(filter, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		v, ok := full[name]
+		if !ok {
+			return nil, fmt.Errorf("stopped:no-such-facet (%s; have %s)",
+				name, strings.Join(envelopeKeys(full), " "))
+		}
+		out[name] = v
+	}
+	return out, nil
+}
+
+// envelopeKeys lists what a filter may name, sorted, for the error that
+// tells a caller what it could have asked for instead.
+func envelopeKeys(full map[string]json.RawMessage) []string {
+	keys := make([]string, 0, len(full))
+	for k := range full {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+// shortRecordNumber zero-pads a bare record number, or returns "" when
+// the argument is not one. `3`, `03` and `003` all name `0003`.
+//
+// Deliberately narrow: only an all-digit string of fewer than four
+// digits. A four-digit string is already a record number, and anything
+// carrying a separator, a slash or a suffix is a path or an ID and is
+// left exactly as written. Leading zeros are stripped decimally, never
+// as octal — the bug that once resolved `0106` to `0070` and read the
+// wrong record without erroring.
+func shortRecordNumber(arg string) string {
+	if arg == "" || len(arg) >= 4 {
+		return ""
+	}
+	for _, r := range arg {
+		if r < '0' || r > '9' {
+			return ""
+		}
+	}
+	n, err := strconv.Atoi(arg)
+	if err != nil || n <= 0 {
+		return ""
+	}
+	return fmt.Sprintf("%04d", n)
+}
+
+// recordsDir decides which directory a lookup reads.
+//
+// A relative `--records` is resolved against `$RDR_RECORDS` when that
+// names a real directory, not against the process's cwd. A stage prompt
+// runs from whatever directory the harness happened to be in, so a
+// relative path that is correct in one cwd silently names nothing in
+// another — and the tool reported `no-such-record`, blaming the record
+// for a directory that was never read. The marker knows where records
+// live; ask it before giving up.
+//
+// An absolute `--records` is always obeyed as written, and a relative
+// one that does resolve from the cwd wins too: this only rescues the
+// case that would otherwise have found nothing.
+func recordsDir(records string) string {
+	if records == "" {
+		if env := os.Getenv("RDR_RECORDS"); env != "" {
+			return env
+		}
+		return "."
+	}
+	if filepath.IsAbs(records) {
+		return records
+	}
+	if fi, err := os.Stat(records); err == nil && fi.IsDir() {
+		return records
+	}
+	env := os.Getenv("RDR_RECORDS")
+	if env == "" {
+		return records
+	}
+	// $RDR_RECORDS may itself be the dir the caller named relatively —
+	// `--records rdr/cli` under a marker pointing at `…/process/rdr/cli`.
+	if strings.HasSuffix(filepath.Clean(env), string(filepath.Separator)+filepath.Clean(records)) {
+		return env
+	}
+	if joined := filepath.Join(env, records); dirExists(joined) {
+		return joined
+	}
+	if dirExists(env) {
+		return env
+	}
+	return records
+}
+
+func fileExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && !fi.IsDir()
+}
+
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
 }
 
 // records drops the files beside a record that share its number but are
@@ -292,6 +466,15 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 	}
 	resolveEdges(doc, f, stderr)
 
+	if f.filter != nil && *f.filter != "" {
+		out, err := filterEnvelope(doc, *f.filter)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		return emit(out, stdout, stderr)
+	}
+
 	var out any = doc
 	switch sel := *f.sel; sel {
 	case "":
@@ -303,6 +486,12 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		out = doc.Edges
 	case "warnings":
 		out = doc.Warnings
+	case "metadata":
+		out = doc.Metadata
+	case "fields":
+		out = doc.Fields
+	case "anchors":
+		out = doc.Anchors
 	default:
 		start, end, ok := doc.Select(sel)
 		if !ok {
@@ -621,6 +810,10 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
 // scanDir scans every record in a directory. It is the corpus builder
 // both the index facets and inspect's resolver use.
 func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err error) {
+	// Same rescue as a single-record lookup: `index` and `lint` read a
+	// relative --records the way `inspect` does, so one wrong cwd does
+	// not report an empty corpus.
+	dir = recordsDir(dir)
 	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
 	paths = recordFiles(paths)
 	sort.Strings(paths)

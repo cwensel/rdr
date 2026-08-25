@@ -16,8 +16,9 @@ edge graph. `lint` is the conformance authority (§Lint).
 Flags precede the positional argument — Go's flag parser stops at the
 first non-flag word.
 
-    rdr inspect 0055                       # one line per element, ids first
+    rdr inspect 55                         # one line per element, ids first
     rdr inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
+    rdr inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
     rdr inspect --select 0055:C4 0055      # the bytes the id names
     rdr inspect --select edges 0055        # the typed relations alone
     rdr index --derived --records ../rdr/cli
@@ -616,6 +617,49 @@ alias table (`legacy-alias`, `recognized-unmapped`).
 `scaffold-instance` matters more than it looks: the filled-in scaffolds are
 the single largest class of heading a name-only lookup cannot place, and
 treating them as foreign would bury every real finding.
+
+## Naming a record, and reading part of one
+
+A record is named by **number, slug or path**, and the number needs no
+padding: `55`, `055` and `0055` are the same record, read decimally —
+never as octal, the bug that once turned `0106` into `0070` and returned
+a different real record without erroring. `--records` defaults to
+`$RDR_RECORDS`, and a *relative* `--records` resolves against it rather
+than the process's cwd, because a stage prompt runs from wherever the
+harness happened to be.
+
+Each of those is one fewer round-trip. A tool that answers `open 3: no
+such file` to `3` costs a turn to diagnose and a turn to retry, and a
+turn re-sends the whole conversation — far more than the bytes at stake.
+
+**`--filter` keeps only the top-level keys you name**, comma-separated:
+
+    rdr inspect --json --filter metadata,counts 0142
+    rdr inspect --json --filter path 0142
+
+`--select` answers *"give me exactly one facet"*. `--filter` answers the
+other question, because the envelope is lopsided — on a large record
+`elements` and `edges` are ~80% of it, and `inspect --json` is bigger
+than the record it read on a quarter of the corpus. A caller wanting
+status and counts paid the whole envelope for a few KB of answer, or
+spent a second invocation to avoid it. On 0142:
+
+| | bytes | |
+| --- | --- | --- |
+| `--json` | 160,092 | the whole envelope |
+| `--filter metadata,counts` | 5,643 | −96.5% |
+| `--filter warnings,coverage` | 1,242 | −99.2% |
+| `--filter path` | 140 | what `§rdr-resolve` needs |
+
+`schema`, `record` and `path` come back unasked: ~120 bytes that answer
+"which record is this" so no caller spends a turn re-establishing it.
+
+Keys are read off the marshalled envelope, so a filter can never name a
+key the envelope lacks and no second list can drift from the struct. An
+unknown key is `stopped:no-such-facet` **listing the valid keys** — never
+an empty result, because a consumer handed `{}` for `--filter elments`
+would conclude the record has no elements: a skipped check reading as a
+passed one, which is the failure this flow exists to prevent.
 
 ## The usage log
 

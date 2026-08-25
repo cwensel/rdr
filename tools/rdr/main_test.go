@@ -714,3 +714,231 @@ func jsonKeys(t *testing.T, line string) []string {
 	}
 	return keys
 }
+
+// TestBareRecordNumberResolves: the flow's vocabulary is a record number,
+// and a caller who types `3` means 0003. Before this, only the shell
+// helpers zero-padded, so a direct call fell through to the path branch
+// and failed with `open 3: no such file` — an error naming a file nobody
+// asked for, which cost a turn to diagnose and a turn to retry.
+func TestBareRecordNumberResolves(t *testing.T) {
+	dir := t.TempDir()
+	body := "# Recommendation 0003: Short\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0003-short.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// 0070 exists too: the octal trap that once resolved `0106` to `0070`
+	// must not reappear when the padding moves into Go.
+	if err := os.WriteFile(filepath.Join(dir, "0070-seventy.md"),
+		[]byte(strings.Replace(body, "0003: Short", "0070: Seventy", 1)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, tc := range []struct{ arg, want string }{
+		{"3", "0003"}, {"03", "0003"}, {"003", "0003"}, {"0003", "0003"},
+		{"70", "0070"}, {"070", "0070"}, {"0070", "0070"},
+	} {
+		code, out, errb := runCapture(t, "inspect", "--json", "--records", dir, tc.arg)
+		if code != 0 {
+			t.Errorf("%q: exit %d: %s", tc.arg, code, errb)
+			continue
+		}
+		var env struct {
+			Record string `json:"record"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil {
+			t.Fatalf("%q: %v", tc.arg, err)
+		}
+		if env.Record != tc.want {
+			t.Errorf("%q resolved to %s, want %s", tc.arg, env.Record, tc.want)
+		}
+	}
+
+	// A short number naming no record still says so, and says it about
+	// the record — not about a file called "9".
+	code, _, errb := runCapture(t, "inspect", "--json", "--records", dir, "9")
+	if code != 2 || !strings.Contains(errb, "no-such-record") {
+		t.Errorf("missing record: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestRelativeRecordsDirResolvesAgainstTheMarker: a stage prompt runs from
+// whatever directory the harness was in. A relative --records correct in
+// one cwd named nothing in another, and the tool blamed the record
+// (`no-such-record`) for a directory it never read — a wasted turn, then a
+// `cd` to work around it. $RDR_RECORDS knows where records live.
+func TestRelativeRecordsDirResolvesAgainstTheMarker(t *testing.T) {
+	root := t.TempDir()
+	recs := filepath.Join(root, "rdr", "cli")
+	if err := os.MkdirAll(recs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Recommendation 0100: Rel\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(recs, "0100-rel.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// cwd is somewhere else entirely; the relative path resolves from the
+	// marker, not from here.
+	t.Chdir(t.TempDir())
+	t.Setenv("RDR_RECORDS", recs)
+
+	for _, arg := range []string{"rdr/cli", "cli", ""} {
+		args := []string{"inspect", "--json", "0100"}
+		if arg != "" {
+			args = []string{"inspect", "--json", "--records", arg, "0100"}
+		}
+		code, out, errb := runCapture(t, args...)
+		if code != 0 {
+			t.Errorf("--records %q: exit %d: %s", arg, code, errb)
+			continue
+		}
+		if !strings.Contains(out, `"record": "0100"`) {
+			t.Errorf("--records %q did not reach the record", arg)
+		}
+	}
+
+	// With no marker to fall back on, an unusable relative path is still
+	// an honest failure — the rescue never invents a corpus.
+	t.Setenv("RDR_RECORDS", "")
+	code, _, errb := runCapture(t, "inspect", "--json", "--records", "nowhere/at/all", "0100")
+	if code != 2 || !strings.Contains(errb, "no-such-record") {
+		t.Errorf("unrescuable path: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestAbsoluteRecordsDirIsObeyedVerbatim: the rescue must never override
+// an explicit absolute path, even when $RDR_RECORDS names somewhere else.
+// A caller who spells out a directory means that directory.
+func TestAbsoluteRecordsDirIsObeyedVerbatim(t *testing.T) {
+	want := t.TempDir()
+	other := t.TempDir()
+	body := "# Recommendation 0100: Here\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(other, "0100-elsewhere.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_RECORDS", other)
+
+	// `want` is empty, so an absolute --records pointing at it must fail
+	// rather than quietly reading `other`.
+	code, _, errb := runCapture(t, "inspect", "--json", "--records", want, "0100")
+	if code != 2 || !strings.Contains(errb, "no-such-record") {
+		t.Errorf("absolute --records was overridden by the env: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestFilterProjectsOnlyTheNamedKeys: the envelope is lopsided — on a
+// large record `elements` and `edges` are ~80% of it — so a caller who
+// needs status and counts used to pay the whole thing, or spend two
+// invocations to avoid it. In an agent loop an invocation is a TURN, and
+// a turn re-sends the conversation, so the second call costs far more
+// than the bytes it saves.
+func TestFilterProjectsOnlyTheNamedKeys(t *testing.T) {
+	code, out, errb := runCapture(t, "inspect", "--json",
+		"--filter", "metadata,counts", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	// Asked for, plus the identity keys that come unasked.
+	for _, k := range []string{"metadata", "counts", "schema", "record", "path"} {
+		if _, ok := got[k]; !ok {
+			t.Errorf("filtered envelope is missing %q", k)
+		}
+	}
+	// The expensive facets must be gone — that is the entire point.
+	for _, k := range []string{"elements", "edges", "outline", "warnings", "fields"} {
+		if _, ok := got[k]; ok {
+			t.Errorf("filtered envelope still carries %q", k)
+		}
+	}
+
+	full := func() int {
+		_, o, _ := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+		return len(o)
+	}()
+	if len(out) >= full {
+		t.Errorf("filter saved nothing: %d filtered vs %d full", len(out), full)
+	}
+}
+
+// TestFilterRejectsAnUnknownFacet: a typo must stop, never return an
+// empty projection. A consumer handed `{}` for `--filter elments` would
+// conclude the record has no elements — a skipped check reading as a
+// passed one, which is the failure this flow exists to prevent.
+func TestFilterRejectsAnUnknownFacet(t *testing.T) {
+	code, out, errb := runCapture(t, "inspect", "--json",
+		"--filter", "elments", fixturePath("epoch-d.md"))
+	if code != 2 {
+		t.Errorf("exit %d, want 2", code)
+	}
+	if !strings.Contains(errb, "no-such-facet") {
+		t.Errorf("stderr %q does not name the failure", errb)
+	}
+	// The error lists what could have been asked for instead, so the fix
+	// does not cost another turn to discover.
+	if !strings.Contains(errb, "elements") {
+		t.Errorf("stderr %q does not list the valid keys", errb)
+	}
+	if strings.TrimSpace(out) != "" {
+		t.Errorf("a rejected filter still emitted %q", out)
+	}
+}
+
+// TestSelectReachesEveryDocumentedFacet: `metadata`, `fields` and
+// `anchors` are documented facets that fell through to the element-id
+// branch and failed, so a caller following the docs got
+// `stopped:no-such-element` and spent a turn finding out why.
+func TestSelectReachesEveryDocumentedFacet(t *testing.T) {
+	for _, facet := range []string{"outline", "elements", "edges", "warnings", "metadata", "fields"} {
+		code, out, errb := runCapture(t, "inspect", "--json", "--select", facet, fixturePath("epoch-d.md"))
+		if code != 0 {
+			t.Errorf("--select %s: exit %d: %s", facet, code, errb)
+			continue
+		}
+		if strings.TrimSpace(out) == "" {
+			t.Errorf("--select %s produced nothing", facet)
+		}
+	}
+}
+
+// TestSlugResolvesLikeANumber: the flow binds `$RDR_SLUG` beside
+// `$RDR_PATH` and passes slugs around, but a bare slug was read as a
+// cwd-relative path and failed with `no such file` — the same
+// misdirection a bare number gave, and the same wasted turn.
+func TestSlugResolvesLikeANumber(t *testing.T) {
+	dir := t.TempDir()
+	body := "# Recommendation 0142: Slug\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0142-named-thing.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(t.TempDir()) // a cwd with nothing in it
+
+	for _, arg := range []string{"142", "0142", "0142-named-thing"} {
+		code, out, errb := runCapture(t, "inspect", "--json", "--filter", "path", "--records", dir, arg)
+		if code != 0 {
+			t.Errorf("%q: exit %d: %s", arg, code, errb)
+			continue
+		}
+		if !strings.Contains(out, "0142-named-thing.md") {
+			t.Errorf("%q did not reach the record: %s", arg, out)
+		}
+	}
+
+	// A slug naming no record is still an honest failure.
+	code, _, _ := runCapture(t, "inspect", "--json", "--records", dir, "0142-not-this-one")
+	if code != 2 {
+		t.Errorf("a slug naming nothing exited %d, want 2", code)
+	}
+}
