@@ -697,14 +697,32 @@ passed one, which is the failure this flow exists to prevent.
 
 `rdr` writes nothing — with one opt-in exception, off by default.
 
-Set `$RDR_USAGE_LOG` to a path and every invocation appends one line
-recording what was asked and what it cost. This exists because the
-consumer-integration pass had to argue the tool's value from *estimated*
-byte counts: nothing recorded what the binary was actually asked for or
-how much it emitted. Now the numbers accumulate over ordinary use — no
-dashboard, no session instrumentation, no second tool to run.
+Turn it on and every invocation appends one line recording what was
+asked and what it cost. This exists because the consumer-integration
+pass had to argue the tool's value from *estimated* byte counts: nothing
+recorded what the binary was actually asked for or how much it emitted.
+Now the numbers accumulate over ordinary use — no dashboard, no session
+instrumentation, no second tool to run.
 
-    RDR_USAGE_LOG=$RDR_EVIDENCE/usage.jsonl rdr inspect --select 0142:C1 --records "$RDR_RECORDS" 0142
+`RDR_USAGE_LOG` is a seam var like any other — environment first, then
+the marker — so a project opts in **once**, at `/rdr-init --usage-log`,
+and no call site has to know a path:
+
+| value | |
+| --- | --- |
+| unset, or `off`/`false`/`0`/`no` | no log — the default |
+| `true`/`on`/`1`/`yes` | `$PROJECT/.rdr/usage.jsonl` |
+| a path | that file |
+
+The default lives in `.rdr/` because that is this flow's repo-local
+run-output directory — the counterpart of the sibling codebase's
+`$REPO/.retrofit/` — and it carries its own `.gitignore` of `*`, so
+nothing written there can reach a commit. It is beside the project on
+purpose, not in a user-wide state directory: the log is about *these*
+records and means nothing away from them. A truthy setting with no
+project to anchor to writes nothing rather than inventing a location.
+
+    rdr inspect --select 0142:C1 0142        # with the marker's RDR_USAGE_LOG="true"
 
     {"bytes_out":490,"cmd":"inspect","elapsed_ms":551,"exit":0,"facet":"select:element","target":"0142","ts":"2026-08-24T20:38:11-07:00"}
 

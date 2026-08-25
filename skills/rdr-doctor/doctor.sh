@@ -137,6 +137,26 @@ else
         *)
           pass "11c projector self-binds the seam - no per-call export needed" ;;
       esac
+
+      # 11d - the usage log, reported not judged. Off is the default and a
+      # perfectly good state; this exists so "is it actually recording?" is
+      # never a guess, and so a marker that says on but resolves nowhere is
+      # visible rather than silently writing nothing.
+      case "$RDR_USAGE_LOG" in
+        ""|0|false|off|no|OFF|FALSE|No|NO) echo "  [INFO] 11d usage log off - /rdr-init --usage-log turns it on" ;;
+        1|true|on|yes|TRUE|ON|Yes|YES)
+          if [ -d "$PROJECT/.rdr" ]; then
+            echo "  [INFO] 11d usage log on - $PROJECT/.rdr/usage.jsonl"
+          else
+            warn "11d usage log on but $PROJECT/.rdr is missing - nothing will be written"
+          fi ;;
+        *)
+          if [ -d "$(dirname "$RDR_USAGE_LOG")" ]; then
+            echo "  [INFO] 11d usage log on - $RDR_USAGE_LOG"
+          else
+            warn "11d usage log points at $RDR_USAGE_LOG whose directory does not exist"
+          fi ;;
+      esac
     fi
   fi
 fi

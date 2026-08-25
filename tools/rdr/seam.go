@@ -37,7 +37,7 @@ import (
 // seamVars are the marker values this binary can use. The marker exports
 // more — evidence roots, path maps, per-consumer conveniences — and none
 // of it is this tool's business.
-var seamVars = []string{"RDR_RECORDS", "RDR_SOURCE_REPO"}
+var seamVars = []string{"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG"}
 
 // seam resolves once per working directory. A projection may consult it
 // several times and the marker cannot change mid-run, so the common case

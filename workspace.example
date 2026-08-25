@@ -60,4 +60,14 @@ RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/resources.md"
 #   cite no source anchors — then anchor checks report "not run", never clean.
 RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 
-export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO
+# RDR_USAGE_LOG — optional. What `rdr` was asked for and what it cost, one JSONL
+#   line per invocation (tools/rdr/README.md §The usage log). It is the only thing
+#   the projector ever writes, and it is off unless this says otherwise.
+#     unset / "off"  no log — the default
+#     "true"         log to $PROJECT/.rdr/usage.jsonl (gitignored by .rdr/'s own *)
+#     <a path>       log there instead
+#   Turn it on to measure whether the flow's reads are getting cheaper; the
+#   numbers accumulate over ordinary use, with no dashboard and nothing to run.
+# RDR_USAGE_LOG="true"
+
+export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_USAGE_LOG

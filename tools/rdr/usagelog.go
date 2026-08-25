@@ -37,10 +37,16 @@ package main
 //
 // # Never writes near a record
 //
-// This is the ONLY thing this binary ever writes, it is opt-in, and the
-// destination is named explicitly by $RDR_USAGE_LOG. Unset — the default
-// — nothing is written at all. A projector that silently created files
-// beside a corpus would be a different tool.
+// This is the ONLY thing this binary ever writes, and it is opt-in:
+// $RDR_USAGE_LOG unset — the default — writes nothing at all. A
+// projector that silently created files beside a corpus would be a
+// different tool.
+//
+// Opting in is a project decision, not a per-call one. `/rdr-init`
+// writes the var into the marker, the binary binds it the way it binds
+// every other seam var, and the log lands in `$PROJECT/.rdr/` — this
+// flow's repo-local run-output directory, self-ignored by git. A caller
+// that wants it somewhere else names a path instead.
 
 import (
 	"encoding/json"
@@ -51,9 +57,50 @@ import (
 	"time"
 )
 
-// usageEnvVar names the log. Unset (the default) disables logging
-// entirely: the tool stays purely read-only unless a caller opts in.
+// usageEnvVar names the log. It is bound like every other seam var —
+// explicit environment first, then the marker — so `/rdr-init` can turn
+// logging on once for a project instead of every call setting it.
 const usageEnvVar = "RDR_USAGE_LOG"
+
+// usageDefaultName is where the log lands when the marker says to log
+// but not where. `.rdr/` is this flow's repo-local run-output directory,
+// the counterpart of the sibling codebase's `$REPO/.retrofit/`: beside
+// the project, not in a user-wide state dir, because the log is about
+// THIS project's records and means nothing away from them. It carries
+// its own `.gitignore` of `*`, so nothing written here can reach a commit.
+const usageDefaultName = "usage.jsonl"
+
+// usageLogPath decides where a line goes, or "" for nowhere.
+//
+// Three states, and the middle one is the point:
+//
+//	unset            off — the tool writes nothing at all, the default
+//	a path           that file
+//	"1"/"true"/"on"  on, at the default location under the project's .rdr/
+//
+// The bare-truthy form is what `/rdr-init` writes into a marker: a
+// project opts in once, and no call site has to know a path. If the
+// marker says on but no project can be found, logging stays off rather
+// than inventing a location somewhere arbitrary.
+func usageLogPath() string {
+	v := strings.TrimSpace(os.Getenv(usageEnvVar))
+	if v == "" {
+		v = seamValue(usageEnvVar)
+	}
+	switch strings.ToLower(v) {
+	case "":
+		return ""
+	case "0", "false", "off", "no":
+		return ""
+	case "1", "true", "on", "yes":
+		_, project, _ := findMarker()
+		if project == "" {
+			return ""
+		}
+		return filepath.Join(project, ".rdr", usageDefaultName)
+	}
+	return v
+}
 
 // lineHardMaxBytes caps one record, mirroring the sibling serializer's
 // ceiling. A line this long means a field is carrying something it
@@ -122,7 +169,7 @@ func (c *countingWriter) Write(p []byte) (int, error) {
 // than corrupting each other's — which is why the size ceiling above is
 // enforced before the write, not after.
 func logUsage(rec usageRecord) {
-	path := strings.TrimSpace(os.Getenv(usageEnvVar))
+	path := usageLogPath()
 	if path == "" {
 		return
 	}

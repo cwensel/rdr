@@ -178,3 +178,92 @@ export RDR_RECORDS
 		t.Errorf("the seam did not bind the records dir:\n%s", out)
 	}
 }
+
+// TestUsageLogDefaultsUnderTheProjectDotDir: `/rdr-init` turns logging
+// on for a project by writing a bare truthy value into the marker, and
+// the binary decides where. `.rdr/` is this flow's repo-local run-output
+// directory — the counterpart of the sibling codebase's `$REPO/.retrofit/`
+// — and it self-ignores, so nothing written here can reach a commit.
+func TestUsageLogDefaultsUnderTheProjectDotDir(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_USAGE_LOG", "") // the marker alone must turn it on
+
+	code, _, errb := runCapture(t, "inspect", "--json", "--filter", "path", "7")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	log := filepath.Join(project, ".rdr", "usage.jsonl")
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("no log at the default location %s: %v", log, err)
+	}
+	if !strings.Contains(string(raw), `"cmd":"inspect"`) {
+		t.Errorf("log does not carry the invocation: %s", raw)
+	}
+}
+
+// TestUsageLogExplicitPathBeatsTheDefault: a caller naming a file means
+// that file, marker or no marker.
+func TestUsageLogExplicitPathBeatsTheDefault(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_RECORDS", "")
+	explicit := filepath.Join(t.TempDir(), "elsewhere.jsonl")
+	t.Setenv("RDR_USAGE_LOG", explicit)
+
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "path", "7"); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if _, err := os.ReadFile(explicit); err != nil {
+		t.Errorf("the explicit path was not used: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".rdr", "usage.jsonl")); err == nil {
+		t.Error("the default location was written to as well")
+	}
+}
+
+// TestUsageLogOffSwitchBeatsTheMarker: a project that logs by default
+// must be silenceable for one run without editing the marker.
+func TestUsageLogOffSwitchBeatsTheMarker(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_USAGE_LOG", "off")
+
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "path", "7"); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".rdr", "usage.jsonl")); err == nil {
+		t.Error("`off` still wrote a log")
+	}
+}
+
+// TestUsageLogOnWithNoProjectStaysOff: discovery, never invention. A
+// truthy setting with nowhere to put the file writes nothing rather than
+// picking a directory nobody asked for.
+func TestUsageLogOnWithNoProjectStaysOff(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("RDR_USAGE_LOG", "true")
+
+	if got := usageLogPath(); got != "" {
+		t.Errorf("with no project, logging resolved to %q", got)
+	}
+}

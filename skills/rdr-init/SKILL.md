@@ -33,6 +33,8 @@ Codex: $rdr-init --workspace     # write/join the SHARED $WS seam several siblin
 Claude: /rdr-init --workspace    # write/join the SHARED $WS seam several sibling repos inherit
 Codex: $rdr-init --reconfigure   # seam already exists: change its location choices (interactive; migrates if RDRs exist)
 Claude: /rdr-init --reconfigure  # seam already exists: change its location choices (interactive; migrates if RDRs exist)
+Codex: $rdr-init --usage-log     # turn the projector's usage log on (--no-usage-log turns it off)
+Claude: /rdr-init --usage-log    # turn the projector's usage log on (--no-usage-log turns it off)
 ```
 
 **Scope is repo-local by default** — binds **only this repo**: `$PROJECT/.rdr/workspace`,
@@ -55,8 +57,16 @@ touches** it.
 | `--reconfigure` | always, against the **existing** marker | changing placement after the fact (see *Reconfigure* below) |
 
 **Location defaults**: seam at gitignored `.rdr/`; `RDR_RECORDS` under the project;
-`RDR_EVIDENCE=$RDR_RECORDS`. Every mode **discloses** the resolved scope + locations +
+`RDR_EVIDENCE=$RDR_RECORDS`; usage log **off**, and when on it writes
+`$PROJECT/.rdr/usage.jsonl`. Every mode **discloses** the resolved scope + locations +
 overrides in its closing report.
+
+**Usage log** (`RDR_USAGE_LOG`, off by default): one JSONL line per `rdr` call —
+what was asked and what it cost. It is the only thing the projector ever writes.
+`--usage-log` writes `RDR_USAGE_LOG="true"` into the marker (the binary then logs to
+`$PROJECT/.rdr/usage.jsonl`, gitignored by `.rdr/`'s own `*`); `--no-usage-log`
+removes it. `--interactive` asks. A marker value of a *path* logs there instead, and
+an env var overrides the marker for one run (`off` silences it).
 
 **Run from inside the project that will use the flow** — never globally. `/rdr-init`
 writes a *per-project* seam (the marker + `.rdr/` files), so it requires a consumer
@@ -139,13 +149,18 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
 2. **Decide the three locations, per mode**, then run the stage. The choices are:
    *seam* (`RDR_ENV`/`RDR_RESOURCES` — gitignored `.rdr/` vs a tracked dir),
    *records* (`RDR_RECORDS`), and *evidence* (`RDR_EVIDENCE` — beside records vs its
-   own dir/repo).
-   - **`--defaults`** → take all three defaults, no questions.
+   own dir/repo). The *usage log* is a fourth choice, off unless asked for: it is a
+   behaviour switch, not a location, so it is never inferred from repo signals.
+   - **`--defaults`** → take all three defaults, no questions; log stays off.
    - **bare (smart)** → infer from repo signals (an existing `rdr/cli/`-style tree ⇒
      records there; an existing seam dir ⇒ reuse it); take the default for anything
      clear; **ask only** for a value with no inferable answer (e.g. no RDR dir exists
      yet and none is implied). Never guess silently on a genuine fork.
-   - **`--interactive`** → ask all three regardless of inference, defaults pre-filled.
+   - **`--interactive`** → ask all three regardless of inference, defaults pre-filled,
+     and ask whether to turn the usage log on (default no).
+   - **`--usage-log` / `--no-usage-log`** → set or clear `RDR_USAGE_LOG` in the marker
+     without touching any location. Valid on a first run and on an existing seam;
+     with an existing seam and no other flag, that is the only change made.
    Once decided, **run** [`00-bootstrap.md`](00-bootstrap.md) — its *Paste this* block
    is the authoring contract. In order, it:
    - keeps `.rdr/` out of git (touching no project-level file),
@@ -156,7 +171,9 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    - installs the MARKER from [`workspace.example`](workspace.example), filling the
      five contract vars (`RDR_HOME` per step 1; `RDR_EVIDENCE` defaults to
      `$RDR_RECORDS`) — at `$PROJECT/.rdr/workspace` (repo-local default, auto-ignored by
-     `.rdr/.gitignore`) or `$WS/.rdr-workspace` (`--workspace`, shared),
+     `.rdr/.gitignore`) or `$WS/.rdr-workspace` (`--workspace`, shared). Uncomment
+     `RDR_USAGE_LOG="true"` there when the log was asked for; leave it commented
+     otherwise. `RDR_USAGE_LOG` is in the marker's `export` line either way,
    - scaffolds the RDR home: `mkdir -p "$RDR_RECORDS"` and, if no index yet, copies
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
@@ -203,6 +220,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    Records:  <RDR_RECORDS>                  — change: /rdr-init --reconfigure
    Evidence: <RDR_EVIDENCE> (= records)     — change: /rdr-init --reconfigure
    Projector: <RDR_HOME>/bin/rdr <version>  — rebuilt by a bare /rdr-init re-run
+   Usage log: off | <path>                  — change: /rdr-init --usage-log / --no-usage-log
    ```
 
 ## Reconfigure — `/rdr-init --reconfigure`

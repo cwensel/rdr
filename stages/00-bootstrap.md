@@ -148,6 +148,16 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      source root. Write it explicitly — under a workspace-scope marker the cwd may
      be the records or evidence repo, so it cannot be derived. Omit only when the
      RDRs cite no source anchors.
+   Then the one optional var, `RDR_USAGE_LOG` (template line, commented):
+   - **on** (`/rdr-init --usage-log`, or answered yes when interactive) → uncomment it
+     as `RDR_USAGE_LOG="true"`. The projector then logs one JSONL line per call to
+     `$PROJECT/.rdr/usage.jsonl`, which `.rdr/.gitignore`'s `*` already excludes. A
+     path may be written instead of `true` to log elsewhere.
+   - **off** (the default, or `--no-usage-log`) → leave it commented, or delete the
+     line from an existing marker.
+   It stays on the `export` line either way. This is the second edit permitted on an
+   existing marker without `--reconfigure`, and it is permitted because it changes no
+   location and no RDR content — only whether the tool records what it was asked.
    Plus any per-consumer repo-root conveniences (not load-bearing). If no template is
    reachable, hand-write an equivalent sourceable file exporting at least those five
    contract vars, anchored on the scope's root (`$PROJECT` repo-local, `$WS`
