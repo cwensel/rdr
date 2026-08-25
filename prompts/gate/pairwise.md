@@ -17,9 +17,32 @@ single-RDR lens reads both sides of.
 
 ## Prompt
 
-Run only on peer pairs
-explicitly listed in a *Critical Assumptions* (Method: Peer RDR) or
-*Cross-Cutting Concerns* entry.
+SELECT THE PAIRS by query, not by reading the cluster. If
+`[ -x "$RDR_HOME/bin/rdr" ]`:
+
+```sh
+"$RDR_HOME/bin/rdr" index --json --anchor-intersect --records "$RDR_RECORDS" --repo <src-root>
+"$RDR_HOME/bin/rdr" index --json --backlinks=<NNNN> --records "$RDR_RECORDS"
+```
+
+- `overlaps[]` `{records[], anchors[], cited}` — two in-flight records citing
+  the same `path::Symbol`. **`cited: false` ranks first**: they propose to change
+  one symbol with no edge of any kind between them, the pair this scan exists
+  for. `cited: true` is still a pair, just already related.
+- `backlinks[]` from `--backlinks=<NNNN>` — who cites this record or anything in
+  it, typed edges and mentions kept apart. `kind=="peer-evidence"` is the pair
+  already related by cited evidence (the *Critical Assumptions* Method: Peer RDR
+  case); `cross-cutting-owner` is the shared-concern case. Each carries `record`
+  (the citing peer), `from`, `to` and `line`/`line_end`.
+
+Absent binary → the prose rule: pairs explicitly listed in a *Critical
+Assumptions* (Method: Peer RDR) or *Cross-Cutting Concerns* entry.
+
+SCOPE THE READ. A pair already related by `peer-evidence` need not be handed
+both whole records: pass those backlinks' `line`/`line_end` ranges, plus each
+record's contract and scenario ranges (`inspect --json`, `elements[]`
+`kind=="C"` / `kind=="S"`, `line_start`/`line_end`) — read them with `sed -n`.
+An uncited `--anchor-intersect` pair has no such spine: read both records.
 
 ```text
 Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report every place they
@@ -52,7 +75,8 @@ For each finding, emit:
 
 Do not paraphrase quotes — use exact wording. If you cannot find a direct
 quote, say "NO DIRECT QUOTE" and explain why you still believe the conflict
-exists.
+exists. When the quote is an addressable element, `rdr inspect --select <id>
+<NNNN>` prints exactly that element's bytes — quote from it, not from memory.
 ```
 
 **Dual-model recommended** for a foundational cluster — disagreement between
