@@ -444,3 +444,201 @@ func show(b *bool) string {
 	}
 	return "false"
 }
+
+// TestUniqueHeadingPrefixResolves: a section citation that is a whole-word
+// PREFIX of exactly one heading of the target names that heading.
+//
+// This is deliberately NOT the prefix matching that was tried and
+// reversed. That rule resolved any prefix, so `§Semantic` against five
+// `Semantic *` headings picked one — the parser guessing what the author
+// meant. The rule here refuses precisely that case (see
+// TestAmbiguousHeadingPrefixStaysUnresolved, the guard on that decision)
+// and resolves only where ONE heading can be meant, which is not a guess
+// but an identification.
+//
+// The corpus clips both ways, so the relation is tested in both
+// directions: the citation shorter than the heading (the author named it
+// by its opening words, or the heading later grew a qualifier), and the
+// citation longer (the grammar's word window ran past the heading into
+// the sentence about it).
+func TestUniqueHeadingPrefixResolves(t *testing.T) {
+	target := record("0001", "Alpha", "") +
+		"\n### No-op operations and OpID collision\n\nProse.\n" +
+		"\n### Safety boundary (normative)\n\nProse.\n" +
+		"\n### Failure Modes\n\nProse.\n"
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": target,
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
+			// citation shorter than the heading
+			"0001-alpha §No-op operations, "+
+			"0001-alpha §Safety-boundary, "+
+			// citation longer: the window ran into the prose
+			"0001-alpha §Failure-Modes residual chartered it as a"),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+	for _, want := range []string{
+		"0001:§no-op-operations",
+		"0001:§safety-boundary",
+		"0001:§failure-modes-residual-chartered-it-as-a",
+	} {
+		e := findEdge(t, docs[1], edge.Overrides, want)
+		if e.Resolved == nil || !*e.Resolved {
+			t.Errorf("%s names exactly one heading of 0001 but resolved = %v", want, show(e.Resolved))
+		}
+	}
+}
+
+// TestAmbiguousHeadingPrefixStaysUnresolved is the REGRESSION GUARD on the
+// decision that reversed prefix matching: a prefix shared by two or more
+// headings identifies none of them, and choosing between them — first
+// match, longest match, any tiebreak at all — is the parser guessing.
+//
+// It holds at every length the shortening walk tries, which is the part a
+// tiebreak would quietly undo: `§Semantic contract engine` must not fall
+// back through `§Semantic contract` to `§Semantic` and then pick one of
+// the three.
+func TestAmbiguousHeadingPrefixStaysUnresolved(t *testing.T) {
+	target := record("0001", "Alpha", "") +
+		"\n### Semantic contract\n\nProse.\n" +
+		"\n### Semantic per-op replay\n\nProse.\n" +
+		"\n### Semantic no-ops and simplifications\n\nProse.\n"
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": target,
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
+			"0001-alpha §Semantic, 0001-alpha §Semantic engine rewrites the fold, "+
+			"and 0001-alpha §Semantic per-op"),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+	for _, want := range []string{"0001:§semantic", "0001:§semantic-engine-rewrites-the-fold"} {
+		e := findEdge(t, docs[1], edge.Overrides, want)
+		if e.Resolved == nil || *e.Resolved {
+			t.Errorf("%s is ambiguous across three headings but resolved = %v", want, show(e.Resolved))
+		}
+	}
+	// The guard rejects ambiguity, not specificity: one more word picks
+	// out exactly one heading, and that one resolves.
+	ok := findEdge(t, docs[1], edge.Overrides, "0001:§semantic-per-op")
+	if ok.Resolved == nil || !*ok.Resolved {
+		t.Errorf("§Semantic per-op names one heading of the three but resolved = %v", show(ok.Resolved))
+	}
+}
+
+// TestHeadingPrefixIsWholeWords: a prefix relation counts only where the
+// shorter slug ends on a segment boundary of the longer. `§norm` is not a
+// citation of `Normative Contracts`; it is four letters that happen to
+// start it.
+func TestHeadingPrefixIsWholeWords(t *testing.T) {
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "") + "\n### Normative Contracts\n\nProse.\n",
+		"0002-beta.md":  record("0002", "Beta", "- **Overrides**: 0001-alpha §Norm"),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+	e := findEdge(t, docs[1], edge.Overrides, "0001:§norm")
+	if e.Resolved == nil || *e.Resolved {
+		t.Errorf("a partial-word prefix must not resolve; resolved = %v", show(e.Resolved))
+	}
+}
+
+// TestBoldLeadIsAddressable: the corpus cites bold paragraph leads with
+// `§` and a quoted string — the most precise citation the grammar offers,
+// and always verbatim. Indexing only `#`-headings left the most careful
+// references in the corpus resolving against nothing.
+func TestBoldLeadIsAddressable(t *testing.T) {
+	target := record("0001", "Alpha", "") + `
+### Approach
+
+**The values.** ` + "`purpose ∈ {a, b, c}`" + ` is the closed set.
+
+**Attribute resolution is as-authored, byte-preserving.**
+Text-valued attributes hash by their literal UTF-8 bytes.
+
+The paragraph continues, and a **bold run mid-paragraph** is emphasis.
+`
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": target,
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
+			`0001-alpha §"The values", `+
+			`0001-alpha §"Attribute resolution is as-authored, byte-preserving", `+
+			`0001-alpha §"bold run mid-paragraph"`),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+
+	for _, want := range []string{
+		"0001:§the-values",
+		"0001:§attribute-resolution-is-as-authored-byte-preserving",
+	} {
+		e := findEdge(t, docs[1], edge.Overrides, want)
+		if e.Resolved == nil || !*e.Resolved {
+			t.Errorf("%s is a bold lead of 0001 but resolved = %v", want, show(e.Resolved))
+		}
+	}
+	// Emphasis inside a paragraph is not a lead: it opens nothing and
+	// names nothing.
+	mid := findEdge(t, docs[1], edge.Overrides, "0001:§bold-run-mid-paragraph")
+	if mid.Resolved == nil || *mid.Resolved {
+		t.Errorf("mid-paragraph emphasis is not addressable; resolved = %v", show(mid.Resolved))
+	}
+}
+
+// TestBoldLeadResolvesExactlyOnly: a heading is named by the template and
+// repeated across the corpus, so a prefix of one identifies it. A bold
+// lead is a sentence written once, and a prefix of a sentence is not a
+// citation of it.
+func TestBoldLeadResolvesExactlyOnly(t *testing.T) {
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "") +
+			"\n### Approach\n\n**The values are closed.** Prose follows.\n",
+		"0002-beta.md": record("0002", "Beta", `- **Overrides**: 0001-alpha §"The values"`),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+	e := findEdge(t, docs[1], edge.Overrides, "0001:§the-values")
+	if e.Resolved == nil || *e.Resolved {
+		t.Errorf("a prefix of a bold lead must not resolve; resolved = %v", show(e.Resolved))
+	}
+}
+
+// TestNumberedDecisionsAreAddressable: a cohort of records numbered their
+// decisions instead of keying them by the template's classes, under a
+// `### Decisions` heading their epoch's template did not name.
+//
+// Numbering is a label like any other — the author named the element — so
+// the key is as-written, and it is the spelling the citation grammar
+// already reads (`§D6` maps to `D-6`). Reading zero elements because the
+// heading is not the canonical one made every citation into such a record
+// dangle against a section that is plainly there.
+func TestNumberedDecisionsAreAddressable(t *testing.T) {
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "") + `
+### Decisions
+
+- **D1** Bodies inline on the op. No sidefiles, no blob hashes.
+- **D2** Element-ID-keyed storage throughout.
+- **D6** The rule walks the inverse-reference graph.
+`,
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: 0001-alpha §D6, 0001-alpha §D9"),
+	})
+	NewResolver(docs, "").ResolveAll(docs)
+
+	var keys []string
+	for _, e := range docs[0].Elements {
+		if e.Kind == "D" {
+			keys = append(keys, e.ID)
+			if e.Derived {
+				t.Errorf("%s is numbered by its author but reported derived", e.ID)
+			}
+		}
+	}
+	if len(keys) != 3 {
+		t.Fatalf("0001 projects %d decisions, want 3: %v", len(keys), keys)
+	}
+	ok := findEdge(t, docs[1], edge.Overrides, "0001:D-6")
+	if ok.Resolved == nil || !*ok.Resolved {
+		t.Errorf("0001 defines D6 but resolved = %v", show(ok.Resolved))
+	}
+	// Resolution stays exact: a number the record does not have is still
+	// a dangling reference.
+	bad := findEdge(t, docs[1], edge.Overrides, "0001:D-9")
+	if bad.Resolved == nil || *bad.Resolved {
+		t.Errorf("0001 has no D9 but resolved = %v", show(bad.Resolved))
+	}
+}

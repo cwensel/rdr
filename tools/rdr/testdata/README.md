@@ -36,6 +36,7 @@ conformant epoch D record whose tally the scanner tests pin by hand.
 | `status-parenthetical.md` | `Implemented (\`main\` sha)`; Evidence Record statuses as `**Verified**`, `REFUTED (…)`, `Verified as narrowed — …`, `Resolved — …`, and the template legend left unfilled |
 | `wrapped-metadata.md` | the em-dash `Deferred — …` Status paragraph with a guidance comment under it; Predecessors, Overrides and Seam Lineage wrapped, with a nested labelled bullet; the legacy `Related`, the recognised `Release scope`, and an unknown `Referenced by` |
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
+| `addressable-text.md` | bold paragraph leads a `§` citation can name, and mid-paragraph emphasis that is not one; a `### Decisions` heading with author-numbered `**D1**` / `**D6**` bullets |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it

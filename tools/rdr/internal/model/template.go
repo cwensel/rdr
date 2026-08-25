@@ -330,3 +330,19 @@ func GateItemKey(section string) string {
 	}
 	return ""
 }
+
+// IsGateItemKey reports whether a key is one of the five gate keys.
+//
+// The gate namespace is closed by construction — every `G-` element the
+// projector mints comes from a Finalization Gate sub-heading — so this is
+// the whole of it. A citation grammar asks so that a `G-<slug>` an author
+// coined for their own guard table is not read as a gate response the
+// target can never have; see edge.slugKind.
+func IsGateItemKey(key string) bool {
+	for _, g := range GateItems {
+		if g.Key == key {
+			return true
+		}
+	}
+	return false
+}

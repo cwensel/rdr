@@ -40,6 +40,9 @@ type Document struct {
 
 	Outline  []Node    `json:"outline"`
 	Elements []Element `json:"elements"`
+	// Anchors are the bold paragraph leads a citation can name with `§`.
+	// They are addressable text, not structure: see anchors().
+	Anchors []Anchor `json:"anchors,omitempty"`
 	// Metadata is the Metadata block's fields, classified; Fields is every
 	// other labelled bullet that sits inside no element (an element's own
 	// fields nest under it). See fields.go.
@@ -81,6 +84,30 @@ type Node struct {
 	LineEnd   int    `json:"line_end"`
 	// Parent is the enclosing node's ID, or "" for the title.
 	Parent string `json:"parent,omitempty"`
+}
+
+// Anchor is a bold paragraph lead a `§` citation can name: `**Attribute
+// resolution is as-authored, byte-preserving.**` opening a paragraph.
+//
+// It is NOT an outline node. A node is structure — it governs a range of
+// lines, nests, and every non-blank line of the record lies inside one —
+// and a bold lead governs nothing; putting it in the outline would break
+// the nesting and coverage invariants that make the outline worth having.
+// It is not an element either: it has no class, no fields and no
+// lifecycle. It is a piece of text with a name, recorded so a citation
+// that reaches for it by that name lands somewhere.
+type Anchor struct {
+	// ID is the anchor's ID in the section grammar: `NNNN:§<slug>`. The
+	// section grammar is deliberate — `§` is how the corpus cites a named
+	// piece of a record, and the author writing `§"The values"` is not
+	// asserting the target is a heading, only that it is called that.
+	ID string `json:"id"`
+	// Text is the lead as written, without its bold markers.
+	Text string `json:"text"`
+	// Section is the ID of the node the anchor sits in.
+	Section string `json:"section"`
+	// Line is where the lead is written.
+	Line int `json:"line"`
 }
 
 // Element is one addressable semantic object.
@@ -226,6 +253,13 @@ func (d *Document) Select(id string) (start, end int, ok bool) {
 	for _, n := range d.Outline {
 		if n.ID == want {
 			return n.LineStart, n.LineEnd, true
+		}
+	}
+	// Anchors are searched last: a heading of the same slug is the
+	// section, and the lead beneath it adds nothing to select.
+	for _, a := range d.Anchors {
+		if a.ID == want {
+			return a.Line, a.Line, true
 		}
 	}
 	return 0, 0, false
@@ -574,6 +608,11 @@ func (d *Document) reassign() {
 			fs[j].Section = d.id(ident.Section, keyOf(fs[j].Section))
 		}
 	}
+	for i := range d.Anchors {
+		a := &d.Anchors[i]
+		a.ID = d.id(ident.Section, keyOf(a.ID))
+		a.Section = d.id(ident.Section, keyOf(a.Section))
+	}
 	// Edges carry element IDs on both ends, and a self-edge's target is
 	// this record's own. They are re-read rather than patched: the pass
 	// is pure over the now-correct record number, and re-reading cannot
@@ -602,10 +641,27 @@ func (d *Document) dropEdgeWarnings() {
 
 // canonicalNodes returns the nodes mapped to a canonical section, in
 // document order.
+//
+// A heading whose ALIAS names the section counts even when the record's
+// own epoch table has no such section. `Canonical` is set by classify()
+// against that table, and an alias to a section the epoch predates
+// resolves to MatchRecognizedUnmapped — correctly, because the record's
+// template really did not have it. But the SECTION IS WRITTEN: an epoch A
+// record with `### Decisions` and `- **D1**` bullets under it has the
+// elements whatever its template offered, and reading zero of them
+// because of the heading's date makes every citation into that record
+// dangle against a section that is plainly there.
+//
+// So the reader asks what the record wrote, not what its epoch permitted.
+// This is the model's READ, NEVER JUDGE rule applied to a section: the
+// epoch classification stays exactly as it was — the heading is still
+// reported as recognised-and-unmapped for that epoch, and no epoch table
+// is bent to accommodate one record — while the elements underneath
+// become addressable.
 func (d *Document) canonicalNodes(name string) []*Node {
 	var out []*Node
 	for _, n := range d.nodes {
-		if n.Canonical == name {
+		if n.Canonical == name || (n.Canonical == "" && model.SectionAliasCanonical(n.Heading) == name) {
 			out = append(out, n)
 		}
 	}
@@ -736,6 +792,7 @@ func (d *Document) extract() {
 	d.mvv()
 	d.listKind(ident.Failure, "Failure Modes", nil)
 	d.gate()
+	d.anchors()
 	sort.SliceStable(d.Elements, func(i, j int) bool {
 		return d.Elements[i].LineStart < d.Elements[j].LineStart
 	})
@@ -946,6 +1003,88 @@ func (d *Document) contracts() {
 	d.assign(ident.Contract, items)
 }
 
+// anchorLead matches a bold run opening a paragraph at column zero:
+// `**The values.** the rest of the sentence`, `**Attribute resolution is
+// as-authored, byte-preserving.**` on a line of its own.
+//
+// Column zero is the test that separates a lead from everything else the
+// corpus bolds. A `- **Evidence**:` is a field, a `- **A3 [...]**` is an
+// assumption, a `  **Note.**` under a bullet is part of that bullet's
+// body: all of them are indented, all of them already have an owner, and
+// all of them would collide with the identities that owner mints. Only an
+// unindented one starts a paragraph.
+var anchorLead = regexp.MustCompile(`^\*\*([^*\n]{2,120}?)\*\*(?:$|[ .,;:—–-])`)
+
+// anchors records the bold paragraph leads of the record.
+//
+// The corpus names them in citations — `cli/0009 § "Attribute resolution
+// is as-authored, byte-preserving"`, `cli/0092 §"The values"` — and both
+// forms above are QUOTED and verbatim: the most precise citation the
+// grammar offers, naming a string that is in the target exactly once.
+// Indexing only `#`-headings left those citations resolving against
+// nothing, which reports the most careful references in the corpus as the
+// broken ones.
+//
+// A lead is addressable text, not structure, so it goes in its own list
+// (see Anchor) and the resolver consults it after the outline. Structure
+// wins ties: if a heading and a lead slug alike, the heading is the
+// section and the lead adds nothing.
+//
+// The lead is read WHEREVER IT SITS, like a contract fence, because a
+// paragraph lead is a paragraph lead under any section.
+func (d *Document) anchors() {
+	seen := map[string]bool{}
+	for i := 1; i <= len(d.lines); i++ {
+		if d.fenced[i-1] {
+			continue
+		}
+		// A lead OPENS a paragraph: the line above it is blank, a
+		// heading, or the top of the file. A bold run mid-paragraph is
+		// emphasis, and emphasis names nothing.
+		if i > 1 {
+			if prev := strings.TrimSpace(d.lines[i-2]); prev != "" && !model.Heading.MatchString(d.lines[i-2]) {
+				continue
+			}
+		}
+		if contractLabel.MatchString(d.lines[i-1]) {
+			// A `**C4**` above a fence is a contract's label. The
+			// contract is already an element with an ID of its own, and
+			// a second identity for the same bytes in the section
+			// namespace is noise at best and a collision at worst.
+			continue
+		}
+		m := anchorLead.FindStringSubmatch(d.lines[i-1])
+		if m == nil {
+			continue
+		}
+		text := strings.TrimSpace(m[1])
+		key := ident.Slug(strings.TrimRight(text, ".,;:"))
+		if key == "" || seen[key] {
+			// A slug written twice names neither occurrence. Dropping
+			// both is the same refusal to guess the resolver makes for an
+			// ambiguous prefix.
+			seen[key] = true
+			d.dropAnchor(key)
+			continue
+		}
+		seen[key] = true
+		d.Anchors = append(d.Anchors, Anchor{
+			ID: d.id(ident.Section, key), Text: text, Section: d.sectionAt(i), Line: i})
+	}
+}
+
+// dropAnchor removes an anchor whose slug turned out not to be unique.
+func (d *Document) dropAnchor(key string) {
+	want := d.id(ident.Section, key)
+	kept := d.Anchors[:0]
+	for _, a := range d.Anchors {
+		if a.ID != want {
+			kept = append(kept, a)
+		}
+	}
+	d.Anchors = kept
+}
+
 // sectionAt returns the ID of the innermost node containing a line.
 func (d *Document) sectionAt(line int) string {
 	id := ""
@@ -957,9 +1096,30 @@ func (d *Document) sectionAt(line int) string {
 	return id
 }
 
+// decisionNumber reads a `D1` / `D-1` bold lead as an as-written key.
+//
+// TEMPLATE.md keys decisions by CLASS, and the classes are what
+// DecisionClassOf reads. But a cohort of records numbered theirs instead
+// — `- **D1** Bodies inline on the op.`, `- **D4 (\`Seal.prev\`)** …` —
+// and numbering is a label like any other: the author named the element,
+// so the name is the key and the ID is as-written, not derived.
+//
+// It is also the spelling the citation grammar already reads: `§D6` maps
+// to `D-6` through elementKind, which had nothing to land on while a
+// numbered bullet slugged its whole sentence into a derived key.
+var decisionNumber = regexp.MustCompile(`^D-?(\d+[a-z]?)\b`)
+
+func decisionKey(label string) string {
+	if m := decisionNumber.FindStringSubmatch(strings.Trim(label, "`* ")); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
 // decisions reads Load-Bearing Decisions bullets. A bullet whose bold
 // label starts with a template decision class is keyed by that class
-// (`D-identity`); any other label slugs its own text and is derived.
+// (`D-identity`) or by its own number (`D-6`); any other label slugs its
+// own text and is derived.
 func (d *Document) decisions() {
 	seen := map[string]int{}
 	for _, n := range d.canonicalNodes("Load-Bearing Decisions") {
@@ -969,6 +1129,8 @@ func (d *Document) decisions() {
 			e := Element{Kind: ident.Decision, Label: label, Section: n.ID, LineStart: i, LineEnd: end}
 			if class := model.DecisionClassOf(label); class != "" {
 				e.Key = ident.Slug(class)
+			} else if num := decisionKey(label); num != "" {
+				e.Key = num
 			} else {
 				e.Key, e.Derived = ident.Slug(label), true
 			}

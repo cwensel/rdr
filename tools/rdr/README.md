@@ -17,7 +17,7 @@ Flags precede the positional argument — Go's flag parser stops at the
 first non-flag word.
 
     rdr inspect 0055                       # one line per element, ids first
-    rdr inspect --json 0055                # the envelope: outline, elements, metadata, fields, edges, warnings, coverage, counts
+    rdr inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
     rdr inspect --select 0055:C4 0055      # the bytes the id names
     rdr inspect --select edges 0055        # the typed relations alone
     rdr index --derived --records ../rdr/cli
@@ -75,15 +75,16 @@ Every element of a record has one ID, in one grammar:
 | --- | --- | --- |
 | `0055:A3` | assumption | the `A3` label, as written (`A4b` / `A1.b` → `A4b`, `A1b`) |
 | `0055:C4` | normative contract (a ```` ```normative ```` block) | a `**C4**` / `##### C4` label on the line above the fence; else the block's document ordinal |
-| `0055:D-identity` | load-bearing decision | the template's decision class (`DecisionClasses`); else the label's slug |
+| `0055:D-identity` | load-bearing decision | the template's decision class (`DecisionClasses`); else the author's own number (`D-6`); else the label's slug |
 | `0055:RT1` | round-trip invariant | an `RT1` / `INV-1` lead, or a unique list number; else ordinal |
 | `0055:ALT2` | alternative | the `Alternative 2` scaffold ordinal |
 | `0055:BR3` | briefly-rejected item | a unique list number; else ordinal |
 | `0055:S5` | validation scenario | a unique list number; else ordinal |
 | `0055:MVV` | minimum viable validation | none — one per record |
 | `0055:F2` | failure mode | a unique list number; else ordinal |
-| `0055:G-scope` | inlined gate response (epochs A, B) | the gate item (`GateItems`); else the heading's slug |
+| `0055:G-scope` | inlined gate response (epochs A, B) | the gate item (`GateItems`); else the heading's slug. The namespace is CLOSED to those five keys — a citation of a record's own `G-a` guard table names the document, as `REQ-N` does |
 | `0055:§approach` | outline section | the canonical section's slug; scaffolds and legacy aliases slug their own heading |
+| `0055:§the-values` | bold paragraph lead | the lead's own slug — addressable text, not structure; matched exactly, never by prefix |
 | `cli/0055:C4` | any of the above, across records dirs | `--project` supplies the prefix; omitted inside one dir |
 
 An ID is **as written** when the author labelled the element and
@@ -217,6 +218,26 @@ its bullets read as assumptions by position, derived.
 Gate responses exist only while the gate is inlined; a `gate.md` pointer
 means they live outside the record.
 
+Bold paragraph leads are indexed as ANCHORS, in their own list rather than
+in the outline: a lead governs no lines and does not nest, so putting it
+in the outline would break the coverage and nesting invariants that make
+the outline worth having. It is not an element either — no class, no
+fields, no lifecycle — only a piece of text with a name, recorded so a
+citation reaching for it by that name lands somewhere. A lead at column
+zero opening a paragraph is one; indented bold (a field, an assumption
+label) already has an owner, mid-paragraph bold is emphasis, and a
+contract's `**C4**` label is that contract's, not a second identity for
+the same bytes.
+
+A section whose heading ALIASES to a template section is read for its
+elements even when the record's own epoch table has no such section — an
+epoch A record writing `### Decisions` over `- **D1**` bullets has those
+decisions whatever its template offered. The epoch classification is
+unchanged (the heading is still reported recognised-and-unmapped for that
+epoch, and no epoch table is bent for one record); only the elements
+underneath become addressable. Author-numbered decision bullets key as
+written (`D-6`), which is the spelling the citation grammar already reads.
+
 A `NNNN-slug-postmortem.md` beside a record is not a record: `NNNN`
 resolution and `index` skip it, and a file with no epoch fingerprint is
 listed as skipped rather than silently dropped.
@@ -263,6 +284,20 @@ than an absent one. Even in a record list, a `NNNN-DD-DD` is a date.
 per run into a `req-list.md` artifact, over every clause of the record;
 they are not the record's C-numbers. The citation targets the document.
 
+**Nor does a `G-` key outside the gate's closed set.** Every `G-` element
+is minted from a Finalization Gate sub-heading, so the five `GateItems`
+keys are the whole namespace. Records also coin `G-a`…`G-j` for their own
+guard tables and `G-faithful` for a mode; reading those as gate responses
+asserts an element the target cannot have under any spelling and reports
+a correct citation broken forever. They target the document, for the same
+reason `REQ-N` does.
+
+**A record-shaped filename segment is not a citation.** The `NNNN-slug`
+form is the one grammar with no marker of its own, and a path in the
+RDR's own evidence tree matches it one segment in
+(`{EVIDENCE_DIR}research/a5-0118-clause-spans.md`). A four-digit run whose
+preceding hyphen follows an alphanumeric is mid-token, and is declined.
+
 ### Resolution
 
 `resolved` is three-valued: `true`, `false`, or **absent**. Absent means
@@ -274,9 +309,27 @@ pass, which is the failure this flow exists to prevent).
 **Resolution is exact; the parser never guesses.** A record must exist,
 and a citation reaching inside it must land on an element that exists in
 that record's projection. A section citation that names no section is
-reported whether the author under-specified it (`§Semantic`, where the
-target has five such headings) or the citation grammar clipped it. A
-number whose filename slug names a different record is reported too.
+reported, and so is a number whose filename slug names a different
+record.
+
+A section citation may be a whole-word PREFIX of the target's heading
+rather than the whole of it — in either direction, because the corpus
+clips both ways: `§Normative` for `Normative Contracts`, `§Safety
+boundary` for `Safety boundary (normative)`, and `§Failure-Modes residual
+chartered it as a` where the citation grammar's word window ran past the
+heading into the sentence about it. Such a citation resolves **only when
+it stands in that relation to exactly one heading of the target**. Two
+candidates and it stays unresolved — no first match, no longest match, no
+tiebreak, because a tiebreak is the guess by another name. `§Semantic`
+against a target with five `Semantic *` headings is still an
+under-specified reference, i.e. record data, which is what an earlier
+unguarded prefix rule got wrong and why it was reversed.
+
+Bold paragraph leads (`**The values.**`) are addressable by their exact
+name, in the `§` namespace, and by nothing else: a heading is named by
+the template and repeated across the corpus, so a prefix of one
+identifies it, while a lead is a sentence written once and a prefix of a
+sentence is not a citation of it.
 
 That is deliberate, and it is the division of labour: **structural
 variants are absorbed generically** by the template model's aliases and

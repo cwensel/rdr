@@ -142,7 +142,8 @@ func TestZeroSilentDrop(t *testing.T) {
 // never a reason to edit the record.
 func TestConformantFixturesHaveFullCoverage(t *testing.T) {
 	for _, f := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md",
-		"variants/heading-level.md", "variants/label-variants.md", "variants/status-parenthetical.md"} {
+		"variants/heading-level.md", "variants/label-variants.md", "variants/status-parenthetical.md",
+		"variants/addressable-text.md"} {
 		doc := Bytes(fixture(t, f), Options{})
 		if len(doc.Warnings) != 0 || doc.Coverage.Unclassified != 0 || doc.Coverage.Rate != 0 {
 			t.Errorf("%s: %d warnings, coverage %+v", f, len(doc.Warnings), doc.Coverage)
@@ -422,6 +423,66 @@ func TestFieldsSurviveFilenameRecord(t *testing.T) {
 	for _, f := range e.Fields {
 		if f.Element != "cache/0102:A1" || f.Section != "cache/0102:§critical-assumptions" {
 			t.Errorf("field %q element %q section %q", f.Label, f.Element, f.Section)
+		}
+	}
+}
+
+// TestAddressableTextVariant pins the two addressable-text paths against
+// the fixture: a bold paragraph lead a `§` citation can name, and a
+// `### Decisions` heading whose author-numbered bullets are D-elements.
+//
+// Both are things the corpus writes that an exact-literal reader projects
+// as NOTHING — the lead is not a heading, the section is not the
+// template's name — so a citation of either resolves against nothing
+// while the text it names sits plainly in the file.
+func TestAddressableTextVariant(t *testing.T) {
+	doc := variant(t, "addressable-text.md")
+
+	// Bold paragraph leads are addressable; emphasis inside a paragraph
+	// is not, and a contract's own label is not a second identity for it.
+	got := map[string]bool{}
+	for _, a := range doc.Anchors {
+		got[a.ID] = true
+	}
+	for _, want := range []string{
+		"0102:§the-alignment-values",
+		"0102:§pad-bytes-are-zero-filled-and-never-inspected",
+	} {
+		if !got[want] {
+			t.Errorf("bold lead %s is not addressable; anchors are %v", want, doc.Anchors)
+		}
+	}
+	for _, never := range []string{"0102:§bold-run-written", "0102:§c1"} {
+		if got[never] {
+			t.Errorf("%s was minted as an anchor; it names no paragraph lead", never)
+		}
+	}
+	// An anchor round-trips to the bytes it names, like every other ID.
+	for _, a := range doc.Anchors {
+		start, end, ok := doc.Select(a.ID)
+		if !ok || start != a.Line || end != a.Line {
+			t.Errorf("%s selects (%d,%d,%v), want its own line %d", a.ID, start, end, ok, a.Line)
+		}
+	}
+
+	// `### Decisions` with numbered bullets: three D-elements, keyed as
+	// written, and the gap at D3..D5 is the author's numbering kept.
+	var keys []string
+	for _, e := range doc.Elements {
+		if e.Kind == ident.Decision {
+			keys = append(keys, e.ID)
+			if e.Derived {
+				t.Errorf("%s is author-numbered but reported derived", e.ID)
+			}
+		}
+	}
+	want := []string{"0102:D-1", "0102:D-2", "0102:D-6"}
+	if len(keys) != len(want) {
+		t.Fatalf("decisions = %v, want %v", keys, want)
+	}
+	for i := range want {
+		if keys[i] != want[i] {
+			t.Errorf("decision %d = %s, want %s", i, keys[i], want[i])
 		}
 	}
 }

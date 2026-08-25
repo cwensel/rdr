@@ -34,6 +34,7 @@ import (
 	"strings"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
+	"github.com/cwensel/rdr/tools/rdr/internal/model"
 )
 
 // Kind is the closed enum of typed relations. Its string form is the
@@ -205,7 +206,7 @@ var recordRef = regexp.MustCompile(
 	`(?:` +
 		`\b(?:RDR|R)[ -](?:([a-z][a-z0-9_-]*)/)?(\d{4})()` + // `RDR 0055`, `R-0055`, `RDR cli/0055`
 		`|\b([a-z][a-z0-9_-]*)/(\d{4})()` + // `cli/0055`
-		`|\b()(\d{4})(-[a-z][a-z0-9-]*)` + // `0055-some-slug`
+		`|\b()(\d{4})(-[a-z][a-z0-9-]*)` + // `0055-some-slug`; see hyphenContinuation
 		`)` +
 		`(?:\s*(?::|§\s*)?\s*` + // an optional separator: the ID colon or a section mark
 		`(?:(§)\s*` + sectionName + // §Section Name
@@ -232,8 +233,44 @@ var recordRef = regexp.MustCompile(
 // the target has five such headings) or this bound clipped it. The
 // parser never guesses which section was meant — a dangling reference is
 // record data to correct, not parser tolerance to add.
+//
+// THE WORD SEPARATOR IS A RUN, NOT A CHARACTER. A heading is written
+// `Semantic / Per-op — precondition replay`: the slash carries spaces
+// around it and the dash is an em dash. A single-character `[ /]` class
+// ends the name at `Semantic`, which is a DIFFERENT citation from the one
+// the author wrote — and one that is genuinely ambiguous where the whole
+// one is not. So the separator is the run of space, slash and dash the
+// corpus writes between heading words. It reads more of the citation; it
+// still reads only the citation, because the six-word ceiling and the
+// stop-punctuation set are unchanged.
+const sectionSep = `(?:\s*[/\x{2014}\x{2013}]\s*|\s)`
+
 const sectionName = `(?:"([^"\n]{1,80})"|` + "`" + `([^` + "`" + `\n]{1,80})` + "`" +
-	`|([A-Za-z][A-Za-z0-9-]*(?:[ /][A-Za-z0-9][A-Za-z0-9-]*){0,5}))`
+	`|([A-Za-z][A-Za-z0-9-]*(?:` + sectionSep + `[A-Za-z0-9][A-Za-z0-9-]*){0,5}))`
+
+// hyphenContinuation reports whether the match at off is a `NNNN-slug`
+// that is really the TAIL of a longer hyphenated token — `a5-0118-clause-
+// spans` inside `{EVIDENCE_DIR}research/a5-0118-clause-spans.md`.
+//
+// The slug alternative is the one grammar with no marker of its own: it
+// says "four digits followed by a lowercase slug is a record", and a
+// filename in the RDR's own evidence tree is exactly that shape one
+// segment in. `\b` does not stop it, because a hyphen is a non-word byte
+// and the number therefore opens a word wherever it sits.
+//
+// A record filename never has a segment before the number — that is what
+// makes the shape a record reference at all. So a preceding hyphen whose
+// own left neighbour is alphanumeric says the digits are mid-token, and
+// the match is declined. The edge it would mint is a FALSE relation with
+// a slug that cannot resolve: worse than an absent one, because a
+// consumer chases it as a broken pointer in a record that is not broken.
+func hyphenContinuation(s string, off int) bool {
+	return off >= 2 && s[off-1] == '-' && identByte(s[off-2])
+}
+
+func identByte(b byte) bool {
+	return b == '_' || (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9')
+}
 
 // bareNumber matches a record number written alone, for the fields whose
 // whole value is a record list.
@@ -277,6 +314,11 @@ func FindRefs(s string, bare bool) []Ref {
 	var out []Ref
 	claimed := make([]bool, len(s)+1)
 	for _, m := range recordRef.FindAllStringSubmatchIndex(s, -1) {
+		// The markerless slug alternative fires inside a filename that
+		// merely contains a record-shaped segment; decline it there.
+		if m[16] >= 0 && hyphenContinuation(s, m[16]) {
+			continue
+		}
 		r := Ref{Start: m[0], End: m[1], Raw: s[m[0]:m[1]]}
 		for _, base := range []int{1, 4, 7} {
 			if n := group(s, m, base+1); n != "" {
@@ -294,7 +336,7 @@ func FindRefs(s string, bare bool) []Ref {
 		case group(s, m, 14) != "":
 			r.Kind, r.Key = elementKind(group(s, m, 14)), group(s, m, 15)
 		case group(s, m, 16) != "":
-			r.Kind, r.Key = ident.Kind(group(s, m, 16)), group(s, m, 17)
+			r.Kind, r.Key = slugKind(group(s, m, 16), group(s, m, 17)), group(s, m, 17)
 		case group(s, m, 18) != "":
 			r.Kind = ident.MVV
 		}
@@ -344,6 +386,32 @@ func FindRefs(s string, bare bool) []Ref {
 // the corpus, each one a real citation the projector mislabelled. The
 // record is still the target; only the clause is out of this grammar's
 // reach.
+// slugKind maps the slug-keyed citation forms — `D-identity`, `G-scope` —
+// onto their kind. `D-` is unconditional: a decision's key IS the label's
+// slug, so any slug is a decision key the target may or may not have, and
+// a miss is the dangling reference resolution exists to report.
+//
+// `G-` IS NOT. The gate namespace is CLOSED: `ident.Gate` keys are the
+// five Finalization Gate sub-sections (`model.GateItems`), minted from
+// headings the template writes, and nothing else can ever be one. But
+// `G-<slug>` is also how records name their OWN guards — a table of
+// `G-a`…`G-j` conditions, a `G-faithful` mode — an author namespace with
+// no relation to the gate.
+//
+// Reading those as gate items asserts an element the target cannot have
+// under any spelling and reports it unresolved forever: a false finding
+// on a citation that is correct, pointing a reader at a record with
+// nothing to fix. So a `G-` key outside the closed set names no element
+// in this grammar, and the citation targets the DOCUMENT — the same
+// answer, for the same reason, that `REQ-N` already gets. The record is
+// still the target; only the author's own item is out of reach.
+func slugKind(tok, key string) ident.Kind {
+	if tok == "G" && !model.IsGateItemKey(key) {
+		return ""
+	}
+	return ident.Kind(tok)
+}
+
 func elementKind(tok string) ident.Kind {
 	switch tok {
 	case "CA-", "A":
@@ -382,9 +450,39 @@ func elementKind(tok string) ident.Kind {
 // missing.
 var sectionTail = regexp.MustCompile(`\s+(?:[A-Z]+-?\d+[a-z]?)(?:\s*/\s*[A-Z]*-?\d+[a-z]?)*\s*$`)
 
-// trimSectionTail drops that label list from a section citation's name.
+// subLocator matches the WORD-FORM sub-locator authors append to a
+// section citation — `§Identity stack point 6`, `§Technical Design item
+// 5`, `§Approach step 2`. It is the same thing sectionTail trims in its
+// label form (`L-4`), written out in words instead.
+//
+// It names an item INSIDE the section, in the record's own per-section
+// numbering, which is below what any grammar here addresses: the section
+// is the deepest target the citation is machine-readable to. Left in, the
+// words slug into the key and the citation resolves against nothing,
+// reporting a section that plainly exists as missing.
+//
+// The vocabulary is closed on purpose — `point`, `item`, `step`, `line`,
+// `note`, `bullet`, `row`, `§` — because these are sub-locators and
+// nothing else. Trimming any `<word> <number>` tail would eat the last
+// word of a heading that ends in a number, and headings do (`Step 2:
+// Layer assignment`, `Phase 1`). A closed list cannot make that mistake.
+var subLocator = regexp.MustCompile(
+	`(?i)\s+(?:point|item|step|line|note|bullet|row|§)\s*\d+[a-z]?\s*$`)
+
+// trimSectionTail drops the label list and the word-form sub-locator from
+// a section citation's name, repeatedly: the corpus writes both at once
+// (`§Normative Contracts L-4 point 2`), and one pass would leave whichever
+// came first.
 func trimSectionTail(name string) string {
-	return strings.TrimSpace(sectionTail.ReplaceAllString(strings.TrimSpace(name), ""))
+	name = strings.TrimSpace(name)
+	for {
+		trimmed := strings.TrimSpace(subLocator.ReplaceAllString(
+			strings.TrimSpace(sectionTail.ReplaceAllString(name, "")), ""))
+		if trimmed == name || trimmed == "" {
+			return trimmed
+		}
+		name = trimmed
+	}
 }
 
 func group(s string, m []int, n int) string {

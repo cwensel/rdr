@@ -267,3 +267,164 @@ func TestColonIDCitationIsRead(t *testing.T) {
 		}
 	}
 }
+
+// TestSectionSeparatorRuns: a heading's words are separated by more than
+// a single space. `Semantic / Per-op — precondition replay` writes a
+// spaced slash and an em dash between them, and a one-character
+// separator class ends the citation at `Semantic` — which names a
+// DIFFERENT thing from what the author wrote, and an ambiguous one where
+// the whole name is unique.
+func TestSectionSeparatorRuns(t *testing.T) {
+	for in, want := range map[string]string{
+		"proj/0007 §Semantic / Per-op":             "proj/0007:§semantic-per-op",
+		"proj/0007 §Semantic / Fork — merge order": "proj/0007:§semantic-fork-merge-order",
+		"proj/0007 §Wire format – the byte layout": "proj/0007:§wire-format-the-byte-layout",
+	} {
+		refs := FindRefs(in, false)
+		if len(refs) == 0 {
+			t.Fatalf("%q: no reference found", in)
+		}
+		if got := refs[0].ID(); got != want {
+			t.Errorf("%q\n got %q\nwant %q", in, got, want)
+		}
+	}
+}
+
+// TestSubLocatorIsTrimmed: `point 6` / `item 5` / `step 2` name an item
+// INSIDE a section, in the record's own per-section numbering, which is
+// below anything this grammar addresses. It is the same thing sectionTail
+// already trims in its `L-4` label form, written out in words.
+//
+// Left in, the words slug into the key and a section that plainly exists
+// is reported missing.
+func TestSubLocatorIsTrimmed(t *testing.T) {
+	for in, want := range map[string]string{
+		"proj/0009 § Identity stack point 6":  "proj/0009:§identity-stack",
+		"proj/0009 § Identity stack point 1":  "proj/0009:§identity-stack",
+		"proj/0013 § Technical Design item 5": "proj/0013:§technical-design",
+		"proj/0055 §Approach step 2":          "proj/0055:§approach",
+		"proj/0055 §Failure Modes row 3":      "proj/0055:§failure-modes",
+		// A label list and a word-form sub-locator at once: both go.
+		"proj/0055 §Normative Contracts L-4 point 2": "proj/0055:§normative-contracts",
+	} {
+		refs := FindRefs(in, false)
+		if len(refs) == 0 {
+			t.Fatalf("%q: no reference found", in)
+		}
+		if got := refs[0].ID(); got != want {
+			t.Errorf("%q\n got %q\nwant %q", in, got, want)
+		}
+	}
+}
+
+// TestSubLocatorVocabularyIsClosed: the trim fires on the sub-locator
+// words and on nothing else. A heading that ENDS in a number is real —
+// `Step 2: Layer assignment`, `Phase 1` — and a rule that ate any
+// `<word> <number>` tail would clip the last word off it.
+func TestSubLocatorVocabularyIsClosed(t *testing.T) {
+	for in, want := range map[string]string{
+		"proj/0112 §Step 2":            "proj/0112:§step-2",
+		"proj/0112 §Phase 1":           "proj/0112:§phase-1",
+		"proj/0112 §Encoding Format 2": "proj/0112:§encoding-format-2",
+	} {
+		refs := FindRefs(in, false)
+		if len(refs) == 0 {
+			t.Fatalf("%q: no reference found", in)
+		}
+		if got := refs[0].ID(); got != want {
+			t.Errorf("%q\n got %q\nwant %q", in, got, want)
+		}
+	}
+}
+
+// TestGateNamespaceIsClosed: `ident.Gate` keys are the five Finalization
+// Gate sub-sections and can never be anything else, because that is where
+// every G-element is minted from. A record's OWN `G-a`…`G-j` guard table,
+// or a `G-faithful` mode name, is an author namespace that happens to
+// share the letter.
+//
+// Reading those as gate items asserts an element the target cannot have
+// under any spelling, and reports a correct citation broken forever. So
+// the citation targets the document instead — the answer `REQ-N` already
+// gets, for the same reason.
+func TestGateNamespaceIsClosed(t *testing.T) {
+	t.Run("template gate items resolve as gate elements", func(t *testing.T) {
+		for in, want := range map[string]string{
+			"proj/0055 G-scope narrows it":     "proj/0055:G-scope",
+			"proj/0055 G-contradiction is met": "proj/0055:G-contradiction",
+			"proj/0055 G-cross-cutting":        "proj/0055:G-cross-cutting",
+		} {
+			refs := FindRefs(in, false)
+			if len(refs) == 0 {
+				t.Fatalf("%q: no reference found", in)
+			}
+			if refs[0].Kind != ident.Gate {
+				t.Errorf("%q: kind = %q, want the gate kind", in, refs[0].Kind)
+			}
+			if got := refs[0].ID(); got != want {
+				t.Errorf("%q: got %q, want %q", in, got, want)
+			}
+		}
+	})
+	t.Run("an author's own G-key names the document", func(t *testing.T) {
+		for _, in := range []string{
+			"a proj/0133 G-c framing refusal",
+			"proj/0133 G-a and G-j both hold",
+			"proj/0133 G-faithful is the default mode",
+		} {
+			refs := FindRefs(in, false)
+			if len(refs) == 0 {
+				t.Fatalf("%q: no reference found", in)
+			}
+			if refs[0].Kind != "" {
+				t.Errorf("%q: read as element kind %q; it names no element of this grammar", in, refs[0].Kind)
+			}
+			if got := refs[0].ID(); got != "proj/0133" {
+				t.Errorf("%q: target = %q, want the document proj/0133", in, got)
+			}
+		}
+	})
+	t.Run("a decision slug key is unaffected", func(t *testing.T) {
+		refs := FindRefs("proj/0055 D-identity settles it", false)
+		if len(refs) == 0 || refs[0].ID() != "proj/0055:D-identity" {
+			t.Errorf("D- key changed: %v", refs)
+		}
+	})
+}
+
+// TestRecordSlugIsNotAFilenameSegment: the `NNNN-slug` alternative is the
+// one grammar with no marker of its own, and a path in the RDR's own
+// evidence tree is that shape one segment in —
+// `{EVIDENCE_DIR}research/a5-0118-clause-spans.md`. `\b` does not stop it,
+// because a hyphen is a non-word byte.
+//
+// The edge it minted was a FALSE relation carrying a slug that cannot
+// resolve, which reads to a consumer as a broken pointer in a record that
+// is not broken.
+func TestRecordSlugIsNotAFilenameSegment(t *testing.T) {
+	for _, in := range []string{
+		"`{EVIDENCE_DIR}research/a5-0118-clause-spans.md`",
+		"see {SPIKE_DIR}/c2-0118-probe-results.md",
+		"the file v2-0055-widths.json",
+	} {
+		if refs := FindRefs(in, false); len(refs) != 0 {
+			t.Errorf("%q: read %d references; the digits are mid-token in a filename: %v", in, len(refs), refs[0].ID())
+		}
+	}
+	// A record filename has no segment before the number — that is what
+	// makes the shape a citation — so these still read.
+	for in, want := range map[string]string{
+		"`0055-frame-widths.md` covers it":   "0055",
+		"{EVIDENCE_DIR}0055-frame-widths.md": "0055",
+		"see research/0118-clause-spans.md":  "0118",
+	} {
+		refs := FindRefs(in, false)
+		if len(refs) == 0 {
+			t.Errorf("%q: no reference found", in)
+			continue
+		}
+		if got := refs[0].Record; got != want {
+			t.Errorf("%q: record = %q, want %q", in, got, want)
+		}
+	}
+}

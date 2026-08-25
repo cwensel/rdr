@@ -121,7 +121,123 @@ func (r *Resolver) resolveElement(e *Edge) *bool {
 			return truth(true)
 		}
 	}
+	if id.Kind == ident.Section {
+		// A bold paragraph lead is addressable by its exact name and by
+		// nothing else. The outline's prefix rule reads a HEADING, which
+		// the template names and the record repeats; a lead is a sentence
+		// the author wrote once, and a prefix of a sentence is not a
+		// citation of it. The two corpus forms are quoted and verbatim,
+		// so exact is all they need.
+		for _, a := range target.Anchors {
+			if a.ID == want {
+				return truth(true)
+			}
+		}
+		if uniqueSectionPrefix(target, id.Key) != "" {
+			return truth(true)
+		}
+	}
 	return truth(false)
+}
+
+// uniqueSectionPrefix resolves a section citation whose slug is not the
+// whole of any heading's, and returns the heading slug it lands on, or ""
+// when it lands on none — or on more than one.
+//
+// UNIQUENESS IS THE WHOLE RULE. Prefix matching was tried once, without
+// it, and reversed: `§Semantic` against a target with five `Semantic *`
+// headings is a citation the author under-specified, and picking one of
+// the five is the parser guessing. That reversal stands. What is added
+// here is narrower and is not a guess: a prefix relation that holds for
+// EXACTLY ONE heading of the target identifies that heading the way a
+// full slug does. Two candidates and the citation stays unresolved, with
+// no first-match or longest-match tiebreak — a tiebreak is the guess by
+// another name.
+//
+// It holds in both directions, because the corpus clips both ways:
+//
+//	CITATION SHORTER — `§Normative` for `Normative Contracts`, `§No-op
+//	operations` for `No-op operations and OpID collision`. The author
+//	named the heading by its opening words, or the heading grew a
+//	qualifier (`Safety boundary (normative)`) the citation predates.
+//
+//	CITATION LONGER — `§Failure-Modes residual chartered it as a`. The
+//	citation grammar's word window ran off the end of the heading into
+//	the sentence about it; the heading is a prefix of what it captured.
+//
+// Either way one heading of the target is being named and the other is
+// prose the boundary could not see. Matching on the SLUG rather than the
+// text is what makes the hyphenated spelling (`Failure-Modes`) and the
+// spaced one (`Failure Modes`) the same citation for free.
+//
+// The boundary is a SLUG SEGMENT, never a bare string prefix: `§norm`
+// must not reach `normative-contracts`. A prefix relation counts only
+// when the shorter slug ends where the longer one has a `-`, so the
+// citation named whole words.
+//
+// THE OVER-READ CASE IS SHORTENED ONE WORD AT A TIME, longest first. A
+// citation the word window ran off the end of carries the heading plus a
+// tail of the sentence, and where the tail begins is not knowable from
+// the citation alone — `§Normative reciprocally assigns the simple`
+// stopped mid-clause, so no single suffix rule finds the seam. Trying
+// each whole-word prefix from longest to shortest and taking the first
+// that names exactly one heading finds it exactly, because the target's
+// own headings are what decide. Every length carries the same uniqueness
+// guard, so a shortening that turns out to be ambiguous stops the search
+// rather than falling through to a guess: `§Semantic contract engine`
+// does not become `§Semantic` and pick one of five.
+//
+// This subsumes any case rule. Stopping at "the first lowercase word
+// after a Title-Case run" is a heuristic about English that the corpus
+// breaks in both directions — headings carry lowercase words (`No-op
+// operations and OpID collision`) and prose carries capitalised ones —
+// while asking the target which of its headings the citation names is
+// not a heuristic at all.
+func uniqueSectionPrefix(target *Document, key string) string {
+	for ; key != ""; key = dropLastSegment(key) {
+		if hit, ok := uniqueHeading(target, key); ok {
+			return hit
+		}
+	}
+	return ""
+}
+
+// uniqueHeading reports the target's one heading whose slug stands in a
+// prefix relation to key, in either direction, and whether there was
+// exactly one. Two or more is not a match: the citation names no one
+// heading, and choosing between them is the guess this rule exists to
+// refuse.
+func uniqueHeading(target *Document, key string) (string, bool) {
+	found, n := "", 0
+	for _, node := range target.Outline {
+		id, err := ident.Parse(node.ID)
+		if err != nil || id.Kind != ident.Section || id.Key == "" || id.Key == found {
+			continue // a repeated slug is one heading, seen twice
+		}
+		if id.Key != key && !slugPrefix(key, id.Key) && !slugPrefix(id.Key, key) {
+			continue
+		}
+		found, n = id.Key, n+1
+		if n > 1 {
+			return "", false
+		}
+	}
+	return found, n == 1
+}
+
+// slugPrefix reports whether short is a whole-segment prefix of long.
+func slugPrefix(short, long string) bool {
+	return len(long) > len(short) && strings.HasPrefix(long, short) && long[len(short)] == '-'
+}
+
+// dropLastSegment removes the final `-`-delimited word of a slug, or
+// returns "" when there is only one left.
+func dropLastSegment(key string) string {
+	i := strings.LastIndexByte(key, '-')
+	if i < 0 {
+		return ""
+	}
+	return key[:i]
 }
 
 var recordNumber = regexp.MustCompile(`^\d{4}$`)

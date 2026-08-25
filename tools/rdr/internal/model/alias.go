@@ -151,6 +151,8 @@ var SectionAliases = []sectionAlias{
 		"gate heading carrying its verdict inline"},
 	{"Out of scope", "Scope Fences",
 		"local spelling of the scope-boundary section"},
+	{"Decisions", "Load-Bearing Decisions",
+		"shortened spelling of Load-Bearing Decisions; the bullets under it are the same D-elements"},
 
 	// Recognised, with no canonical home in any epoch.
 	{"Escaped-Defect Ledger", "",
@@ -210,6 +212,25 @@ var FieldAliases = []fieldAlias{
 	{"Split-out (sibling work item, NOT this RDR)", "", "author-added scope note"},
 	{"Release scope", "", "author-added release-scoping field"},
 	{"Visible", "", "author-added visibility note"},
+}
+
+// SectionAliasCanonical returns the canonical section a legacy heading
+// maps to, or "" when the heading is not a mapped alias or maps to no
+// canonical section.
+//
+// It is the alias table read WITHOUT an epoch, for a reader that wants
+// the section a heading names rather than the section the record's own
+// template offered. LookupSection is the epoch-aware classifier and stays
+// the authority on how a heading is REPORTED; this answers the narrower
+// question of what it is called.
+func SectionAliasCanonical(heading string) string {
+	heading = strings.TrimSpace(heading)
+	for _, a := range SectionAliases {
+		if strings.EqualFold(a.name, heading) {
+			return a.canonical
+		}
+	}
+	return ""
 }
 
 // FieldAliasCanonical returns the canonical field a legacy label maps to,
