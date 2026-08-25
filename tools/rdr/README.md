@@ -564,10 +564,64 @@ alias table (`legacy-alias`, `recognized-unmapped`).
 the single largest class of heading a name-only lookup cannot place, and
 treating them as foreign would bury every real finding.
 
+## The usage log
+
+`rdr` writes nothing — with one opt-in exception, off by default.
+
+Set `$RDR_USAGE_LOG` to a path and every invocation appends one line
+recording what was asked and what it cost. This exists because the
+consumer-integration pass had to argue the tool's value from *estimated*
+byte counts: nothing recorded what the binary was actually asked for or
+how much it emitted. Now the numbers accumulate over ordinary use — no
+dashboard, no session instrumentation, no second tool to run.
+
+    RDR_USAGE_LOG=$RDR_EVIDENCE/usage.jsonl rdr inspect --select 0142:C1 --records "$RDR_RECORDS" 0142
+
+    {"bytes_out":490,"cmd":"inspect","elapsed_ms":551,"exit":0,"facet":"select:element","target":"0142","ts":"2026-08-24T20:38:11-07:00"}
+
+That line is the whole argument for the tool, measured rather than
+estimated: quoting one contract costs **490 bytes** where reading the
+record costs **156,350**. It also keeps the tool honest in the other
+direction — `inspect --json` on the same record emits *more* than the
+file does. The saving is in `--select` and the index facets, never in
+the full envelope, and the log says so.
+
+| field | |
+| --- | --- |
+| `ts` | RFC3339 with offset |
+| `cmd` | `inspect` \| `index` \| `lint` |
+| `facet` | which query ran (`json`, `select:element`, `in-flight`, `locking`, …) |
+| `target` | the positional argument, when there was one |
+| `bytes_out` | what was actually emitted, counted on the way out |
+| `elapsed_ms` | wall time |
+| `exit` | the exit code, failures included |
+
+**Format.** One JSON object per line, keys sorted (records are marshalled
+from a map, so the byte order is stable and the log diffs cleanly),
+snake_case, optional fields omitted when empty. The field set is
+**append-only**: a key may join, an existing one never changes meaning
+or disappears, and a consumer must tolerate keys it does not know.
+
+**No record content is ever logged.** A projection of prose must not leak
+the prose into a log that outlives it; the log carries sizes and
+identifiers, never bodies.
+
+**`ts` is a deliberate exception** to the determinism rule the sibling
+codebase holds to — that the same input yields the same bytes forever.
+That rule is right for build artifacts and wrong for a cost log: a
+record of *when* work happened is worthless without a clock. The clock is
+confined to the log, and the projection never reads one.
+
+**Failures are silent.** An unwritable path, a full disk, an
+over-long line: none of them change what the tool prints or what it
+exits with. Measurement is subordinate to the projection — a log that
+could break an answer would be worse than no log.
+
 ## Layout
 
     tools/rdr/
       main.go              subcommand dispatch, flags, inspect, the per-record index facets
+      usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars

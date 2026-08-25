@@ -5,8 +5,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
+	"time"
 )
 
 func fixturePath(name string) string { return filepath.Join("testdata", name) }
@@ -565,4 +567,150 @@ func TestSourceAnchorsResolveWithoutRecordsDir(t *testing.T) {
 	if !strings.Contains(out, "KnownSymbol") {
 		t.Errorf("projection lost the anchor:\n%s", out)
 	}
+}
+
+// TestUsageLogIsOffByDefault: the projector's contract is that it never
+// writes. Logging is opt-in via $RDR_USAGE_LOG, and with the var unset a
+// full run must leave nothing behind.
+func TestUsageLogIsOffByDefault(t *testing.T) {
+	t.Setenv(usageEnvVar, "")
+	dir := t.TempDir()
+	code, _, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 0 {
+		t.Errorf("logging is off, yet %d files were written", len(entries))
+	}
+}
+
+// TestUsageLogRecordsInvocations: one JSONL line per invocation, carrying
+// what was asked and what it cost — the measurement the consumer pass had
+// to estimate from byte counts. Appending, never truncating: a second run
+// must not lose the first.
+func TestUsageLogRecordsInvocations(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "nested", "usage.jsonl")
+	t.Setenv(usageEnvVar, log)
+
+	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	emitted := len(out)
+	if code, _, _ = runCapture(t, "inspect", "--select", "outline", fixturePath("epoch-d.md")); code != 0 {
+		t.Fatalf("second invocation exit %d", code)
+	}
+
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("log not written: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) != 2 {
+		t.Fatalf("want 2 appended lines, got %d:\n%s", len(lines), raw)
+	}
+
+	// Decode to a map: the wire shape is the contract, and the record
+	// type carries no JSON tags precisely so `payload` is the only place
+	// a field's spelling is decided.
+	var first map[string]any
+	if err := json.Unmarshal([]byte(lines[0]), &first); err != nil {
+		t.Fatalf("line 1 is not JSON: %v", err)
+	}
+	if first["cmd"] != "inspect" || first["facet"] != "json" {
+		t.Errorf("cmd/facet = %v/%v, want inspect/json", first["cmd"], first["facet"])
+	}
+	if got := int(first["bytes_out"].(float64)); got != emitted {
+		t.Errorf("bytes_out = %d, want the %d actually emitted", got, emitted)
+	}
+	if got := int(first["exit"].(float64)); got != 0 {
+		t.Errorf("exit = %d, want 0", got)
+	}
+	ts, _ := first["ts"].(string)
+	if _, err := time.Parse(time.RFC3339, ts); err != nil {
+		t.Errorf("ts %q is not RFC3339: %v", ts, err)
+	}
+	if _, ok := first["elapsed_ms"]; !ok {
+		t.Error("no elapsed_ms")
+	}
+	// Sorted keys are what make the log diffable across runs.
+	if !sort.StringsAreSorted(jsonKeys(t, lines[0])) {
+		t.Errorf("keys are not sorted: %s", lines[0])
+	}
+
+	var second map[string]any
+	if err := json.Unmarshal([]byte(lines[1]), &second); err != nil {
+		t.Fatalf("line 2 is not JSON: %v", err)
+	}
+	if second["facet"] != "select:outline" {
+		t.Errorf("facet = %v, want select:outline", second["facet"])
+	}
+}
+
+// TestUsageLogSurvivesAFailedRun: a stopped invocation is exactly the one
+// a cost review must see — it was paid for and returned nothing. The log
+// records the non-zero exit rather than dropping the line.
+func TestUsageLogSurvivesAFailedRun(t *testing.T) {
+	log := filepath.Join(t.TempDir(), "usage.jsonl")
+	t.Setenv(usageEnvVar, log)
+
+	code, _, _ := runCapture(t, "inspect", "--select", "0004:C9", fixturePath("epoch-d.md"))
+	if code != 2 {
+		t.Fatalf("want exit 2 from an absent element, got %d", code)
+	}
+	raw, err := os.ReadFile(log)
+	if err != nil {
+		t.Fatalf("a failed run wrote no line: %v", err)
+	}
+	var rec map[string]any
+	if err := json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &rec); err != nil {
+		t.Fatal(err)
+	}
+	if got := int(rec["exit"].(float64)); got != 2 {
+		t.Errorf("exit = %d, want 2", got)
+	}
+}
+
+// TestUsageLogFailureNeverBreaksAProjection: measurement is subordinate.
+// An unwritable log path must not change the answer or the exit code.
+func TestUsageLogFailureNeverBreaksAProjection(t *testing.T) {
+	t.Setenv(usageEnvVar, filepath.Join(fixturePath("epoch-d.md"), "cannot", "log.jsonl"))
+	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	if code != 0 {
+		t.Fatalf("a broken log path changed the exit code: %d (%s)", code, errb)
+	}
+	if !strings.Contains(out, "\"outline\"") {
+		t.Error("a broken log path changed the projection")
+	}
+}
+
+// jsonKeys returns one JSON object's keys in the order they appear on the
+// wire, so a test can assert they are sorted.
+func jsonKeys(t *testing.T, line string) []string {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(line))
+	if _, err := dec.Token(); err != nil { // opening brace
+		t.Fatal(err)
+	}
+	var keys []string
+	for dec.More() {
+		tok, err := dec.Token()
+		if err != nil {
+			t.Fatal(err)
+		}
+		k, ok := tok.(string)
+		if !ok {
+			t.Fatalf("non-string key %v", tok)
+		}
+		keys = append(keys, k)
+		var discard any
+		if err := dec.Decode(&discard); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return keys
 }

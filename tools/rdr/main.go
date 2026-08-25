@@ -32,6 +32,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
@@ -108,41 +109,27 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
-		switch args[0] {
-		case "inspect":
-			return inspect(fs.Args(), f, stdout, stderr)
-		case "index":
-			if *f.derived {
-				return indexDerived(f, stdout, stderr)
-			}
-			if *f.coverage {
-				return indexCoverage(f, stdout, stderr)
-			}
-			if f.backlinks.value != "" {
-				docs, _, code := corpus(f, stderr)
-				if code != 0 {
-					return code
-				}
-				return backlinksTo(docs, f.backlinks.value, f, stdout, stderr)
-			}
-			if f.backlinks.set || *f.unresolved || *f.clusterOf != "" {
-				return indexEdges(f, stdout, stderr)
-			}
-			if *f.status || *f.inFlight {
-				return statusFacet(f, *f.inFlight, stdout, stderr)
-			}
-			if *f.anchors {
-				return anchorFacet(f, stdout, stderr)
-			}
-			if f.readme.set {
-				return readmeFacet(f, f.readme.value, stdout, stderr)
-			}
-			return indexGraph(f, stdout, stderr)
-		case "lint":
-			return lintCmd(fs.Args(), f, stdout, stderr)
-		}
-		fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", args[0])
-		return 2
+		// Measure what this invocation cost to answer. The counter wraps
+		// stdout so the size is the real emitted size, not an estimate of
+		// it; the log is written on the way out, whatever the exit.
+		counted := &countingWriter{w: stdout}
+		stdout = counted
+		started := stamp()
+		cmd, target := args[0], strings.Join(fs.Args(), " ")
+		code := 2
+		defer func() {
+			logUsage(usageRecord{
+				TS:        started.Format(time.RFC3339),
+				Cmd:       cmd,
+				Facet:     usageFacet(cmd, f),
+				Target:    target,
+				BytesOut:  counted.n,
+				ElapsedMS: stamp().Sub(started).Milliseconds(),
+				Exit:      code,
+			})
+		}()
+		code = dispatch(args[0], fs, f, stdout, stderr)
+		return code
 
 	case "-h", "--help", "help":
 		fmt.Fprint(stdout, usage)
@@ -153,6 +140,47 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprint(stderr, usage)
 		return 2
 	}
+}
+
+// dispatch routes a parsed subcommand to its facet. It is split from run
+// so that every exit path passes through one place that can be measured
+// — a facet that returned directly from the switch would escape the log.
+func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) int {
+	switch cmd {
+	case "inspect":
+		return inspect(fs.Args(), f, stdout, stderr)
+	case "index":
+		if *f.derived {
+			return indexDerived(f, stdout, stderr)
+		}
+		if *f.coverage {
+			return indexCoverage(f, stdout, stderr)
+		}
+		if f.backlinks.value != "" {
+			docs, _, code := corpus(f, stderr)
+			if code != 0 {
+				return code
+			}
+			return backlinksTo(docs, f.backlinks.value, f, stdout, stderr)
+		}
+		if f.backlinks.set || *f.unresolved || *f.clusterOf != "" {
+			return indexEdges(f, stdout, stderr)
+		}
+		if *f.status || *f.inFlight {
+			return statusFacet(f, *f.inFlight, stdout, stderr)
+		}
+		if *f.anchors {
+			return anchorFacet(f, stdout, stderr)
+		}
+		if f.readme.set {
+			return readmeFacet(f, f.readme.value, stdout, stderr)
+		}
+		return indexGraph(f, stdout, stderr)
+	case "lint":
+		return lintCmd(fs.Args(), f, stdout, stderr)
+	}
+	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
+	return 2
 }
 
 // flags holds the values of every declared flag; a subcommand reads only
