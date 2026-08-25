@@ -34,7 +34,7 @@ there.
 SCOPED RE-ENTRY. Ask the projector, don't parse the Status line:
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata,edges <NNNN>
 ```
 
 `metadata[]` where `label=="Status"` → `.status.form == "revised-from"` means this
@@ -46,15 +46,13 @@ as already Verified — do NOT re-derive them. Read each named assumption by id,
 the whole Critical Assumptions section:
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --select <NNNN>:A2 --records "$RDR_RECORDS" <NNNN>
+"$RDR_HOME/bin/rdr" inspect --select <NNNN>:A2 <NNNN>
 ```
 
 A `resolved:false` target names an assumption that does not exist — report it
 rather than skipping silently; `resolved` absent means nothing looked, neither
 sound nor broken. `.status.form` anything else (a bare `Draft`) is the cold path:
 verify every assumption from scratch as below.
-
-No binary → read the Status line and split the `re-verify` list by hand; same rules.
 
 For each Critical Assumption in scope:
 - Pick exactly one Method: Source Search | Spike | Prior Art | Derivation |

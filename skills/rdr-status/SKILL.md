@@ -65,7 +65,7 @@ per-slug paths above count.
 ### The record half — one projection, not a body read
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata,elements,counts <NNNN>
 ```
 
 Read literally, never re-parsed from the markdown:
@@ -80,11 +80,8 @@ Read literally, never re-parsed from the markdown:
 
 The `Premortem:` / `Ground-sweep:` / `Joint-check:` verdict lines are prose, not
 fields — the projection does not carry them. Read only that section's bytes:
-`"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale --records "$RDR_RECORDS" <NNNN>`
+`"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>`
 (the id is stable across all four epochs).
-
-No binary → read the four items above from the RDR body by hand; the same
-interpretation rules apply either way.
 
 Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spikes`
 under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus
@@ -182,7 +179,7 @@ No writes. Confirm `git status` would be unchanged (you ran only reads).
 One command, no glob and no per-file read:
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" index --in-flight --records "$RDR_RECORDS"
+"$RDR_HOME/bin/rdr" index --in-flight
 ```
 
 It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
@@ -194,8 +191,7 @@ closed either, and a trigger nobody re-reads is how a park becomes an abandon by
 default. `--status` also groups the rest, so `Implemented`/`Demoted`/`Abandoned`/
 `Superseded` need no separate skip rule.
 
-No binary → glob the RDR dir and read each `**Status**:` line, applying the same
-classes. When several listed Drafts are
+When several listed Drafts are
 pre-propose siblings, recommend proposing **all** of them before any refines —
 breadth-first keeps joint-decision fires against still-fluid drafts
 (stages/02-propose.md, batch ordering).

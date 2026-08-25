@@ -51,16 +51,14 @@ proposal content.
 projection — one pass, no seed body read:
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && {
-  "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
-  "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
-  "$RDR_HOME/bin/rdr" index --in-flight --records "$RDR_RECORDS"
-}
+"$RDR_HOME/bin/rdr" index --anchor-intersect --json --all
+"$RDR_HOME/bin/rdr" index --json          # elements[] kind=="C"
+"$RDR_HOME/bin/rdr" index --in-flight
 ```
 
 `overlaps[]` `{records[], anchors[], cited}` **is** the overlap graph — seeds
-are pre-proposal, so `--all` widens past in-flight. `$RDR_SOURCE_REPO` is the source
-root (rdr-common §source-root); `--repo` is required or source-anchor edges carry
+are pre-proposal, so `--all` widens past in-flight. `--repo` defaults to
+`$RDR_SOURCE_REPO` (rdr-common §source-root); unset, source-anchor edges carry
 no `resolved` key (absent ≠ false, never "no overlap"). Contract literals: `elements[]`
 `kind=="C"`, equal `hash` across two records = same contract text. `overlaps[]`
 already ignores the template's own `path::Symbol`, but **`C` hashes are not** —
@@ -71,11 +69,6 @@ edges (`edges[]` `kind=="predecessor"`) are hard edges — topo-sort those first
 Within an overlap group the likely **contract owner** proposes first: locus *is*
 the shared anchor > lower-level seam > Priority > number order. The order is a
 prior, not a promise — the loop corrects it; this pass makes corrections rare.
-
-Absent binary: collect modify-anchors per member by hand (the `Seam Lineage`
-locus + backticked `path::Symbol` from Problem/Context, since Proposed Solution
-is placeholder) plus contract literals, **dropping any token also backticked in
-`TEMPLATE.md`**; grep-cheap — orchestrator-local, or one small sub-agent.
 
 ## The loop — one proposer at a time
 

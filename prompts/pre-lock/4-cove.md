@@ -19,8 +19,8 @@ questions are the silence/contradiction half.
 ```text
 Step 0 (GROUNDING — do this first): run the codebase claim sweep from
 0-grounding.md against {RDR_PATH}, including its scoping — one
-`"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
-{RDR_PATH}` (`$RDR_SOURCE_REPO`: rdr-common §source-root) gives `edges[]` kind `source-anchor`
+`"$RDR_HOME/bin/rdr" inspect --json --filter edges,fields {RDR_PATH}`
+gives `edges[]` kind `source-anchor`
 (each with `to`, `line`, `line_end` and a three-valued `resolved`: true =
 CONFIRMED, false = NOT-FOUND,
 ABSENT = unchecked) and the `Evidence` element `fields[]` spans. Verify every

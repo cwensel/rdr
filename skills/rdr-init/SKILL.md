@@ -186,7 +186,7 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
    [ -n "$RDR_EVIDENCE" ]                                   || echo "stopped:RDR_EVIDENCE-unset"
    [ -n "$RDR_ENV" ]       && [ -f "$RDR_ENV" ]             || echo "stopped:RDR_ENV-unset-or-missing"
    [ -n "$RDR_RESOURCES" ] && [ -f "$RDR_RESOURCES" ]       || echo "stopped:RDR_RESOURCES-unset-or-missing"
-   [ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" version || echo "stopped:projector-not-built"
+   "$RDR_HOME/bin/rdr" version                              || echo "stopped:projector-not-built"
    ```
    `$RDR_RECORDS` is created by step 2's scaffold (with the index `README.md`), so it
    must bind here as a dir holding that README — unless you deliberately deferred it.

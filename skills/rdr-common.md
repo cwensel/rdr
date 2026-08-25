@@ -111,8 +111,9 @@ both valid cwds), so it names the wrong tree. `$RDR_ENV` cannot supply it either
 that file lists *modules* (`internal/…/x.go`) anchored at this root, never the
 root itself.
 
-Pass `--repo "$RDR_SOURCE_REPO"`. Unset, or an anchor naming a foreign codebase (a
-third-party library cited for contrast), leaves those edges unresolved — say so.
+`--repo` defaults to it, so no call spells it out. Unset, or an anchor naming a
+foreign codebase (a third-party library cited for contrast), leaves those edges
+unresolved — say so.
 **A wrong root is worse than none**: grepping a tree the symbol was never in
 returns `resolved:false`, a false finding a consumer chases, where omitting
 `--repo` returns the key **absent**, which honestly says nothing looked.
@@ -129,38 +130,20 @@ under `$FLOW_ROOT/rdr/evidence/` (per-lens, tooling-pass, spikes — e.g. a real
 `evidence/tooling-pass/0039-*.md` is **not** an RDR) can never be picked:
 
 ```sh
-# when $arg is all-digits; else treat as slug/path. 10# forces base 10: bash reads a
-# leading-zero %d arg as OCTAL, so a bare "%04d" turns 0106 into 0070 — a different,
-# real record, resolved silently. Same guard as §rdr-claim below.
-printf -v NNNN '%04d' "$((10#$arg))"
-# $RDR_RECORDS is exported by §seam-bind (the marker). Do NOT recompute it here.
-[ -n "$RDR_RECORDS" ] && [ -d "$RDR_RECORDS" ] || { echo "stopped:no-rdr-dir:$RDR_RECORDS" >&2; exit 1; }
-if [ -x "$RDR_HOME/bin/rdr" ]; then
-  # The projector resolves NNNN itself: it skips a NNNN-slug-postmortem.md sibling
-  # (not a record) and names both files on a real collision. On failure it exits 2
-  # having already printed its own stopped:no-such-record / stopped:ambiguous-record
-  # to stderr — let that stand as the stop reason; do not restate it as something else.
-  out=$("$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" "$NNNN") || exit 1
-  RDR_PATH=$(printf '%s' "$out" | sed -n 's/.*"path": "\([^"]*\)".*/\1/p' | head -1)
-  [ -n "$RDR_PATH" ] || { echo "stopped:rdr-not-found:$NNNN in $RDR_RECORDS" >&2; exit 1; }
-else
-  # A no-match glob is a hard error under zsh (nomatch on by default) and aborts the
-  # line before the guard runs; under bash it stays literal. Enable nullglob per-shell
-  # so a no-match yields an EMPTY array in both, and the count guard below decides.
-  if [ -n "$ZSH_VERSION" ]; then setopt null_glob ksh_arrays; else shopt -s nullglob; fi
-  hits=( "$RDR_RECORDS"/${NNNN}-*.md )
-  [ "${#hits[@]}" -ge 1 ] || { echo "stopped:rdr-not-found:$NNNN in $RDR_RECORDS" >&2; exit 1; }
-  [ "${#hits[@]}" -eq 1 ] || { echo "stopped:rdr-ambiguous:$NNNN -> ${hits[*]}" >&2; exit 1; }
-  RDR_PATH="${hits[0]}"   # ksh_arrays (set above) makes [0] the first element in zsh too
-fi
+# One call. `rdr` pads the number itself (3 -> 0003, decimal, never octal),
+# defaults --records to $RDR_RECORDS, skips a NNNN-slug-postmortem.md sibling,
+# and names both files on a real collision. On failure it exits 2 having already
+# printed stopped:no-such-record / stopped:ambiguous-record — let that stand as
+# the stop reason; do not restate it as something else.
+RDR_PATH=$("$RDR_HOME/bin/rdr" inspect --json --filter path "$arg" |
+           sed -n 's/.*"path": "\([^"]*\)".*/\1/p' | head -1) || exit 1
+[ -n "$RDR_PATH" ] || { echo "stopped:rdr-not-found:$arg in $RDR_RECORDS" >&2; exit 1; }
 RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identity
 ```
 
-The glob branch cannot tell a `NNNN-slug-postmortem.md` from the record it sits
-beside — it reports that pair as ambiguous. Both branches bind the same two vars.
-
-Accept the number with or without leading zeros. If the user passes a full path or
-a slug, accept it directly (still assert it lives under `$RDR_RECORDS`).
+Pass `$arg` through as the user typed it: a number with or without leading zeros,
+a slug, or a full path all resolve. `--filter path` keeps the answer to a few
+hundred bytes instead of the whole envelope.
 
 `/rdr-seed` does **not** resolve — it *allocates* the next number (see §rdr-claim).
 
@@ -410,11 +393,11 @@ Every "which lens next?" answer — resolve's first pointer, prelock's next
 pointer, status's derived position — is this table plus what's on disk. Mirrors
 the `$RDR_HOME/stages/README.md` matrix (still the human-facing authority);
 inlined here so a skill never reconstructs it from memory. **Read the `Profile`
-field, then the row — never default to a lens.** Where installed, read it typed —
+field, then the row — never default to a lens.** Read it typed —
 `metadata[]` where `label=="Profile"`, then `.value`:
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" "$NNNN"
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata,counts,outline "$NNNN"
 # metadata[] label=="Profile" -> .value ; counts.elements.C ; outline[] canonical=="Normative Contracts"
 ```
 
@@ -473,7 +456,7 @@ four stages later; the Stage-7 sweep stays the backstop. (Mined: a Required
 contract section once survived propose, refine, resolve, and four lenses as
 verbatim template text.)
 
-Where installed, `rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
+`rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
 does the structural share: unlabelled contracts, Peer-RDR Evidence naming a
 record not an element, unresolvable typed references. `conformance` findings
 are advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
@@ -482,13 +465,11 @@ a *terminal* peer comes back as a fix pointer with a line range — correcting
 that reference text is the one sanctioned amendment to a locked RDR.
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && {
-  "$RDR_HOME/bin/rdr" lint "$NNNN" --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
-  # scope the bracket/placeholder grep: outline[] gives each section its canonical + line_start/line_end
-  "$RDR_HOME/bin/rdr" inspect --select outline --records "$RDR_RECORDS" "$NNNN"
-  # NEW path::Symbol: edges[] kind=="source-anchor" -> resolved
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" "$NNNN"
-}
+"$RDR_HOME/bin/rdr" lint "$NNNN"
+# scope the bracket/placeholder grep: outline[] gives each section its canonical + line_start/line_end
+"$RDR_HOME/bin/rdr" inspect --select outline "$NNNN"
+# NEW path::Symbol: edges[] kind=="source-anchor" -> resolved
+"$RDR_HOME/bin/rdr" inspect --json --filter edges "$NNNN"
 ```
 
 **Neither lint nor `warnings[]` sees a surviving placeholder** — a record copied
@@ -499,8 +480,8 @@ only narrows it to the `line_start`..`line_end` of the sections this stage owes.
 
 For anchors, `resolved` is **three-valued** (§source-root): `true`, `false`, or
 **absent** — nothing looked. Absent is neither pass nor fail; the gate says the
-check did not run rather than closing over it. `rdr index --unresolved --records
-"$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"` is the corpus-wide form.
+check did not run rather than closing over it. `rdr index --unresolved` is the
+corpus-wide form.
 
 ## §amendment-sweep — propagate clause changes at disposition
 

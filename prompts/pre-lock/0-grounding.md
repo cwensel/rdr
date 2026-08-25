@@ -15,12 +15,12 @@ One deterministic source-reading sweep, not a review loop.
 ## Prompt
 
 ```text
-Scope the sweep first. If `[ -x "$RDR_HOME/bin/rdr" ]`, run once:
+Scope the sweep first. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" {RDR_PATH}
+  "$RDR_HOME/bin/rdr" inspect --json --filter edges,elements {RDR_PATH}
 
-(`$RDR_SOURCE_REPO`: rdr-common §source-root; without it every `resolved` comes back
-ABSENT.) Take two lists — this is your
+(`--repo` defaults to `$RDR_SOURCE_REPO`, rdr-common §source-root; without a repo
+root every `resolved` comes back ABSENT.) Take two lists — this is your
 STARTING SET and your primary read:
   - `edges[]` where `kind=="source-anchor"` — every cited `path::Symbol`, each
     with `to` (the symbol), `line`/`line_end`, `field`, and `from` (the element
@@ -32,13 +32,12 @@ STARTING SET and your primary read:
     `line_start`/`line_end`. Read those spans with `sed -n`, not the whole
     record; the assumptions that owe source are the ones whose `Method` field
     has `Source Search` in `method.members`.
-Else (no binary): read the record and find these claims by eye, as below.
 
 An EMPTY starting set is not a clean record. Older records state their evidence
 as prose and label nothing, so they project no `Evidence` field and no
 `source-anchor` edge at all. If both lists come back empty, the scoping told you
-nothing — fall through and read the record whole, exactly as the no-binary
-branch does. Never report a sweep as complete off an empty projection.
+nothing — fall through and read the record whole, finding these claims by eye.
+Never report a sweep as complete off an empty projection.
 
 Then sweep. `resolved:false` and `resolved:ABSENT` anchors are the work; so are
 the claims that name no symbol and so mint no edge — each "no existing X does

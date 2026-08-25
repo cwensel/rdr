@@ -47,7 +47,7 @@ cascade on a different model, start the session on it.
 **Precondition — one projection, no body read.**
 
 ```sh
-[ -x "$RDR_HOME/bin/rdr" ] && "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" <NNNN>
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata,outline,counts <NNNN>
 ```
 
 Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifier,form}`;
@@ -61,8 +61,6 @@ Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifi
   `/rdr-propose NNNN`. `counts.elements.C` corroborates only: prose contracts are
   not addressable, so `C == 0` on an older record means unlabelled, **not**
   absent — never route `stopped:not-proposed` off the count.
-
-No binary → test the two headings and the premortem dir by hand; same rules.
 
 A **first** run enters at Stage 3 — refine always runs, so the cascade starts at
 its head rather than mid-way on an assumption; a re-invocation enters at the skip

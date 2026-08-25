@@ -98,18 +98,18 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   or contradicts the artifacts. If artifacts are inconsistent (e.g.,
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
   inconsistency: <detail>") and halt.
-- Predecessors: if `[ -x "$RDR_HOME/bin/rdr" ]`, run
-  `"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" {RDR_PATH}` and take
-  `edges[]` where `kind=="predecessor"` — each carries `to`, `slug`, `resolved`,
-  `line`. Else grep the RDR's `**Predecessors**:` field for `MMMM-slug` names.
+- Predecessors: run
+  `"$RDR_HOME/bin/rdr" inspect --json --filter edges,metadata,lines {RDR_PATH}`
+  and take `edges[]` where `kind=="predecessor"` — each carries `to`, `slug`,
+  `resolved`, `line` (`metadata`/`lines` serve the size gate below).
   Two distinct failures, both halting:
   - `resolved:false` — dangling predecessor, the cited record does not exist:
     INCOMPLETE("predecessor <to> unresolved at line <line>").
   - `<rdr-dir>/<slug>/status.md` does not read `COMPLETE` (a disk read, still
     yours): INCOMPLETE("predecessor <slug> not COMPLETE").
-  Always pass `--records` — without it `resolved` is ABSENT (nothing looked), and
-  absent is neither sound nor broken. Record the predecessor artifact paths to
-  pass to Phase 0 and Phase 1. Skip if no predecessor edges.
+  `--records` defaults to `$RDR_RECORDS`; without a records dir `resolved` is
+  ABSENT (nothing looked), neither sound nor broken. Record the predecessor
+  artifact paths to pass to Phase 0 and Phase 1. Skip if no predecessor edges.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick
@@ -121,9 +121,9 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   RDR ≤ 400 lines; ≤ 10 `REQ-N`; ≤ 3 source files touched; the test suite is
   quick (≤ ~200 lines output). The first two come from the same
   `inspect --json` the Predecessors gate ran — `metadata[]` where
-  `label=="Profile"` → `.value` (its leading word), and top-level `lines`;
-  else read the Metadata block and `wc -l`. The REQ count is NOT a projector
-  field (`REQ-N` names no element — Phase 0 mints them per run): count them in
+  `label=="Profile"` → `.value` (its leading word), and top-level `lines`. The
+  REQ count is NOT a projector field (`REQ-N` names no element — Phase 0 mints
+  them per run): count them in
   `<art>/req-list.md` once Phase 0 has written it, estimate before. `Profile`
   is the gate latch — the same `small` field that already skips prelock; any
   non-`small` profile stays delegated, no exceptions. Print the decision:
@@ -145,22 +145,19 @@ Brief the sub-agent with:
   - The RDR path {RDR_PATH} (the sub-agent reads it itself).
   - The `<art>` path. Create the directory if missing.
   - Predecessor `req-list.md` + `deviations.md` paths from prechecks.
-  - Whether `$RDR_HOME/bin/rdr` is executable, so the auditor can address
-    contracts instead of hunting them.
 Sub-agent's task:
   1. Write `<art>/req-list.md`: every testable clause as
      `[REQ-N] "<exact quote>" — (section)`, carrying the element id
      (`NNNN:C4`) where the REQ derives from a labelled contract, so a later
      stage traces the REQ back to its contract.
-     With the projector: `inspect --json` → `elements[]` where `kind=="C"`
-     gives each contract's `id`, `label`, `section`, `line_start`/`line_end`;
-     `inspect --select <id> {RDR_PATH}` prints exactly its bytes, so the exact
-     quote is copied, never transcribed. Do the same for `kind=="MVV"` (one per
-     record) → REQ-MVV. Then read the record for testable prose outside
-     `normative` fences — the projection narrows that read, it does not replace
-     it. A zero `counts.elements.C` means the contracts are written as prose
-     (not addressable), never that the record has none.
-     Without the projector: read the record whole.
+     `inspect --json --filter elements,counts {RDR_PATH}` → `elements[]` where
+     `kind=="C"` gives each contract's `id`, `label`, `section`,
+     `line_start`/`line_end`; `inspect --select <id> {RDR_PATH}` prints exactly
+     its bytes, so the exact quote is copied, never transcribed. Do the same for
+     `kind=="MVV"` (one per record) → REQ-MVV. Then read the record for testable
+     prose outside `normative` fences — the projection narrows that read, it does
+     not replace it. A zero `counts.elements.C` means the contracts are written
+     as prose (not addressable), never that the record has none — read it whole.
   2. Append `ASSUMPTION:` lines for implicit choices it made when
      wording was imprecise but a single reading is defensible.
   3. If a clause is genuinely ambiguous (two readings would produce

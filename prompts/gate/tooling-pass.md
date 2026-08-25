@@ -13,21 +13,17 @@ conformance backstop when Refine/Resolve was skimped.
 **Status**: Mostly scripted. C1, C2, C5, C6 and C10 are projections of `rdr`;
 C3, C4 and C9 remain judgment on a narrowed read.
 
-**Cost**: seconds via `rdr`; ~5 min when it is absent.
+**Cost**: seconds via `rdr`.
 
 ## Run first
 
 ```bash
-[ -x "$RDR_HOME/bin/rdr" ] || echo "stopped:projector-not-built"
-"$RDR_HOME/bin/rdr" lint --locking --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" {RDR_NUMBER}
-"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO" {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" lint --locking {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" inspect --json --filter outline,elements,edges,metadata {RDR_NUMBER}
 ```
 
 `lint` exit 1 = at least one blocking finding (printed with a leading `!`).
 Exit 0 with findings = advisory only. Read the findings; do not re-derive them.
-
-If the binary is absent, run every check as prose against the RDR, TEMPLATE.md
-and README.md at the root of the rdr/ tree, per the rules below.
 
 ## Prompt
 
@@ -92,7 +88,7 @@ and nothing was looked for — report those SKIPPED, never as pass or fail. A ba
 `file:line` with no symbol emits no source-anchor edge at all; that absence is
 itself a finding (rewrite as `path::Symbol`). A stale line number alone, where
 the symbol still resolves, is a NON-finding and does not block Final.
-Corpus-wide: `rdr index --unresolved --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"`.
+Corpus-wide: `rdr index --unresolved`.
 
 CHECK 6 — Status consistency  (projection-narrowed)
 `metadata[]` Status carries `status.{value,qualifier,form,tier}`; each
@@ -133,8 +129,6 @@ This check IS `rdr lint`. Report its findings; do not re-read for them.
   - `edge:unresolved-terminal` — the same in a TERMINAL record: a data error in
     the citing record, non-blocking because that record is not the one locking.
     Fix the pointer text in the named range, nothing else.
-Without `rdr`, check the Peer-RDR citations by hand and report the rest
-SKIPPED — never as a pass.
 
 Output: one bullet per finding, prefixed with the check ID (C1–C6, C9, C10)
 and the section or assumption ID. End with a one-line verdict:

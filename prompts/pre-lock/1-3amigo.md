@@ -24,14 +24,14 @@ can anchor by name, severity-ranked, each naming the decision it blocks or
 the test it prevents. No minimum, no maximum: zero anchored findings is a
 valid report. Write your list to {EVIDENCE_DIR}/<persona-file>.
 
-Where to start reading. If `[ -x "$RDR_HOME/bin/rdr" ]`, run once:
+Where to start reading. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" {RDR_PATH}
+  "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
 
 Your persona names which `elements[]`/`outline[]` entries it owns; each carries
 `id`, `line_start`, `line_end`. Read those spans with `sed -n` and anchor every
 finding to the `id` (`NNNN:C4`, `NNNN:S2`) rather than a quoted phrase — an id
-survives a reword, a quote does not. Else (no binary): read the record whole.
+survives a reword, a quote does not.
 If your persona's set comes back empty — an older record labels no contracts or
 scenarios — read the record whole; an empty set is a record that named nothing,
 never a record with nothing to find.

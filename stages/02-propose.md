@@ -62,26 +62,24 @@ peer, and only the true joint forks surfaced to the user.
 - **Did the joint-decision check run, and was any fire paused on?** The prompt's
   final step compares every open peer for shared modify-anchors / contract
   literals (mechanics live there; citation does not suppress a fire) and records
-  a `Joint-check:` line in Decision Rationale either way. With the projector, the
-  two halves are queries, not peer reads — one pass, no peer body opened:
+  a `Joint-check:` line in Decision Rationale either way. Both halves are
+  queries, not peer reads — one pass, no peer body opened:
 
   ```sh
-  [ -x "$RDR_HOME/bin/rdr" ] && {
-    "$RDR_HOME/bin/rdr" index --anchor-intersect --json --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
-    "$RDR_HOME/bin/rdr" index --json --records "$RDR_RECORDS"   # elements[] kind=="C"
-  }
+  "$RDR_HOME/bin/rdr" index --anchor-intersect --json
+  "$RDR_HOME/bin/rdr" index --json          # elements[] kind=="C"
   ```
 
   Anchors: `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited
-  first — the fire shape. `$RDR_SOURCE_REPO` is the source root (rdr-common
-  §source-root); **`--repo` is required** — without it source-anchor edges carry
-  no `resolved` key at all (absent ≠ false), and an unchecked scan must not read
-  as "no intersection". Contracts: `elements[]` `kind=="C"` carries
-  `record`, `label` and a content `hash` — equal hash across two records is the
-  same contract text, stable under reflow; **drop any hash `TEMPLATE.md` also
+  first — the fire shape. `--repo` defaults to `$RDR_SOURCE_REPO`, the source
+  root (rdr-common §source-root); **a repo root is required** — without one,
+  source-anchor edges carry no `resolved` key at all (absent ≠ false), and an
+  unchecked scan must not read as "no intersection". Contracts: `elements[]`
+  `kind=="C"` carries `record`, `label` and a content `hash` — equal hash across
+  two records is the same contract text, stable under reflow; **drop any hash `TEMPLATE.md` also
   carries** (a template-shipped contract hashes the same in every seed that kept
   it, and would link every pair). `cited: true` is context beside a fire, never
-  suppression. Absent binary → the prose grep the prompt states.
+  suppression.
   No `Joint-check:` line → it did not run, re-run it (a skipped gate item must
   not read as a passed one). A fire PAUSES propose before refine, as a user
   question — advanced over silently → re-run. A fire clears only onto a

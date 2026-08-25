@@ -17,12 +17,11 @@ single-RDR lens reads both sides of.
 
 ## Prompt
 
-SELECT THE PAIRS by query, not by reading the cluster. If
-`[ -x "$RDR_HOME/bin/rdr" ]`:
+SELECT THE PAIRS by query, not by reading the cluster:
 
 ```sh
-"$RDR_HOME/bin/rdr" index --json --anchor-intersect --records "$RDR_RECORDS" --repo "$RDR_SOURCE_REPO"
-"$RDR_HOME/bin/rdr" index --json --backlinks=<NNNN> --records "$RDR_RECORDS"
+"$RDR_HOME/bin/rdr" index --json --anchor-intersect
+"$RDR_HOME/bin/rdr" index --json --backlinks=<NNNN>
 ```
 
 - `overlaps[]` `{records[], anchors[], cited}` — two in-flight records citing
@@ -35,13 +34,10 @@ SELECT THE PAIRS by query, not by reading the cluster. If
   case); `cross-cutting-owner` is the shared-concern case. Each carries `record`
   (the citing peer), `from`, `to` and `line`/`line_end`.
 
-Absent binary → the prose rule: pairs explicitly listed in a *Critical
-Assumptions* (Method: Peer RDR) or *Cross-Cutting Concerns* entry.
-
 SCOPE THE READ. A pair already related by `peer-evidence` need not be handed
 both whole records: pass those backlinks' `line`/`line_end` ranges, plus each
-record's contract and scenario ranges (`inspect --json`, `elements[]`
-`kind=="C"` / `kind=="S"`, `line_start`/`line_end`) — read them with `sed -n`.
+record's contract and scenario ranges (`inspect --json --filter elements`,
+`elements[]` `kind=="C"` / `kind=="S"`, `line_start`/`line_end`) — `sed -n` those.
 An uncited `--anchor-intersect` pair has no such spine: read both records.
 
 ```text

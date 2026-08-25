@@ -78,17 +78,16 @@ yourself first.
 ```text
 Based only on the RDR at {RDR_PATH}, produce the four items below.
 
-Start from the contracts, not the whole file. If `[ -x "$RDR_HOME/bin/rdr" ]`,
-run once:
+Start from the contracts, not the whole file. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" {RDR_PATH}
+  "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
 
 and read the spans of `elements[]` where `kind` is `C` (normative contracts),
 `MVV`, or `S` — each carries `line_start`/`line_end`; `sed -n` those. Those are
-the clauses a reconstruction must reproduce exactly. Else: read the record whole.
-So too if that set is empty — a record whose contracts are written as prose
-addresses none, and reconstructing from an empty selection would invent the API
-rather than reproduce it.
+the clauses a reconstruction must reproduce exactly. If that set is empty, read
+the record whole — a record whose contracts are written as prose addresses none,
+and reconstructing from an empty selection would invent the API rather than
+reproduce it.
 
 WIDEN deliberately. This lens exists to find what the RDR does NOT fix, and a
 silence has no element to select — so when a contract span leaves a signature,
