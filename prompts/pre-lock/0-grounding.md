@@ -17,10 +17,10 @@ One deterministic source-reading sweep, not a review loop.
 ```text
 Scope the sweep first. If `[ -x "$RDR_HOME/bin/rdr" ]`, run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo <src-root> {RDR_PATH}
+  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo "$RDR_REPO" {RDR_PATH}
 
-(`<src-root>` is the source-path root `$RDR_ENV` records for the reuse audit;
-without it every `resolved` comes back ABSENT.) Take two lists — this is your
+(`$RDR_REPO`: rdr-common §source-root; without it every `resolved` comes back
+ABSENT.) Take two lists — this is your
 STARTING SET and your primary read:
   - `edges[]` where `kind=="source-anchor"` — every cited `path::Symbol`, each
     with `to` (the symbol), `line`/`line_end`, `field`, and `from` (the element

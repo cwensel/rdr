@@ -19,6 +19,7 @@ pass "1 marker present - $MARKER  [$SCOPE]"
 . "$MARKER" 2>/tmp/rdrdoc.err && pass "2 marker sources clean" || fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
 m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval "[ -n \"\$$v\" ]" || m="$m $v"; done
 [ -z "$m" ] && pass "3 five-var contract set" || fail "3 unset:$m - re-run \$rdr-init in Codex or /rdr-init in Claude to write the marker"
+[ -n "$RDR_REPO" ] && { [ -d "$RDR_REPO" ] && pass "3b source root - $RDR_REPO" || fail "3b RDR_REPO set but missing ($RDR_REPO) - fix the marker; a wrong root makes anchor checks report false findings"; } || warn "3b RDR_REPO unset - source-anchor checks report \"not run\" (correct when the RDRs cite no path::Symbol anchors; else set it in the marker)"
 [ -d "$RDR_HOME/stages" ] && [ -d "$RDR_HOME/skills" ] && [ -d "$RDR_HOME/prompts" ] && [ -f "$RDR_HOME/TEMPLATE.md" ] && pass "4 engine resolves - $RDR_HOME" || fail "4 RDR_HOME is not an engine root ($RDR_HOME) - re-run /rdr-init"
 [ -d "$RDR_RECORDS" ] && pass "5 records dir - $RDR_RECORDS" || fail "5 records dir missing ($RDR_RECORDS) - \$rdr-init in Codex or /rdr-init in Claude scaffolds it"
 [ -d "$RDR_RECORDS" ] && { [ -f "$RDR_RECORDS/README.md" ] && pass "5b index README present" || warn "5b no index README - \$rdr-init in Codex or /rdr-init in Claude scaffolds it"; }

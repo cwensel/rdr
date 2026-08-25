@@ -126,6 +126,11 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      explicit.
    - **`RDR_ENV` / `RDR_RESOURCES`** → the seam files just written (the `.rdr/`
      ones, or the pinned location if this project pins one).
+   - **`RDR_REPO`** — the checkout whose `path::Symbol` anchors the RDRs cite (the
+     tree `rdr --repo` greps, rdr-common §source-root); usually this project's own
+     source root. Write it explicitly — under a workspace-scope marker the cwd may
+     be the records or evidence repo, so it cannot be derived. Omit only when the
+     RDRs cite no source anchors.
    Plus any per-consumer repo-root conveniences (not load-bearing). If no template is
    reachable, hand-write an equivalent sourceable file exporting at least those five
    contract vars, anchored on the scope's root (`$PROJECT` repo-local, `$WS`
