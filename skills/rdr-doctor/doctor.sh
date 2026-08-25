@@ -138,12 +138,18 @@ else
           pass "11c projector self-binds the seam - no per-call export needed" ;;
       esac
 
-      # 11d - the usage log, reported not judged. Off is the default and a
-      # perfectly good state; this exists so "is it actually recording?" is
-      # never a guess, and so a marker that says on but resolves nowhere is
-      # visible rather than silently writing nothing.
+      # 11d - the usage log. Off is the default; this exists so "is it actually
+      # recording?" is never a guess, and so a marker that says on but resolves
+      # nowhere is visible rather than silently writing nothing. Off stops being
+      # neutral once autocommit is on: the log is the lint receipt §commit
+      # demands, and with no log `rdr receipt` exits 2 and every record commit
+      # proceeds unchecked - a gate closed without lint is no longer caught.
       case "$RDR_USAGE_LOG" in
-        ""|0|false|off|no|OFF|FALSE|No|NO) echo "  [INFO] 11d usage log off - /rdr-init --usage-log turns it on" ;;
+        ""|0|false|off|no|OFF|FALSE|No|NO)
+          case "$RDR_AUTOCOMMIT" in
+            1|true|on|yes|TRUE|ON|Yes|YES) warn "11d usage log off while autocommit is on - no lint receipt, so §commit cannot refuse an unlinted record (rdr receipt exits 2, commits proceed with a note) - /rdr-init --usage-log turns it on" ;;
+            *) echo "  [INFO] 11d usage log off - /rdr-init --usage-log turns it on (with autocommit off there is no commit to gate)" ;;
+          esac ;;
         1|true|on|yes|TRUE|ON|Yes|YES)
           # Beside the marker, whichever scope resolved: the log follows the
           # seam rather than assuming a .rdr/ a workspace consumer never had.

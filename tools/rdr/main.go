@@ -54,7 +54,7 @@ const schemaVersion = scan.SchemaVersion
 const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
-  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--project P] [--records DIR]
+  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--all] [--project P] [--records DIR] [--repo DIR]
   rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
@@ -73,6 +73,10 @@ plus the derived backlinks (README §Queries over the graph). Facets:
 
 --filter keeps only the named top-level envelope keys (metadata,counts,…),
 identity keys always included — one call where --select would need several.
+Only edges[] carries "resolved", and deciding it scans the records dir and
+walks --repo: the whole envelope, --select edges, --filter …edges and lint
+pay that (~1.5s on a large corpus); every other facet answers from the
+record alone (~20ms).
 A record is named by number (3, 03, 0003), slug, or path; --records defaults
 to $RDR_RECORDS and a relative one resolves against it.
 

@@ -67,6 +67,9 @@ and reports the engine revision it was stamped with. Absent or unrunnable is a
 whose stamp trails the engine (a plugin upgrade or a `git pull` moved the engine and
 left the old build) is a **WARN**, not a FAIL: it still answers, it is just behind.
 A `dev` stamp means someone built it by hand rather than through `/rdr-init`.
+**11d** reports the usage log; off is a **WARN** only when autocommit is on, because
+the log is the lint receipt `§commit` refuses a record without — off means unlinted
+records commit unchecked.
 
 ## Review gate
 

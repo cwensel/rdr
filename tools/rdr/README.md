@@ -796,7 +796,9 @@ in `rdr-commit.sh` runs it for every `NNNN-*.md` path it is handed and
 refuses the commit on 1; on 2 it proceeds with a note, because a project
 that never turned the log on did not opt into this either. That makes the
 commit the choke point: a gate closed without lint is caught where the
-history is written, not read about later.
+history is written, not read about later. `rdr-doctor` 11d WARNs when the
+log is off while autocommit is on — the one configuration where the refusal
+is silently unenforced.
 
 | field | |
 | --- | --- |
