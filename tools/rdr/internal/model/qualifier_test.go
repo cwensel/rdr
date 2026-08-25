@@ -75,8 +75,24 @@ func TestParseStatusQualifiers(t *testing.T) {
 		{
 			name:  "undelimited em-dash clause",
 			raw:   "Deferred — no solution decided; revisit when the upstream knob lands",
-			label: "Deferred", tier: ObservedAccepted,
+			label: "Deferred", tier: Canonical,
 			form: QualifierDash, qual: "no solution decided; revisit when the upstream knob lands",
+		},
+		{
+			name:  "deferred revisit trigger",
+			raw:   "Deferred [revisit when upstream exposes a public pool knob]",
+			label: "Deferred", tier: Canonical,
+			form: QualifierRevisitWhen, qual: "revisit when upstream exposes a public pool knob",
+		},
+		{
+			// The template writes `revisit when`; an author reaching for
+			// this status writes whichever verb fits the sentence, and the
+			// grammar accepts the family rather than manufacturing a
+			// bracketed free-text note out of a conformant trigger.
+			name:  "deferred re-open spelling",
+			raw:   "Deferred [re-open if the project's stance on forks changes]",
+			label: "Deferred", tier: Canonical,
+			form: QualifierRevisitWhen, qual: "re-open if the project's stance on forks changes",
 		},
 		{
 			name:  "superseded target",

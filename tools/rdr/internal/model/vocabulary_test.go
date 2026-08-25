@@ -14,13 +14,17 @@ func TestStatusTiers(t *testing.T) {
 		{"Abandoned", Canonical},
 		{"Superseded", Canonical},
 		{"Demoted", Canonical},
+		// Promoted from ObservedAccepted when TEMPLATE.md gained the
+		// parked-with-a-revisit-trigger spelling the corpus had already
+		// improvised. It is Canonical for writing and, being parked
+		// rather than closed, is NOT in TerminalStatuses.
+		{"Deferred", Canonical},
 
-		// Present in the frozen corpus, absent from TEMPLATE.md, and
-		// legitimate terminal dispositions. A reader that called these
+		// Present in the frozen corpus, absent from TEMPLATE.md, and a
+		// legitimate terminal disposition. A reader that called it
 		// off-vocabulary would be permanently wrong about records that
 		// can never be amended.
 		{"Rejected", ObservedAccepted},
-		{"Deferred", ObservedAccepted},
 
 		{"Parked", OffVocabulary},
 		{"draft", OffVocabulary}, // matching is case-sensitive by design
@@ -242,5 +246,30 @@ func TestValueContinues(t *testing.T) {
 		if got := ValueContinues(c.next); got != c.want {
 			t.Errorf("ValueContinues(%q) = %v, want %v (%s)", c.next, got, c.want, c.why)
 		}
+	}
+}
+
+// TestParkedIsNotTerminal pins the distinction that justifies Deferred
+// existing at all. A Deferred RDR is PAUSED, not closed: it owes no
+// post-mortem, keeps its trackers, and re-enters the flow when its
+// revisit trigger fires. Every consumer that branches on "is this record
+// finished?" reads TerminalStatuses, so Deferred appearing there would
+// close a record that is waiting to be re-opened — the exact conflation
+// the corpus record that improvised this status wrote itself to avoid.
+func TestParkedIsNotTerminal(t *testing.T) {
+	for _, p := range ParkedStatuses {
+		if StatusVocabulary.Classify(p) != Canonical {
+			t.Errorf("parked status %q must be canonical: a status a record may not write cannot park it", p)
+		}
+		for _, term := range TerminalStatuses {
+			if p == term {
+				t.Errorf("%q is in both ParkedStatuses and TerminalStatuses; a record cannot be both "+
+					"paused and closed. FIX: a parked status owes no post-mortem and has a next stage.", p)
+			}
+		}
+	}
+	// The converse: nothing terminal may claim to be parked.
+	if len(ParkedStatuses) == 0 {
+		t.Error("ParkedStatuses is empty; Deferred should be in it")
 	}
 }

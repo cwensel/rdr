@@ -158,6 +158,10 @@ disposition) is instead hoisted to a named home and the siblings stay Final unde
 - **Reverted** — Implemented then undone (document why)
 - **Abandoned** — RDR not implemented
 - **Superseded** — Replaced by another RDR
+- **Demoted** — Judged not RDR-shaped; refiled as a plain issue (carry `Demoted [→ <issue link>]`)
+- **Deferred** — Parked before Lock because no acceptable mechanism exists yet; carry the re-open condition on the
+  value (`Deferred [revisit when <condition>]`). A *pause*, not an exit: the RDR stays intact, owes no post-mortem, and
+  re-enters at the stage it stopped when the trigger fires. Not `Abandoned`, which is terminal
 
 ## When to Create an RDR
 

@@ -34,3 +34,5 @@ engine README — this file is only the per-project index.
 - **Abandoned** — RDR not implemented
 - **Superseded** — replaced by another RDR
 - **Demoted** — judged not RDR-shaped; refiled as a plain issue (carry `Demoted [→ <issue link>]`)
+- **Deferred** — parked before Lock; no acceptable mechanism exists yet (carry `Deferred [revisit when <condition>]`).
+  A pause, not an exit — no post-mortem is owed and the RDR re-enters when the trigger fires

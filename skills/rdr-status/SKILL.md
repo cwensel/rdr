@@ -88,6 +88,11 @@ or contradicts what the tree shows.
      proposed, next is that sibling's `/rdr-propose`, not this RDR's `/rdr-refine`.
    - `Implemented` / `Reverted` / `Abandoned` / `Superseded` → terminal; report the
      post-mortem state, no next command.
+   - `Deferred [revisit when <condition>]` → **parked, not terminal**. No post-mortem
+     is owed and no next command is due *while the condition holds* — report the
+     condition verbatim so the human can judge whether it has fired. If it plainly
+     has, next is the stage the RDR stopped at (usually `/rdr-propose`, which is
+     what returned no acceptable mechanism).
    - A re-entry qualifier `Draft [revised from Final <date>; re-verify <IDs>]` →
      this is a **scoped backward-edge**; next is `/rdr-resolve NNNN` (it self-scopes
      to the listed IDs). Surface the qualifier so the human knows the run is a delta.
@@ -156,7 +161,10 @@ No writes. Confirm `git status` would be unchanged (you ran only reads).
 List in-flight RDRs: glob the RDR dir, read each `**Status**:` line, and report
 every RDR whose Status is `Draft`/`Draft [revised…]` (and any `Final` not yet
 `Implemented`) as one line — `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
-Skip `Implemented`/`Demoted`/`Abandoned`/`Superseded`. Keeps the standing
+Skip `Implemented`/`Demoted`/`Abandoned`/`Superseded`. List a `Deferred` RDR in a
+separate **parked** line with its revisit condition — it is not in flight, but it is
+not closed either, and a trigger nobody re-reads is how a park becomes an abandon by
+default. Keeps the standing
 worklist visible without opening each RDR. When several listed Drafts are
 pre-propose siblings, recommend proposing **all** of them before any refines —
 breadth-first keeps joint-decision fires against still-fluid drafts

@@ -11,8 +11,24 @@ N/A-bulleted). -->
 
 - **Date**: YYYY-MM-DD
 - **Status**: Draft | Final | Implemented | Reverted |
-  Abandoned | Superseded | Demoted
+  Abandoned | Superseded | Demoted | Deferred
   <!--
+  - `Deferred` is the parked-with-a-revisit-trigger status for a
+    Draft that cannot proceed because **no acceptable mechanism
+    exists yet** — every in-our-control path is ruled out and the
+    one that would work is outside our control. It is a *pause in
+    the lifecycle*, not an exit from it: the RDR stays intact and
+    re-enters at the stage it stopped when the trigger fires.
+    Carry the condition on the live value:
+    `Deferred [revisit when <condition>]`, and say in the same
+    field what was ruled out and why (Alternatives Considered
+    carries the long form). Distinct from `Abandoned`, which is
+    terminal — an Abandoned RDR is closed, owes a post-mortem, and
+    never re-enters. A Deferred RDR owes **no** post-mortem
+    (nothing was implemented), and its `Priority` records what the
+    fix is *worth*, not what is scheduled. Do not defer merely to
+    park work that is possible but unfunded — that is a Priority,
+    not a Status.
   - `Demoted` is the terminal status for an RDR judged
     *not RDR-shaped* — the decision was never a real
     design fork, so it leaves the RDR lifecycle and is

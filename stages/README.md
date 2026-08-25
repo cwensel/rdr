@@ -196,7 +196,9 @@ on them: [`06-reconcile.md`](06-reconcile.md#why-the-two-hard-rules-are-hard).
 Seed/Propose/Refine/Reconcile/Finalize always run, and an RDR that locks is
 there to be Implemented (8), so that stage runs too unless the RDR is
 Abandoned. (A seed judged not RDR-shaped exits at Stage 1 as `Demoted` —
-refiled as a plain issue — and runs none of these.) Resolve runs whenever the
+refiled as a plain issue — and runs none of these. A Propose that finds no
+acceptable mechanism parks at Stage 2 as `Deferred [revisit when <condition>]`
+and resumes at Stage 2 when the condition fires — parked, not exited.) Resolve runs whenever the
 RDR has any load-bearing assumption
 (almost always). Pre-Lock's fix half runs once per lens that produced findings,
 inside the same `/rdr-prelock <lens>` cycle.

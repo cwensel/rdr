@@ -27,6 +27,12 @@ const (
 	// re-lock carries it forward unchanged until the named home answers.
 	// The corpus also writes it on Implemented.
 	QualifierJointDecision
+	// QualifierRevisitWhen is `Deferred [revisit when <condition>]`: the
+	// condition that un-parks a Deferred RDR. Unlike the terminal
+	// qualifiers it names a FUTURE event, and the record it sits on is
+	// still live — when the condition fires the RDR re-enters the flow at
+	// the stage it stopped, and the flip overwrites the whole value.
+	QualifierRevisitWhen
 	// QualifierBracketed is a bracketed qualifier matching none of the
 	// named grammars — a free-text note on the live value.
 	QualifierBracketed
@@ -52,6 +58,8 @@ func (q QualifierForm) String() string {
 		return "revised-from"
 	case QualifierJointDecision:
 		return "joint-decision"
+	case QualifierRevisitWhen:
+		return "revisit-when"
 	case QualifierBracketed:
 		return "bracketed"
 	case QualifierDash:
@@ -80,6 +88,15 @@ var (
 	// JointDecisionGrammar matches `joint decision → <home §-anchor>:
 	// <question>`, capturing the home anchor and the open question.
 	JointDecisionGrammar = regexp.MustCompile(`^joint decision\s*→\s*([^:]+?)\s*:\s*(.+)$`)
+
+	// RevisitWhenGrammar matches `revisit when <condition>`, capturing the
+	// condition. It also accepts the `revisit if` and `re-open when/if`
+	// spellings: the one corpus record that predates the template form
+	// wrote its trigger as prose, and an author reaching for this status
+	// reaches for whichever verb fits the sentence. The condition itself
+	// is free text — it names an external event, so nothing here can
+	// validate it beyond requiring that it was written.
+	RevisitWhenGrammar = regexp.MustCompile(`(?i)^(?:re-?open|revisit)\s+(?:when|if)\s+(.+)$`)
 
 	// CommitPinGrammar matches the legacy parenthetical commit pin,
 	// ``main` <sha>`, capturing the branch and the revision.
@@ -143,6 +160,8 @@ func splitQualifier(body string) (label, qualifier string, form QualifierForm) {
 		form = QualifierRevisedFrom
 	case JointDecisionGrammar.MatchString(qualifier):
 		form = QualifierJointDecision
+	case RevisitWhenGrammar.MatchString(qualifier):
+		form = QualifierRevisitWhen
 	default:
 		form = fallback
 	}

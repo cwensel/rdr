@@ -133,4 +133,14 @@ advance. If the RDR declares a
 refine (the tandem barrier — see TEMPLATE.md `Cluster`), and an open bridge
 choice — (a) skip to end-state / (b) `Transient` marker — does not advance.
 
+**Or park it.** If Propose ran to completion and returned **no acceptable
+mechanism** — every in-our-control path is ruled out on a stated ground, and
+the one that would work is outside our control — do not force a choice and do
+not abandon. Set `Status: Deferred [revisit when <condition>]`, name in the
+same field what was ruled out and why, and leave Alternatives Considered
+carrying the long form. The RDR is parked: it locks no contract, owes no
+post-mortem, keeps its trackers, and re-enters **here** when the condition
+fires. This is a high bar — "possible but unfunded" is a `Priority`, not a
+`Deferred`; the test is that no path exists, not that none is scheduled.
+
 → Next: [03-refine.md](03-refine.md)

@@ -284,7 +284,11 @@ func TestWrappedMetadata(t *testing.T) {
 	if st.LineStart != 9 || st.LineEnd != 12 {
 		t.Errorf("Status spans %d-%d, want 9-12 (the guidance comment ends it)", st.LineStart, st.LineEnd)
 	}
-	if st.Status == nil || st.Status.Value != "Deferred" || st.Status.Form != "dash" || st.Status.Tier != "observed-accepted" {
+	// The label is canonical since TEMPLATE.md gained the Deferred
+	// spelling; the FORM is still the legacy undelimited em-dash clause
+	// this fixture exists to pin, not the bracketed `[revisit when …]`
+	// a new record writes.
+	if st.Status == nil || st.Status.Value != "Deferred" || st.Status.Form != "dash" || st.Status.Tier != "canonical" {
 		t.Errorf("status = %+v", st.Status)
 	}
 	pred := metadataField(t, doc, "Predecessors")

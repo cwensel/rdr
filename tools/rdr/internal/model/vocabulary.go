@@ -83,25 +83,45 @@ func (v Vocabulary) Classify(value string) Tier {
 // StatusVocabulary is the RDR lifecycle status set.
 //
 // Canonical is TEMPLATE.md's Status line. ObservedAccepted carries
-// Rejected and Deferred: both are real terminal dispositions written by
-// records in the frozen corpus (Rejected on four, Deferred on one) that
-// TEMPLATE.md never listed. Since those records can never be amended, a
-// reader that called them off-vocabulary would be permanently wrong about
-// five records.
+// Rejected: a real terminal disposition written by four records in the
+// frozen corpus that TEMPLATE.md never listed. Since those records can
+// never be amended, a reader that called it off-vocabulary would be
+// permanently wrong about them.
+//
+// Deferred was ObservedAccepted and is now Canonical. The one corpus
+// record that wrote it was making a distinction the template had no
+// spelling for — parked with a revisit trigger, which is not Abandoned —
+// so rather than laundering an invented value the template gained the
+// spelling. Reading is unaffected: the value classified before and
+// classifies now, in a stronger tier. What changed is that a new record
+// may write it, and knows the form to write.
 var StatusVocabulary = Vocabulary{
 	Field: "Status",
 	Canonical: []string{
 		"Draft", "Final", "Implemented", "Reverted",
-		"Abandoned", "Superseded", "Demoted",
+		"Abandoned", "Superseded", "Demoted", "Deferred",
 	},
-	ObservedAccepted: []string{"Rejected", "Deferred"},
+	ObservedAccepted: []string{"Rejected"},
 }
 
 // TerminalStatuses are the statuses after which a record is never amended.
 // They are why the ObservedAccepted tier exists at all.
+//
+// Deferred is deliberately absent. A Deferred RDR is PARKED, not closed:
+// it owes no post-mortem, keeps its trackers, and re-enters the flow at
+// the stage it stopped when its revisit trigger fires. Listing it here
+// would freeze a record that is expected to be amended, and would make
+// every consumer that reads this set — the lint's terminal check, the
+// status skill's "no next command" branch — wrong about it in the one
+// way that matters.
 var TerminalStatuses = []string{
 	"Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected",
 }
+
+// ParkedStatuses are the statuses that pause the lifecycle without ending
+// it. A parked record is still live: it may be amended, it owes no
+// post-mortem, and it has a next stage once its condition is met.
+var ParkedStatuses = []string{"Deferred"}
 
 // TypeVocabulary is TEMPLATE.md's Type line. No corpus value falls outside
 // it.
