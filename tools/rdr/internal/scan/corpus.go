@@ -117,6 +117,9 @@ type GraphElement struct {
 	Hash   string     `json:"hash"`
 	Line   int        `json:"line_start"`
 	End    int        `json:"line_end"`
+	// Joint carries a JC element's parsed line, so the graph can answer
+	// "which records hold an open joint check" without a per-record walk.
+	Joint *JointCheck `json:"joint,omitempty"`
 }
 
 // GraphEdge is one edge with the record it leaves.
@@ -159,7 +162,7 @@ func BuildGraph(docs []*Document, skipped []string) Graph {
 	for _, d := range docs {
 		g.Records = append(g.Records, Summarize(d))
 		for _, e := range d.Elements {
-			g.Elements = append(g.Elements, GraphElement{d.Record, e.ID, e.Kind, e.Label, e.Hash, e.LineStart, e.LineEnd})
+			g.Elements = append(g.Elements, GraphElement{d.Record, e.ID, e.Kind, e.Label, e.Hash, e.LineStart, e.LineEnd, e.Joint})
 		}
 		for _, e := range d.Edges {
 			g.Edges = append(g.Edges, GraphEdge{d.Record, e.From, e.To, e.Kind, e.Resolved, e.Line, e.LineEnd, e.Field})

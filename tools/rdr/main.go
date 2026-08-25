@@ -66,6 +66,7 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --backlinks[=NNNN[:elem]]   who points at each target / at one target
   --cluster-of NNNN           7.1's membership rule as a query
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
+  --open-joint [--all]        open joint decisions: Joint-check (home: OPEN) lines + joint-decision Status forms
   --unresolved                typed edges with no target — record data errors
   --derived                   the unlabelled-element backlog per record
   --coverage                  the drift alarm: unclassified-line rate, unknowns
@@ -189,6 +190,9 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if *f.status || *f.inFlight {
 			return statusFacet(f, *f.inFlight, stdout, stderr)
 		}
+		if *f.openJoint {
+			return openJointFacet(f, *f.all, stdout, stderr)
+		}
 		if *f.anchors {
 			return anchorFacet(f, stdout, stderr)
 		}
@@ -217,6 +221,7 @@ type flags struct {
 	backlinks, readme     optString
 	clusterOf             *string
 	unresolved, anchors   *bool
+	openJoint             *bool
 	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
 }
@@ -247,6 +252,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		fs.Var(&f.backlinks, "backlinks", "the reverse edge table; =NNNN[:elem] answers who cites one target, mentions included")
 		f.clusterOf = fs.String("cluster-of", "", "the record's cluster by 7.1's membership rule")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
+		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
 		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
 	case "lint":

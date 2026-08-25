@@ -1158,3 +1158,38 @@ func TestReceiptVouchesOnlyForALintAfterTheLastWrite(t *testing.T) {
 		t.Errorf("--since before the lint: exit %d, want 0", code)
 	}
 }
+
+// TestIndexOpenJointFacet: both places a record states an open joint
+// decision surface in one corpus-wide call, in-flight only by default.
+func TestIndexOpenJointFacet(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	head := func(num, title, status string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: standard\n\n## Problem Statement\n\nSynthetic.\n"
+	}
+	write("0001-line.md", head("0001", "Line", "Draft")+"\n## Finalization Gate\n\nJoint-check: fired → 0002, 0003 (home: OPEN) — shared seam\nJoint-check: fired → 0004 (home: cli/0004 §Normative Contracts) — ruled\n")
+	write("0002-status.md", head("0002", "Status", "Final [joint decision → JDR 0001 §JD-18: conforming-view enforcer]"))
+	write("0003-done.md", head("0003", "Done", "Implemented")+"\nJoint-check: fired → 0001 (home: OPEN) — stale\n")
+
+	code, out, errb := runCapture(t, "index", "--open-joint", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	for _, want := range []string{"0001 JC1", "(home: OPEN)", "0002 status", "total 2 open joint decisions over 2 records"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "JC2") || strings.Contains(out, "0003 JC") {
+		t.Errorf("a ruled check or a terminal record leaked in:\n%s", out)
+	}
+	code, out, _ = runCapture(t, "index", "--open-joint", "--all", "--json", "--records", dir)
+	if code != 0 || !strings.Contains(out, `"record": "0003"`) || !strings.Contains(out, `"signal": "joint-check"`) {
+		t.Errorf("--all --json should include the terminal record's open check:\n%s", out)
+	}
+}

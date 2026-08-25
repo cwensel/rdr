@@ -783,6 +783,17 @@ direction — `inspect --json` on the same record emits *more* than the
 file does. The saving is in `--select` and the index facets, never in
 the full envelope, and the log says so.
 
+## Open joint decisions
+
+    rdr index --open-joint          # in-flight records; --all for every record; --json for the rows
+
+One row per open joint decision, from either place a record states one: a
+body `Joint-check: … (home: OPEN)` line (`signal: joint-check`, with the
+`JC` element id, line, targets and home) or a Status line in joint-decision
+form (`signal: status`, with the qualifier). 7.1's first question, answered
+without opening a member body or grepping one — a grep for `home: OPEN`
+once lost the only open line to `| head` and reported none.
+
 ## §receipt — was it linted since it was last written?
 
     rdr receipt 0143          # 0: prints the lint's log line; 1: stopped:no-lint-receipt; 2: no log bound

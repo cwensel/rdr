@@ -270,3 +270,65 @@ func readmeFacet(f *flags, path string, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "total %d drift over %d rows, %d records\n", len(drift), len(rows), len(docs))
 	return 0
 }
+
+// openJoint is one open joint decision, from either of the two places a
+// record states one: a `Joint-check: … (home: OPEN)` line in its body
+// (Signal "joint-check", with the element id and line), or a Status line
+// in joint-decision form (Signal "status", with the qualifier as written).
+type openJoint struct {
+	Record    string   `json:"record"`
+	Signal    string   `json:"signal"`
+	ID        string   `json:"id,omitempty"`
+	Line      int      `json:"line,omitempty"`
+	Targets   []string `json:"targets,omitempty"`
+	Home      string   `json:"home,omitempty"`
+	Qualifier string   `json:"qualifier,omitempty"`
+	Decisions []string `json:"open_joint_decisions,omitempty"`
+}
+
+// openJointFacet answers 7.1's first question over the whole corpus —
+// which members hold an open joint decision, and against what — in one
+// call. Before this it was a per-member inspect plus a grep of the body
+// for `home: OPEN`, and the grep once lost the only open line to `| head`.
+// In flight by default; --all includes terminal records, whose open
+// checks are a data error worth seeing, not a worklist item.
+func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
+	docs, skipped, code := corpus(f, stderr)
+	if code != 0 {
+		return code
+	}
+	rows := []openJoint{}
+	considered := 0
+	for _, d := range docs {
+		s := scan.Summarize(d)
+		if !all && !s.InFlight {
+			continue
+		}
+		considered++
+		if s.Status != nil && (s.Status.Form == "joint-decision" || len(s.Status.OpenJointDecisions) > 0) {
+			rows = append(rows, openJoint{Record: d.Record, Signal: "status",
+				Qualifier: s.Status.Qualifier, Decisions: s.Status.OpenJointDecisions})
+		}
+		for _, e := range d.Elements {
+			if e.Joint != nil && e.Joint.Open {
+				rows = append(rows, openJoint{Record: d.Record, Signal: "joint-check", ID: e.ID,
+					Line: e.LineStart, Targets: e.Joint.Targets, Home: e.Joint.Home})
+			}
+		}
+	}
+	if *f.json {
+		return emit(map[string]any{"schema": schemaVersion, "open": rows,
+			"records_considered": considered, "skipped": skipped}, stdout, stderr)
+	}
+	for _, r := range rows {
+		switch r.Signal {
+		case "status":
+			fmt.Fprintf(stdout, "%s status      [%s]\n", r.Record, r.Qualifier)
+		default:
+			fmt.Fprintf(stdout, "%s %-11s %5d  → %s (home: %s)\n", r.Record, r.ID[len(r.Record)+1:], r.Line,
+				strings.Join(r.Targets, ", "), r.Home)
+		}
+	}
+	fmt.Fprintf(stdout, "total %d open joint decisions over %d records\n", len(rows), considered)
+	return 0
+}
