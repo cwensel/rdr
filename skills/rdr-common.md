@@ -151,6 +151,12 @@ RDR_PATH=$("$RDR_HOME/bin/rdr" inspect --json --filter path "$arg" |
 RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identity
 ```
 
+**Reading the record**: through the projector, never `sed -n`/`grep` on
+`$RDR_PATH` — `inspect NNNN` (ids + line ranges), `--select NNNN:A3 NNNN` (one
+element's bytes), `--select outline`, `--json --filter metadata,counts`. Those
+cost ~20ms; `edges`, bare `--json` and `lint` pay a corpus scan + repo walk
+(~1.5s). A stage that must rewrite the file reads it whole, in one call.
+
 Pass `$arg` through as the user typed it: a number with or without leading zeros,
 a slug, or a full path all resolve. `--filter path` keeps the answer to a few
 hundred bytes instead of the whole envelope.
