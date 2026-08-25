@@ -17,6 +17,15 @@ rdr_commit() {
     r=$(cd "$(dirname "$p")" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)
     [ "$r" = "$REPO" ] || { echo "stopped:commit-cross-repo:$p not in $REPO" >&2; return 1; }
   done
+  # A record commit needs a lint receipt (`rdr receipt`: linted at/after its last write).
+  # A gate closed without lint is refused HERE — the one mechanical choke point — not documented.
+  # No usage log bound (exit 2) → note and proceed: the project never opted into the log.
+  for p in "$@"; do
+    case "$(basename "$p")" in *-postmortem.md) continue;; [0-9][0-9][0-9][0-9]-*.md) ;; *) continue;; esac
+    [ -x "$RDR_HOME/bin/rdr" ] || { echo "note:receipt-unavailable (no \$RDR_HOME/bin/rdr)" >&2; continue; }
+    out=$("$RDR_HOME/bin/rdr" receipt "$p" 2>&1 >/dev/null); rc=$?
+    case "$rc" in 0) ;; 1) echo "stopped:commit-unlinted — $out" >&2; return 1;; *) echo "note:$out" >&2;; esac
+  done
   TMPIDX="$REPO/.git/rdr-skillidx-$$-${NNNN:-x}"        # per-run PRIVATE index in the TARGET repo
   n=0
   while [ "$n" -lt 50 ]; do                            # CAS retry cap — generous; the retry is cheap

@@ -155,7 +155,9 @@ RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identit
 `$RDR_PATH` — `inspect NNNN` (ids + line ranges), `--select NNNN:A3 NNNN` (one
 element's bytes), `--select outline`, `--json --filter metadata,counts`. Those
 cost ~20ms; `edges`, bare `--json` and `lint` pay a corpus scan + repo walk
-(~1.5s). A stage that must rewrite the file reads it whole, in one call.
+(~1.5s). A stage that must rewrite the file reads it whole, in one call; if it
+exceeds one call's output, chunk on `inspect NNNN`'s section line ranges, never
+arbitrary windows.
 
 Pass `$arg` through as the user typed it: a number with or without leading zeros,
 a slug, or a full path all resolve. `--filter path` keeps the answer to a few
@@ -473,7 +475,8 @@ contract section once survived propose, refine, resolve, and four lenses as
 verbatim template text.)
 
 `rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
-does the structural share: unlabelled contracts, Peer-RDR Evidence naming a
+does the structural share — and leaves the receipt §commit demands (`rdr receipt
+<NNNN>`: a lint at/after the record's last write, else the commit is refused). It unlabelled contracts, Peer-RDR Evidence naming a
 record not an element, unresolvable typed references. `conformance` findings
 are advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
 `resolution` findings are the fix-now class above. A dangling reference into
@@ -622,7 +625,9 @@ runs blind next time.
 A writing stage already knows the exact files it wrote — `$RDR_PATH`,
 `$RDR_RECORDS/README.md`, and its `$RDR_EVIDENCE/$RDR_SLUG/evidence/<subdir>` — bound by
 §seam-bind + §rdr-resolve. So it can commit *those paths and nothing else* without ever
-running `git status` / `git add -A` / inspecting "what's dirty". This is the whole point:
+running `git status` / `git add -A` / inspecting "what's dirty". A record path is
+committed only with a lint receipt (`rdr receipt`; refused as `stopped:commit-unlinted`
+— run `rdr lint NNNN` after the last write, then retry). This is the whole point:
 **no reconnaissance, no round-trip, and no confusion about what this session owns** —
 the owned set is a property of the stage, not a discovery. It also makes parallel
 `/rdr-*` runs safe **without a worktree**: each run commits through its *own* private
