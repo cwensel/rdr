@@ -43,6 +43,14 @@ model stamp (rdr-common §model-stamp) and compare to this session's base model:
 - **Same model** → redundant repeat; short-circuit is fine, but say so ("prior run
   was the same base model `<id>`") and point at the alt-model roster.
 
+**This lens reads the record whole, by design.** The other pre-lock lenses take
+line ranges from the projector and read spans; critique cannot. "The one section
+rewritten within 6 weeks" and "the assumption that will not survive first
+contact" are judgements about the whole frame — the Alternatives, the Trade-offs,
+the Decision Rationale and the Context are the evidence, and a scoped read would
+delete exactly the prose the premortem argues from. Only the ledger's anchors are
+projected (below).
+
 ## Prompt — single RDR
 
 ```text
@@ -80,8 +88,11 @@ Structure:
    |----|-------------|--------------|-------------------|--------|
 
    - **ID** — `C-1`, `C-2`, … stable within this file.
-   - **RDR passage** — a real anchor: `§Section`, REQ id, `A-N`, or quoted
-     phrase. "The RDR generally" is not one.
+   - **RDR passage** — a real anchor. Prefer the element id the projector
+     addresses (`NNNN:C4`, `NNNN:A3`, `NNNN:§approach`) — it survives a reword,
+     a quoted phrase does not; `"$RDR_HOME/bin/rdr" inspect {RDR_PATH}` lists
+     them, one per line. A `§Section`, REQ id, `A-N` or quoted phrase still
+     counts. "The RDR generally" is not one.
    - **Origin** — the section that raised it: `§1`/`§2`/`§3`/`premortem`/`AT-N`
      (may be several). Premortem and AT origins rank equal to the rest.
 

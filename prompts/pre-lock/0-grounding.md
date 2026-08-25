@@ -15,15 +15,45 @@ One deterministic source-reading sweep, not a review loop.
 ## Prompt
 
 ```text
-Sweep the RDR at {RDR_PATH} for every claim that asserts a codebase fact —
-each cited `path::Symbol` (especially Critical Assumptions with Method: Source
-Search, and Normative Contract symbols), each "no existing X does Y", each "a
-sibling/adjacent path already does Z", each "the only place this happens is …",
-and each claim that a call runs before/after another, that a site is
-(un)reachable, or that output does not change — refute these at the call flow,
+Scope the sweep first. If `[ -x "$RDR_HOME/bin/rdr" ]`, run once:
+
+  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo <src-root> {RDR_PATH}
+
+(`<src-root>` is the source-path root `$RDR_ENV` records for the reuse audit;
+without it every `resolved` comes back ABSENT.) Take two lists — this is your
+STARTING SET and your primary read:
+  - `edges[]` where `kind=="source-anchor"` — every cited `path::Symbol`, each
+    with `to` (the symbol), `line`/`line_end`, `field`, and `from` (the element
+    that claims it). `resolved` is the projector's own verdict, THREE-valued:
+    true = the symbol exists (CONFIRMED — cite it and move on), false =
+    NOT-FOUND (a finding), ABSENT = nothing looked (no `--repo`; sweep it
+    yourself, never read absent as either).
+  - element `fields[]` where `label=="Evidence"`, each with `element`,
+    `line_start`/`line_end`. Read those spans with `sed -n`, not the whole
+    record; the assumptions that owe source are the ones whose `Method` field
+    has `Source Search` in `method.members`.
+Else (no binary): read the record and find these claims by eye, as below.
+
+An EMPTY starting set is not a clean record. Older records state their evidence
+as prose and label nothing, so they project no `Evidence` field and no
+`source-anchor` edge at all. If both lists come back empty, the scoping told you
+nothing — fall through and read the record whole, exactly as the no-binary
+branch does. Never report a sweep as complete off an empty projection.
+
+Then sweep. `resolved:false` and `resolved:ABSENT` anchors are the work; so are
+the claims that name no symbol and so mint no edge — each "no existing X does
+Y", each "a sibling/adjacent path already does Z", each "the only place this
+happens is …", and each claim that a call runs before/after another, that a site
+is (un)reachable, or that output does not change. Refute those at the call flow,
 the producing/population site, or the output, not by opening the named symbol;
 such a claim anchored by no assumption is itself a finding.
-For EACH, read the actual source on `main` and record CONFIRMED (paste the
+
+WIDEN when the ranges are not enough — an unanchored prose claim lives between
+them by definition. Read the fuller record whenever the scoped spans leave a
+codebase claim you cannot judge, and say in the report which spans you widened
+past and why. A scope is a starting set, never a licence to stop early.
+
+For EACH claim, read the actual source on `main` and record CONFIRMED (paste the
 greppable `path::Symbol` or line), REFUTED (paste what you found instead), or
 NOT-FOUND (symbol doesn't resolve). Do not take the RDR's word for a codebase
 fact. If Decision Rationale carries a `Ground-sweep:` verdict (the propose-time
@@ -47,6 +77,9 @@ re-derive it). A CONFIRMED claim needs no finding. Report nothing else.
   highest-value output — cheaper to reopen the frame now than post-lock.
 - **Unhealthy** — answers cite the RDR instead of source. Re-run insisting on a
   greppable cite per claim; escalate to a human grep if it won't read source.
+  A sweep that reports only `source-anchor` verdicts and never widened has read
+  the anchors and skipped the prose claims — the ones with no symbol to anchor
+  are exactly where a false frame hides.
 
 ## Source
 

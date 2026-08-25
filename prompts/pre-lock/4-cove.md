@@ -18,11 +18,22 @@ questions are the silence/contradiction half.
 
 ```text
 Step 0 (GROUNDING — do this first): run the codebase claim sweep from
-0-grounding.md against {RDR_PATH} — verify every cited `path::Symbol` and
-every "no existing X" / "a sibling path already does Z" against actual source
-(CONFIRMED / REFUTED / NOT-FOUND), and check the inverse: if this RDR adds a new
-discriminator/heuristic/switch/identity rule, grep whether a sibling path
-already makes that decision. Do not take the RDR's word for a codebase fact.
+0-grounding.md against {RDR_PATH}, including its scoping — one
+`"$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" --repo <src-root>
+{RDR_PATH}` (`<src-root>` from `$RDR_ENV`) gives `edges[]` kind `source-anchor`
+(each with `to`, `line`, `line_end` and a three-valued `resolved`: true =
+CONFIRMED, false = NOT-FOUND,
+ABSENT = unchecked) and the `Evidence` element `fields[]` spans. Verify every
+cited `path::Symbol` and every "no existing X" / "a sibling path already does Z"
+against actual source (CONFIRMED / REFUTED / NOT-FOUND), and check the inverse:
+if this RDR adds a new discriminator/heuristic/switch/identity rule, grep whether
+a sibling path already makes that decision. Do not take the RDR's word for a
+codebase fact.
+
+Steps 1–3 are NOT scoped, and that is deliberate: a silence has no line range,
+so the spans Step 0 read cannot bound the search for one. Read the record whole
+for the questions below; Step 0's ranges saved you the source-anchor hunt, not
+the reading.
 
 Step 1: Draft 12 verification questions a skeptical senior reviewer would ask to
 catch errors, contradictions, or under-specified behavior — concrete yes/no or
@@ -35,9 +46,11 @@ answers. A CODEBASE question MUST cite source you actually read (a greppable
 `path::Symbol` or pasted line) — "the RDR says so" is not valid. An
 RDR-internal question cites the exact RDR passage or says "RDR is silent."
 
-Step 3: From Step 0 + Step 2, list as separate findings: (a) a codebase claim
-REFUTED or NOT-FOUND; (b) a new rule with an existing sibling (cite it); (c) an
-internal contradiction; (d) a "RDR is silent" revealing a missing requirement.
+Step 3: From Step 0 + Step 2, list as separate findings, each anchored to the
+element id it lands on (`NNNN:A3`, `NNNN:C4`) where one exists: (a) a codebase
+claim REFUTED or NOT-FOUND; (b) a new rule with an existing sibling (cite it);
+(c) an internal contradiction; (d) a "RDR is silent" revealing a missing
+requirement — a silence anchors to the element that should have said it.
 A false-against-codebase assumption is the highest-value finding — surface it
 even if it reopens the chosen approach.
 

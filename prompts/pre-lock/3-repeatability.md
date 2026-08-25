@@ -76,7 +76,27 @@ standalone (outside the flow)? Read `{RDR_ENV}` for the base and fill them
 yourself first.
 
 ```text
-Based only on the RDR at {RDR_PATH}, produce:
+Based only on the RDR at {RDR_PATH}, produce the four items below.
+
+Start from the contracts, not the whole file. If `[ -x "$RDR_HOME/bin/rdr" ]`,
+run once:
+
+  "$RDR_HOME/bin/rdr" inspect --json --records "$RDR_RECORDS" {RDR_PATH}
+
+and read the spans of `elements[]` where `kind` is `C` (normative contracts),
+`MVV`, or `S` — each carries `line_start`/`line_end`; `sed -n` those. Those are
+the clauses a reconstruction must reproduce exactly. Else: read the record whole.
+So too if that set is empty — a record whose contracts are written as prose
+addresses none, and reconstructing from an empty selection would invent the API
+rather than reproduce it.
+
+WIDEN deliberately. This lens exists to find what the RDR does NOT fix, and a
+silence has no element to select — so when a contract span leaves a signature,
+type, error mode, or step order under-determined, read the surrounding section
+(`outline[]` gives its range) or the whole record before you guess. Widening
+costs a read; guessing from a truncated contract manufactures a false GUESS
+that the diff then reports as an RDR silence it is not. Note in the run which
+spans you widened past.
 
   1. The module's public API (function signatures, types, error modes).
   2. The three most important internal helper functions and their
@@ -109,10 +129,11 @@ exist and the diffing context wrote none, paste the matching prompt once.
 or fill them if standalone.
 
 For repeatability-lite, read `{EVIDENCE_DIR}/run-1.md`; compare it against the RDR
-at `{RDR_PATH}` and write `{EVIDENCE_DIR}/diff.md` with only concrete contract
-silences: missing step order, field owner, transform tie-break, error mode, or
-similar determinacy gap. This is not a same-model consistency sample and not a
-three-run disagreement count. Do not report naming, wording, or
+at `{RDR_PATH}` — against the `kind=="C"`/`MVV` spans the generation prompt names,
+widening where a silence has no span — and write `{EVIDENCE_DIR}/diff.md` with only
+concrete contract silences: missing step order, field owner, transform tie-break,
+error mode, or similar determinacy gap. This is not a same-model consistency
+sample and not a three-run disagreement count. Do not report naming, wording, or
 helper-decomposition differences.
 
 For full repeatability:
@@ -135,8 +156,9 @@ flag, not full coverage). Compare them against the RDR at
      (not findings; they confirm the RDR is determinate there).
 
 Order findings by how many runs disagree (3-way first). Each finding names the
-RDR section it lands in — the **Normative Contracts** subsection of the
-Technical Design is where most rewrites go. Report nothing else.
+RDR element it lands on — the contract's id (`NNNN:C4`) where one exists, else
+the section — since the **Normative Contracts** subsection of the Technical
+Design is where most rewrites go. Report nothing else.
 ```
 
 `diff.md` is the file the cycle's fix half
