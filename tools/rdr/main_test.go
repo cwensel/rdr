@@ -488,3 +488,81 @@ func TestIndexClusterCandidateTier(t *testing.T) {
 		t.Errorf("want the seed and one Final candidate with its status:\n%s", out)
 	}
 }
+
+// TestSourceAnchorsResolveWithoutRecordsDir: `--repo` is its own
+// authority. Source-anchor resolution greps the repo and never consults
+// the records map, so a missing or unwalkable `--records` must not take
+// the symbol verdicts down with it. The failure this pins: `resolveEdges`
+// used to return early in both cases, skipping the resolver entirely, so
+// a wrong `--records` silently suppressed resolution `--repo` alone would
+// have reached — a skipped check reading as an unchecked one.
+func TestSourceAnchorsResolveWithoutRecordsDir(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "widget.go"),
+		[]byte("package widget\n\nfunc KnownSymbol() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	dir := t.TempDir()
+	rec := filepath.Join(dir, "0001-anchored.md")
+	body := "# Recommendation 0001: Anchored\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSee `widget.go::KnownSymbol` for the site.\n"
+	if err := os.WriteFile(rec, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// The symbol edge must read `true` in every one of these, because in
+	// every one of them a valid --repo was supplied.
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"repo only, record by path", []string{"inspect", "--json", "--repo", repo, rec}},
+		{"repo plus records", []string{"inspect", "--json", "--repo", repo, "--records", dir, "0001"}},
+		{"repo plus unwalkable records", []string{"inspect", "--json", "--repo", repo,
+			"--records", filepath.Join(dir, "nonexistent"), rec}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, out, errb := runCapture(t, tc.args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errb)
+			}
+			var env struct {
+				Edges []struct {
+					Kind     string `json:"kind"`
+					To       string `json:"to"`
+					Resolved *bool  `json:"resolved"`
+				} `json:"edges"`
+			}
+			if err := json.Unmarshal([]byte(out), &env); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+			var seen int
+			for _, e := range env.Edges {
+				if !strings.Contains(e.To, "::") {
+					continue
+				}
+				seen++
+				if e.Resolved == nil {
+					t.Errorf("source anchor %q reads absent, but --repo was given", e.To)
+				} else if !*e.Resolved {
+					t.Errorf("source anchor %q reads false; the symbol is in the repo", e.To)
+				}
+			}
+			if seen == 0 {
+				t.Fatal("no source-anchor edge was projected; the fixture cannot pin the behaviour")
+			}
+		})
+	}
+
+	// The element half still goes absent with no corpus: that is the
+	// three-valued contract, not a regression.
+	code, out, errb := runCapture(t, "inspect", "--json", "--repo", repo, rec)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "KnownSymbol") {
+		t.Errorf("projection lost the anchor:\n%s", out)
+	}
+}

@@ -570,14 +570,21 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
 		}
 	}
 	if dir == "" {
+		// No corpus to check element targets against — but a source root
+		// is a separate authority. Symbol resolution reads `--repo` alone,
+		// so it still runs; only the element half goes absent.
+		scan.NewResolver(nil, *f.repo).Resolve(doc)
 		return
 	}
 	docs, _, err := scanDir(dir, *f.project)
 	if err != nil {
 		// Resolution is best-effort here: a records dir that cannot be
-		// walked leaves the edges unchecked, which is the honest state.
-		// It is never a reason to fail a projection of the record asked for.
+		// walked leaves the *element* edges unchecked, which is the honest
+		// state. It is never a reason to fail a projection of the record
+		// asked for — nor to withhold the source-anchor verdicts `--repo`
+		// can still reach on its own.
 		fmt.Fprintf(stderr, "note:unresolved-edges (%v)\n", err)
+		scan.NewResolver(nil, *f.repo).Resolve(doc)
 		return
 	}
 	scan.NewResolver(docs, *f.repo).Resolve(doc)
