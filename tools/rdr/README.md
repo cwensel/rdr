@@ -794,6 +794,26 @@ form (`signal: status`, with the qualifier). 7.1's first question, answered
 without opening a member body or grepping one — a grep for `home: OPEN`
 once lost the only open line to `| head` and reported none.
 
+## Cycles
+
+    rdr index --cycles              # --json for the rows
+
+Four shapes the flow cannot make progress through, and nothing from the
+relations that are symmetric by design (`cluster`, `peer-evidence`,
+`cross-cutting-owner`, `mentions` — a cycle there is the corpus working):
+
+| finding | over | what it means |
+| --- | --- | --- |
+| `ownership-cycle` | `predecessor` ∪ `overrides` ∪ `moved-to` | two records each claim to stand in for the other; no authority is named. `lint --locking` blocks on the pair the record is half of (`ownership:mutual`) |
+| `home-cycle` | Joint-check `home` → **Draft** record | deferrals wait on each other — a deadlock until one arc is broken. A home on a Final record is a ruling that exists, never an arc |
+| `home-ahead-of-lock` | one Final record | its Joint-check home is a Draft record; a ruling change there strands the lock |
+| `open-at-lock` | one Final record | it locked carrying an OPEN Joint-check |
+
+Strongly connected components (Tarjan), stable order, so the same corpus
+prints the same report. Found on first run: one mutual `overrides`
+(0106↔0112), three mutual `predecessor` pairs, no live home cycle, and
+four Final records whose homes sit on the two Drafts still in flight.
+
 ## §receipt — was it linted since it was last written?
 
     rdr receipt 0143          # 0: prints the lint's log line; 1: stopped:no-lint-receipt; 2: no log bound

@@ -38,6 +38,7 @@
 package lint
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -122,6 +123,9 @@ type Options struct {
 	Locking bool
 	// Now overrides the clock for the label-rule boundary in tests.
 	Now string
+	// Corpus is every record in the dir, when the caller has it, so a
+	// finding can read a peer: nil leaves peer-dependent checks unrun.
+	Corpus []*scan.Document
 }
 
 // Run lints one projected record. The document must already have been
@@ -407,6 +411,40 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 		out = append(out, f)
 	}
 
+	// Ownership must be a DAG. A record that overrides a peer while the
+	// peer overrides it back names no authority; the same for mutual
+	// predecessors and a moved-to that comes home. The full cycle walk is
+	// `index --cycles`; lint sees the pair its own record is half of.
+	for _, e := range d.Edges {
+		if !ownershipKind(e.Kind) {
+			continue
+		}
+		t := refRecord(e.To)
+		if t == "" || t == d.Record {
+			continue
+		}
+		for _, p := range opts.Corpus {
+			if p.Record != t {
+				continue
+			}
+			for _, back := range p.Edges {
+				if back.Kind == e.Kind && refRecord(back.To) == d.Record {
+					out = append(out, Finding{
+						Tier:      TierResolution,
+						Code:      "ownership:mutual",
+						Blocking:  blocks,
+						Element:   e.From,
+						Message:   string(e.Kind) + " names " + t + ", and " + t + " " + string(e.Kind) + " this record back — one of the two is wrong",
+						LineStart: e.Line,
+						LineEnd:   e.LineEnd,
+						Fix:       "decide which record holds the relation and remove the other side's line",
+					})
+					break
+				}
+			}
+		}
+	}
+
 	// A Peer-RDR assumption rests its claim on a peer. Citing the peer
 	// RECORD says which file to read; citing the peer ELEMENT says what
 	// in it the claim rests on — and it is the only form that survives
@@ -460,4 +498,18 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(b[i:])
+}
+
+func ownershipKind(k edge.Kind) bool {
+	return k == edge.Predecessor || k == edge.Overrides || k == edge.MovedTo
+}
+
+var recordRef = regexp.MustCompile(`\b(\d{4})\b`)
+
+// refRecord reads the record number out of an edge target.
+func refRecord(s string) string {
+	if m := recordRef.FindStringSubmatch(s); m != nil {
+		return m[1]
+	}
+	return ""
 }

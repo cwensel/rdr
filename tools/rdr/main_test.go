@@ -1193,3 +1193,58 @@ func TestIndexOpenJointFacet(t *testing.T) {
 		t.Errorf("--all --json should include the terminal record's open check:\n%s", out)
 	}
 }
+
+// TestIndexCyclesFacet: the four shapes the flow cannot progress through,
+// and nothing from the symmetric relations.
+func TestIndexCyclesFacet(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	head := func(num, title, status, meta string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: standard\n" + meta + "\n## Problem Statement\n\nSynthetic.\n"
+	}
+	// 0001 <-> 0002 override each other; 0003 <-> 0005 defer to each other's
+	// Draft home; 0004 (Final) has an OPEN check and a home on a Draft, and
+	// 0003's home on Final 0004 is a ruling, not a deferral; 0006/0007 cite
+	// each other as peer evidence only, which is symmetric and must not appear.
+	write("0001-a.md", head("0001", "A", "Draft", "- **Overrides**: cli/0002\n"))
+	write("0002-b.md", head("0002", "B", "Draft", "- **Overrides**: cli/0001\n"))
+	write("0003-c.md", head("0003", "C", "Draft", "")+"\nJoint-check: fired → 0004 (home: cli/0004 §Normative Contracts)\nJoint-check: fired → 0005 (home: cli/0005 §Normative Contracts)\n")
+	write("0004-d.md", head("0004", "D", "Final", "")+"\nJoint-check: fired → 0005 (home: cli/0005 §Normative Contracts)\nJoint-check: fired → 0003 (home: OPEN)\n")
+	write("0005-e.md", head("0005", "E", "Draft", "")+"\nJoint-check: fired → 0003 (home: cli/0003 §Normative Contracts)\n")
+	write("0006-f.md", head("0006", "F", "Final", "")+"\n## Critical Assumptions\n\n- **A1** peer\n  - **Method**: Peer-RDR\n  - **Evidence**: cli/0007:A1\n")
+	write("0007-g.md", head("0007", "G", "Final", "")+"\n## Critical Assumptions\n\n- **A1** peer\n  - **Method**: Peer-RDR\n  - **Evidence**: cli/0006:A1\n")
+
+	code, out, errb := runCapture(t, "index", "--cycles", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	for _, want := range []string{
+		"ownership-cycle     0001 0002  0001 overrides 0002; 0002 overrides 0001",
+		"home-cycle          0003 0005  Joint-check homes defer to each other: 0003 → 0005; 0005 → 0003",
+		"open-at-lock        0004 JC2",
+		"home-ahead-of-lock  0004 JC1",
+		"total 4 findings over 7 records",
+	} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+	if strings.Contains(out, "0006") || strings.Contains(out, "0007") {
+		t.Errorf("a symmetric relation was reported as a cycle:\n%s", out)
+	}
+
+	// lint sees the half of the ownership cycle its record is on, and it
+	// blocks at lock.
+	code, out, _ = runCapture(t, "lint", "--locking", "--records", dir, "0001")
+	if code != 1 || !strings.Contains(out, "ownership:mutual") {
+		t.Errorf("lint --locking 0001: exit %d, want 1 with ownership:mutual:\n%s", code, out)
+	}
+	if code, out, _ = runCapture(t, "lint", "--locking", "--records", dir, "0003"); code != 0 || strings.Contains(out, "ownership:mutual") {
+		t.Errorf("lint --locking 0003: exit %d, want 0 and no ownership finding:\n%s", code, out)
+	}
+}

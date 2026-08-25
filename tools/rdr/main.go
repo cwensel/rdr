@@ -67,6 +67,7 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --cluster-of NNNN           7.1's membership rule as a query
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
   --open-joint [--all]        open joint decisions: Joint-check (home: OPEN) lines + joint-decision Status forms
+  --cycles                    ownership cycles, Joint-check home cycles, homes ahead of a lock, OPEN checks on a Final
   --unresolved                typed edges with no target — record data errors
   --derived                   the unlabelled-element backlog per record
   --coverage                  the drift alarm: unclassified-line rate, unknowns
@@ -190,6 +191,9 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if *f.status || *f.inFlight {
 			return statusFacet(f, *f.inFlight, stdout, stderr)
 		}
+		if *f.cycles {
+			return cyclesFacet(f, stdout, stderr)
+		}
 		if *f.openJoint {
 			return openJointFacet(f, *f.all, stdout, stderr)
 		}
@@ -221,7 +225,7 @@ type flags struct {
 	backlinks, readme     optString
 	clusterOf             *string
 	unresolved, anchors   *bool
-	openJoint             *bool
+	openJoint, cycles     *bool
 	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
 }
@@ -252,6 +256,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		fs.Var(&f.backlinks, "backlinks", "the reverse edge table; =NNNN[:elem] answers who cites one target, mentions included")
 		f.clusterOf = fs.String("cluster-of", "", "the record's cluster by 7.1's membership rule")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
+		f.cycles = fs.Bool("cycles", false, "dependency shapes the flow cannot progress through: ownership cycles (predecessor/overrides/moved-to), Joint-check home cycles, and Final records whose home is Draft or whose check is OPEN")
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
 		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
@@ -880,7 +885,7 @@ func showsEdges(f *flags) bool {
 // when there is one. With no dir — a loose path, no --records and no
 // $RDR_RECORDS — nothing is checked, and every edge says `resolved`
 // absent rather than claiming a verdict it did not reach.
-func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
+func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Document {
 	dir := *f.records
 	if dir == "" && doc.Path != "" {
 		// A record inspected by path resolves against its own directory:
@@ -895,7 +900,7 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
 		// is a separate authority. Symbol resolution reads `--repo` alone,
 		// so it still runs; only the element half goes absent.
 		scan.NewResolver(nil, *f.repo).Resolve(doc)
-		return
+		return nil
 	}
 	docs, _, err := scanDir(dir, *f.project)
 	if err != nil {
@@ -906,9 +911,10 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) {
 		// can still reach on its own.
 		fmt.Fprintf(stderr, "note:unresolved-edges (%v)\n", err)
 		scan.NewResolver(nil, *f.repo).Resolve(doc)
-		return
+		return nil
 	}
 	scan.NewResolver(docs, *f.repo).Resolve(doc)
+	return docs
 }
 
 // scanDir scans every record in a directory. It is the corpus builder
@@ -1091,6 +1097,7 @@ func lintCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 			return code
 		}
 		scan.NewResolver(docs, *f.repo).ResolveAll(docs)
+		opts.Corpus = docs
 	case 1:
 		path, err := resolve(args[0], *f.records)
 		if err != nil {
@@ -1106,7 +1113,7 @@ func lintCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 			fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
 			return 2
 		}
-		resolveEdges(doc, f, stderr)
+		opts.Corpus = resolveEdges(doc, f, stderr)
 		docs = []*scan.Document{doc}
 	default:
 		fmt.Fprintln(stderr, "stopped:usage (lint takes at most one NNNN or path)")
