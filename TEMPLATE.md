@@ -545,6 +545,11 @@ deferred. State the specific test or proof.]
 
 ### Cross-Cutting Concerns
 
+[Retained at lock — this sub-section stays in the RDR
+when the other gate responses move to gate.md, because
+peer RDRs cite it as `cli/NNNN:G-cross-cutting` and an
+element that is not projected cannot be cited.]
+
 [List only concerns that apply to this RDR. For each,
 state either how this RDR addresses it, or which peer
 RDR owns the project-wide policy this RDR conforms

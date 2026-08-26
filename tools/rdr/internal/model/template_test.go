@@ -386,6 +386,54 @@ func TestGateItemsMatchTemplate(t *testing.T) {
 	}
 }
 
+// retainedMarker is the template's declaration that a gate sub-section
+// stays in the record at lock, while the rest of the responses move to
+// gate.md.
+var retainedMarker = regexp.MustCompile(`\[Retained at lock\b`)
+
+// TestGateItemRetentionMatchesTemplate binds the Retained column to the
+// template's own marker. Which gate item survives the lock is a template
+// fact — a reader that spelled it out for itself would be a second source
+// for it, and the two would drift the first time the template changed its
+// mind.
+func TestGateItemRetentionMatchesTemplate(t *testing.T) {
+	body := sectionBody(t, "## Finalization Gate")
+	// Walk the gate's `###` sub-sections, reading each one's own body.
+	marked := map[string]bool{}
+	var cur string
+	var buf []string
+	flush := func() {
+		if cur != "" {
+			marked[cur] = retainedMarker.MatchString(strings.Join(buf, "\n"))
+		}
+		buf = nil
+	}
+	for _, l := range strings.Split(body, "\n") {
+		if strings.HasPrefix(l, "### ") {
+			flush()
+			cur = strings.TrimSpace(strings.TrimPrefix(l, "### "))
+			continue
+		}
+		buf = append(buf, l)
+	}
+	flush()
+	for _, g := range GateItems {
+		want, ok := marked[g.Section]
+		if !ok {
+			t.Errorf("GateItems names %q, which TEMPLATE.md's gate does not", g.Section)
+			continue
+		}
+		if g.Retained != want {
+			t.Errorf("%s: GateItems Retained=%v, TEMPLATE.md says %v\n"+
+				"Update GateItems in the same commit as the template.",
+				g.Section, g.Retained, want)
+		}
+		if GateItemRetained(g.Key) != want {
+			t.Errorf("%s: GateItemRetained(%q)=%v, want %v", g.Section, g.Key, GateItemRetained(g.Key), want)
+		}
+	}
+}
+
 func TestDecisionClassOf(t *testing.T) {
 	for label, want := range map[string]string{
 		"Identity":                           "Identity",

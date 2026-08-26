@@ -313,12 +313,33 @@ func firstWord(s string) string {
 // GateItems maps each Finalization Gate sub-section onto its G-key, so an
 // inlined gate response (epochs A and B) is addressable as `NNNN:G-scope`
 // regardless of the heading's exact wording.
-var GateItems = []struct{ Section, Key string }{
-	{"Contradiction Check", "contradiction"},
-	{"Assumption Verification", "assumptions"},
-	{"Scope Verification", "scope"},
-	{"Cross-Cutting Concerns", "cross-cutting"},
-	{"Proportionality", "proportionality"},
+//
+// Retained records the template's `[Retained at lock — …]` marker: at lock
+// the gate's responses move to gate.md, but a retained item STAYS in the
+// record. Which item that is, and whether there is one at all, is the
+// template's to say — a rule the reader spelled out for itself would be a
+// second source for one fact, and the two would drift. The same-commit
+// test binds this column to the marker.
+var GateItems = []struct {
+	Section, Key string
+	Retained     bool
+}{
+	{"Contradiction Check", "contradiction", false},
+	{"Assumption Verification", "assumptions", false},
+	{"Scope Verification", "scope", false},
+	{"Cross-Cutting Concerns", "cross-cutting", true},
+	{"Proportionality", "proportionality", false},
+}
+
+// GateItemRetained reports whether a G-key names an item the template
+// keeps in the record at lock.
+func GateItemRetained(key string) bool {
+	for _, g := range GateItems {
+		if g.Key == key {
+			return g.Retained
+		}
+	}
+	return false
 }
 
 // GateItemKey returns the G-key for a canonical gate sub-section, or "".

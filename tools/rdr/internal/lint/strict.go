@@ -742,6 +742,12 @@ func hasGatePointer(d *scan.Document, n scan.Node) bool {
 // the gate node — which is the evidence that the responses are in fact
 // inlined, rather than the section merely being empty.
 //
+// An item the template RETAINS at lock does not count: it is in the record
+// on purpose, and a correctly locked gate that keeps it would otherwise be
+// reported as unmigrated forever, with nothing to repair. Which items
+// those are is `model.GateItems`' to answer, from the template's own
+// marker — never a name written down here.
+//
 // A gate element's Section is its OWN sub-heading (`NNNN:§contradiction-check`),
 // never the gate's, because the projector reads one element per sub-heading
 // under the gate and stamps each with the node it came from. Matching the
@@ -756,18 +762,9 @@ func hasGateElements(d *scan.Document, gate scan.Node) bool {
 		}
 	}
 	for _, e := range d.Elements {
-		if e.Kind == ident.Gate && under[e.Section] && e.Key != crossCutting {
+		if e.Kind == ident.Gate && under[e.Section] && !model.GateItemRetained(e.Key) {
 			return true
 		}
 	}
 	return false
 }
-
-// crossCutting is the one gate item a locked record KEEPS. The other four
-// judge this record at this lock and no peer cites them; Cross-Cutting
-// Concerns states a project-wide policy the template tells authors to
-// point at from other RDRs ("which peer RDR owns the policy"), and the
-// corpus does — every cross-record citation into any gate section targets
-// this item and no other. It stays in the record so it stays projected,
-// and a record holding only this one is correctly locked, not inlined.
-const crossCutting = "cross-cutting"
