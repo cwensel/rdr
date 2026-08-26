@@ -7,7 +7,7 @@
 //
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--in-flight|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
-//	rdr lint [<NNNN|path>] [--locking] [--strict] [--json] [--records DIR]
+//	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr version
 //
 // Exit codes:
@@ -56,7 +56,7 @@ const usage = `rdr — read-only projector for RDR markdown records
 usage:
   rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--all] [--project P] [--records DIR] [--repo DIR]
   rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
-  rdr lint [<NNNN|path>] [--locking] [--strict] [--json] [--records DIR]
+  rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr version
 
@@ -226,7 +226,7 @@ type flags struct {
 	clusterOf             *string
 	unresolved, anchors   *bool
 	openJoint, cycles     *bool
-	locking, strict       *bool
+	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
 }
 
@@ -263,7 +263,6 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
-		f.strict = fs.Bool("strict", false, "judge every record against the current template, terminal ones included, and attach a machine-applicable patch to each mechanical finding; changes no verdict")
 	case "receipt":
 		f.since = fs.String("since", "", "RFC3339 instant the lint must postdate (default: the record's mtime)")
 	}
@@ -1096,7 +1095,7 @@ func recordOfID(id string) string {
 // findings-but-no-block run still exits 0: advice that stopped a stage
 // would be a block wearing another name.
 func lintCmd(args []string, f *flags, stdout, stderr io.Writer) int {
-	opts := lint.Options{Locking: *f.locking, Strict: *f.strict}
+	opts := lint.Options{Locking: *f.locking}
 
 	var docs []*scan.Document
 	switch len(args) {

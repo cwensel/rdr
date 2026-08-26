@@ -1,15 +1,18 @@
 package lint
 
-// Strict is the migration reading of the corpus.
+// The current-template reading of a record: every record judged against
+// the one TEMPLATE.md, each mechanical finding carrying the bytes that
+// would repair it.
 //
-// The ordinary conformance tier speaks only about live records, because a
-// terminal record's CONTENT is never amended and advice no one is
-// permitted to act on is noise. But a terminal record's STRUCTURE may be
-// brought to the current TEMPLATE.md by tooling, ids and content bytes
-// preserved (README §Identifiers). Strict is the pass that prices that
-// migration: it judges every record against the current template and
-// says, line by line, exactly what changing it would cost — before
-// anything is applied.
+// This was `--strict`, an opt-in beside a narrower default that spoke
+// only about live records. The narrower reading was a kindness aimed at
+// the wrong thing: a terminal record's CONTENT is never amended, but its
+// STRUCTURE may be brought to the current TEMPLATE.md by tooling with ids
+// and content bytes preserved (README §Identifiers), so the advice was
+// always actionable and withholding it only hid what a migration costs.
+// What the flag actually bought — a quieter report — is the lint tier's
+// job, and the tier already does it: everything here is advisory and
+// blocks nothing. So there is one reading, and this is it.
 //
 // WHY A PATCH FIELD AND NOT A `migrate` VERB. The computation is the
 // same either way. A patch is inspectable before it touches a file, it
@@ -52,10 +55,10 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
-// strictFindings are the rules that run only under --strict: current-
-// template conformance on every record, each mechanical finding carrying
-// the bytes that would repair it.
-func strictFindings(d *scan.Document) []Finding {
+// templateFindings are the current-template conformance rules, run on
+// every record, each mechanical finding carrying the bytes that would
+// repair it.
+func templateFindings(d *scan.Document) []Finding {
 	var out []Finding
 	out = append(out, headingFindings(d)...)
 	out = append(out, labelFindings(d)...)
@@ -67,10 +70,9 @@ func strictFindings(d *scan.Document) []Finding {
 
 // --- headings ---------------------------------------------------------
 
-// headingFindings re-reads every heading against the CURRENT template
-// which is the difference strict
-// makes: a heading a frozen record wrote may be a level-variant or a
-// legacy alias today, and that gap is precisely the migration.
+// headingFindings re-reads every heading against the CURRENT template: a
+// heading a frozen record wrote may be a level-variant or a legacy alias
+// today, and that gap is precisely the migration.
 //
 // Two codes, because they are two different edits with very different
 // risks, and only one of them is safe to apply mechanically.

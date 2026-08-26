@@ -242,13 +242,13 @@ func usageFacet(cmd string, f *flags) string {
 		}
 		return "graph"
 	case "lint":
-		// Strict wins over locking: it is the whole-corpus migration
-		// pass, an order of magnitude more work than either ordinary
-		// lint, and an audit that could not tell it from a gate check
-		// would misread the cost of both.
-		if f.strict != nil && *f.strict {
-			return "strict"
-		}
+		// Two facets, because two things call lint: a gate, which needs
+		// the verdict, and a stage reading mid-flow, which needs the
+		// advice. There was a third, `strict`, when the whole-corpus
+		// migration reading was opt-in; it is now what both of these
+		// run, so it names no distinct call and the log stops claiming
+		// one. Rows written before that carry it, and mean what they
+		// meant.
 		if f.locking != nil && *f.locking {
 			return "locking"
 		}

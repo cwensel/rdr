@@ -173,7 +173,7 @@ func TestStrictPatchesPreserveTheGraph(t *testing.T) {
 	after := map[string][]byte{}
 	patched := 0
 	for _, p := range paths {
-		r := Run(pre[p], Options{Strict: true, Corpus: docsOf(pre)})
+		r := Run(pre[p], Options{Corpus: docsOf(pre)})
 		ps := patchesOf(r)
 		patched += len(ps)
 		lines := strings.Split(string(before[p]), "\n")
@@ -221,7 +221,7 @@ func TestStrictPatchesAreIdempotent(t *testing.T) {
 		lines := strings.Split(string(raw), "\n")
 		for pass := 1; pass <= 2; pass++ {
 			d := scan.Bytes([]byte(strings.Join(lines, "\n")), scan.Options{})
-			ps := patchesOf(Run(d, Options{Strict: true}))
+			ps := patchesOf(Run(d, Options{}))
 			if pass == 2 && len(ps) > 0 {
 				t.Errorf("%s: %d patches still proposed after applying them once", p, len(ps))
 				break
@@ -231,33 +231,19 @@ func TestStrictPatchesAreIdempotent(t *testing.T) {
 	}
 }
 
-// TestNonStrictIsUnchanged: every finding a non-strict run produces is
-// exactly what it produced before this change, and none of them carries a
-// patch. The patch field is strict's alone — a stage linting a live
-// record mid-flow gets the same advice it always got.
-func TestNonStrictIsUnchanged(t *testing.T) {
-	for _, p := range fixtures(t) {
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			t.Fatal(err)
-		}
-		d := scan.Bytes(raw, scan.Options{})
-		for _, f := range Run(d, Options{}).Findings {
-			if f.Patch != nil {
-				t.Errorf("%s: %s carries a patch outside --strict", p, f.Code)
-			}
-		}
-	}
-}
-
-// TestStrictSpeaksOnTerminalRecords: the tier lift is the point of the
-// flag. A terminal record gets no conformance finding ordinarily —
-// advice no one may act on is noise — and gets them under strict,
-// because its structure may be migrated even though its content may not.
+// TestConformanceAdvisesAndNeverBlocks: the invariant that let the
+// current-template reading become the only one.
 //
-// The verdict is unchanged either way. Strict prices a migration; it
-// does not fail a record for needing one.
-func TestStrictSpeaksOnTerminalRecords(t *testing.T) {
+// A terminal record is told what migrating it would cost — it gets
+// conformance findings, because its STRUCTURE may be brought to the
+// template even though its CONTENT may not — and it still verdicts PASS.
+// Conformance advises; it does not fail a record for needing a migration.
+//
+// This is the property the `--strict` flag used to protect by being
+// off. If it ever broke, every gate in the flow would start blocking on
+// records nobody is permitted to rewrite, so it is pinned directly:
+// findings present, verdict unmoved, and nothing marked blocking.
+func TestConformanceAdvisesAndNeverBlocks(t *testing.T) {
 	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md"} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", name))
 		if err != nil {
@@ -265,29 +251,33 @@ func TestStrictSpeaksOnTerminalRecords(t *testing.T) {
 		}
 		d := scan.Bytes(raw, scan.Options{})
 
-		plain := Run(d, Options{})
-		if !plain.Terminal {
-			t.Fatalf("%s is not terminal; the fixture no longer tests the tier lift", name)
-		}
-		for _, f := range plain.Findings {
-			if f.Tier == TierConformance {
-				t.Errorf("%s: terminal record got conformance finding %s without --strict", name, f.Code)
+		// Both readings: mid-flow and at a lock gate. Locking governs
+		// resolution delivery, never conformance, so neither may block
+		// on a conformance finding.
+		for _, opts := range []Options{{}, {Locking: true}} {
+			r := Run(d, opts)
+			if !r.Terminal {
+				t.Fatalf("%s is not terminal; the fixture no longer tests the rule", name)
 			}
-		}
-
-		strict := Run(d, Options{Strict: true})
-		n := 0
-		for _, f := range strict.Findings {
-			if f.Tier == TierConformance {
+			n := 0
+			for _, f := range r.Findings {
+				if f.Tier != TierConformance {
+					continue
+				}
 				n++
+				if f.Blocking {
+					t.Errorf("%s (locking=%v): conformance finding %s is blocking",
+						name, opts.Locking, f.Code)
+				}
 			}
-		}
-		if n == 0 {
-			t.Errorf("%s: terminal record got no conformance finding under --strict", name)
-		}
-		if strict.Verdict != plain.Verdict {
-			t.Errorf("%s: strict changed the verdict %s -> %s; it must change no verdict",
-				name, plain.Verdict, strict.Verdict)
+			if n == 0 {
+				t.Errorf("%s (locking=%v): terminal record got no conformance finding",
+					name, opts.Locking)
+			}
+			if r.Verdict != "PASS" {
+				t.Errorf("%s (locking=%v): verdict %s; conformance must not fail a record",
+					name, opts.Locking, r.Verdict)
+			}
 		}
 	}
 }
@@ -308,7 +298,7 @@ func TestJudgmentFindingsCarryNoPatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := scan.Bytes(raw, scan.Options{})
-		for _, f := range Run(d, Options{Strict: true}).Findings {
+		for _, f := range Run(d, Options{}).Findings {
 			if strings.HasPrefix(f.Code, "parse:") || judgment[f.Code] {
 				if f.Patch != nil {
 					t.Errorf("%s: judgment finding %s carries a patch", p, f.Code)
@@ -329,7 +319,7 @@ func TestRenameDeclinesOnCollision(t *testing.T) {
 	d := scan.Bytes(raw, scan.Options{})
 	seen := map[string]int{}
 	patched := map[string]int{}
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "section:legacy-name" {
 			continue
 		}
@@ -357,7 +347,7 @@ func TestLabelPatchWritesTheDerivedID(t *testing.T) {
 	}
 	d := scan.Bytes(raw, scan.Options{})
 	n := 0
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "label:missing" || f.Patch == nil {
 			continue
 		}
@@ -418,7 +408,7 @@ A quoted record writes cli/0092 C3 inside a fence.
 ` + "```" + `
 `
 	d := scan.Bytes([]byte(src), scan.Options{})
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "citation:form" || f.Patch == nil {
 			continue
 		}
@@ -483,7 +473,7 @@ func TestOneCitationPatchPerLine(t *testing.T) {
 	var patches []*Patch
 	seen := map[*Patch]bool{}
 	n := 0
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "citation:form" {
 			continue
 		}
@@ -525,7 +515,7 @@ func TestRenameCarriesNoPatch(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := scan.Bytes(raw, scan.Options{})
-		for _, f := range Run(d, Options{Strict: true}).Findings {
+		for _, f := range Run(d, Options{}).Findings {
 			if f.Code != "section:legacy-name" {
 				continue
 			}
@@ -582,13 +572,13 @@ func TestPromotionThatCapturesASiblingIsNotPatched(t *testing.T) {
 		"## Proposed Solution\n\nBody.\n"
 
 	d := scan.Bytes([]byte(captures), scan.Options{})
-	f := find(t, Run(d, Options{Strict: true}), "heading:level")
+	f := find(t, Run(d, Options{}), "heading:level")
 	if f.Patch != nil {
 		t.Errorf("promotion that captures a sibling was patched: %q", f.Patch.Text)
 	}
 
 	d2 := scan.Bytes([]byte(safe), scan.Options{})
-	f2 := find(t, Run(d2, Options{Strict: true}), "heading:level")
+	f2 := find(t, Run(d2, Options{}), "heading:level")
 	if f2.Patch == nil {
 		t.Error("a promotion that captures nothing should still be patched")
 	}
@@ -601,7 +591,7 @@ func TestPromotionThatCapturesASiblingIsNotPatched(t *testing.T) {
 			before = n.ID
 		}
 	}
-	out := apply(strings.Split(safe, "\n"), patchesOf(Run(d2, Options{Strict: true})))
+	out := apply(strings.Split(safe, "\n"), patchesOf(Run(d2, Options{})))
 	for _, n := range scan.Bytes([]byte(strings.Join(out, "\n")), scan.Options{}).Outline {
 		if n.Canonical == "Critical Assumptions" {
 			after = n.ID
@@ -634,7 +624,7 @@ func TestPositionallyReadElementsAreNotLabelled(t *testing.T) {
 	for _, e := range d.Elements {
 		beforeIDs[e.ID] = true
 	}
-	ps := patchesOf(Run(d, Options{Strict: true}))
+	ps := patchesOf(Run(d, Options{}))
 	out := apply(strings.Split(src, "\n"), ps)
 	nd := scan.Bytes([]byte(strings.Join(out, "\n")), scan.Options{})
 
@@ -663,7 +653,7 @@ func TestIndentedFenceGetsNoLabel(t *testing.T) {
 		"  - **Evidence**: the block below.\n\n" +
 		"    ```normative\n    Nested contract text.\n    ```\n"
 	d := scan.Bytes([]byte(src), scan.Options{})
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code == "label:missing" && strings.Contains(f.Element, ":C") && f.Patch != nil {
 			t.Errorf("indented fence got a label patch: %q at %d", f.Patch.Text, f.Patch.LineStart)
 		}
@@ -691,7 +681,7 @@ func TestSectionCitationsAreNotRewritten(t *testing.T) {
 	scan.NewResolver(docs, "").ResolveAll(docs)
 
 	elements := 0
-	for _, f := range Run(d, Options{Strict: true}).Findings {
+	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "citation:form" || f.Patch == nil {
 			continue
 		}
@@ -732,7 +722,7 @@ func TestGateInlineFiresOnInlinedGate(t *testing.T) {
 			t.Fatal(err)
 		}
 		d := scan.Bytes(raw, scan.Options{})
-		r := Run(d, Options{Strict: true})
+		r := Run(d, Options{})
 		if got := has(r, "gate:inline"); got != tc.want {
 			t.Errorf("%s: gate:inline fired = %v, want %v (codes: %v)",
 				tc.name, got, tc.want, codes(r))
@@ -775,7 +765,7 @@ Responses: 0031-split-gate/artifacts/gate.md (Gate PASS 2026-08-26)
   unquoted-identifier rule.
 `
 	d := scan.Bytes([]byte(rec), scan.Options{})
-	r := Run(d, Options{Strict: true})
+	r := Run(d, Options{})
 	if has(r, "gate:inline") {
 		t.Errorf("gate:inline fired on a correctly split gate (codes: %v)", codes(r))
 	}

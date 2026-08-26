@@ -239,33 +239,40 @@ pointer (inline responses move to `artifacts/gate.md`); evidence-tree
 location. After migration, A, C, D, S, RT and ALT carry written ids; BR
 and F carry none. There is one schema — the current template — and a
 section a record never had stays absent, which is not a finding on a
-terminal record. Delivery is `lint --strict` fix fields applied by a
+terminal record. Delivery is `lint` fix fields applied by a
 script, never a write verb: this tool still writes no record. Live
 records get labels the same way, in-pass.
 
 ## Lint
 
-`rdr lint [<NNNN>] [--locking] [--strict]` is the conformance authority: one pass,
+`rdr lint [<NNNN>] [--locking]` is the conformance authority: one pass,
 three severities, and a rule about which records each may speak about.
 With no argument it lints the whole records dir. It exits 0 on PASS —
 findings or not — and 1 when a finding blocks a lock.
 
+There is ONE reading, and it is the strict one: every record judged
+against the current TEMPLATE.md, terminal ones included, each mechanical
+finding carrying the bytes that would repair it. `--locking` is the only
+lint flag, and it changes delivery, never what is found.
+
 | tier | scope | blocks? |
 | --- | --- | --- |
 | `parse` | every record | never |
-| `conformance` | LIVE records only | never |
+| `conformance` | every record | never |
 | `resolution` | every record | at a lock gate, on a live record |
 
 **parse** republishes the scanner's warnings channel. On a terminal record
 a parse warning is a projector bug — the file cannot have changed, so the
 scanner is what is wrong — and the fix is a fixture.
 
-**conformance** is migration advice for a record that is going to be
-rewritten anyway: unlabelled contracts, a Required section the current
-template carries and this record does not. It is phrased for the
-stage already holding the file open, and it never blocks. Terminal records
-never generate it, because advice no one is permitted to act on is noise.
-Two exclusions keep it honest: a subsection whose parent is absent is not
+**conformance** is migration advice: unlabelled contracts, a Required
+section the current template carries and this record does not, a heading
+written at a non-canonical level, a citation in a non-canonical form. It
+is phrased for the stage already holding the file open, and it never
+blocks — on ANY record. Terminal records get it too, because a frozen
+record's CONTENT is never amended but its STRUCTURE may be migrated
+(§Identifiers), so the advice is actionable and withholding it only hid
+what a migration costs. Two exclusions keep it honest: a subsection whose parent is absent is not
 separately missing, and a gate subsection under a `gate.md` pointer is not
 missing at all — at lock those responses move out of the
 record on purpose. Cross-Cutting Concerns is the exception it keeps: it
@@ -289,20 +296,20 @@ legacy and escape the check the rule exists to apply. `Date` is written by
 Seed on every record and says when it entered the flow, which is what the
 grandfathering rule actually asks.
 
-### `--strict`: the migration reading
+### Patches: the migration, priced
 
-`rdr lint --strict` judges EVERY record against the current TEMPLATE.md,
-terminal ones included, and attaches a machine-applicable `patch` —
-`{line_start, line_end, op, text}`, where `op` is `replace`, `prepend` or
-`insert` — to each finding whose repair is computed rather than judged.
-It changes no verdict: everything it adds is advisory, and a strict run
-of a corpus that blocks nothing still exits 0.
+Lint attaches a machine-applicable `patch` — `{line_start, line_end, op,
+text}`, where `op` is `replace`, `prepend` or `insert` — to each finding
+whose repair is computed rather than judged. It changes no verdict:
+everything it adds is advisory, and a corpus that blocks nothing exits 0.
 
-The tier lift is the point. Ordinary conformance speaks only about live
-records because a terminal record's content is never amended. Its
-STRUCTURE may be migrated (§Identifiers), and strict is the pass that
-prices that migration before anything is applied. Delivery is still a
-patch field read by a script; this tool writes no record.
+This was `--strict`, an opt-in beside a narrower default that spoke only
+about live records. The narrower reading was a kindness aimed at the
+wrong thing: a terminal record's STRUCTURE may be migrated
+(§Identifiers), so the advice was always actionable, and withholding it
+only hid the cost. What the flag bought — a quieter report — is the
+tier's job, and the tier already does it. Delivery is still a patch field
+read by a script; this tool writes no record.
 
 | rule | patched | withheld when |
 | --- | --- | --- |
@@ -312,11 +319,13 @@ patch field read by a script; this tool writes no record.
 | `section:legacy-name` | never | always — see below |
 | `gate:inline` | never | always — a cross-file move |
 
-**The patch set is a fixpoint, applied bottom-up.** A second strict pass
-over the result proposes nothing: conformance is reached in ONE pass, and
-there is no iterate-until-clean loop to run or bridge between. Over the
-143-record corpus that is 911 patches, after which the graph — every
-element id and every resolved edge — is unchanged. Two properties an
+**The patch set is a fixpoint, applied bottom-up.** A second pass over
+the result proposes nothing: conformance is reached in ONE pass, and
+there is no iterate-until-clean loop to run or bridge between. Applying
+a set leaves the graph — every element id and every resolved edge —
+unchanged. That was 911 patches when the rule landed; the 144-record
+corpus has since been migrated past all of them and proposes none, so
+what remains are the findings whose repair is withheld by design. Two properties an
 applier depends on: patches are applied bottom-up by `line_start`, and
 findings that repair the same line SHARE one patch, so it must
 deduplicate by identity before applying.
@@ -350,8 +359,9 @@ The stability properties are tests, not intentions:
 | `TestOutlineNestsAndCovers` | no non-blank line lies outside the outline |
 | `TestSelectRoundTripsToBytes` | `--select` prints exactly the record's lines |
 | `TestJSONIsDeterministic` | same bytes, same JSON |
-| `TestStrictPatchesPreserveTheGraph` | applying every `--strict` patch moves no element id, section id or edge |
-| `TestStrictPatchesAreIdempotent` | a second strict pass over the result proposes nothing |
+| `TestStrictPatchesPreserveTheGraph` | applying every patch moves no element id, section id or edge |
+| `TestStrictPatchesAreIdempotent` | a second pass over the result proposes nothing |
+| `TestConformanceAdvisesAndNeverBlocks` | a terminal record gets conformance findings and still verdicts PASS, locking or not |
 
 ### What the scanner reads, and what it does not judge
 

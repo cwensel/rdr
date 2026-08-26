@@ -86,8 +86,8 @@ type Finding struct {
 	// exact. It is the machine-applicable half of Fix: Fix says what to
 	// do in prose for a reader, Patch says it in lines for a script.
 	//
-	// It is present only under Options.Strict, and only on the rules
-	// whose repair is computed rather than judged. A finding that needs a
+	// It is present only on the rules whose repair is computed rather
+	// than judged. A finding that needs a
 	// decision — which of two records owns a relation, which element a
 	// bare peer citation meant, which section a colliding label belongs
 	// to — carries Fix and no Patch, because a guessed patch applied in
@@ -117,7 +117,7 @@ type Finding struct {
 //     deduplicate by pointer identity before applying. Computing a
 //     patch per citation against the original line would make the
 //     second overwrite the first, silently.
-//   - Applying the full set is a FIXPOINT: a second strict pass over the
+//   - Applying the full set is a FIXPOINT: a second pass over the
 //     result proposes nothing. Conformance is reached in one pass; there
 //     is no iterate-until-clean step and nothing to bridge between runs.
 type Patch struct {
@@ -177,20 +177,6 @@ type Options struct {
 	// mid-flow far more often than at lock, and a blocking verdict there
 	// would be read as a stop when it is a to-do.
 	Locking bool
-	// Strict judges EVERY record against the CURRENT template, and
-	// attaches a Patch to every finding whose repair is mechanical.
-	//
-	// Without it the conformance tier speaks only about live records,
-	// because a terminal record's content is never amended and advice no
-	// one may act on is noise. Strict is the migration reading of the
-	// same corpus: a terminal record's STRUCTURE may be brought to the
-	// current template by tooling, ids and content bytes preserved
-	// (README §Identifiers), and this is the pass that says what that
-	// costs, line by line, before anything is applied.
-	//
-	// It changes no verdict. Every finding strict adds is advisory, and a
-	// strict run of a corpus that blocks nothing still exits 0.
-	Strict bool
 	// Now overrides the clock for the label-rule boundary in tests.
 	Now string
 	// Corpus is every record in the dir, when the caller has it, so a
@@ -215,13 +201,16 @@ func Run(d *scan.Document, opts Options) Report {
 		Findings: []Finding{},
 	}
 
+	// Conformance speaks on EVERY record, terminal ones included. A
+	// terminal record's CONTENT is never amended, but its STRUCTURE may
+	// be brought to the current template by tooling with ids and content
+	// bytes preserved (README §Identifiers) — so the advice is
+	// actionable, and withholding it only hid what a migration costs.
+	// It still blocks nothing: `terminal` continues to govern DELIVERY
+	// in resolutionFindings, which is where the distinction belongs.
 	r.Findings = append(r.Findings, parseFindings(d)...)
-	if !terminal || opts.Strict {
-		r.Findings = append(r.Findings, conformanceFindings(d, opts)...)
-	}
-	if opts.Strict {
-		r.Findings = append(r.Findings, strictFindings(d)...)
-	}
+	r.Findings = append(r.Findings, conformanceFindings(d, opts)...)
+	r.Findings = append(r.Findings, templateFindings(d)...)
 	r.Findings = append(r.Findings, resolutionFindings(d, terminal, opts)...)
 
 	sort.SliceStable(r.Findings, func(i, j int) bool {
