@@ -61,11 +61,16 @@ not a human pause:
 
 - NOT READY (any blocker) — report the named blockers and the stage each
   returns to. Flip NOTHING. Stop here.
-- READY — lock immediately: write the five responses to {ARTIFACT_DIR}/gate.md
-  (on a re-lock, overwrite it — gate.md is the current lock's record), replace
-  the RDR's Finalization Gate section body (including its ### sub-sections)
-  with the single pointer line
-  `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`, set
+- READY — lock immediately: write responses 1, 2, 3 and 5 to
+  {ARTIFACT_DIR}/gate.md (on a re-lock, overwrite it — gate.md is the current
+  lock's record), and replace those four `###` sub-sections in the RDR's
+  Finalization Gate with the single pointer line
+  `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`.
+  **`### Cross-Cutting Concerns` STAYS in the record**, below the pointer:
+  it is the one gate item written to be cited BY OTHER RDRs (this prompt's
+  own item 4 says "which peer RDR owns the policy"), so it stays projected
+  and addressable as `cli/NNNN:G-cross-cutting`. The other four judge this
+  record at this lock and no peer cites them. Then set
   Status to Final, and **flip this RDR's README index row to Final** (the row
   seed added at Draft, updated in place; correct Title/Priority only if
   drifted). If the row is missing (a pre-seed RDR), add

@@ -752,3 +752,41 @@ func TestGateInlineFiresOnInlinedGate(t *testing.T) {
 		}
 	}
 }
+
+// TestGateInlineIgnoresARetainedCrossCuttingConcerns: a locked record keeps
+// `### Cross-Cutting Concerns` — it is the one gate item peers cite, so it
+// stays projected as `NNNN:G-cross-cutting` — and moves the other four to
+// gate.md. That record is correctly locked, and a rule that read any gate
+// element as "inlined" would report it forever with nothing to repair.
+func TestGateInlineIgnoresARetainedCrossCuttingConcerns(t *testing.T) {
+	const rec = `# Recommendation 0031: Split gate
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+Responses: 0031-split-gate/artifacts/gate.md (Gate PASS 2026-08-26)
+
+### Cross-Cutting Concerns
+
+- **Character encoding**: schema names fold ASCII-only, per PostgreSQL's
+  unquoted-identifier rule.
+`
+	d := scan.Bytes([]byte(rec), scan.Options{})
+	r := Run(d, Options{Strict: true})
+	if has(r, "gate:inline") {
+		t.Errorf("gate:inline fired on a correctly split gate (codes: %v)", codes(r))
+	}
+	// The retained item must still be a projected, citable element.
+	var found bool
+	for _, e := range d.Elements {
+		if e.ID == "0031:G-cross-cutting" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("0031:G-cross-cutting is not projected; peers cite it by that id")
+	}
+}

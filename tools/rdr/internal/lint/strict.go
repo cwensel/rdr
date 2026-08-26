@@ -114,9 +114,9 @@ func headingFindings(d *scan.Document) []Finding {
 		switch m.Kind {
 		case model.MatchLevelVariant:
 			f := Finding{
-				Tier:      TierConformance,
-				Code:      "heading:level",
-				Element:   n.ID,
+				Tier:    TierConformance,
+				Code:    "heading:level",
+				Element: n.ID,
 				Message: "the current template writes " + n.Heading + " at level " +
 					itoa(m.Canonical.Level) + "; this record writes it at " + itoa(n.Level),
 				LineStart: n.LineStart,
@@ -147,9 +147,9 @@ func headingFindings(d *scan.Document) []Finding {
 			out = append(out, f)
 		case model.MatchLegacyAlias, model.MatchCaseVariant:
 			out = append(out, Finding{
-				Tier:      TierConformance,
-				Code:      "section:legacy-name",
-				Element:   n.ID,
+				Tier:    TierConformance,
+				Code:    "section:legacy-name",
+				Element: n.ID,
 				Message: "heading " + n.Heading + " is a recognised predecessor of the current template's " +
 					m.Canonical.Name,
 				LineStart: n.LineStart,
@@ -360,8 +360,8 @@ func indent(line string) int {
 // boldLead matches a list item whose text opens with a bold run, through
 // any leading indent, bullet and task-list checkbox:
 //
-//	  - [x] **Descriptor/instance as separate types is correct.** Every…
-//	  1. **The values.** …
+//   - [x] **Descriptor/instance as separate types is correct.** Every…
+//     1. **The values.** …
 //
 // The three capture groups are the prefix to keep, the bold run's opening
 // delimiter, and everything after it.
@@ -756,9 +756,18 @@ func hasGateElements(d *scan.Document, gate scan.Node) bool {
 		}
 	}
 	for _, e := range d.Elements {
-		if e.Kind == ident.Gate && under[e.Section] {
+		if e.Kind == ident.Gate && under[e.Section] && e.Key != crossCutting {
 			return true
 		}
 	}
 	return false
 }
+
+// crossCutting is the one gate item a locked record KEEPS. The other four
+// judge this record at this lock and no peer cites them; Cross-Cutting
+// Concerns states a project-wide policy the template tells authors to
+// point at from other RDRs ("which peer RDR owns the policy"), and the
+// corpus does — every cross-record citation into any gate section targets
+// this item and no other. It stays in the record so it stays projected,
+// and a record holding only this one is correctly locked, not inlined.
+const crossCutting = "cross-cutting"

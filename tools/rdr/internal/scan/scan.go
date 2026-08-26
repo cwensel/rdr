@@ -1336,16 +1336,13 @@ func (d *Document) gate() {
 		return
 	}
 	g := gates[0]
-	for i := g.LineStart + 1; i <= g.LineEnd; i++ {
-		t := strings.TrimSpace(d.lines[i-1])
-		if t == "" {
-			continue
-		}
-		if model.GatePointer.MatchString(t) {
-			return
-		}
-		break
-	}
+	// A gate.md pointer moves the four lock-time judgements out of the
+	// record, but a locked gate KEEPS `### Cross-Cutting Concerns`: it
+	// states a project-wide policy other RDRs cite, and an element that
+	// is not projected cannot be cited. So the pointer is not a reason to
+	// stop reading — whatever sub-sections remain below it are still the
+	// record's own, and are projected as usual. A gate that is nothing
+	// but the pointer simply has no sub-sections to find.
 	for _, n := range d.nodes {
 		if n.Parent != g.ID || n.Level != g.Level+1 {
 			continue

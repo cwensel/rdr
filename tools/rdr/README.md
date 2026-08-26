@@ -268,7 +268,9 @@ never generate it, because advice no one is permitted to act on is noise.
 Two exclusions keep it honest: a subsection whose parent is absent is not
 separately missing, and a gate subsection under a `gate.md` pointer is not
 missing at all — from epoch C on, lock moves those responses out of the
-record on purpose.
+record on purpose. Cross-Cutting Concerns is the exception it keeps: it
+states a policy peer RDRs cite, so a locked gate holds the pointer AND
+that one subsection.
 
 **resolution** judges what a record EMITS: every typed edge resolves, every
 `Method: Peer RDR` Evidence names an element, and contracts are labelled on
@@ -368,7 +370,10 @@ assumptions. Only a label-free section — epoch A's checkbox list — has
 its bullets read as assumptions by position, derived.
 
 Gate responses exist only while the gate is inlined; a `gate.md` pointer
-means they live outside the record.
+means they live outside the record. The exception is Cross-Cutting
+Concerns, which a locked record keeps — it is the one gate item other
+RDRs cite, addressed as `cli/NNNN:G-cross-cutting`, and an element that
+is not projected cannot be cited.
 
 Bold paragraph leads are indexed as ANCHORS, in their own list rather than
 in the outline: a lead governs no lines and does not nest, so putting it

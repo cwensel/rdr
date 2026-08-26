@@ -46,8 +46,9 @@ HOLLOW stays prose: walk `outline[]` (`canonical`, `class`, `line_start`,
 placeholder (`_Draft placeholder._`), or copy-paste of template instructional
 text, from any template version. A surviving `this is a seed skeleton` header is
 an automatic Present-hollow on the Finalization Gate section — name it. (At/after
-lock that section holds only the pointer line to gate.md — that is the record,
-not a hollow section.) A surviving verbatim template bracket — `[Conditional —
+lock that section holds the pointer line to gate.md plus `### Cross-Cutting
+Concerns`, which stays in the record because peers cite it — that is the
+record, not a hollow section.) A surviving verbatim template bracket — `[Conditional —
 …]`, `[Resource]`, `[Capability]`, any bracketed template instruction — in a
 non-Draft (non-locking) RDR is a BLOCK. List every hollow and missing section by
 name.

@@ -25,11 +25,12 @@ Claude: /rdr-finalize <NNNN>
    (= `<RDR_RECORDS>/<RDR_SLUG>/artifacts/`).
 2. Run [`07-finalize.prompt.md`](07-finalize.prompt.md). It runs the mechanical
    Tooling sweep, confirms no cluster re-entry note survives, writes the
-   Finalization Gate's five responses to `{ARTIFACT_DIR}/gate.md`, then acts on
-   the verdict:
-   - **READY** → write the five responses to `{ARTIFACT_DIR}/gate.md` (overwrite
-     on re-lock), replace the RDR's Finalization Gate section body with the
-     one-line pointer to gate.md, set Status → Final,
+   Finalization Gate's judgement responses to `{ARTIFACT_DIR}/gate.md`, then
+   acts on the verdict:
+   - **READY** → write responses 1, 2, 3 and 5 to `{ARTIFACT_DIR}/gate.md`
+     (overwrite on re-lock), replace those four sub-sections with the one-line
+     pointer to gate.md — `### Cross-Cutting Concerns` STAYS in the record,
+     because peers cite it as `cli/NNNN:G-cross-cutting` — set Status → Final,
      and **flip this RDR's README index row to Final** (seed created the row at
      Draft; finalize updates that same row in place — add it only if a pre-seed
      RDR has none). Then, if the autocommit gate is on (§commit), run
@@ -63,8 +64,8 @@ Claude: /rdr-finalize <NNNN>
 - The mechanical sweep ran and PASSED (a BLOCK is a real regression — fix before
   locking).
 - Any `## Refinement Context (cluster re-entry)` note is gone.
-- The five gate responses are *written* in `{ARTIFACT_DIR}/gate.md`, not
-  rubber-stamped.
+- The four judgement responses are *written* in `{ARTIFACT_DIR}/gate.md`, not
+  rubber-stamped, and `### Cross-Cutting Concerns` is still in the record.
 - Readiness says READY, no open blockers; MVV genuinely in scope; the RDR's
   README index row flipped to Final (the row seed created). On NOT READY the
   prompt flips nothing — return to the named stage.

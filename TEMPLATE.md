@@ -504,10 +504,15 @@ chosen approach over a rejected one.]
 > catches what the review rounds disturbed; resolve any
 > BLOCK before the written responses.
 >
-> At lock, replace this section's body with the
-> one-line pointer to gate.md — responses are never
-> inlined. The sub-sections below spec gate.md's
-> content.
+> At lock, replace Contradiction Check, Assumption
+> Verification, Scope Verification and Proportionality
+> with the one-line pointer to gate.md — those four
+> judge THIS record at THIS lock and no peer cites
+> them. **Cross-Cutting Concerns stays here**, below
+> the pointer: it names the project-wide policy other
+> RDRs conform to, so it must stay projected and
+> citable as `cli/NNNN:G-cross-cutting`. Cite it that
+> way, not by section name.
 
 ### Contradiction Check
 

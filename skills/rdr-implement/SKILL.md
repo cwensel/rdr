@@ -50,9 +50,10 @@ placeholders — the caller fills them per run. If `$RDR_HOME` is unbound
 Refuse with the named code if any is false (the RDR is not ready — return to
 `/rdr-finalize` or `/rdr-reconcile`):
 
-- **Status: Final** with the Finalization Gate's five responses in
-  `{ARTIFACT_DIR}/gate.md` — or inline in the RDR (legacy pre-gate.md lock);
-  either form satisfies (`stopped:not-final`).
+- **Status: Final** with the Finalization Gate's judgement responses in
+  `{ARTIFACT_DIR}/gate.md` (Cross-Cutting Concerns stays in the record) — or
+  inline in the RDR (legacy pre-gate.md lock); either form satisfies
+  (`stopped:not-final`).
 - **MVV in scope** — Phase 1 turns it into `REQ-MVV` (`stopped:mvv-deferred`).
 - **Predecessors COMPLETE** — every `**Predecessors**:` entry's
   `{ARTIFACT_DIR}/status.md` reads `COMPLETE` (`stopped:predecessor-incomplete:<id>`).
