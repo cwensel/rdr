@@ -178,14 +178,10 @@ func metadataField(t *testing.T, doc *Document, canonical string) Field {
 	return Field{}
 }
 
-// TestHeadingLevelVariant: Critical Assumptions written at `###` in an
-// epoch D record is the same section, level-variant, and every assumption
-// under it is read.
+// TestHeadingLevelVariant: Critical Assumptions written at `###` is the
+// same section, level-variant, and every assumption under it is read.
 func TestHeadingLevelVariant(t *testing.T) {
 	doc := variant(t, "heading-level.md")
-	if doc.Epoch != "D" {
-		t.Fatalf("epoch %s, want D (joint-decision qualifier)", doc.Epoch)
-	}
 	var ca *Node
 	for i := range doc.Outline {
 		if doc.Outline[i].Canonical == "Critical Assumptions" {

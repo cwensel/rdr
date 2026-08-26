@@ -45,7 +45,7 @@ func TestSectionFieldsMatchTemplate(t *testing.T) {
 	const hint = "\n  Update SectionFields in fields.go in the same commit as the TEMPLATE.md change, " +
 		"and add a synthetic fixture exercising the label."
 	for _, fs := range SectionFields {
-		if _, ok := EpochDTable.SectionByName(fs.Section); !ok {
+		if _, ok := Template.SectionByName(fs.Section); !ok {
 			t.Errorf("FieldSet %q names no epoch D section", fs.Section)
 		}
 		got := want[fs.Section]

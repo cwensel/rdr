@@ -131,18 +131,18 @@ func parseTemplate(t *testing.T, path string) []observedSection {
 	return out
 }
 
-// TestEpochDMatchesTemplateFile is the anti-drift test. TEMPLATE.md and
+// TestTemplateMatchesTemplateFile is the anti-drift test. TEMPLATE.md and
 // the epoch-D table cannot disagree without this failing.
 //
 // It compares, position by position, the section names, levels and
-// classes that TEMPLATE.md actually declares against EpochDTable. It fails
+// classes that TEMPLATE.md actually declares against Template. It fails
 // on a gained, lost, renamed, re-levelled or re-classed section.
-func TestEpochDMatchesTemplateFile(t *testing.T) {
+func TestTemplateMatchesTemplateFile(t *testing.T) {
 	path := templatePath(t)
 	observed := parseTemplate(t, path)
-	model := EpochDTable.Sections
+	model := Template.Sections
 
-	const fixHint = "\n\nFIX: update EpochDTable in tools/rdr/internal/model/epoch.go in the SAME commit " +
+	const fixHint = "\n\nFIX: update Template in tools/rdr/internal/model/epoch.go in the SAME commit " +
 		"as the TEMPLATE.md change, and add a synthetic fixture under tools/rdr/testdata/ if the " +
 		"change affects how a record is read. See tools/rdr/README.md, 'The same-commit rule'."
 
@@ -204,14 +204,14 @@ func scaffoldConditional(name string) bool {
 // TestEpochDParentsResolve checks the section table is internally
 // coherent: every named parent exists, and sits at a shallower level.
 func TestEpochDParentsResolve(t *testing.T) {
-	for _, s := range EpochDTable.Sections {
+	for _, s := range Template.Sections {
 		if s.Parent == "" {
 			if s.Level != 2 {
 				t.Errorf("section %q has no parent but sits at level %d; only level-2 sections are top-level", s.Name, s.Level)
 			}
 			continue
 		}
-		p, ok := EpochDTable.SectionByName(s.Parent)
+		p, ok := Template.SectionByName(s.Parent)
 		if !ok {
 			t.Errorf("section %q names parent %q, which is not in the table", s.Name, s.Parent)
 			continue

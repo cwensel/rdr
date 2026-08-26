@@ -11,10 +11,25 @@ import (
 // the model consumes. It is a deliberately minimal stand-in for the real
 // scanner, which lands separately: enough to prove the model's predicates
 // hold against a whole document, not enough to be a second scanner.
+// signals are the shape facts a fixture carries. They used to be an
+// epoch fingerprint; with one template they are simply what the fixture
+// set must keep exercising, so a fixture edit that drops a tolerance path
+// fails loudly instead of silently weakening the tests below.
+type signals struct {
+	HasProfile                bool
+	HasSeamLineage            bool
+	HasLoadBearingDecisions   bool
+	HasMethodField            bool
+	HasGatePointer            bool
+	CriticalAssumptionsLevel  int
+	HasJointDecisionQualifier bool
+	HasMetadataBlock          bool
+}
+
 type fixture struct {
-	name        string
-	fingerprint Fingerprint
-	headings    []struct {
+	name     string
+	signals  signals
+	headings []struct {
 		name  string
 		level int
 	}
@@ -56,9 +71,9 @@ func readFixture(t *testing.T, name string) fixture {
 
 			switch name {
 			case "Critical Assumptions":
-				f.fingerprint.CriticalAssumptionsLevel = level
+				f.signals.CriticalAssumptionsLevel = level
 			case "Load-Bearing Decisions":
-				f.fingerprint.HasLoadBearingDecisions = true
+				f.signals.HasLoadBearingDecisions = true
 			}
 			continue
 		}
@@ -69,24 +84,24 @@ func readFixture(t *testing.T, name string) fixture {
 				f.fields[label] = joinFixtureValue(lines, i, m[2])
 				switch label {
 				case "Profile":
-					f.fingerprint.HasProfile = true
+					f.signals.HasProfile = true
 				case "Seam Lineage":
-					f.fingerprint.HasSeamLineage = true
+					f.signals.HasSeamLineage = true
 				case "Status":
-					f.fingerprint.HasMetadataBlock = true
+					f.signals.HasMetadataBlock = true
 					if ParseStatus(f.fields[label]).QualifierForm == QualifierJointDecision {
-						f.fingerprint.HasJointDecisionQualifier = true
+						f.signals.HasJointDecisionQualifier = true
 					}
 				}
 			}
 		}
 
 		if m := EvidenceFieldBullet.FindStringSubmatch(line); m != nil && strings.TrimSpace(m[1]) == "Method" {
-			f.fingerprint.HasMethodField = true
+			f.signals.HasMethodField = true
 			f.methods = append(f.methods, joinFixtureValue(lines, i, m[2]))
 		}
 		if GatePointer.MatchString(line) {
-			f.fingerprint.HasGatePointer = true
+			f.signals.HasGatePointer = true
 		}
 	}
 	return f
@@ -100,74 +115,62 @@ func joinFixtureValue(lines []string, i int, first string) string {
 	return strings.TrimSpace(out)
 }
 
-// TestFixturesDetectTheirEpoch is the fixture half of the same-commit
-// rule: one synthetic record per epoch, each of which must fingerprint as
-// the epoch it was written for.
-func TestFixturesDetectTheirEpoch(t *testing.T) {
-	cases := []struct {
-		file string
-		want Epoch
-	}{
-		{"epoch-a.md", EpochA},
-		{"epoch-b.md", EpochB},
-		{"epoch-c.md", EpochC},
-		{"epoch-d.md", EpochD},
-	}
-	for _, c := range cases {
-		t.Run(c.file, func(t *testing.T) {
-			f := readFixture(t, c.file)
-			if got := DetectEpoch(f.fingerprint); got != c.want {
-				t.Errorf("DetectEpoch = %s, want %s (fingerprint %+v)", got, c.want, f.fingerprint)
-			}
-		})
-	}
-}
-
-// TestFixtureEpochSignals pins what makes each fixture its epoch, so a
-// fixture edit that quietly removes a signal fails here rather than
-// silently weakening the detection test above.
-func TestFixtureEpochSignals(t *testing.T) {
+// TestFixturesKeepTheirShapeSignals is the fixture half of the
+// same-commit rule. There is one template now, so there is no epoch to
+// detect; what still has to hold is that the fixture SET spans the shapes
+// the corpus contains — gate pointer and inlined gate, Critical
+// Assumptions at both levels, with and without the Profile / Seam Lineage
+// / Load-Bearing Decisions apparatus. A fixture edit that flattens the
+// set to one shape fails here, before it can silently weaken the
+// tolerance tests below.
+func TestFixturesKeepTheirShapeSignals(t *testing.T) {
 	a := readFixture(t, "epoch-a.md")
-	if a.fingerprint.HasProfile || a.fingerprint.HasSeamLineage || a.fingerprint.HasMethodField {
-		t.Error("epoch-a must carry no Profile, no Seam Lineage and no Evidence Record Method field")
-	}
-	if a.fingerprint.HasGatePointer {
-		t.Error("epoch-a must inline its gate responses, not point at gate.md")
-	}
-
 	b := readFixture(t, "epoch-b.md")
-	if !b.fingerprint.HasProfile || !b.fingerprint.HasSeamLineage || !b.fingerprint.HasLoadBearingDecisions {
-		t.Error("epoch-b must carry Profile, Seam Lineage and Load-Bearing Decisions")
-	}
-	if b.fingerprint.HasGatePointer {
-		t.Error("epoch-b must still inline its gate responses")
-	}
-
 	c := readFixture(t, "epoch-c.md")
-	if !c.fingerprint.HasGatePointer {
-		t.Error("epoch-c must replace the gate body with a gate.md pointer")
-	}
-	if c.fingerprint.CriticalAssumptionsLevel != 3 {
-		t.Errorf("epoch-c Critical Assumptions at level %d, want 3", c.fingerprint.CriticalAssumptionsLevel)
-	}
-
 	d := readFixture(t, "epoch-d.md")
-	if d.fingerprint.CriticalAssumptionsLevel != 2 {
-		t.Errorf("epoch-d Critical Assumptions at level %d, want 2", d.fingerprint.CriticalAssumptionsLevel)
+
+	if a.signals.HasProfile || a.signals.HasSeamLineage || a.signals.HasMethodField {
+		t.Error("epoch-a.md must carry no Profile, Seam Lineage or Method field")
 	}
-	if !d.fingerprint.HasJointDecisionQualifier {
-		t.Error("epoch-d must carry a joint-decision status qualifier")
+	if a.signals.HasGatePointer {
+		t.Error("epoch-a.md must inline its gate responses, not point at gate.md")
+	}
+	if !b.signals.HasProfile || !b.signals.HasSeamLineage || !b.signals.HasLoadBearingDecisions {
+		t.Error("epoch-b.md must carry Profile, Seam Lineage and Load-Bearing Decisions")
+	}
+	if b.signals.HasGatePointer {
+		t.Error("epoch-b.md must inline its gate responses, not point at gate.md")
+	}
+	if !c.signals.HasGatePointer {
+		t.Error("epoch-c.md must point at gate.md")
+	}
+	if c.signals.CriticalAssumptionsLevel != 3 {
+		t.Errorf("epoch-c.md Critical Assumptions at level %d, want 3", c.signals.CriticalAssumptionsLevel)
+	}
+	if d.signals.CriticalAssumptionsLevel != 2 {
+		t.Errorf("epoch-d.md Critical Assumptions at level %d, want 2", d.signals.CriticalAssumptionsLevel)
+	}
+	if !d.signals.HasJointDecisionQualifier {
+		t.Error("epoch-d.md must carry a joint-decision status qualifier")
+	}
+	for _, f := range []fixture{a, b, c, d} {
+		if !f.signals.HasMetadataBlock {
+			t.Errorf("%s must carry a Metadata block with a Status field", f.name)
+		}
 	}
 }
 
 // TestFixturesClassifyClean is the whole point of the tolerant reading: a
-// conformant record of ANY epoch produces no unknown headings, no unknown
-// metadata fields and no off-vocabulary values.
+// record of any age, read against the CURRENT template, produces no
+// unknown headings, no unknown metadata fields and no off-vocabulary
+// values. That is the whole job now that the epochs are gone: the older
+// shapes must still classify through level-variance, case-variance,
+// scaffold patterns and the alias table.
 func TestFixturesClassifyClean(t *testing.T) {
 	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md"} {
 		t.Run(name, func(t *testing.T) {
 			f := readFixture(t, name)
-			te := EpochOf(DetectEpoch(f.fingerprint))
+			te := Template
 
 			for _, h := range f.headings {
 				if m := LookupSection(te, h.name, h.level); m.Kind == MatchUnknown {
@@ -214,7 +217,7 @@ func TestFixturesExerciseTolerancePaths(t *testing.T) {
 
 	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md"} {
 		f := readFixture(t, name)
-		te := EpochOf(DetectEpoch(f.fingerprint))
+		te := Template
 
 		for _, h := range f.headings {
 			kinds[LookupSection(te, h.name, h.level).Kind] = true

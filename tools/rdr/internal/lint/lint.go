@@ -16,8 +16,8 @@
 //	                not classify something. On a terminal record this is
 //	                a projector bug: the file cannot have changed, so the
 //	                scanner is what is wrong. Fix with a fixture.
-//	TierConformance advisory, LIVE records only, epoch-aware. "This is an
-//	                epoch B record; the current template adds Load-Bearing
+//	TierConformance advisory, LIVE records only. "The current
+//	                template carries Load-Bearing
 //	                Decisions." Phrased as a migration hint for the stage
 //	                already rewriting the file. Never blocks. Terminal
 //	                records never generate it.
@@ -28,7 +28,7 @@
 //	                a record EMITS, never what its targets look like.
 //
 // The asymmetry between conformance and resolution is the whole design.
-// Conformance is about a record's own shape, which its epoch excuses.
+// Conformance is about a record's own shape, which its age excuses.
 // Resolution is about a record's outbound claims, which nothing excuses:
 // a dangling reference in a frozen record is a data error, and the
 // sanctioned repair is a minimal pointer correction — the reference
@@ -146,7 +146,6 @@ type Report struct {
 	Schema string `json:"schema"`
 	Record string `json:"record"`
 	Path   string `json:"path"`
-	Epoch  string `json:"epoch"`
 	// Status is the record's Status label, and Terminal whether that
 	// status is one after which the record is never amended.
 	Status   string    `json:"status,omitempty"`
@@ -160,9 +159,9 @@ type Report struct {
 // DATED on or after it is expected to label its contracts; one dated
 // before it is grandfathered and gets advice at most.
 //
-// The boundary is the record's own `Date` field rather than an epoch
+// The boundary is the record's own `Date` field rather than a template
 // fingerprint, because the fingerprint would beg the question: the
-// signal that would place a record in a "labels its contracts" epoch is
+// signal that would place a record in a "labels its contracts" era is
 // the presence of labelled contracts, so a new record that labelled
 // nothing would fingerprint as legacy and escape the very check the rule
 // exists to apply. `Date` is written by Seed on every record, is already
@@ -211,7 +210,6 @@ func Run(d *scan.Document, opts Options) Report {
 		Schema:   scan.SchemaVersion,
 		Record:   d.Record,
 		Path:     d.Path,
-		Epoch:    d.Epoch,
 		Status:   status.Label,
 		Terminal: terminal,
 		Findings: []Finding{},
@@ -273,7 +271,7 @@ func parseFindings(d *scan.Document) []Finding {
 }
 
 // conformanceFindings are the migration hints for a live record: what
-// the current template asks for that this record's epoch did not. They
+// the current template asks for that this record does not carry. They
 // are advisory by construction — every one carries Blocking false — and
 // they are phrased for the stage that is already rewriting the file.
 //
@@ -299,7 +297,7 @@ func conformanceFindings(d *scan.Document, opts Options) []Finding {
 		})
 	}
 
-	// Sections the current template carries that this record's epoch
+	// Sections the current template carries that this record
 	// predates. Only Required ones: a Conditional section is omitted by
 	// design, and saying so on every record would drown the real hints.
 	for _, s := range missingRequired(d) {
@@ -307,7 +305,7 @@ func conformanceFindings(d *scan.Document, opts Options) []Finding {
 			Tier:      TierConformance,
 			Code:      "template:missing-section",
 			Element:   s.id,
-			Message:   "epoch " + d.Epoch + " record; the current template carries a Required section it does not: " + s.name,
+			Message:   "the current template carries a Required section this record does not: " + s.name,
 			LineStart: s.line,
 			LineEnd:   s.line,
 			Fix:       "add the section at the stage that next rewrites this record",
@@ -402,7 +400,7 @@ type missing struct {
 }
 
 // missingRequired compares the record's outline against the CURRENT
-// template, not its own epoch's. That is the point of the advice: the
+// template, not the one that produced it. That is the point of the advice: the
 // record is behind, and the hint says by how much.
 //
 // Two whole classes are excluded, because a section absent BY DESIGN is
@@ -413,7 +411,7 @@ type missing struct {
 // reports the same fact five times and buries the one hint that matters.
 //
 // A subsection of a gate-pointer section is not missing at all. From
-// epoch C on, lock REPLACES the Finalization Gate body with a one-line
+// at lock, the Finalization Gate body is REPLACED with a one-line
 // pointer to gate.md — the responses moved out of the record on purpose.
 // Advising a locked record to restore the five gate subsections would be
 // advising it to undo the current process.
@@ -425,13 +423,13 @@ func missingRequired(d *scan.Document) []missing {
 		}
 	}
 	pointer := map[string]bool{}
-	for _, s := range model.EpochDTable.Sections {
+	for _, s := range model.Template.Sections {
 		if s.Grammar == model.GrammarGatePointer {
 			pointer[s.Name] = true
 		}
 	}
 	var out []missing
-	for _, s := range model.EpochDTable.Sections {
+	for _, s := range model.Template.Sections {
 		if s.Class != model.Required || present[s.Name] {
 			continue
 		}

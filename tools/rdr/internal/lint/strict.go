@@ -68,8 +68,8 @@ func strictFindings(d *scan.Document) []Finding {
 // --- headings ---------------------------------------------------------
 
 // headingFindings re-reads every heading against the CURRENT template
-// rather than the record's own epoch, which is the difference strict
-// makes: a heading that is exact for epoch A may be a level-variant or a
+// which is the difference strict
+// makes: a heading a frozen record wrote may be a level-variant or a
 // legacy alias today, and that gap is precisely the migration.
 //
 // Two codes, because they are two different edits with very different
@@ -98,7 +98,7 @@ func strictFindings(d *scan.Document) []Finding {
 // records, and not one of the sections involved is cited by anything.
 // The alias table is also MANY-TO-ONE — `API Verification` and
 // `Dependency Source Verification` are both predecessors of Critical
-// Assumptions, and one epoch A record carries both — so the repair is
+// Assumptions, and one record carries both — so the repair is
 // sometimes a MERGE of two bodies, which is a judgment about ordering
 // that no line-range op can express in the first place.
 func headingFindings(d *scan.Document) []Finding {
@@ -107,7 +107,7 @@ func headingFindings(d *scan.Document) []Finding {
 		if n.Level < 2 {
 			continue // the title is the record's, not the template's
 		}
-		m := model.LookupSection(model.EpochDTable, n.Heading, n.Level)
+		m := model.LookupSection(model.Template, n.Heading, n.Level)
 		if m.Canonical == nil {
 			continue
 		}
@@ -686,7 +686,7 @@ func canonicalFor(v model.Vocabulary, observed string) string {
 
 // --- the gate ---------------------------------------------------------
 
-// gateFindings report an inlined Finalization Gate: from epoch C on, lock
+// gateFindings report an inlined Finalization Gate: at lock,
 // moves the responses out of the record into `artifacts/gate.md` and
 // leaves a one-line pointer behind.
 //
@@ -713,7 +713,7 @@ func gateFindings(d *scan.Document) []Finding {
 			Tier:      TierConformance,
 			Code:      "gate:inline",
 			Element:   n.ID,
-			Message:   "the gate responses are inlined; from epoch C on they live in artifacts/gate.md",
+			Message:   "the gate responses are inlined; they belong in artifacts/gate.md",
 			LineStart: n.LineStart,
 			LineEnd:   n.LineEnd,
 			Fix:       "move these responses to the record's artifacts/gate.md and leave the one-line pointer (a cross-file move; no patch)",

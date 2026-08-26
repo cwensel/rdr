@@ -35,7 +35,6 @@ type Document struct {
 	Project string `json:"project,omitempty"`
 	Path    string `json:"path"`
 	Title   string `json:"title"`
-	Epoch   string `json:"epoch"`
 	Lines   int    `json:"lines"`
 
 	Outline  []Node    `json:"outline"`
@@ -216,7 +215,6 @@ func Bytes(raw []byte, opts Options) *Document {
 	}
 	doc.markFences()
 	doc.outline()
-	doc.detectEpoch()
 	doc.classify()
 	doc.extract()
 	doc.fields()
@@ -407,7 +405,7 @@ func (d *Document) parentOf(i int) int {
 	return -1
 }
 
-// --- epoch -------------------------------------------------------------
+// --- headings ----------------------------------------------------------
 
 var (
 	listItem   = regexp.MustCompile(`^(\s*)(?:[-*+]|\d+[.)])\s+(.*)$`)
@@ -447,6 +445,23 @@ func (d *Document) metadata() map[string]string {
 	return fields
 }
 
+// IsRecord reports whether the file is an RDR at all.
+//
+// It is the weakest possible test, and deliberately so: a Metadata block
+// carrying a Status field, or a Critical Assumptions section. A file
+// showing neither is not a record read against a stricter template — it
+// is not a record, and the callers skip it rather than report it as a
+// malformed one. This is what the epoch fingerprint's "unknown" verdict
+// used to answer, kept as its own question now that the epochs are gone.
+func (d *Document) IsRecord() bool {
+	if md := d.metadata(); md != nil {
+		if _, ok := md["Status"]; ok {
+			return true
+		}
+	}
+	return d.findHeading("Critical Assumptions") != nil
+}
+
 // findHeading finds the first node whose heading text equals name,
 // case-insensitively, before template classification has run.
 func (d *Document) findHeading(name string) *Node {
@@ -458,52 +473,15 @@ func (d *Document) findHeading(name string) *Node {
 	return nil
 }
 
-func (d *Document) detectEpoch() {
-	f := model.Fingerprint{}
-	md := d.metadata()
-	_, f.HasProfile = md["Profile"]
-	_, f.HasSeamLineage = md["Seam Lineage"]
-	if status, ok := md["Status"]; ok {
-		f.HasMetadataBlock = true
-		f.HasJointDecisionQualifier = model.ParseStatus(status).QualifierForm == model.QualifierJointDecision
-	}
-	f.HasLoadBearingDecisions = d.findHeading("Load-Bearing Decisions") != nil
-	if ca := d.findHeading("Critical Assumptions"); ca != nil {
-		f.CriticalAssumptionsLevel = ca.Level
-		for i := ca.LineStart; i <= ca.LineEnd; i++ {
-			if m := model.EvidenceFieldBullet.FindStringSubmatch(d.lines[i-1]); m != nil && strings.TrimSpace(m[1]) == "Method" {
-				f.HasMethodField = true
-				break
-			}
-		}
-	}
-	if g := d.findHeading("Finalization Gate"); g != nil {
-		// The pointer replaces the body: it is the first non-blank line
-		// after the heading, before any sub-heading.
-		for i := g.LineStart + 1; i <= g.LineEnd; i++ {
-			l := strings.TrimSpace(d.lines[i-1])
-			if l == "" {
-				continue
-			}
-			if model.Heading.MatchString(l) {
-				break
-			}
-			f.HasGatePointer = model.GatePointer.MatchString(l)
-			break
-		}
-	}
-	d.Epoch = model.DetectEpoch(f).String()
-}
-
 // --- classification ----------------------------------------------------
 
-// classify maps each heading onto the template of the detected epoch and
+// classify maps each heading onto the template and
 // assigns section IDs. Canonical sections take the canonical slug, so a
 // case- or level-variant heading, or a legacy alias, resolves to the same
 // ID as the section it stands for. Everything else slugs its own text and
 // is flagged derived.
 func (d *Document) classify() {
-	te := model.EpochOf(epochOf(d.Epoch))
+	te := model.Template
 	seen := map[string]int{}
 	for i, n := range d.nodes {
 		var key string
@@ -544,7 +522,7 @@ func (d *Document) classify() {
 					n.Match = model.MatchAuthorSubsection.String()
 				default:
 					d.warn("section:unknown-to-template", n.LineStart, n.LineEnd,
-						"heading %q (level %d) matches no section of epoch %s", n.Heading, n.Level, d.Epoch)
+						"heading %q (level %d) matches no section of the template", n.Heading, n.Level)
 				}
 			}
 		}
@@ -600,15 +578,6 @@ func (d *Document) underUnknownSection(i int) bool {
 		}
 	}
 	return false
-}
-
-func epochOf(s string) model.Epoch {
-	for _, e := range model.Epochs {
-		if e.Epoch.String() == s {
-			return e.Epoch
-		}
-	}
-	return model.EpochUnknown
 }
 
 // reassign re-derives every ID after the record number changed (File
@@ -680,22 +649,28 @@ func (d *Document) dropEdgeWarnings() {
 // canonicalNodes returns the nodes mapped to a canonical section, in
 // document order.
 //
-// A heading whose ALIAS names the section counts even when the record's
-// own epoch table has no such section. `Canonical` is set by classify()
-// against that table, and an alias to a section the epoch predates
-// resolves to MatchRecognizedUnmapped — correctly, because the record's
-// template really did not have it. But the SECTION IS WRITTEN: an epoch A
-// record with `### Decisions` and `- **D1**` bullets under it has the
-// elements whatever its template offered, and reading zero of them
-// because of the heading's date makes every citation into that record
-// dangle against a section that is plainly there.
+// A heading whose ALIAS names the section counts. `Canonical` is set by
+// classify() against the template, and an alias to a section the template
+// spells differently resolves to MatchRecognizedUnmapped — correctly,
+// because the heading is not the canonical one. But the SECTION IS
+// WRITTEN: a record with `### Decisions` and `- **D1**` bullets under it
+// has those elements whatever it called the heading, and reading zero of
+// them makes every citation into that record dangle against a section
+// that is plainly there. Nine records cite `cli/0035:D-*` through exactly
+// this path.
 //
-// So the reader asks what the record wrote, not what its epoch permitted.
+// So the reader asks what the record wrote, not what the template spells.
 // This is the model's READ, NEVER JUDGE rule applied to a section: the
-// epoch classification stays exactly as it was — the heading is still
-// reported as recognised-and-unmapped for that epoch, and no epoch table
-// is bent to accommodate one record — while the elements underneath
-// become addressable.
+// classification stays exactly as it was — the heading is still reported
+// as recognised-and-unmapped, and the template table is never bent to
+// accommodate one record — while the elements underneath become
+// addressable.
+//
+// Every alias kept here is a REFORMAT IN THE WAITING, not a permanent
+// tolerance: the heading should eventually be migrated to its canonical
+// spelling, and this table is what keeps the citations resolving until it
+// is. Deleting an entry before the records are rewritten silently drops
+// the elements under it.
 func (d *Document) canonicalNodes(name string) []*Node {
 	var out []*Node
 	for _, n := range d.nodes {
@@ -874,7 +849,7 @@ func (d *Document) statement(start, end int) string {
 
 // assumptions reads the top-level bullets of Critical Assumptions —
 // wherever it lives: at `##`, at `###`, or under a legacy alias. A bullet
-// carrying an A-label is as written; an unlabelled one (epoch A's
+// carrying an A-label is as written; an unlabelled one (the older
 // checkbox bullets) is derived by ordinal, so every assumption in the
 // corpus is addressable and the unlabelled ones are counted as backlog.
 func (d *Document) assumptions() {
@@ -898,7 +873,7 @@ func (d *Document) assumptions() {
 		// A section that labels its assumptions also carries other
 		// bullets — the template's Method-vocabulary legend, copied in
 		// verbatim by a whole cohort of records — and those are not
-		// assumptions. Only a label-free section (epoch A's checkbox
+		// assumptions. Only a label-free section (the older checkbox
 		// list) has its bullets read as assumptions by position.
 		kept := items[:0]
 		for _, it := range items {
@@ -992,9 +967,8 @@ var contractLabel = regexp.MustCompile(`^\s*(?:-\s+)?(?:\*\*C(\d+)\*\*|#{5,6}\s+
 // unique and the author's own numbering is never overridden.
 //
 // Contracts written as prose rather than fenced are not addressable;
-// that shows as a zero count, not a warning, because older epochs wrote
-// them that way and a terminal record is never wrong for being of its
-// epoch.
+// that shows as a zero count, not a warning, because older records
+// wrote them that way and a terminal record is never wrong for its age.
 func (d *Document) contracts() {
 	var items []keyed
 	for i := 1; i <= len(d.lines); i++ {
@@ -1327,7 +1301,7 @@ func (d *Document) mvv() {
 	}
 }
 
-// gate projects the inlined gate responses of an epoch A or B record as
+// gate projects a record's inlined gate responses as
 // G-<item> elements. With a gate.md pointer the responses live outside the
 // record and there is nothing to address here.
 func (d *Document) gate() {

@@ -11,7 +11,7 @@ import (
 // A new record may only write a Canonical value: that is what TEMPLATE.md
 // and README.md sanction. But terminal records (Implemented, Rejected,
 // Abandoned, Superseded, Demoted) are never amended — they are frozen at
-// the template epoch that produced them, forever. So the reader must
+// the template that produced them, forever. So the reader must
 // accept values the writer may no longer produce. ObservedAccepted is that
 // set: values found in the frozen corpus that are legitimate practice the
 // template simply never listed. They classify with no warning, and a gate

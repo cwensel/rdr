@@ -17,9 +17,11 @@ const (
 	// section.
 	MatchExact
 	// MatchLevelVariant means the name matches but the heading level
-	// does not. It is not a defect: sections have been re-levelled
-	// between template epochs, most visibly Critical Assumptions, and a
-	// frozen record keeps the level of the epoch that produced it.
+	// does not. It is not a defect: sections have been re-levelled over
+	// the template's life, most visibly Critical Assumptions, and a frozen
+	// record keeps the level it was written at. It is a reformat in the
+	// waiting — the fix is to re-level the record, by hand where a
+	// promotion would swallow a following sibling.
 	MatchLevelVariant
 	// MatchCaseVariant means the name matches only case-insensitively.
 	MatchCaseVariant
@@ -129,6 +131,15 @@ type sectionAlias struct {
 // authors invented that the template never adopted. They map to "" and
 // classify as MatchRecognizedUnmapped, which keeps them out of
 // `unknown-to-template` without pretending they project onto anything.
+//
+// EVERY MAPPED ENTRY IS A REFORMAT IN THE WAITING. The table is not a
+// permanent tolerance for a spelling the template rejects — it is what
+// keeps a frozen record's elements addressable until the record is
+// migrated to the canonical heading. That matters because the mapping is
+// load-bearing, not cosmetic: emptying this table drops 18 elements and
+// 24 edges from the corpus, because nine records cite `cli/0035:D-*`
+// through the `Decisions` entry alone. An entry may be deleted only after
+// the records that need it have been rewritten, never before.
 var SectionAliases = []sectionAlias{
 	// Legacy predecessors of the Evidence Record apparatus.
 	{"API Verification", "Critical Assumptions",
@@ -154,7 +165,7 @@ var SectionAliases = []sectionAlias{
 	{"Decisions", "Load-Bearing Decisions",
 		"shortened spelling of Load-Bearing Decisions; the bullets under it are the same D-elements"},
 
-	// Recognised, with no canonical home in any epoch.
+	// Recognised, with no canonical home in the template.
 	{"Escaped-Defect Ledger", "",
 		"author-added ledger; never a template section"},
 	{"Open Questions", "",
@@ -218,9 +229,9 @@ var FieldAliases = []fieldAlias{
 // maps to, or "" when the heading is not a mapped alias or maps to no
 // canonical section.
 //
-// It is the alias table read WITHOUT an epoch, for a reader that wants
+// It is the alias table read for a reader that wants
 // the section a heading names rather than the section the record's own
-// template offered. LookupSection is the epoch-aware classifier and stays
+// heading names. LookupSection is the full classifier and stays
 // the authority on how a heading is REPORTED; this answers the narrower
 // question of what it is called.
 func SectionAliasCanonical(heading string) string {
@@ -244,14 +255,14 @@ func FieldAliasCanonical(label string) string {
 	return ""
 }
 
-// LookupSection classifies an observed heading against a template epoch.
+// LookupSection classifies an observed heading against the template.
 //
 // The order of attempts is exact, then level-variant, then case-variant,
 // then the alias table, then unknown. Level variance is checked before
 // case variance because it is by far the commoner divergence and the more
 // benign one — a re-levelled section is the same section written by an
 // older template.
-func LookupSection(te TemplateEpoch, name string, level int) Match {
+func LookupSection(te TemplateTable, name string, level int) Match {
 	name = strings.TrimSpace(name)
 
 	for i := range te.Sections {
@@ -266,7 +277,7 @@ func LookupSection(te TemplateEpoch, name string, level int) Match {
 			Kind:          MatchLevelVariant,
 			Canonical:     &te.Sections[i],
 			ObservedLevel: level,
-			Note:          "written at a level other than the canonical one; template epochs re-levelled this section",
+			Note:          "written at a level other than the canonical one; the template re-levelled this section",
 		}
 	}
 
@@ -313,7 +324,7 @@ func LookupSection(te TemplateEpoch, name string, level int) Match {
 				}
 			}
 		}
-		// The alias names a canonical section this epoch does not have,
+		// The alias names a canonical section the template does not have,
 		// which is itself a recognised-but-unmapped situation.
 		return Match{Kind: MatchRecognizedUnmapped, ObservedLevel: level, Note: a.note}
 	}
@@ -322,10 +333,10 @@ func LookupSection(te TemplateEpoch, name string, level int) Match {
 }
 
 // LookupField classifies an observed Metadata block field label against a
-// template epoch, on the same principle as LookupSection. There is no
+// template, on the same principle as LookupSection. There is no
 // level to vary, so the kinds in play are exact, case-variant,
 // legacy-alias, recognized-unmapped and unknown.
-func LookupField(te TemplateEpoch, label string) Match {
+func LookupField(te TemplateTable, label string) Match {
 	label = strings.TrimSpace(label)
 
 	for _, f := range te.MetadataFields {

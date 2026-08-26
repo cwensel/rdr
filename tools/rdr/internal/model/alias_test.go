@@ -3,7 +3,7 @@ package model
 import "testing"
 
 func TestLookupSectionKinds(t *testing.T) {
-	d := EpochDTable
+	d := Template
 
 	cases := []struct {
 		name      string
@@ -101,12 +101,12 @@ func TestLookupSectionWarningBoundary(t *testing.T) {
 		"Phase 3: Rollout",
 	}
 	for _, h := range quiet {
-		if m := LookupSection(EpochDTable, h, 3); m.Kind == MatchUnknown {
+		if m := LookupSection(Template, h, 3); m.Kind == MatchUnknown {
 			t.Errorf("%q classified unknown; unknown-to-template must fire only on foreign sections", h)
 		}
 	}
 	for _, h := range []string{"Snapshot rendering", "Why this needs a record", "The gap"} {
-		if m := LookupSection(EpochDTable, h, 4); m.Kind != MatchUnknown {
+		if m := LookupSection(Template, h, 4); m.Kind != MatchUnknown {
 			t.Errorf("foreign heading %q classified %s, want unknown", h, m.Kind)
 		}
 	}
@@ -139,134 +139,8 @@ func TestLookupField(t *testing.T) {
 		{"Sprint", MatchUnknown},
 	}
 	for _, c := range cases {
-		if m := LookupField(EpochDTable, c.label); m.Kind != c.want {
+		if m := LookupField(Template, c.label); m.Kind != c.want {
 			t.Errorf("LookupField(%q).Kind = %s, want %s", c.label, m.Kind, c.want)
-		}
-	}
-}
-
-// TestEpochAHasNoLaterFields checks the epoch tables actually differ where
-// the census says they do, so an epoch-A record is not read against
-// fields its template never had.
-func TestEpochAHasNoLaterFields(t *testing.T) {
-	// Overrides is deliberately absent from this list: it predates
-	// Profile and Seam Lineage and belongs to epoch A's field set.
-	for _, f := range []string{"Profile", "Seam Lineage", "Cluster"} {
-		if m := LookupField(EpochATable, f); m.Kind == MatchExact {
-			t.Errorf("epoch A has field %q, which arrived with epoch B", f)
-		}
-		if m := LookupField(EpochBTable, f); m.Kind != MatchExact {
-			t.Errorf("epoch B is missing field %q, which it introduced", f)
-		}
-	}
-	if _, ok := EpochATable.SectionByName("Load-Bearing Decisions"); ok {
-		t.Error("epoch A has Load-Bearing Decisions, which arrived with epoch B")
-	}
-	if _, ok := EpochBTable.SectionByName("Load-Bearing Decisions"); !ok {
-		t.Error("epoch B is missing Load-Bearing Decisions, which it introduced")
-	}
-	if m := LookupField(EpochATable, "Overrides"); m.Kind != MatchExact {
-		t.Error("epoch A is missing Overrides, which predates the Profile apparatus")
-	}
-	if len(EpochATable.EvidenceFields) != 0 {
-		t.Error("epoch A has an Evidence Record field set; it predates the apparatus")
-	}
-}
-
-func TestEpochLevelsDiffer(t *testing.T) {
-	d, ok := EpochDTable.SectionByName("Critical Assumptions")
-	if !ok || d.Level != 2 {
-		t.Fatalf("epoch D Critical Assumptions = %+v, want level 2", d)
-	}
-	for _, te := range []TemplateEpoch{EpochATable, EpochBTable, EpochCTable} {
-		s, ok := te.SectionByName("Critical Assumptions")
-		if !ok {
-			t.Fatalf("epoch %s has no Critical Assumptions section", te.Epoch)
-		}
-		if s.Level != 3 {
-			t.Errorf("epoch %s Critical Assumptions at level %d, want 3", te.Epoch, s.Level)
-		}
-	}
-}
-
-func TestDetectEpoch(t *testing.T) {
-	cases := []struct {
-		name string
-		fp   Fingerprint
-		want Epoch
-	}{
-		{
-			name: "original template",
-			fp:   Fingerprint{HasMetadataBlock: true, CriticalAssumptionsLevel: 3},
-			want: EpochA,
-		},
-		{
-			name: "original template with early Evidence Records",
-			fp:   Fingerprint{HasMetadataBlock: true, CriticalAssumptionsLevel: 3, HasMethodField: true},
-			want: EpochA,
-		},
-		{
-			name: "Profile arrives",
-			fp: Fingerprint{
-				HasProfile: true, HasSeamLineage: true, HasLoadBearingDecisions: true,
-				HasMethodField: true, CriticalAssumptionsLevel: 3,
-			},
-			want: EpochB,
-		},
-		{
-			name: "gate externalised",
-			fp: Fingerprint{
-				HasProfile: true, HasSeamLineage: true, HasLoadBearingDecisions: true,
-				HasMethodField: true, HasGatePointer: true, CriticalAssumptionsLevel: 3,
-			},
-			want: EpochC,
-		},
-		{
-			name: "Critical Assumptions promoted",
-			fp: Fingerprint{
-				HasProfile: true, HasSeamLineage: true, HasLoadBearingDecisions: true,
-				HasMethodField: true, HasGatePointer: true, CriticalAssumptionsLevel: 2,
-			},
-			want: EpochD,
-		},
-		{
-			name: "joint-decision qualifier alone carries D",
-			fp: Fingerprint{
-				HasProfile: true, HasGatePointer: true,
-				CriticalAssumptionsLevel: 3, HasJointDecisionQualifier: true,
-			},
-			want: EpochD,
-		},
-		{
-			name: "the oldest records, with no Critical Assumptions section at all",
-			fp:   Fingerprint{HasMetadataBlock: true},
-			want: EpochA,
-		},
-		{
-			name: "nothing recognisable",
-			fp:   Fingerprint{},
-			want: EpochUnknown,
-		},
-	}
-	for _, c := range cases {
-		t.Run(c.name, func(t *testing.T) {
-			if got := DetectEpoch(c.fp); got != c.want {
-				t.Errorf("DetectEpoch = %s, want %s", got, c.want)
-			}
-		})
-	}
-}
-
-// TestEpochOfUnknownFallsBackToD pins the read-never-judge posture: an
-// unrecognised record is read against the current template rather than
-// not read at all.
-func TestEpochOfUnknownFallsBackToD(t *testing.T) {
-	if EpochOf(EpochUnknown).Epoch != EpochD {
-		t.Error("EpochOf(EpochUnknown) must fall back to the current template")
-	}
-	for _, e := range []Epoch{EpochA, EpochB, EpochC, EpochD} {
-		if EpochOf(e).Epoch != e {
-			t.Errorf("EpochOf(%s) returned epoch %s", e, EpochOf(e).Epoch)
 		}
 	}
 }

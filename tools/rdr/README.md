@@ -142,11 +142,11 @@ It is enforced mechanically, not by good intentions:
 
 | test | asserts |
 | --- | --- |
-| `TestEpochDMatchesTemplateFile` | every section name, level, class and position in `EpochDTable` matches `TEMPLATE.md`, read from the file at test time |
+| `TestTemplateMatchesTemplateFile` | every section name, level, class and position in `model.Template` matches `TEMPLATE.md`, read from the file at test time |
 | `TestStatusVocabularyMatchesTemplate` | the canonical Status set matches `TEMPLATE.md`'s Status line |
 | `TestTypeVocabularyMatchesTemplate` | the canonical Type set matches its Type line |
 | `TestMethodVocabularyMatchesREADME` | the eight Method labels match `README.md`'s *Verifying load-bearing claims*, which declares itself authoritative |
-| `TestFixturesDetectTheirEpoch` | each synthetic fixture still fingerprints as its epoch |
+| `TestFixturesKeepTheirShapeSignals` | the fixture set still spans the shapes the corpus contains |
 | `TestDecisionClassesMatchTemplate` | the D-key classes match the Load-Bearing Decisions bullets |
 | `TestGateItemsMatchTemplate` | the G-keys match the Finalization Gate sub-sections |
 | `TestSectionFieldsMatchTemplate` | each section's canonical `- **Label**:` set matches the bullets `TEMPLATE.md` writes under it, at any indent |
@@ -175,7 +175,7 @@ Every element of a record has one ID, in one grammar:
 | `0055:MVV` | minimum viable validation | none — one per record |
 | `0055:F2` | failure mode | a unique list number; else ordinal |
 | `0055:JC2` | `Joint-check:` line, parsed (`joint`: verdict, targets, home, `open`) | document ordinal |
-| `0055:G-scope` | inlined gate response (epochs A, B) | the gate item (`GateItems`); else the heading's slug. The namespace is CLOSED to those five keys — a citation of a record's own `G-a` guard table names the document, as `REQ-N` does |
+| `0055:G-scope` | inlined gate response | the gate item (`GateItems`); else the heading's slug. The namespace is CLOSED to those five keys — a citation of a record's own `G-a` guard table names the document, as `REQ-N` does |
 | `0055:§approach` | outline section | the canonical section's slug; scaffolds and legacy aliases slug their own heading |
 | `0055:§the-values` | bold paragraph lead | the lead's own slug — addressable text, not structure; matched exactly, never by prefix |
 | `cli/0055:C4` | any of the above, across records dirs | `--project` supplies the prefix; omitted inside one dir |
@@ -262,12 +262,12 @@ scanner is what is wrong — and the fix is a fixture.
 
 **conformance** is migration advice for a record that is going to be
 rewritten anyway: unlabelled contracts, a Required section the current
-template carries and this record's epoch predates. It is phrased for the
+template carries and this record does not. It is phrased for the
 stage already holding the file open, and it never blocks. Terminal records
 never generate it, because advice no one is permitted to act on is noise.
 Two exclusions keep it honest: a subsection whose parent is absent is not
 separately missing, and a gate subsection under a `gate.md` pointer is not
-missing at all — from epoch C on, lock moves those responses out of the
+missing at all — at lock those responses move out of the
 record on purpose. Cross-Cutting Concerns is the exception it keeps: it
 states a policy peer RDRs cite, so a locked gate holds the pointer AND
 that one subsection.
@@ -281,9 +281,9 @@ range to open, and it does not block, because that record is not the one
 locking. Correcting the reference text in that range is the one sanctioned
 content amendment to a locked RDR: the pointer only, never prose.
 
-The label rule's boundary is the record's own `Date`, not an epoch
+The label rule's boundary is the record's own `Date`, not a template
 fingerprint. A fingerprint would beg the question — the signal placing a
-record in a "labels its contracts" epoch is the presence of labelled
+record in a "labels its contracts" era is the presence of labelled
 contracts, so a new record that labelled nothing would fingerprint as
 legacy and escape the check the rule exists to apply. `Date` is written by
 Seed on every record and says when it entered the flow, which is what the
@@ -359,14 +359,14 @@ Contracts are read document-wide: records put ```` ```normative ```` blocks
 under their own `#####` sub-headings or beside the design they specify,
 and a block is a contract wherever it sits (`section` says where).
 Contracts written as prose are not addressable; that shows as a zero
-count, not a warning, because older epochs wrote them that way.
+count, not a warning, because older records wrote them that way.
 
 Assumptions are read from wherever Critical Assumptions lives — `##`,
 `###`, or a legacy alias — in all four corpus forms (`**A1 [S]**`,
 `**A1 — S.**`, `**A1** S`, `**A1 S**`). A section that labels its
 assumptions also carries other bullets (a whole cohort copied the
 template's Method-vocabulary legend in verbatim); those are not
-assumptions. Only a label-free section — epoch A's checkbox list — has
+assumptions. Only a label-free section — the older checkbox list — has
 its bullets read as assumptions by position, derived.
 
 Gate responses exist only while the gate is inlined; a `gate.md` pointer
@@ -387,16 +387,16 @@ contract's `**C4**` label is that contract's, not a second identity for
 the same bytes.
 
 A section whose heading ALIASES to a template section is read for its
-elements even when the record's own epoch table has no such section — an
-epoch A record writing `### Decisions` over `- **D1**` bullets has those
-decisions whatever its template offered. The epoch classification is
+elements even when the heading is not the canonical name — a record
+writing `### Decisions` over `- **D1**` bullets has those decisions
+whatever it called the heading. The classification is
 unchanged (the heading is still reported recognised-and-unmapped for that
-epoch, and no epoch table is bent for one record); only the elements
+and the template table is never bent for one record); only the elements
 underneath become addressable. Author-numbered decision bullets key as
 written (`D-6`), which is the spelling the citation grammar already reads.
 
 A `NNNN-slug-postmortem.md` beside a record is not a record: `NNNN`
-resolution and `index` skip it, and a file with no epoch fingerprint is
+resolution and `index` skip it, and a file that is not a record is
 listed as skipped rather than silently dropped.
 
 ## Typed edges
@@ -603,7 +603,7 @@ JSON — the worst outcome, because a downstream gate reads its silence
 as PASS. So the contract is stated before the parsing, and tested:
 
 - **Sections match by name, level-insensitively.** A section written at
-  another epoch's level is the same section (`level-variant`).
+  another level is the same section (`level-variant`).
 - **Labels match by prefix.** A bullet label is the field followed by a
   boundary, not the whole bold text: `Evidence — the two channel
   reductions`, `If wrong (a refusal is owed)`, `Evidence (plan)` are the
@@ -628,55 +628,54 @@ as PASS. So the contract is stated before the parsing, and tested:
 The **unclassified-line rate** is the property as a number: the share
 of a record's non-blank lines that lie inside a warning's range
 (`coverage` in the envelope). It is exactly zero on a record that
-conforms to its epoch and near zero over the whole corpus, and a rise
+conforms to the template and near zero over the whole corpus, and a rise
 after a `TEMPLATE.md` change is the drift alarm — it points at the
-epoch entry the same-commit rule required and did not get. `rdr index
+template entry the same-commit rule required and did not get. `rdr index
 --coverage` reports it per record and in total, with warnings by code,
 and lists every unknown heading and author label that recurs across
 three or more records: one record's invention is the author's, the same
 text across records is a convention or an unmodelled template addition.
 
-The contract's tests run over every synthetic fixture, the four epochs
+The contract's tests run over every synthetic fixture
 and one variant per known failure (`testdata/README.md`):
 
 | test | asserts |
 | --- | --- |
 | `TestZeroSilentDrop` | every non-blank line lies inside the outline, nodes nest without overlap; every labelled bullet outside a fence is accounted for; `counts.fields` sums to the fields recorded; `coverage.unclassified` is exactly the warned non-blank lines |
-| `TestConformantFixturesHaveFullCoverage` | a record conformant to its epoch has no warnings and rate zero |
-| `TestHeadingLevelVariant` | Critical Assumptions at `###` in an epoch D record reads every assumption |
+| `TestConformantFixturesHaveFullCoverage` | a conformant record has no warnings and rate zero |
+| `TestHeadingLevelVariant` | Critical Assumptions at `###` reads every assumption |
 | `TestLabelVariants` | clause-extended labels match by prefix; a colon inside the bold is a label; an author's sub-field is recorded, not warned |
 | `TestStatusForms` | the parenthetical, dash and joint-decision lifecycle forms; every Evidence Record Status form; the placeholder |
 | `TestWrappedMetadata` | wrapped values join, a guidance comment ends them, a nested bullet is not part of the value; legacy and author labels classify; an unknown one warns and is still recorded |
 | `TestAuthorStructure` | author sub-headings are not findings; a foreign section warns once; prose-named labels are observed, the author's are recorded |
 | `TestIndexCoverage` | the corpus rate, warnings by code, and the recurrence table with its threshold |
 
-## The four epochs
+## One template, read never judge
 
-Drift across the record corpus is **epochal, not chaotic**. Within an epoch
-conformance is near-total; the differences between epochs are additive,
-each generation's section set containing its predecessor's.
+There is one template table: `model.Template`, the current `TEMPLATE.md`.
+Every record is read against it whatever its age.
 
-| epoch | what it introduced | fingerprint |
-| --- | --- | --- |
-| A | the original template | a metadata block, no `Profile`, no Evidence Record `Method` field, gate responses inlined |
-| B | `Profile`, `Seam Lineage`, `Load-Bearing Decisions` | any of those three present |
-| C | the Finalization Gate body externalised | a `gate.md` pointer replaces the inlined responses |
-| D | Critical Assumptions promoted to `##`; joint-decision qualifiers | Critical Assumptions at `##`, or a joint-decision status qualifier |
+The reader used to carry four **epoch** tables and a fingerprint that
+placed each record in the generation that produced it, so a frozen record
+was judged by its own template rather than today's. That machinery is
+gone. It bought a kinder verdict on old records and cost a second
+template model to keep in step; the same kindness now comes from the
+lint tier a finding lands in, which is where it belonged.
 
-`DetectEpoch` reads the signals newest-first, because a record showing a
-later epoch's signal also shows every earlier one.
+What the epochs actually varied still exists in the corpus, and the
+reader still absorbs it — but as TOLERANCE, not as a second table:
 
-### Why a fingerprint and not a `Template-version:` stamp
+| the old variation | how it reads now |
+| --- | --- |
+| Critical Assumptions at `###` rather than `##` | `level-variant` — the same section |
+| gate responses inlined rather than a `gate.md` pointer | projected as `G-<item>` elements |
+| pre-Evidence-Record verification headings | the alias table maps them onto Critical Assumptions |
+| `Profile` / `Seam Lineage` / `Load-Bearing Decisions` absent | a Required section the record does not carry: a conformance finding, never blocking |
 
-A stamp was considered and rejected. It would be one more metadata field to
-drift; it is copyable-wrong from a neighbouring record, which is exactly
-how metadata already spreads; and it would be absent from every record
-already frozen, which is most of them — so the fingerprint would have to
-exist anyway as the fallback. The fingerprint separates the four
-generations cleanly with no cooperation from the author.
-
-Add a stamp only if a future epoch turns out to be fingerprint-ambiguous
-against its predecessor. Until then it buys nothing and costs a field.
+Each of those is a **reformat in the waiting**: the tolerance holds the
+record readable and its elements citable until the record is migrated,
+and it retires when the corpus is uniform — not before. The alias table
+is load-bearing exactly this way; see §Tolerant matching.
 
 ## Canonical vs. observed vocabularies
 
@@ -689,10 +688,11 @@ rather than convenience.
   legitimate practice the template simply never listed. The reader accepts
   it with no warning, and a gate or lint consumer treats it as valid.
 
-The tier exists because the corpus was frozen at the epoch that wrote
-it, and a reader that called those values off-vocabulary would have been
-unfixably wrong. Structural migration (§Identifiers) ends that: once the
-corpus is on one schema the tier retires with the epoch tables.
+The tier exists because the corpus was frozen under the template that
+wrote it, and a reader that called those values off-vocabulary would have
+been unfixably wrong. Structural migration (§Identifiers) ends that: once
+the corpus is on one schema the tier retires, like the epoch tables
+before it.
 
 In practice only Status has an observed set: `Rejected`, written as a real
 terminal disposition by frozen records that `TEMPLATE.md` never listed.
@@ -747,14 +747,14 @@ the field they annotate, so they are guidance, not value.
 ## Tolerant matching
 
 `LookupSection` and `LookupField` classify an observed heading or field
-against an epoch, and report **how** it matched. Only `MatchUnknown` is a
+against the template, and report **how** it matched. Only `MatchUnknown` is a
 finding; everything else is a legitimate way a conformant record of some
-epoch writes a template-drawn thing.
+records write a template-drawn thing.
 
 | kind | meaning |
 | --- | --- |
 | `exact` | name and level both match |
-| `level-variant` | same section, written at another epoch's level |
+| `level-variant` | same section, written at another level |
 | `case-variant` | differs only by case |
 | `scaffold-instance` | a template scaffold with its placeholder filled in (`Alternative 2: …` for `Alternative 1: [Name]`) |
 | `legacy-alias` | a recognised predecessor name, mapped to its canonical section |
@@ -1035,8 +1035,8 @@ could break an answer would be worse than no log.
         fields.go          per-section label sets, prefix matching, the Evidence Record Status
         vocabulary.go      the four closed vocabularies; Method/Type/Profile parsing
         qualifier.go       the status qualifier grammars
-        epoch.go           the four epoch tables and fingerprint detection
+        template_table.go  the one template table: sections, fields, vocabularies
         alias.go           legacy names and the match kinds
         scaffold.go        filled-in template scaffolds
         template.go        also DecisionClasses and GateItems, the D- and G-key tables
-      testdata/            synthetic fixtures, one per epoch, plus variants/ (see its README)
+      testdata/            synthetic fixtures spanning the corpus shapes, plus variants/ (see its README)

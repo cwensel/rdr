@@ -61,27 +61,26 @@ func TestFixtureTallies(t *testing.T) {
 	cases := []struct {
 		file   string
 		record string
-		epoch  string
 		want   map[ident.Kind]string // kind → "count/derived"
 		ids    []string              // a few IDs that must exist
 	}{
-		{"epoch-a.md", "0001", "A",
+		{"epoch-a.md", "0001",
 			map[ident.Kind]string{"ALT": "1/0", "BR": "1/1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0001:G-contradiction", "0001:G-proportionality", "0001:ALT1"}},
-		{"epoch-b.md", "0002", "B",
+		{"epoch-b.md", "0002",
 			map[ident.Kind]string{"A": "2/0", "D": "2/0", "ALT": "1/0", "BR": "1/1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0002:A1", "0002:A2", "0002:D-identity", "0002:D-selection-predicate"}},
-		{"epoch-c.md", "0003", "C",
+		{"epoch-c.md", "0003",
 			map[ident.Kind]string{"A": "2/0", "C": "1/1", "BR": "1/1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0003:C1", "0003:BR1"}},
-		{"epoch-d.md", "0004", "D",
+		{"epoch-d.md", "0004",
 			map[ident.Kind]string{"A": "3/0", "C": "1/1", "D": "2/0", "ALT": "2/0", "BR": "1/1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0004:A1", "0004:A3", "0004:C1", "0004:D-wire-byte-format", "0004:D-naming", "0004:ALT2", "0004:MVV", "0004:S1"}},
 	}
 	for _, c := range cases {
 		doc := Bytes(fixture(t, c.file), Options{})
-		if doc.Record != c.record || doc.Epoch != c.epoch {
-			t.Errorf("%s: record %s epoch %s, want %s %s", c.file, doc.Record, doc.Epoch, c.record, c.epoch)
+		if doc.Record != c.record {
+			t.Errorf("%s: record %s, want %s", c.file, doc.Record, c.record)
 		}
 		got := kinds(doc)
 		for k, want := range c.want {
@@ -639,9 +638,6 @@ See gate.md.
 	}
 	if e := element(t, doc, "0013:A1"); e.Section != "0013:§critical-assumptions" {
 		t.Errorf("A1 read from %s", e.Section)
-	}
-	if doc.Epoch != "C" {
-		t.Errorf("epoch %s, want C (gate pointer, CA at ###)", doc.Epoch)
 	}
 }
 

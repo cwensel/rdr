@@ -63,7 +63,7 @@ func indexGraph(f *flags, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "total %d records  %d elements  %d edges  %d targets with backlinks\n",
 		len(g.Records), len(g.Elements), len(g.Edges), len(g.Backlinks))
 	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
+		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
 	}
 	return 0
 }

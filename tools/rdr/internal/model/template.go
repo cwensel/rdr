@@ -11,13 +11,13 @@
 //
 // SAME-COMMIT RULE. A TEMPLATE.md change that adds, removes, renames or
 // re-levels a section, or changes a class, field, label or qualifier
-// grammar, ships in the same commit as its epoch entry and a synthetic
+// grammar, ships in the same commit as its Template table entry and a synthetic
 // fixture. TemplateTest in template_test.go enforces the section half
 // mechanically.
 //
 // READ, NEVER JUDGE. Terminal records (Implemented, Rejected, Abandoned,
 // Superseded, Demoted) are never amended. They are frozen at the template
-// epoch that produced them, forever. The model therefore reads what the
+// that produced them, forever. The model therefore reads what the
 // corpus contains, which is a strictly larger language than what a new
 // record may write — see Vocabulary and its three tiers.
 package model
@@ -75,8 +75,8 @@ const (
 	// template-drawn.
 	GrammarScaffold
 	// GrammarGatePointer is the Finalization Gate body: at lock it is
-	// replaced by a one-line pointer to gate.md. Epoch A and B inline the
-	// responses instead; that difference is an epoch fingerprint.
+	// replaced by a one-line pointer to gate.md. Older records inline the
+	// responses instead.
 	GrammarGatePointer
 )
 
@@ -100,7 +100,7 @@ func (g Grammar) String() string {
 	return "unknown"
 }
 
-// Section is one entry in a template epoch's ordered section table.
+// Section is one entry in the template's ordered section table.
 type Section struct {
 	// Name is the canonical heading text, verbatim, without the leading
 	// hashes.
@@ -170,8 +170,8 @@ var EvidenceFieldBullet = regexp.MustCompile(`^\s*-\s+\*\*([^*]+)\*\*:\s*(.*)$`)
 var MetadataFieldBullet = regexp.MustCompile(`^- \*\*([^*]+)\*\*:\s*(.*)$`)
 
 // MetadataFields is the Metadata block's canonical field set in template
-// order. Presence is not uniform across epochs — Profile, Seam Lineage,
-// Overrides and Cluster arrive later (see epoch.go), and Predecessors,
+// order. Presence is not uniform across the corpus — Profile, Seam
+// Lineage, Overrides and Cluster arrived later, and Predecessors,
 // Overrides, Seam Lineage and Cluster are omitted when they have no value.
 var MetadataFields = []string{
 	"Date",
@@ -247,8 +247,7 @@ var NormativeFenceOpen = regexp.MustCompile("^\\s*```normative\\s*$")
 var FenceDelimiter = regexp.MustCompile("^\\s*(```|~~~)")
 
 // GatePointer matches the one-line gate.md pointer that replaces the
-// Finalization Gate body at lock. Its presence versus an inlined gate body
-// separates epoch C onward from epochs A and B.
+// Finalization Gate body at lock.
 var GatePointer = regexp.MustCompile(`gate\.md`)
 
 // --- Heading -------------------------------------------------------
@@ -311,7 +310,7 @@ func firstWord(s string) string {
 }
 
 // GateItems maps each Finalization Gate sub-section onto its G-key, so an
-// inlined gate response (epochs A and B) is addressable as `NNNN:G-scope`
+// inlined gate response is addressable as `NNNN:G-scope`
 // regardless of the heading's exact wording.
 //
 // Retained records the template's `[Retained at lock — …]` marker: at lock

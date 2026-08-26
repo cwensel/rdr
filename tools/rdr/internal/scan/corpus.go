@@ -26,7 +26,6 @@ type Summary struct {
 	// ShortTitle is the title without its `Recommendation NNNN:` lead —
 	// the form an index table writes.
 	ShortTitle string `json:"short_title"`
-	Epoch      string `json:"epoch"`
 	Lines      int    `json:"lines"`
 	// Hash is the title node's content hash, which governs every line, so
 	// it is the record's own: same bytes, same hash.
@@ -52,7 +51,7 @@ var titleLead = regexp.MustCompile(`^(?:Recommendation|RDR|R)\s*[-#]?\s*\d{4}\s*
 // Summarize reads a record's Summary off its projection.
 func Summarize(d *Document) Summary {
 	s := Summary{
-		Record: d.Record, Path: d.Path, Title: d.Title, Epoch: d.Epoch, Lines: d.Lines,
+		Record: d.Record, Path: d.Path, Title: d.Title, Lines: d.Lines,
 		ShortTitle: strings.TrimSpace(titleLead.ReplaceAllString(d.Title, "")),
 		Counts:     d.Counts, Edges: len(d.Edges), Warnings: len(d.Warnings),
 	}

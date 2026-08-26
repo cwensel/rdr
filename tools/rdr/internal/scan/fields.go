@@ -82,7 +82,7 @@ type Method struct {
 // non-blank lines the projector could not classify. Unclassified lines
 // are exactly the lines a warning covers — a warning is the itemised
 // form, this is the rate — so the number is 0 when the record is
-// template-conformant for its epoch, and a rise across a corpus after a
+// template-conformant, and a rise across a corpus after a
 // TEMPLATE.md change is the drift alarm.
 type Coverage struct {
 	// Lines is the count of non-blank lines.
@@ -162,7 +162,7 @@ var spaces = regexp.MustCompile(`\s+`)
 // warning, because the flow reads these fields by name and a misspelt
 // one is a field the flow will not find.
 func (d *Document) metadataField(f *Field) {
-	te := model.EpochOf(epochOf(d.Epoch))
+	te := model.Template
 	m := model.LookupField(te, f.Label)
 	f.Match = m.Kind.String()
 	switch m.Kind {
@@ -178,7 +178,7 @@ func (d *Document) metadataField(f *Field) {
 		} else {
 			f.Match = model.MatchAuthor.String()
 			d.warn("field:unknown-to-template", f.LineStart, f.LineEnd,
-				"metadata field %q is in no template epoch and no alias", f.Label)
+				"metadata field %q is in neither the template nor the alias table", f.Label)
 		}
 	}
 	if f.Canonical == "Status" {

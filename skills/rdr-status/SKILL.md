@@ -81,7 +81,7 @@ Read literally, never re-parsed from the markdown:
 The `Premortem:` / `Ground-sweep:` / `Joint-check:` verdict lines are prose, not
 fields — the projection does not carry them. Read only that section's bytes:
 `"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>`
-(the id is stable across all four epochs).
+(the id is stable however the record spells the heading).
 
 Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spikes`
 under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus

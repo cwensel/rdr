@@ -618,7 +618,7 @@ func emit(v any, stdout, stderr io.Writer) int {
 // summary is the human form: one line per element, ids first, so the
 // output is greppable and pipes into --select.
 func summary(doc *scan.Document, w io.Writer) int {
-	fmt.Fprintf(w, "%s  %s  epoch %s  %d lines\n", doc.Record, doc.Title, doc.Epoch, doc.Lines)
+	fmt.Fprintf(w, "%s  %s  %d lines\n", doc.Record, doc.Title, doc.Lines)
 	// Sections first, nested by level: the read plan for a record too big
 	// for one call, without the 700-line JSON outline that used to be the
 	// only way to get these ranges.
@@ -658,7 +658,6 @@ func derivedLine(c scan.Counts) string {
 type derivedRow struct {
 	Record   string             `json:"record"`
 	Path     string             `json:"path"`
-	Epoch    string             `json:"epoch"`
 	Elements map[ident.Kind]int `json:"elements"`
 	Derived  map[ident.Kind]int `json:"derived"`
 	Warnings int                `json:"warnings"`
@@ -675,7 +674,7 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 	total := scan.Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}}
 	var rows []derivedRow
 	for _, doc := range docs {
-		rows = append(rows, derivedRow{doc.Record, doc.Path, doc.Epoch, doc.Counts.Elements, doc.Counts.Derived, len(doc.Warnings)})
+		rows = append(rows, derivedRow{doc.Record, doc.Path, doc.Counts.Elements, doc.Counts.Derived, len(doc.Warnings)})
 		for k, n := range doc.Counts.Elements {
 			total.Elements[k] += n
 		}
@@ -687,17 +686,17 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 		return emit(map[string]any{"schema": schemaVersion, "records": rows, "total": total, "skipped": skipped}, stdout, stderr)
 	}
 	for _, r := range rows {
-		fmt.Fprintf(stdout, "%s %s %3dw  %s\n", r.Record, r.Epoch, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived}))
+		fmt.Fprintf(stdout, "%s %3dw  %s\n", r.Record, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived}))
 	}
 	fmt.Fprintf(stdout, "total %d records  %s\n", len(rows), derivedLine(total))
 	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
+		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
 	}
 	return 0
 }
 
 // records walks the records dir, scanning every NNNN-*.md that is a
-// record. Files with no epoch fingerprint are returned as skipped, never
+// record. Files that are not records are returned as skipped, never
 // silently dropped.
 func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []string, code int) {
 	dir, tried := resolveRecordsDir(*f.records)
@@ -715,7 +714,7 @@ func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []strin
 			fmt.Fprintf(stderr, "stopped:unreadable (%s: %v)\n", p, err)
 			return nil, nil, 2
 		}
-		if doc.Epoch == "unknown" {
+		if !doc.IsRecord() {
 			skipped = append(skipped, p)
 			continue
 		}
@@ -728,7 +727,6 @@ func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []strin
 type coverageRow struct {
 	Record       string  `json:"record"`
 	Path         string  `json:"path"`
-	Epoch        string  `json:"epoch"`
 	Lines        int     `json:"lines"`
 	Unclassified int     `json:"unclassified"`
 	Rate         float64 `json:"rate"`
@@ -737,7 +735,7 @@ type coverageRow struct {
 
 // recurring is a heading or label the model does not know, seen in more
 // than one record. One record's invention is the author's; the same text
-// across records is a convention — or a TEMPLATE.md addition whose epoch
+// across records is a convention — or a TEMPLATE.md addition whose
 // entry was never written, which is what the drift alarm points at.
 type recurring struct {
 	Kind string `json:"kind"` // heading | label
@@ -776,7 +774,7 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 	}
 	for _, d := range docs {
 		c := d.Coverage
-		rows = append(rows, coverageRow{d.Record, d.Path, d.Epoch, c.Lines, c.Unclassified, c.Rate, len(d.Warnings)})
+		rows = append(rows, coverageRow{d.Record, d.Path, c.Lines, c.Unclassified, c.Rate, len(d.Warnings)})
 		total.Lines += c.Lines
 		total.Unclassified += c.Unclassified
 		for _, w := range d.Warnings {
@@ -842,7 +840,7 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 			"warnings": byCode, "recurring": recur, "skipped": skipped}, stdout, stderr)
 	}
 	for _, r := range rows {
-		fmt.Fprintf(stdout, "%s %s %6d lines %4d unclassified %2dw\n", r.Record, r.Epoch, r.Lines, r.Unclassified, r.Warnings)
+		fmt.Fprintf(stdout, "%s %6d lines %4d unclassified %2dw\n", r.Record, r.Lines, r.Unclassified, r.Warnings)
 	}
 	fmt.Fprintf(stdout, "total %d records  %d lines  %d unclassified  rate %.4f\n", len(rows), total.Lines, total.Unclassified, total.Rate)
 	codes := make([]string, 0, len(byCode))
@@ -864,7 +862,7 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "recurring %-7s %-48q %-28s %d records\n", r.Kind, r.Text, where, r.Records)
 	}
 	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no epoch fingerprint)\n", p)
+		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
 	}
 	return 0
 }
@@ -947,7 +945,7 @@ func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err 
 		if e != nil {
 			return nil, nil, fmt.Errorf("%s: %w", p, e)
 		}
-		if doc.Epoch == "unknown" {
+		if !doc.IsRecord() {
 			skipped = append(skipped, p)
 			continue
 		}
@@ -1168,7 +1166,7 @@ func lintText(reports []lint.Report, w io.Writer) {
 		if r.Terminal {
 			state = "terminal"
 		}
-		fmt.Fprintf(w, "%s  %s  epoch %s  %s  %s\n", r.Record, r.Status, r.Epoch, state, r.Verdict)
+		fmt.Fprintf(w, "%s  %s  %s  %s\n", r.Record, r.Status, state, r.Verdict)
 		for _, fd := range r.Findings {
 			mark := " "
 			if fd.Blocking {
