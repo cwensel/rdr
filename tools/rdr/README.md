@@ -85,10 +85,10 @@ the same thing the long way, by pasting the three reads it wants.
 ### Reading a finding before acting on it
 
 **Findings are the intended output, not a defect.** The conformance
-rules are forward-only: terminal records are never amended, and a live
-record carries findings until the stage already rewriting it fixes them
-in-pass. A Final record exiting non-zero under `--locking` is an
-ordinary state, not a broken lock.
+rules are forward-only: a terminal record's content is never amended
+(structure migrates — §Identifiers), and a live record carries findings
+until the stage already rewriting it fixes them in-pass. A Final record
+exiting non-zero under `--locking` is an ordinary state, not a broken lock.
 
 The corpus audit that closed this tool's build-out is the cautionary
 tale, and it is worth restating because the mistake is easy to repeat.
@@ -229,11 +229,19 @@ it is exactly what a reword or a move breaks.
 citation that resolves to a whole 4,000-line record has named a document,
 not a reason — `rdr lint` reports it as `peer-evidence:no-element`.
 
-**None of this is retroactive.** Terminal records are never amended, and
-an ordinal-derived ID on a frozen file is exactly as stable as a written
-label, so the legacy corpus is fully citable at zero edit cost. Live
-records get labels the fix-forward way: `rdr lint` advises, and the stage
-already rewriting the file labels them in-pass.
+**Content is never amended; structure is migrated.** A terminal record's
+prose, verdicts and decisions are frozen. Its *structure* may be brought
+to the current `TEMPLATE.md` by tooling, ids and content bytes preserved.
+Migratable, and nothing else: heading level and name; element labels
+(the label written is the id the projector already derives, so no
+citation moves); citation form; Status/Method/Type spelling; the gate
+pointer (inline responses move to `artifacts/gate.md`); evidence-tree
+location. After migration, A, C, D, S, RT and ALT carry written ids; BR
+and F carry none. There is one schema — the current template — and a
+section a record never had stays absent, which is not a finding on a
+terminal record. Delivery is `lint --strict` fix fields applied by a
+script, never a write verb: this tool still writes no record. Live
+records get labels the same way, in-pass.
 
 ## Lint
 
@@ -269,7 +277,7 @@ terminal records too, because it is not about their shape. The DELIVERY
 differs — on a frozen record the finding is a fix pointer carrying the line
 range to open, and it does not block, because that record is not the one
 locking. Correcting the reference text in that range is the one sanctioned
-amendment to a locked RDR: the pointer only, never prose or structure.
+content amendment to a locked RDR: the pointer only, never prose.
 
 The label rule's boundary is the record's own `Date`, not an epoch
 fingerprint. A fingerprint would beg the question — the signal placing a
@@ -625,12 +633,10 @@ rather than convenience.
   legitimate practice the template simply never listed. The reader accepts
   it with no warning, and a gate or lint consumer treats it as valid.
 
-The doctrinal basis is that **terminal records are never amended**. An
-`Implemented`, `Rejected`, `Abandoned` or `Superseded` record is frozen at
-the template epoch that produced it, forever. Nobody can go back and
-correct it, so a reader that called its values off-vocabulary would be
-permanently and unfixably wrong about it. The model's job is to **read
-those records, never to judge them**.
+The tier exists because the corpus was frozen at the epoch that wrote
+it, and a reader that called those values off-vocabulary would have been
+unfixably wrong. Structural migration (§Identifiers) ends that: once the
+corpus is on one schema the tier retires with the epoch tables.
 
 In practice only Status has an observed set: `Rejected`, written as a real
 terminal disposition by frozen records that `TEMPLATE.md` never listed.

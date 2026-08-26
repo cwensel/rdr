@@ -1,6 +1,7 @@
 # Recommendation [NUMBER]: [TITLE]
 
-> Revise during planning; lock at implementation.
+> Revise during planning; lock at implementation. After lock, content is never
+> amended; structure may be migrated to the current template by tooling.
 > If wrong, abandon code and iterate RDR.
 
 <!-- Section classes: **Required** (never omit). **Conditional**
