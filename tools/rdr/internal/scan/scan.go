@@ -1263,7 +1263,12 @@ func (d *Document) listKind(kind ident.Kind, section string, labeller func(strin
 	}
 }
 
-var altOrdinal = regexp.MustCompile(`(?i)^Alt(?:ernative)?\s+(\d+)`)
+// altOrdinal reads the author's own ordinal off an Alternative
+// heading. The trailing letter is part of the ordinal — `Alt 3b` is a
+// sibling of `Alt 3`, not a second writing of it — exactly as
+// tableRowLead reads `T-5b`. Dropping it collided the two and sent
+// every later Alternative in the section to a positional ordinal.
+var altOrdinal = regexp.MustCompile(`(?i)^Alt(?:ernative)?\s+(\d+[a-z]?)`)
 
 // alternatives projects each filled-in `### Alternative N:` scaffold as
 // ALT<N>, keyed by the author's own ordinal.
