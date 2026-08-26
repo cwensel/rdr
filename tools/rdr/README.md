@@ -245,7 +245,7 @@ records get labels the same way, in-pass.
 
 ## Lint
 
-`rdr lint [<NNNN>] [--locking]` is the conformance authority: one pass,
+`rdr lint [<NNNN>] [--locking] [--strict]` is the conformance authority: one pass,
 three severities, and a rule about which records each may speak about.
 With no argument it lints the whole records dir. It exits 0 on PASS —
 findings or not — and 1 when a finding blocks a lock.
@@ -287,6 +287,55 @@ legacy and escape the check the rule exists to apply. `Date` is written by
 Seed on every record and says when it entered the flow, which is what the
 grandfathering rule actually asks.
 
+### `--strict`: the migration reading
+
+`rdr lint --strict` judges EVERY record against the current TEMPLATE.md,
+terminal ones included, and attaches a machine-applicable `patch` —
+`{line_start, line_end, op, text}`, where `op` is `replace`, `prepend` or
+`insert` — to each finding whose repair is computed rather than judged.
+It changes no verdict: everything it adds is advisory, and a strict run
+of a corpus that blocks nothing still exits 0.
+
+The tier lift is the point. Ordinary conformance speaks only about live
+records because a terminal record's content is never amended. Its
+STRUCTURE may be migrated (§Identifiers), and strict is the pass that
+prices that migration before anything is applied. Delivery is still a
+patch field read by a script; this tool writes no record.
+
+| rule | patched | withheld when |
+| --- | --- | --- |
+| `heading:level` | the heading, re-levelled | the promotion would capture a following sibling |
+| `label:missing` | the id the projector already derived | the section labels nothing, the fence is indented or fenced, the label would not read back |
+| `citation:form` | the line, every citation on it at once | the target is a section, the text is fenced or repeats in range |
+| `section:legacy-name` | never | always — see below |
+| `gate:inline` | never | always — a cross-file move |
+
+**The patch set is a fixpoint, applied bottom-up.** A second strict pass
+over the result proposes nothing: conformance is reached in ONE pass, and
+there is no iterate-until-clean loop to run or bridge between. Over the
+143-record corpus that is 911 patches, after which the graph — every
+element id and every resolved edge — is unchanged. Two properties an
+applier depends on: patches are applied bottom-up by `line_start`, and
+findings that repair the same line SHARE one patch, so it must
+deduplicate by identity before applying.
+
+**A rule earns a patch only where its repair is exact**, and the corpus
+taught which those are. Re-levelling moves no id, because a canonical
+section takes the canonical slug at any level — but it can change what the
+section CONTAINS, so a promotion that would swallow a sibling is reported
+and not patched. A renamed legacy heading is never patched at all: the
+section's id is a slug of its heading text, so a rename moves the id, and
+the canonical name carries a canonical level that can re-parent the body
+under it. A label is never written into a section that labels nothing,
+because there the projector is reading elements BY POSITION — a tolerance,
+not the record's claim — and writing those ids down converts a guess into
+an authored fact. Section citations are never rewritten, because a `§Name`
+citation is a bounded fragment while the id is the slug of the whole
+heading.
+
+Everything withheld is still REPORTED. The findings are the work list for
+the hand pass, with lint as its checker.
+
 The stability properties are tests, not intentions:
 
 | test | asserts |
@@ -299,6 +348,8 @@ The stability properties are tests, not intentions:
 | `TestOutlineNestsAndCovers` | no non-blank line lies outside the outline |
 | `TestSelectRoundTripsToBytes` | `--select` prints exactly the record's lines |
 | `TestJSONIsDeterministic` | same bytes, same JSON |
+| `TestStrictPatchesPreserveTheGraph` | applying every `--strict` patch moves no element id, section id or edge |
+| `TestStrictPatchesAreIdempotent` | a second strict pass over the result proposes nothing |
 
 ### What the scanner reads, and what it does not judge
 

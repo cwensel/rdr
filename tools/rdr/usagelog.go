@@ -240,6 +240,13 @@ func usageFacet(cmd string, f *flags) string {
 		}
 		return "graph"
 	case "lint":
+		// Strict wins over locking: it is the whole-corpus migration
+		// pass, an order of magnitude more work than either ordinary
+		// lint, and an audit that could not tell it from a gate check
+		// would misread the cost of both.
+		if f.strict != nil && *f.strict {
+			return "strict"
+		}
 		if f.locking != nil && *f.locking {
 			return "locking"
 		}

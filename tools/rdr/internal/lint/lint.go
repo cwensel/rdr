@@ -82,7 +82,64 @@ type Finding struct {
 	LineEnd   int    `json:"line_end"`
 	// Fix is the repair, when there is a mechanical one to name.
 	Fix string `json:"fix,omitempty"`
+	// Patch is the repair as bytes, when the repair is mechanical AND
+	// exact. It is the machine-applicable half of Fix: Fix says what to
+	// do in prose for a reader, Patch says it in lines for a script.
+	//
+	// It is present only under Options.Strict, and only on the rules
+	// whose repair is computed rather than judged. A finding that needs a
+	// decision — which of two records owns a relation, which element a
+	// bare peer citation meant, which section a colliding label belongs
+	// to — carries Fix and no Patch, because a guessed patch applied in
+	// bulk is exactly the corpus-wide damage the projector's never-guess
+	// rule exists to prevent.
+	Patch *Patch `json:"patch,omitempty"`
 }
+
+// Patch is a machine-applicable repair: the lines it replaces and the
+// text to write in their place.
+//
+// The grammar is deliberately three ops over a line range and nothing
+// else. Every migration this tool names — re-levelling a heading,
+// renaming a legacy section, writing the id the projector already
+// derives, spelling a citation in the colon form — is expressible as
+// whole-line surgery, and a grammar that could express more would invite
+// a rule whose repair is not actually mechanical.
+//
+// An applier walks a record's patches BOTTOM-UP by LineStart, so earlier
+// ranges keep their line numbers as later ones change length.
+//
+// Two properties an applier may rely on, and both are tested:
+//
+//   - Ranges within one record do not overlap. Where several findings
+//     repair the same line — every citation written on it — they SHARE
+//     one patch rather than proposing one each, so an applier must
+//     deduplicate by pointer identity before applying. Computing a
+//     patch per citation against the original line would make the
+//     second overwrite the first, silently.
+//   - Applying the full set is a FIXPOINT: a second strict pass over the
+//     result proposes nothing. Conformance is reached in one pass; there
+//     is no iterate-until-clean step and nothing to bridge between runs.
+type Patch struct {
+	// LineStart and LineEnd are 1-based and inclusive, over the record as
+	// the projector read it.
+	LineStart int `json:"line_start"`
+	LineEnd   int `json:"line_end"`
+	// Op is `replace` (Text stands in for lines LineStart..LineEnd),
+	// `prepend` (Text goes immediately above LineStart, which is
+	// unchanged) or `insert` (Text goes immediately below LineEnd).
+	Op string `json:"op"`
+	// Text is the replacement or inserted lines, newline-separated and
+	// without a trailing newline.
+	Text string `json:"text"`
+}
+
+// The three patch ops.
+const (
+	OpReplace = "replace"
+	OpPrepend = "prepend"
+	OpInsert  = "insert"
+)
 
 // Report is one record's lint result.
 type Report struct {
@@ -121,6 +178,20 @@ type Options struct {
 	// mid-flow far more often than at lock, and a blocking verdict there
 	// would be read as a stop when it is a to-do.
 	Locking bool
+	// Strict judges EVERY record against the CURRENT template, and
+	// attaches a Patch to every finding whose repair is mechanical.
+	//
+	// Without it the conformance tier speaks only about live records,
+	// because a terminal record's content is never amended and advice no
+	// one may act on is noise. Strict is the migration reading of the
+	// same corpus: a terminal record's STRUCTURE may be brought to the
+	// current template by tooling, ids and content bytes preserved
+	// (README §Identifiers), and this is the pass that says what that
+	// costs, line by line, before anything is applied.
+	//
+	// It changes no verdict. Every finding strict adds is advisory, and a
+	// strict run of a corpus that blocks nothing still exits 0.
+	Strict bool
 	// Now overrides the clock for the label-rule boundary in tests.
 	Now string
 	// Corpus is every record in the dir, when the caller has it, so a
@@ -147,8 +218,11 @@ func Run(d *scan.Document, opts Options) Report {
 	}
 
 	r.Findings = append(r.Findings, parseFindings(d)...)
-	if !terminal {
+	if !terminal || opts.Strict {
 		r.Findings = append(r.Findings, conformanceFindings(d, opts)...)
+	}
+	if opts.Strict {
+		r.Findings = append(r.Findings, strictFindings(d)...)
 	}
 	r.Findings = append(r.Findings, resolutionFindings(d, terminal, opts)...)
 

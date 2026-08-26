@@ -234,6 +234,18 @@ func (d *Document) Line(n int) string {
 	return d.lines[n-1]
 }
 
+// Fenced reports whether the 1-based line lies inside a fenced block.
+// A consumer proposing a byte-level repair needs it: text inside a fence
+// is quoted content — a code sample, a transcript, a record quoted by
+// another record — and rewriting a citation there would edit the quote
+// rather than the claim.
+func (d *Document) Fenced(n int) bool {
+	if n < 1 || n > len(d.fenced) {
+		return false
+	}
+	return d.fenced[n-1]
+}
+
 // Slice returns lines start..end inclusive, 1-based.
 func (d *Document) Slice(start, end int) []string {
 	if start < 1 {
