@@ -231,6 +231,8 @@ func usageFacet(cmd string, f *flags) string {
 			{f.clusterOf != nil && *f.clusterOf != "", "cluster-of"},
 			{f.inFlight != nil && *f.inFlight, "in-flight"},
 			{f.status != nil && *f.status, "status"},
+			{f.cycles != nil && *f.cycles, "cycles"},
+			{f.openJoint != nil && *f.openJoint, "open-joint"},
 			{f.anchors != nil && *f.anchors, "anchor-intersect"},
 			{f.readme.set, "readme"},
 		} {

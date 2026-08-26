@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -1266,5 +1268,50 @@ func TestSummaryListsSections(t *testing.T) {
 	el := strings.Index(out, ":A1 ")
 	if el >= 0 && sec > el {
 		t.Errorf("sections should precede elements")
+	}
+}
+
+// TestEveryIndexFacetNamesItselfInTheUsageLog pins usageFacet to dispatch.
+// The two lists are written apart — dispatch routes the facet, usagelog
+// names it — and a facet added to one and not the other does not fail: it
+// silently logs as `graph`, the default. That is how --cycles and
+// --open-joint came to be invisible in the log while both had live skill
+// call sites, and an audit that prunes on "no calls recorded" would have
+// deleted a facet the flow uses.
+func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
+	// Every flag dispatch checks, with the facet name it must log as.
+	for _, c := range []struct{ flag, want string }{
+		{"-derived", "derived"},
+		{"-coverage", "coverage"},
+		{"-backlinks", "backlinks"},
+		{"-unresolved", "unresolved"},
+		{"-cluster-of=1", "cluster-of"},
+		{"-in-flight", "in-flight"},
+		{"-status", "status"},
+		{"-cycles", "cycles"},
+		{"-open-joint", "open-joint"},
+		{"-anchor-intersect", "anchor-intersect"},
+		{"-readme", "readme"},
+	} {
+		fs := flag.NewFlagSet("index", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		f := declareFlags("index", fs)
+		if err := fs.Parse([]string{c.flag}); err != nil {
+			t.Errorf("%s: parse: %v", c.flag, err)
+			continue
+		}
+		if got := usageFacet("index", f); got != c.want {
+			t.Errorf("%s logs as %q, want %q", c.flag, got, c.want)
+		}
+	}
+	// The bare graph is the only call that may fall through to "graph".
+	fs := flag.NewFlagSet("index", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	f := declareFlags("index", fs)
+	if err := fs.Parse(nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := usageFacet("index", f); got != "graph" {
+		t.Errorf("bare index logs as %q, want graph", got)
 	}
 }
