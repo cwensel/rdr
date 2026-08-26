@@ -119,7 +119,9 @@ type Element struct {
 	// the first line of a list item.
 	Label string `json:"label,omitempty"`
 	// Derived is true when the projector minted the key from the
-	// element's ordinal because the author wrote no label.
+	// element's ordinal rather than reading a label. Whether that is a
+	// backlog or the element's permanent identity is the KIND's business,
+	// not the element's: see ident.Kind.Labelled and Counts.
 	Derived bool `json:"derived"`
 	// Hash is the short content hash (ident.Hash) over the element's
 	// lines; it separates "same ID, same content" from "same ID, changed".
@@ -164,10 +166,17 @@ type Warning struct {
 }
 
 // Counts summarises elements per kind and, per kind, how many carry a
-// derived ID — the labelling backlog.
+// derived ID.
+//
+// Derived counts only the kinds the template labels (ident.Kind.Labelled)
+// — the labelling backlog, the elements an author could pin. Structural
+// counts the rest: BR, F and MVV, whose ordinal is their identity because
+// the template gives them nowhere to write one. Both are minted ids;
+// only the first names work.
 type Counts struct {
-	Elements map[ident.Kind]int `json:"elements"`
-	Derived  map[ident.Kind]int `json:"derived"`
+	Elements   map[ident.Kind]int `json:"elements"`
+	Derived    map[ident.Kind]int `json:"derived"`
+	Structural map[ident.Kind]int `json:"structural"`
 	// Fields counts every labelled bullet by how it matched the template;
 	// `author` is the count the model does not know.
 	Fields map[string]int `json:"fields"`
@@ -1336,7 +1345,7 @@ func (d *Document) gate() {
 }
 
 func (d *Document) count() {
-	d.Counts = Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}, Fields: map[string]int{}}
+	d.Counts = Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}, Structural: map[ident.Kind]int{}, Fields: map[string]int{}}
 	for _, f := range d.Metadata {
 		d.Counts.Fields[f.Match]++
 	}
@@ -1351,18 +1360,26 @@ func (d *Document) count() {
 	for _, k := range ident.Kinds {
 		d.Counts.Elements[k] = 0
 		d.Counts.Derived[k] = 0
+		d.Counts.Structural[k] = 0
+	}
+	// A minted id lands in exactly one of the two columns: the backlog
+	// where the template labels the kind, the structural count where it
+	// does not. Elements[k] stays the total either way.
+	tally := func(k ident.Kind, derived bool) {
+		d.Counts.Elements[k]++
+		switch {
+		case !derived:
+		case k.Labelled():
+			d.Counts.Derived[k]++
+		default:
+			d.Counts.Structural[k]++
+		}
 	}
 	for _, e := range d.Elements {
-		d.Counts.Elements[e.Kind]++
-		if e.Derived {
-			d.Counts.Derived[e.Kind]++
-		}
+		tally(e.Kind, e.Derived)
 	}
 	for _, n := range d.Outline {
-		d.Counts.Elements[ident.Section]++
-		if n.Derived {
-			d.Counts.Derived[ident.Section]++
-		}
+		tally(ident.Section, n.Derived)
 	}
 }
 

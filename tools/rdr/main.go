@@ -626,8 +626,11 @@ func summary(doc *scan.Document, w io.Writer) int {
 		fmt.Fprintf(w, "§ %-36s %5d-%-5d %s%s\n", n.ID, n.LineStart, n.LineEnd, indent, n.Heading)
 	}
 	for _, e := range doc.Elements {
+		// `~` marks an id a label would pin. A kind the template does not
+		// label carries no mark: its ordinal is the identity, so there is
+		// nothing for a reader to act on.
 		mark := " "
-		if e.Derived {
+		if e.Derived && e.Kind.Labelled() {
 			mark = "~"
 		}
 		fmt.Fprintf(w, "%s %-24s %5d-%-5d %s\n", mark, e.ID, e.LineStart, e.LineEnd, e.Label)
@@ -643,23 +646,38 @@ func summary(doc *scan.Document, w io.Writer) int {
 	return 0
 }
 
+// derivedLine reports the labelling backlog per kind. A kind the template
+// does not label (BR, F, MVV) has no backlog to report, so it carries its
+// count in the structural tail rather than a `0/540` column that reads
+// like work already done.
 func derivedLine(c scan.Counts) string {
 	var parts []string
+	var structural []string
 	for _, k := range ident.Kinds {
-		if c.Elements[k] > 0 {
-			parts = append(parts, fmt.Sprintf("%s %d/%d", k, c.Derived[k], c.Elements[k]))
+		if c.Elements[k] == 0 {
+			continue
 		}
+		if k.Labelled() {
+			parts = append(parts, fmt.Sprintf("%s %d/%d", k, c.Derived[k], c.Elements[k]))
+			continue
+		}
+		structural = append(structural, fmt.Sprintf("%s %d", k, c.Elements[k]))
 	}
-	return strings.Join(parts, "  ")
+	line := strings.Join(parts, "  ")
+	if len(structural) > 0 {
+		line += "  | structural: " + strings.Join(structural, " ")
+	}
+	return line
 }
 
 // derivedRow is one record's labelling backlog.
 type derivedRow struct {
-	Record   string             `json:"record"`
-	Path     string             `json:"path"`
-	Elements map[ident.Kind]int `json:"elements"`
-	Derived  map[ident.Kind]int `json:"derived"`
-	Warnings int                `json:"warnings"`
+	Record     string             `json:"record"`
+	Path       string             `json:"path"`
+	Elements   map[ident.Kind]int `json:"elements"`
+	Derived    map[ident.Kind]int `json:"derived"`
+	Structural map[ident.Kind]int `json:"structural"`
+	Warnings   int                `json:"warnings"`
 }
 
 // indexDerived walks the records dir and reports, per record and in
@@ -670,22 +688,25 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 	if code != 0 {
 		return code
 	}
-	total := scan.Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}}
+	total := scan.Counts{Elements: map[ident.Kind]int{}, Derived: map[ident.Kind]int{}, Structural: map[ident.Kind]int{}}
 	var rows []derivedRow
 	for _, doc := range docs {
-		rows = append(rows, derivedRow{doc.Record, doc.Path, doc.Counts.Elements, doc.Counts.Derived, len(doc.Warnings)})
+		rows = append(rows, derivedRow{doc.Record, doc.Path, doc.Counts.Elements, doc.Counts.Derived, doc.Counts.Structural, len(doc.Warnings)})
 		for k, n := range doc.Counts.Elements {
 			total.Elements[k] += n
 		}
 		for k, n := range doc.Counts.Derived {
 			total.Derived[k] += n
 		}
+		for k, n := range doc.Counts.Structural {
+			total.Structural[k] += n
+		}
 	}
 	if *f.json {
 		return emit(map[string]any{"schema": schemaVersion, "records": rows, "total": total, "skipped": skipped}, stdout, stderr)
 	}
 	for _, r := range rows {
-		fmt.Fprintf(stdout, "%s %3dw  %s\n", r.Record, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived}))
+		fmt.Fprintf(stdout, "%s %3dw  %s\n", r.Record, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived, Structural: r.Structural}))
 	}
 	fmt.Fprintf(stdout, "total %d records  %s\n", len(rows), derivedLine(total))
 	for _, p := range skipped {

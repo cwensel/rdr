@@ -188,6 +188,20 @@ legacy record is fully addressable at zero edit cost. On a live record a
 derived ID holds until a sibling is inserted before it — which is what
 labels are for, and what `index --derived` counts down.
 
+A derived ID means one of two things, and the difference is the kind's,
+not the element's. Where the template gives the kind somewhere to write
+an ID — A, C, D, S, RT, ALT — a derived one is a **backlog**: the slot is
+empty and a label would pin the ID against an insertion. Where the
+template labels nothing — **BR**, **F** and **MVV**, whose sections are
+plain bullet lists — the ordinal *is* the identity, there is no edit that
+would improve it, and `index --derived` reports the count in a
+`structural:` tail rather than as a backlog column. Both are minted IDs
+naming real bytes; only the first names work. Counting them together
+reported 976 pending edits corpus-wide against a real backlog of zero,
+and made "stop minting them" look like the way to clear the queue — which
+would strip the IDs off 976 elements and unanchor the 236 edges written
+from them.
+
 Two rules keep IDs unique when a live record is part-way through
 labelling: a label always wins its number (first writer; a repeated
 label is a `<kind>:duplicate` warning and the later element yields), and
@@ -544,7 +558,7 @@ file, so the cost is one traversal, not one per citation:
     rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
     rdr index --unresolved        # typed edges whose target was looked for and not found
     rdr index --readme[=PATH]     # the README index table checked against the records
-    rdr index --derived           # the unlabelled-element backlog per record
+    rdr index --derived           # the labelling backlog per record, structural ids apart
     rdr index --coverage          # the drift alarm (§The resilience contract)
 
 `--anchor-intersect` is the after-propose scan: two in-flight records

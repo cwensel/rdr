@@ -20,16 +20,26 @@ func fixture(t *testing.T, name string) []byte {
 	return raw
 }
 
-// kinds tallies elements per kind, and derived per kind, as "n/derived".
+// kinds renders each kind as "count/derived", where derived is the
+// LABELLING BACKLOG. A kind the template does not label (BR, F, MVV)
+// reports a 0 backlog however its ids were minted, and carries its minted
+// count in the structural column instead — rendered as "count/0+n" so a
+// fixture states which column the ids landed in.
 func kinds(doc *Document) map[ident.Kind]string {
 	out := map[ident.Kind]string{}
 	for _, k := range ident.Kinds {
 		if k == ident.Section {
 			continue
 		}
-		if n := doc.Counts.Elements[k]; n > 0 {
-			out[k] = strings.Join([]string{itoa(n), itoa(doc.Counts.Derived[k])}, "/")
+		n := doc.Counts.Elements[k]
+		if n == 0 {
+			continue
 		}
+		s := itoa(n) + "/" + itoa(doc.Counts.Derived[k])
+		if st := doc.Counts.Structural[k]; st > 0 {
+			s += "+" + itoa(st)
+		}
+		out[k] = s
 	}
 	return out
 }
@@ -65,16 +75,16 @@ func TestFixtureTallies(t *testing.T) {
 		ids    []string              // a few IDs that must exist
 	}{
 		{"epoch-a.md", "0001",
-			map[ident.Kind]string{"ALT": "1/0", "BR": "1/1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
+			map[ident.Kind]string{"ALT": "1/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0001:G-contradiction", "0001:G-proportionality", "0001:ALT1"}},
 		{"epoch-b.md", "0002",
-			map[ident.Kind]string{"A": "2/0", "D": "2/0", "ALT": "1/0", "BR": "1/1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
+			map[ident.Kind]string{"A": "2/0", "D": "2/0", "ALT": "1/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0002:A1", "0002:A2", "0002:D-identity", "0002:D-selection-predicate"}},
 		{"epoch-c.md", "0003",
-			map[ident.Kind]string{"A": "2/0", "C": "1/1", "BR": "1/1", "S": "1/0", "MVV": "1/0"},
+			map[ident.Kind]string{"A": "2/0", "C": "1/1", "BR": "1/0+1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0003:C1", "0003:BR1"}},
 		{"epoch-d.md", "0004",
-			map[ident.Kind]string{"A": "3/0", "C": "1/1", "D": "2/0", "ALT": "2/0", "BR": "1/1", "S": "1/0", "MVV": "1/0"},
+			map[ident.Kind]string{"A": "3/0", "C": "1/1", "D": "2/0", "ALT": "2/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0004:A1", "0004:A3", "0004:C1", "0004:D-wire-byte-format", "0004:D-naming", "0004:ALT2", "0004:MVV", "0004:S1"}},
 	}
 	for _, c := range cases {
@@ -511,6 +521,48 @@ Negative cases:
 	}
 	if len(doc.Warnings) != 2 || doc.Warnings[0].Code != "s:duplicate" {
 		t.Errorf("warnings = %+v", doc.Warnings)
+	}
+}
+
+// TestStructuralIdsAreNotBacklog pins the split R1c drew: a minted id is
+// a labelling backlog only where the template gives the kind somewhere to
+// write one. BR and F have no such place, so their ids — 976 of them
+// corpus-wide, every one minted — are the elements' permanent identity
+// and must never be counted as pending edits.
+//
+// The property protects the ids themselves. `index --derived` is the
+// queue that says how much labelling is left; while BR and F sat in it
+// reading 436/436 and 540/540, the obvious way to empty the queue was to
+// stop minting their ids, which would unanchor the 236 edges written from
+// those elements. Counting them apart is what makes the queue's zero mean
+// what it says.
+func TestStructuralIdsAreNotBacklog(t *testing.T) {
+	doc := Bytes(fixture(t, "epoch-d.md"), Options{})
+	for _, k := range []ident.Kind{ident.Rejected, ident.Failure, ident.MVV} {
+		if k.Labelled() {
+			t.Errorf("%s: the template labels none of these kinds", k)
+		}
+		if n := doc.Counts.Derived[k]; n != 0 {
+			t.Errorf("%s: backlog = %d, want 0 — the template labels it nowhere", k, n)
+		}
+	}
+	// The ids are still minted, and still name bytes: BR is structural,
+	// not absent.
+	if n := doc.Counts.Structural[ident.Rejected]; n == 0 {
+		t.Error("BR: structural = 0; the ids stopped being minted")
+	}
+	e := element(t, doc, "0004:BR1")
+	if !e.Derived || e.LineStart == 0 {
+		t.Errorf("0004:BR1 = %+v, want a minted id naming real lines", e)
+	}
+	// A labelled kind keeps reporting a backlog: the split narrows the
+	// queue, it does not empty it.
+	if !ident.Contract.Labelled() || doc.Counts.Derived[ident.Contract] != 1 {
+		t.Errorf("C backlog = %d, want 1 — an unlabelled contract is still work",
+			doc.Counts.Derived[ident.Contract])
+	}
+	if n := doc.Counts.Structural[ident.Contract]; n != 0 {
+		t.Errorf("C structural = %d, want 0", n)
 	}
 }
 

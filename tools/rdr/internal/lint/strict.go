@@ -202,8 +202,10 @@ func promotionCaptures(d *scan.Document, n scan.Node, want int) bool {
 // has no template-sanctioned label to migrate to. Those are reported
 // with advice and no patch.
 //
-// BR and F carry no ids after migration at all (README §Identifiers), so
-// they are not reported.
+// BR and F are not reported at all. Their ids are STRUCTURAL — the
+// template labels them nowhere (ident.Kind.Labelled, README
+// §Identifiers), so the ordinal is the element's identity rather than a
+// placeholder, and there is no label for a finding to ask for.
 func labelFindings(d *scan.Document) []Finding {
 	var out []Finding
 	mixed := mixedSections(d)
@@ -305,8 +307,12 @@ func mixedSections(d *scan.Document) map[string]bool {
 	return labelled
 }
 
-// labelKind is the set of kinds that carry a written id after migration.
-// BR and F carry none (README §Identifiers), so a labelled BR does not
+// labelKind is the set of kinds whose id is written as an ORDINAL label
+// after migration. It is narrower than ident.Kind.Labelled: a decision is
+// labelled too, but by class (`D-identity`), and a class label says
+// nothing about whether the section numbers its items. BR and F are
+// excluded because the template labels them nowhere (README
+// §Identifiers) — their ids are structural, so a BR carrying one does not
 // make its section safe for an A.
 func labelKind(k ident.Kind) bool {
 	switch k {
