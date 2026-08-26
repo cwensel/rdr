@@ -706,7 +706,7 @@ func gateFindings(d *scan.Document) []Finding {
 		if hasGatePointer(d, n) {
 			continue
 		}
-		if !hasGateElements(d, n.ID) {
+		if !hasGateElements(d, n) {
 			continue
 		}
 		out = append(out, Finding{
@@ -739,11 +739,24 @@ func hasGatePointer(d *scan.Document, n scan.Node) bool {
 }
 
 // hasGateElements reports whether the projector read gate responses under
-// the section — which is the evidence that the responses are in fact
+// the gate node — which is the evidence that the responses are in fact
 // inlined, rather than the section merely being empty.
-func hasGateElements(d *scan.Document, section string) bool {
+//
+// A gate element's Section is its OWN sub-heading (`NNNN:§contradiction-check`),
+// never the gate's, because the projector reads one element per sub-heading
+// under the gate and stamps each with the node it came from. Matching the
+// gate's ID against that section — by prefix or by equality — therefore
+// never fires. The relation to test is the one the projector itself used to
+// mint these elements: the element's section node is a child of the gate.
+func hasGateElements(d *scan.Document, gate scan.Node) bool {
+	under := map[string]bool{}
+	for _, n := range d.Outline {
+		if n.Parent == gate.ID {
+			under[n.ID] = true
+		}
+	}
 	for _, e := range d.Elements {
-		if e.Kind == ident.Gate && strings.HasPrefix(e.Section, section) {
+		if e.Kind == ident.Gate && under[e.Section] {
 			return true
 		}
 	}

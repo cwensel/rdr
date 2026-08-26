@@ -705,3 +705,50 @@ func TestSectionCitationsAreNotRewritten(t *testing.T) {
 		t.Error("the element citation on the same line was not patched")
 	}
 }
+
+// TestGateInlineFiresOnInlinedGate: the rule exists to find the epoch A
+// and B records whose gate responses are still written into the record,
+// and to stay quiet on the epoch C and D records where lock has already
+// moved them to artifacts/gate.md and left the one-line pointer.
+//
+// It is a regression test for a rule that reported NOTHING, on any
+// record, for as long as it existed: the guard compared the gate node's
+// ID against the element's Section, and a gate element's Section is its
+// own sub-heading, never the gate's. Both directions are asserted here,
+// because a guard that is always false and a guard that is always true
+// are equally wrong and only the pair of cases separates them.
+func TestGateInlineFiresOnInlinedGate(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		want bool
+	}{
+		{"epoch-a.md", true},  // five inline gate subsections
+		{"epoch-b.md", true},  // five inline gate subsections
+		{"epoch-c.md", false}, // `See gate.md ...` pointer
+		{"epoch-d.md", false}, // `See gate.md ...` pointer
+	} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", tc.name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := scan.Bytes(raw, scan.Options{})
+		r := Run(d, Options{Strict: true})
+		if got := has(r, "gate:inline"); got != tc.want {
+			t.Errorf("%s: gate:inline fired = %v, want %v (codes: %v)",
+				tc.name, got, tc.want, codes(r))
+		}
+		if !tc.want {
+			continue
+		}
+		// The finding must name the gate section and span its lines, so
+		// the reader is pointed at the range to move.
+		f := find(t, r, "gate:inline")
+		if !strings.HasSuffix(f.Element, ":§finalization-gate") {
+			t.Errorf("%s: gate:inline element = %q, want the gate section", tc.name, f.Element)
+		}
+		if f.LineEnd <= f.LineStart {
+			t.Errorf("%s: gate:inline spans %d-%d, want the gate's line range",
+				tc.name, f.LineStart, f.LineEnd)
+		}
+	}
+}
