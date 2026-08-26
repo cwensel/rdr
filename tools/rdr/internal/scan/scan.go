@@ -1247,6 +1247,17 @@ func (d *Document) listKind(kind ident.Kind, section string, labeller func(strin
 			counts[it.key]++
 		}
 	}
+	// An id names one element's bytes, so the two branches below must not
+	// draw from one namespace: an author's unique `8` and a positional
+	// ord+1 of 8 are different elements and were both minted as S8. The
+	// ordinal is disambiguated against every key already taken, the way
+	// decisions() disambiguates a repeated class.
+	taken := map[string]int{}
+	for _, it := range items {
+		if it.key != "" && counts[it.key] == 1 {
+			taken[it.key]++
+		}
+	}
 	for ord, it := range items {
 		e := Element{Kind: kind, Label: it.label, Section: it.n.ID, LineStart: it.line, LineEnd: it.end}
 		switch {
@@ -1257,7 +1268,16 @@ func (d *Document) listKind(kind ident.Kind, section string, labeller func(strin
 				"%s item number %s repeats; addressed by ordinal", section, it.key)
 			fallthrough
 		default:
-			e.Key, e.Derived = strconv.Itoa(ord+1), true
+			// The suffix is a letter, not `-N`: the ID grammar's
+			// ordinal key is `\d+[a-z]?`, so `S8a` parses and `S8-1`
+			// does not. Minting an id nothing can cite would be worse
+			// than the collision it avoids.
+			key := strconv.Itoa(ord + 1)
+			for n := 0; taken[key] > 0 && n < 26; n++ {
+				key = strconv.Itoa(ord+1) + string(rune('a'+n))
+			}
+			taken[key]++
+			e.Key, e.Derived = key, true
 		}
 		d.add(e)
 	}

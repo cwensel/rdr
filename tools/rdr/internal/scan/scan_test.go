@@ -515,6 +515,64 @@ Negative cases:
 	}
 }
 
+// TestDerivedKeysNeverCollideWithAuthoredOnes pins the rule that makes an
+// id name one element's bytes: the derived branch and the authored branch
+// draw from ONE namespace. An unlabelled first list mints positional
+// S1..S3 while a second list's author-written 1..3 are unique and keep
+// theirs — both were minted as S1..S3, so three ids each named two
+// different elements and `rdr inspect 0012:S1` was a coin flip.
+func TestDerivedKeysNeverCollideWithAuthoredOnes(t *testing.T) {
+	doc := Bytes([]byte(`# Recommendation 0012: Scenarios
+
+## Metadata
+
+- **Status**: Draft
+
+## Validation
+
+### Testing Strategy
+
+- unlabelled one.
+- unlabelled two.
+- unlabelled three.
+
+Numbered cases:
+
+1. **Scenario**: authored one.
+   **Expected**: ok
+2. **Scenario**: authored two.
+   **Expected**: ok
+3. **Scenario**: authored three.
+   **Expected**: ok
+`), Options{})
+	seen := map[string]int{}
+	for _, e := range doc.Elements {
+		seen[e.ID]++
+	}
+	for id, n := range seen {
+		if n > 1 {
+			t.Errorf("id %s names %d elements", id, n)
+		}
+	}
+	// The author's own numbers are unique here, so they stay as written.
+	for _, id := range []string{"0012:S1", "0012:S2", "0012:S3"} {
+		if e := element(t, doc, id); e.Derived {
+			t.Errorf("%s should be the author's own key: %+v", id, e)
+		}
+	}
+	// The unlabelled items take a suffixed ordinal — and it must be a
+	// form the ID grammar accepts, or nothing could cite it.
+	for _, id := range []string{"0012:S1a", "0012:S2a", "0012:S3a"} {
+		e := element(t, doc, id)
+		if !e.Derived {
+			t.Errorf("%s should be derived: %+v", id, e)
+		}
+		if !ident.IsID(id) {
+			t.Errorf("%s is not a parseable element id", id)
+		}
+	}
+}
+
 // TestSectionSlugs: canonical sections take the canonical slug at any
 // level or case; scaffolds and aliases slug their own heading; a repeat
 // gets a numbered slug and a warning; an unknown heading warns.
