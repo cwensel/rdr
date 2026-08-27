@@ -277,7 +277,7 @@ green exit code does not prove the round-trip preserved
 the input; the validation must assert the reconstructed
 value equals the original. If the pair spans two RDRs,
 also record it as a Critical Assumption with
-`Method: Peer RDR` so Stage 8.1 asserts it across the
+`Method: Peer RDR` so Stage 7.1 asserts it across the
 seam.
 
 #### Illustrative Code

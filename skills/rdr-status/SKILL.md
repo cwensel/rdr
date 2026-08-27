@@ -57,10 +57,10 @@ per-slug paths above count.
 | 3 Refine | *human-judged* — certified only by **Stage 4's product**: an assumption at `Status: Verified`, or `{SPIKE_DIR}`. A `Method:`/`Evidence:` line is **not** a signal (TEMPLATE.md ships both as skeleton labels; Stage 2 lists CAs `Pending` by design) — an all-`Pending` list means Refine is un-run. Never certify it from Stage-2 output (CA count, `Premortem:`/`Joint-check:` verdicts, propose evidence) |
 | 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, from the CA tallies above); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
-| 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
-| 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present, with `### Cross-Cutting Concerns` retained in the RDR (legacy RDRs: all five responses inline — either satisfies); README index row updated |
+| 6 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
+| 7 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present, with `### Cross-Cutting Concerns` retained in the RDR (legacy RDRs: all five responses inline — either satisfies); README index row updated |
 | 7.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<key>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. In the current shape the key is the members' numbers joined, so the key IS the membership and `cluster_reconciled` answers it exactly. An earlier topical epoch (`dml-purpose`, `final-cluster-2026-05-28`) is keyed by subject instead; those are out of scope and read `false` — all their records are terminal (only when the RDR is in a cluster) |
-| 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
+| 8 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 ### The record half — one projection, not a body read
 
@@ -89,7 +89,7 @@ Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spi
 under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus
 `{ARTIFACT_DIR}/status.md`. Stage 7.1 needs no listing: `cluster_reconciled`
 answers it, because the directory's key is its membership.
-For an in-flight Stage 9, the status.md capsule header is the single authoritative
+For an in-flight Stage 8, the status.md capsule header is the single authoritative
 resume read — do not open the detailed implementation artifacts unless it is absent
 or contradicts what the tree shows.
 
@@ -139,7 +139,7 @@ or contradicts what the tree shows.
    this profile's lenses**, plus a Determinacy-owed `repeatability` when it
    fires (an owed obligation is never hidden); other off-profile lenses are
    absent, not `–`. A `Draft`
-   Profile is provisional (Resolve earns it, Stage 8 latches it) — a hint, never
+   Profile is provisional (Resolve earns it, Stage 7 latches it) — a hint, never
    a basis for certifying a lens-skip; flag the basis when unearned. If the field
    is absent, infer from the row and flag it (Caveats).
 3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is

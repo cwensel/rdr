@@ -725,15 +725,15 @@ var stageFacts = map[string][]string{
 		"lens_repeatability_run1", "lens_repeatability_run2", "lens_repeatability_run3",
 		"lens_repeatability_diff", "iter_2", "reconcile",
 	},
-	"7 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
-	"8 Finalize":  {"status", "gate_written"},
+	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
+	"7 Finalize":  {"status", "gate_written"},
 	// 7.1 Cluster reads two different things, and both are facts.
 	// `cluster` is what the record DECLARES, which is what the tandem
 	// barrier reads; `cluster_reconciled` is whether a run actually
 	// wrote a directory covering this record, which is what routes a
 	// Final to /rdr-cluster-reconcile before /rdr-implement.
 	"7.1 Cluster": {"cluster", "cluster_reconciled"},
-	"9 Implement": {"impl_capsule", "impl_state"},
+	"8 Implement": {"impl_capsule", "impl_state"},
 }
 
 // routingFacts are declared for the "How it decides next" section rather
