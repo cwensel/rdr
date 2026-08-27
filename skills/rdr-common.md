@@ -445,9 +445,15 @@ one rule, which is a guarantee prose cannot give.
 
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
+[ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
   --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
 ```
+
+The guard is not optional. Unresolved, `$IS` is EMPTY, and an unguarded
+`"$IS" …` exits **0** with a bare `permission denied:` — a stage would read a
+no-answer as a clean run, which is precisely the failure the paragraph below
+names. Test the binary, never the exit code.
 
 It answers with the next command and its reason, and returns
 `stopped:no-profile` when the `Profile` field is absent — a §stop-packet, never
