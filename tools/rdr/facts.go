@@ -410,12 +410,27 @@ type FactEnv struct {
 // simply not in the map, and every probe under it goes absent. Binding
 // it to "" would root every probe at the filesystem root and answer
 // false for all of them.
+//
+// A var naming a directory that does not exist is the SAME case, and for
+// the reason this table's header gives: a root set to the wrong tree is
+// worse than one left unset, because false says "looked, not there"
+// while absent says "nothing looked". A stale or typo'd RDR_EVIDENCE
+// would otherwise read every lens that ran as un-run — the failure the
+// navigator warns about everywhere else.
+//
+// The BASE is what must exist, never the suffixed path: $RDR_EVIDENCE is
+// a tree the consumer keeps, while <slug>/evidence under it is absent
+// for any record that has produced no evidence yet, which is a true
+// false and must stay one.
 func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 	e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
 		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
 	for name, r := range t.Roots {
 		base := strings.TrimSpace(envOrSeam(r.Var))
 		if base == "" {
+			continue
+		}
+		if fi, err := os.Stat(base); err != nil || !fi.IsDir() {
 			continue
 		}
 		e.Roots[name] = filepath.Join(base, strings.ReplaceAll(r.Suffix, "{slug}", slug))

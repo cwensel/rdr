@@ -173,6 +173,64 @@ func TestUnboundRootLeavesTheFactAbsent(t *testing.T) {
 	}
 }
 
+// TestRootNamingNoDirectoryIsUnbound: a var pointing at a tree that is
+// not there is the unbound case, not the false one.
+//
+// This is the sharper half of the rule above, and the one a consumer
+// actually hits: RDR_EVIDENCE left over from a moved checkout, or typo'd
+// in a marker. The var is set, so binding it on non-emptiness alone
+// roots every probe under a path that cannot exist and answers false for
+// all of them — reporting every lens that ran as un-run, which is the
+// failure the navigator warns about everywhere else.
+//
+// The BASE is what is checked. A record that has produced no evidence
+// has no <slug>/evidence directory under a perfectly good root, and that
+// is a true false which must survive.
+func TestRootNamingNoDirectoryIsUnbound(t *testing.T) {
+	slug := "0010-frame-header"
+	_, records := newEvidenceTree(t, slug, nil, []string{"artifacts/gate.md"})
+	tbl := loadRealTable(t)
+
+	t.Setenv("RDR_EVIDENCE", filepath.Join(t.TempDir(), "moved-away"))
+	t.Setenv("RDR_RECORDS", records)
+	facts := tbl.Evaluate(NewFactEnv(tbl, nil, slug))
+
+	for _, name := range []string{"lens_grounding", "lens_critique", "spikes", "reconcile"} {
+		if v, ok := factValue(facts, name); ok {
+			t.Errorf("%s = %q under a root that names no directory; want the fact "+
+				"absent — nothing looked, so false would report a lens that ran as un-run", name, v)
+		}
+	}
+	// The records root DOES exist, so its probes still decide: the check
+	// is per root, never a global give-up.
+	if v, ok := factValue(facts, "gate_written"); !ok || v != "true" {
+		t.Errorf("gate_written = %q/%v; a root that exists still decides", v, ok)
+	}
+}
+
+// TestBoundRootWithNoRecordTreeIsFalse guards the other side of the check
+// above: the root exists, this record simply has no evidence under it.
+// The tool looked, so false is the honest answer and going absent here
+// would hide a lens that genuinely has not run.
+func TestBoundRootWithNoRecordTreeIsFalse(t *testing.T) {
+	slug := "0010-frame-header"
+	evidence, records := newEvidenceTree(t, slug, nil, []string{"artifacts/gate.md"})
+	tbl := loadRealTable(t)
+
+	// The consumer keeps this tree; only THIS record is absent from it.
+	if err := os.MkdirAll(evidence, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_EVIDENCE", evidence)
+	t.Setenv("RDR_RECORDS", records)
+	facts := tbl.Evaluate(NewFactEnv(tbl, nil, slug))
+
+	if v, ok := factValue(facts, "lens_grounding"); !ok || v != "false" {
+		t.Errorf("lens_grounding = %q/%v with the root present and no lens run; "+
+			"want false — the tool looked", v, ok)
+	}
+}
+
 // TestProbeRefusesAPattern: a glob in a probe path is a load error, not a
 // path that happens to match nothing. The table cannot ship a guess.
 func TestProbeRefusesAPattern(t *testing.T) {
