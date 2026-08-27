@@ -33,11 +33,13 @@ barrier: **rdr-common §auto-fanout** owns the mechanics (distinct models per
 spawn, barrier before diff, harness degradation) — don't restate them. With
 `--auto`, `repeatability` needs no `run` arg; it spawns the variant's whole set.
 
-**Pick the lens by profile — rdr-common §lens-row** owns the row, the first-lens
-fork, the Determinacy add-on, and the additive-on-escalation rule; don't restate
-them. Run the row in order (the grounding sweep leads: ground the frame before
-the personas debate it). `foundational` runs the full ×3 `repeatability` lens;
-`mid`/`large` run repeatability-lite only when Determinacy fires.
+**With no lens argument, run §lens-row's call** to get one — it owns the row,
+the first-lens fork, the Determinacy add-on and the additive-on-escalation
+rule, all encoded in the table, so don't restate or re-derive them.
+
+`emit.next` names the lens to run. The row runs in order (the grounding sweep
+leads: ground the frame before the personas debate it), which is why the answer
+is always the first missing one.
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a
@@ -146,17 +148,21 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   here (doc + a separate `<lens>` evidence commit). **repeatability** follows its own
   cadence — run files commit per session, the doc commit + a whole-`repeatability/`-dir
   (self-healing) evidence commit land at the diff (see above / §commit).
-- **Before printing `Next:` recompute the checklist via rdr-common §lens-row** —
-  re-read the current `Profile`, take the row, subtract completed evidence. It
-  owns the Determinacy add-on and the additive-on-escalation rule; mandatory
-  after a reset, demotion, or escalation. Two completion nuances are this
-  skill's: a completed `critique` is **not** the end of Stage 5 unless
-  `repeatability` is also complete, and **`critique` isn't complete from a folder
-  alone** — read the evidence's `Model:` stamp (§model-stamp): a `foundational`
-  RDR needs the dual-model diff (or recorded single-model fallback), and a
-  re-entry under a *different* model is the second pass to run, not a no-op.
-- **3amigo | critique | cove** converged → next lens is the first missing item in
-  the current checklist: `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
+- **Before printing `Next:` re-run §lens-row's call** (after this lens's
+  evidence has landed) — it re-reads the current
+  `Profile` and subtracts the completed evidence itself, so nothing here
+  recomputes a row by hand; mandatory after a reset, demotion, or escalation,
+  which are exactly the cases a remembered row gets wrong. Two completion
+  nuances stay this skill's, because the folder facts cannot see them: a
+  completed `critique` is **not** the end of Stage 5 unless `repeatability` is
+  also complete, and **`critique` isn't complete from a folder alone** — read
+  the evidence's `Model:` stamp (§model-stamp): a `foundational` RDR needs the
+  dual-model diff (or recorded single-model fallback), and a re-entry under a
+  *different* model is the second pass to run, not a no-op. Judge those first;
+  where they say the lens is unfinished, `Next:` is this lens again, whatever
+  the model's folder-level answer.
+- **3amigo | critique | cove** converged → `emit.next` names the next lens:
+  `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
   second pass keeps `critique` the first missing item — `Next:` is
   `/rdr-prelock NNNN critique --auto` where the harness spawns per-model
   (§auto-fanout), else "relaunch the CLI on a second base model, then
@@ -167,7 +173,10 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   `diff` — never point at `run-2`. Full (`foundational`/escalation): missing run →
   `Next: /rdr-prelock NNNN repeatability <N+1>` until `run-1/2/3`, then `diff`. Diff
   runs in a fresh session; it also resolves `diff.md`.
-- **All profile lenses and Determinacy obligations done** → `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
+- **All profile lenses done** → the model answers `/rdr-reconcile` (row
+  complete): `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
+  A Determinacy obligation the table cannot see (§lens-row's one judgement) is
+  yours to add before you accept that answer.
 - **`stopped:verdict-flapping`** → resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces
   a redesign, `/rdr-resolve NNNN` / `/rdr-propose NNNN` now.

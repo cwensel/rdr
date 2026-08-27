@@ -23,14 +23,18 @@ Claude: /rdr-reconcile <NNNN>
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
    to bind `$RDR_RESOURCES`, `$RDR_ENV`, `RDR_PATH`, `{SPIKE_DIR}`. Have the Pre-Lock
    needs-verification list(s) ready to paste.
-   - **Preflight Stage 5 completeness before reconciling.** Re-read `Profile` and
-     **Normative Contracts**. If a required profile lens is missing, or `mid`/`large`
-     Determinacy fired without `evidence/repeatability/run-1.md` + `diff.md` or
-     `determinacy: n/a - <reason>`, stop: `NOT RECONCILED — return to Stage 5`,
-     with the exact next `/rdr-prelock NNNN ...` command. `run-2`/`run-3` beside a
-     `run-1.md` whose `variant:` header reads `lite` (not `full (escalated: …)`) is a
-     variant mismatch (full ran where lite was owed) — flag it (Caveats), don't
-     silently pass it as done.
+   - **Preflight Stage 5 completeness before reconciling** — run **§lens-row**'s
+     call; don't re-read the row.
+
+     Anything but `/rdr-reconcile` means Stage 5 is not done: stop with
+     `NOT RECONCILED — return to Stage 5` and `emit.next` as the exact command
+     (`stopped:no-profile` is the same stop — the latch was never written).
+     Two things the folder facts cannot see stay yours, and both are read from
+     **Normative Contracts**: `mid`/`large` Determinacy firing without
+     `evidence/repeatability/run-1.md` + `diff.md` or `determinacy: n/a - <reason>`
+     is the same stop; and `run-2`/`run-3` beside a `run-1.md` whose `variant:`
+     header reads `lite` (not `full (escalated: …)`) is a variant mismatch (full ran
+     where lite was owed) — flag it (Caveats), don't silently pass it as done.
 2. **Run the prompt** [`06-reconcile.prompt.md`](06-reconcile.prompt.md);
    paste the Pre-Lock list(s) where its `<paste the list(s)>` marker is. It builds the
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-

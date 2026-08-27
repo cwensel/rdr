@@ -112,9 +112,12 @@ a corrected packet; still malformed → one re-spawn, then surface.
 **only** the RDR's `Status:` line, `Profile` field, `Seam Lineage`, and — for
 `mid`/`large` — the fenced ` ```normative ` block under `#### Normative
 Contracts` (an h4 inside Proposed Solution, per TEMPLATE.md; reading it is not
-reading the body). Compute the lens row via **§lens-row** and write the
-plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is otherwise its
-first writer):
+reading the body). Take the row from **§lens-row**'s call — the same one every
+stage makes — never a row computed here.
+
+`emit.next` is the first lens; walking the row forward from it gives the span.
+Write the plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is
+otherwise its first writer):
 
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
@@ -138,10 +141,12 @@ re-entry work, and what a human reads to see where the run got to.
 
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
-(count, then the accretion floor), so **recompute §lens-row from the field after
-resolve returns**. Any stage can move the field, so re-read `Profile` every hop
-and **rewrite the plan when they diverge** — a durable state you don't update is
-a stale one you will trust. The plan records intent; the field decides.
+(count, then the accretion floor), so **re-ask the model after resolve
+returns** — the same call as above, which reads the rewritten field itself.
+Any stage can move the field, so re-ask every hop and **rewrite the plan when
+the answer diverges** — a durable state you don't update is a stale one you
+will trust, and this is the one plan that outlives the session that wrote it.
+The plan records intent; the model decides.
 
 **Re-entry: re-invoke, never `--resume`.** There is no resume flag (§run-prompt —
 re-entry is a property of on-disk state). A run that stopped at a fork resumes by

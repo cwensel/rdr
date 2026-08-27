@@ -57,8 +57,11 @@ Claude: /rdr-resolve <NNNN>
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
   field** (the routing latch) from the contract count, then the Seam Lineage
-  accretion floor, which outranks it (the prompt owns both). Take the next
-  pointer from the field it just wrote via **rdr-common §lens-row** — the first
-  lens is profile-dependent (`foundational` leads with `cove`, not `grounding`),
-  so read the row, never default.
+  accretion floor, which outranks it (the prompt owns both). Then **run
+  §lens-row's call** for the next pointer — it reads the field this stage just
+  wrote, and the first lens is profile-dependent (`foundational` leads with
+  `cove`, not `grounding`), so an inferred row is how a lens gets skipped.
+
+  `emit.next` is the pointer; append `NNNN`. `stopped:no-profile` means the
+  latch was not written — fix that here, do not default the row.
 - `/rdr-status NNNN` to re-orient.
