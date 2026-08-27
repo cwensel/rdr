@@ -684,3 +684,30 @@ description = "Stage 7.1 reconciled a cluster containing this record."
 # to terminal records. A navigator answers "what do I run next", no
 # in-flight record carries a legacy shape, and a terminal record's next
 # command is none.
+#
+# The gate's CONTENTS are not declared, and this is a decision rather than
+# a gap. `gate_written` is an exact-path probe: `artifacts/gate.md` exists.
+# Whether the gate PASSED, which items were answered, and whether any
+# response is a deferral all live inside that file, which the projector
+# does not open — it reads records, and gate.md is not one.
+#
+# Nothing routes on them. Every `Final` branch of `rdr-status.toml` keys on
+# `status`, `open_joint_decisions`, `clustered` and `cluster_reconciled`;
+# `gate_written` is not among the model's tags at all. It earns its place
+# by rendering the Stage-7 checklist row, not by deciding a next command —
+# and it does not need to decide one, because a record is only `Final`
+# once the gate has passed. `Final` IS the discharged gate; a second
+# signal saying so would be the same fact read twice, and the two could
+# disagree.
+#
+# So a gate reader would add facts nothing asks for, to a table whose
+# names are a cross-repo contract. If a stage ever routes on a gate
+# ITEM — a deferral that blocks implement, say — that is the moment to
+# declare it, and the moment to decide whether the items project as
+# `NNNN:G-<key>` on the record or as their own document. Until then the
+# absence is the answer.
+#
+# Note the inline shape is fully readable and always was the intent: a
+# gate answered in the record projects `G-<item>` elements whether it is
+# written as sub-headings or as a labelled list, so a legacy record's
+# five responses are citable. Only the EXTERNALIZED file is unread.
