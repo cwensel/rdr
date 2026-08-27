@@ -681,3 +681,113 @@ func TestClusterTraversalReadsNoSource(t *testing.T) {
 		t.Error("resolution read no source at all; the counter is not wired to the walk")
 	}
 }
+
+// TestSingleDocumentResolutionPrimesTheSymbolCache locks the walk count,
+// not the verdicts. ResolveAll's contract is that the repo is walked ONCE
+// however many symbols are cited; Resolve alone honours no such thing —
+// it greps per symbol, so a record citing N symbols walks the tree N
+// times. The single-record `inspect`/`lint` path used to call Resolve and
+// paid exactly that: 1.45s against a 2k-file repo where one primed walk
+// is 0.56s, for identical verdicts.
+//
+// The verdicts being identical is why this needs its own test. Nothing in
+// the output distinguishes the two paths, so a revert to Resolve is
+// invisible to every other test here and shows up only as a slow tool.
+func TestSingleDocumentResolutionPrimesTheSymbolCache(t *testing.T) {
+	repo := t.TempDir()
+	// Distinct symbols, none of them defined: an absent symbol is the
+	// case that cannot short-circuit, so each one costs a FULL walk when
+	// the cache is not primed.
+	src := "package p\n\nfunc Present() {}\n"
+	if err := os.WriteFile(filepath.Join(repo, "p.go"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha",
+			"- **Seam Lineage**: `p::Present`, `p::GoneOne`, `p::GoneTwo`, `p::GoneThree`"),
+	})
+	d := docs[0]
+
+	reads := 0
+	r := NewResolver(nil, repo)
+	r.onRead = func() { reads++ }
+	r.ResolveAll([]*Document{d})
+
+	// One walk over a one-file repo reads one file. Per-symbol grepping
+	// would read it once per distinct symbol.
+	if reads != 1 {
+		t.Errorf("the repo was read %d times for one record; ResolveAll must prime the symbol cache and walk once", reads)
+	}
+
+	// The priming must not change what the walk decides.
+	if e := findEdge(t, d, edge.SourceAnchor, "p::Present"); e.Resolved == nil || !*e.Resolved {
+		t.Errorf("p::Present is defined but resolved = %v", show(e.Resolved))
+	}
+	for _, gone := range []string{"p::GoneOne", "p::GoneTwo", "p::GoneThree"} {
+		if e := findEdge(t, d, edge.SourceAnchor, gone); e.Resolved == nil || *e.Resolved {
+			t.Errorf("%s is nowhere but resolved = %v", gone, show(e.Resolved))
+		}
+	}
+}
+
+// TestPrimingCachesMissesWithoutBreakingTheFallback is the pair of
+// properties that make caching a miss safe, asserted together because
+// either alone is satisfiable by a wrong implementation.
+//
+// COST: an absent symbol must be decided by the priming walk. Caching hits
+// alone left it a cache miss, and a miss sends resolveSymbol back to grep —
+// one more walk of the whole tree per absent symbol, which is what
+// resolution is mostly looking for.
+//
+// CORRECTNESS: a receiver-qualified anchor is absent as a dotted string in
+// every language that declares it as a member, so seeding the walk's raw
+// result would answer the fallback before the member was tried and report a
+// live method as missing. That is a false finding, strictly worse than the
+// absent verdict a skipped check gives, and it is the defect 852aee4 fixed.
+// The qualified symbol must still take its member's verdict.
+func TestPrimingCachesMissesWithoutBreakingTheFallback(t *testing.T) {
+	repo := t.TempDir()
+	// Go declares the member without the qualifier, so `TableVertex.Live`
+	// is nowhere in the tree while `Live` is.
+	src := "package v\n\nfunc (v *TableVertex) Live() {}\n\nfunc Plain() {}\n"
+	if err := os.WriteFile(filepath.Join(repo, "v.go"), []byte(src), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "- **Seam Lineage**: "+
+			"`v.go::TableVertex.Live`, `v.go::TableVertex.Gone`, `v.go::Plain`, `v.go::Missing`"),
+	})
+	d := docs[0]
+
+	reads := 0
+	r := NewResolver(nil, repo)
+	r.onRead = func() { reads++ }
+	r.ResolveAll([]*Document{d})
+	primed := reads
+
+	if primed != 1 {
+		t.Errorf("priming read the repo %d times; every cited symbol, present or absent, must be decided in one walk", primed)
+	}
+
+	for _, tc := range []struct {
+		anchor string
+		want   bool
+	}{
+		{"v.go::TableVertex.Live", true}, // via the member — the fallback
+		{"v.go::Plain", true},
+		{"v.go::TableVertex.Gone", false},
+		{"v.go::Missing", false},
+	} {
+		e := findEdge(t, d, edge.SourceAnchor, tc.anchor)
+		if e.Resolved == nil || *e.Resolved != tc.want {
+			t.Errorf("%s resolved = %v, want %v", tc.anchor, show(e.Resolved), tc.want)
+		}
+	}
+
+	// Deciding every cited symbol during priming is the point: resolving
+	// again must reach no further file.
+	r.Resolve(d)
+	if reads != primed {
+		t.Errorf("resolution walked again after priming (%d more reads); a decided symbol must never re-grep", reads-primed)
+	}
+}

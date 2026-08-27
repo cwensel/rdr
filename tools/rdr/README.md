@@ -567,8 +567,8 @@ the corpus-level questions the flow used to answer by opening every file.
 Resolution is paid for **only by the facets that can show a verdict**.
 `--unresolved` queries the verdict itself and `--backlinks` carries it on
 every row, so both resolve; with `--repo` that adds a walk of the source
-tree, every symbol tested per file, so the cost is one traversal and not
-one per citation. `--cluster-of` reads no verdict — it walks the edge
+tree, every symbol tested per file — present or absent — so the cost is
+one traversal and not one per citation. `--cluster-of` reads no verdict — it walks the edge
 graph, three edge kinds and a direction test — and so resolves nothing:
 14.1s to 0.89s over the reference corpus, byte-identical output. The rule
 is `inspect`'s rule at corpus scale: resolve when a facet can show it,
@@ -1087,8 +1087,15 @@ Bytes are not the only cost. Deciding `resolved` is the one thing
 dir and a walk of `--repo` — and only `edges[]` can show the verdict. So
 resolution runs only when the projection can carry it: the whole
 envelope, `--select edges`, or a `--filter` naming `edges`. On 157
-records over a 4k-file repo that is ~1.5s against ~20ms for every other
+records over a 4k-file repo that is ~1.2s against ~20ms for every other
 facet, including `--select <id>` and the text summary (`showsEdges`).
+
+A single record resolves through `ResolveAll`, not `Resolve`, because
+priming the symbol cache is what makes the walk a single pass. Resolving
+one record with the per-symbol path walked the tree once per distinct
+symbol it cites — 1.45s where one primed walk is 0.56s, for identical
+verdicts. The corpus path and the single-record path pay the same walk
+once each; neither pays it per citation.
 | `--filter path` | 140 | what `§rdr-resolve` needs |
 
 `schema`, `record` and `path` come back unasked: ~120 bytes that answer

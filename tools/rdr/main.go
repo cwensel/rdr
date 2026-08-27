@@ -935,6 +935,16 @@ func showsEdges(f *flags) bool {
 // when there is one. With no dir — a loose path, no --records and no
 // $RDR_RECORDS — nothing is checked, and every edge says `resolved`
 // absent rather than claiming a verdict it did not reach.
+//
+// It resolves through ResolveAll rather than Resolve even though the set
+// is one document, because ResolveAll is what PRIMES THE SYMBOL CACHE.
+// Unprimed, every distinct symbol the record cites greps the repo on its
+// own, so a record citing 42 symbols walks the source tree 42 times: 1.45s
+// against retrofit, where one primed walk is 0.56s, for identical
+// verdicts. Priming is not an optimisation of the whole-corpus path that
+// happens to be reusable here — it is the only reason the walk is stated
+// as a single pass, and the single-record path was reading the corpus
+// walk's contract without taking it.
 func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Document {
 	dir := *f.records
 	if dir == "" && doc.Path != "" {
@@ -949,7 +959,7 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Docume
 		// No corpus to check element targets against — but a source root
 		// is a separate authority. Symbol resolution reads `--repo` alone,
 		// so it still runs; only the element half goes absent.
-		scan.NewResolver(nil, *f.repo).Resolve(doc)
+		scan.NewResolver(nil, *f.repo).ResolveAll([]*scan.Document{doc})
 		return nil
 	}
 	docs, _, err := scanDir(dir, *f.project)
@@ -960,10 +970,10 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Docume
 		// asked for — nor to withhold the source-anchor verdicts `--repo`
 		// can still reach on its own.
 		fmt.Fprintf(stderr, "note:unresolved-edges (%v)\n", err)
-		scan.NewResolver(nil, *f.repo).Resolve(doc)
+		scan.NewResolver(nil, *f.repo).ResolveAll([]*scan.Document{doc})
 		return nil
 	}
-	scan.NewResolver(docs, *f.repo).Resolve(doc)
+	scan.NewResolver(docs, *f.repo).ResolveAll([]*scan.Document{doc})
 	return docs
 }
 

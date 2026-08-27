@@ -458,11 +458,32 @@ func (r *Resolver) ResolveAll(docs []*Document) {
 // single walk. Each anchor contributes its symbol and, for a qualified
 // one, its member (resolveSymbol's fallback), so both cache keys are
 // filled before any edge is decided and no later grep walks the tree.
+//
+// A MISS MUST BE CACHED TOO, and it must be cached as the ANSWER rather
+// than as the walk's raw result. Caching hits alone left every absent
+// symbol a cache miss, and a miss sends resolveSymbol back to grep: 82 of
+// the reference corpus's 1,305 symbols are absent, and each one walked the
+// tree again — 260,967 file reads where one pass is 2,023, and 13.7s where
+// the priming walk is 6.6s. Absent is not the rare case here; it is what
+// resolution is looking for.
+//
+// But seeding the raw result would answer the qualified fallback before
+// the member was ever tried, turning a live method into a FALSE finding —
+// `TableVertex.LiveConstraints` is absent as a dotted string in every
+// language that declares it as a member, which is the defect 852aee4
+// fixed. So the fallback is decided HERE, in the priming pass, where both
+// keys are already known: a qualified symbol the walk did not find takes
+// its member's verdict. resolveSymbol then finds a decided answer for
+// every cited symbol and greps nothing.
 func (r *Resolver) primeSymbols(docs []*Document) {
 	if r.repo == "" {
 		return
 	}
+	// want is every needle the walk tests; cited is the subset that edges
+	// actually ask about. They differ by the members added for the
+	// fallback, which are needles but not themselves citations.
 	want := map[string][]byte{}
+	cited := map[string]bool{}
 	for _, d := range docs {
 		for i := range d.Edges {
 			e := &d.Edges[i]
@@ -474,6 +495,7 @@ func (r *Resolver) primeSymbols(docs []*Document) {
 				continue
 			}
 			want[sym] = []byte(sym)
+			cited[sym] = true
 			if m := sym[strings.LastIndex(sym, ".")+1:]; m != sym && m != "" {
 				want[m] = []byte(m)
 			}
@@ -482,10 +504,6 @@ func (r *Resolver) primeSymbols(docs []*Document) {
 	if len(want) == 0 {
 		return
 	}
-	// Seed every symbol absent, then flip the ones a file proves present.
-	// The seed must be written AFTER the walk for symbols still missing:
-	// resolveSymbol's qualified fallback keys off a cache MISS, so seeding
-	// false up front would answer it before the member is ever tried.
 	hit := map[string]bool{}
 	r.walk(func(body []byte) bool {
 		for sym, needle := range want {
@@ -498,6 +516,19 @@ func (r *Resolver) primeSymbols(docs []*Document) {
 	})
 	for sym := range hit {
 		r.symbols[sym] = true
+	}
+	// Now the misses, as answers. A qualified symbol the walk did not find
+	// resolves to its member's verdict — the same fall-through
+	// resolveSymbol would take, decided once instead of once per citation.
+	for sym := range cited {
+		if _, decided := r.symbols[sym]; decided {
+			continue
+		}
+		verdict := false
+		if m := sym[strings.LastIndex(sym, ".")+1:]; m != sym && m != "" {
+			verdict = hit[m]
+		}
+		r.symbols[sym] = verdict
 	}
 }
 
