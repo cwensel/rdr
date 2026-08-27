@@ -38,7 +38,9 @@ say so and point at `/rdr-implement NNNN`.
    that earned it). Union with the declared `Cluster` fields, run it from more
    than one seed (it is one hop, not a closure), and filter to
    Final-and-unimplemented yourself — Stage `07.1-cluster-reconcile.md` step 1
-   owns why each of those is required. Then form the peer pairs to compare.
+   owns why each of those is required. Then form the peer pairs — **not all
+   C(n,2)**: trim to the plausibly-interacting ones (that stage's step 3 owns the
+   rule). The trim is the cost control; report scanned/possible.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);
    it owns the iteration contract and the four dispositions, so read it rather
    than re-deriving either. Bind the contract first — it scopes step 4 — and
@@ -51,7 +53,10 @@ say so and point at `/rdr-implement NNNN`.
    - **Pairwise contradiction scan** — [`pairwise.md`](pairwise.md)
      run per pair; writes `pairwise-<A>-<B>.md`.
    Delegate the heavy reads (several RDRs, the pairwise runs) to a sub-agent that
-   returns verdict + evidence pointer (§return-packet).
+   returns verdict + evidence pointer (§return-packet). Pairs are independent —
+   spawn them concurrently where the harness allows, each with the pairwise
+   prompt's **SCOPE THE READ** ranges: a spawn handed two whole records reads
+   thousands of lines for a spine of a few hundred.
 5. **Disposition every finding** by running the stage prompt's disposition half
    (step 3's prompt) — NO CONFLICT / JOINT-DECISION / SPEC-DEFECT /
    DEFER-TO-IMPLEMENTATION, one per finding.
@@ -59,7 +64,9 @@ say so and point at `/rdr-implement NNNN`.
 ## Review gate (Stage `07.1-cluster-reconcile.md`)
 
 - Cluster membership is right — over-broad wastes pairwise runs; a missed peer is
-  the drift this stage exists to catch.
+  the drift this stage exists to catch — and the scanned pairs are the trimmed
+  set, reported as scanned/possible: an untrimmed C(n,2) sweep is the same waste
+  the over-broad cluster is.
 - A cross-RDR defect routes a peer **Final → Draft** at the right re-entry scope
   (re-lock-only / stage-scoped / full-flow), sized to the defect — the stage doc owns
   this call.
