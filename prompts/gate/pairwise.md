@@ -101,7 +101,8 @@ eliminated.
 
 ## Source
 
-Liu et al., *Cross-Spec Inconsistency Detection*, QRS 2025 —
+Liu et al., *A Hybrid Framework for Inconsistency Detection in Diversity
+Requirements: Combining Multi-Graph Merging and LLM*, QRS 2025 —
 <https://doi.org/10.1109/QRS65678.2025.00014>; Finkelstein/Nuseibeh viewpoints
 tradition (cross-view consistency checked at chosen stages, not enforced as a
 precondition).
