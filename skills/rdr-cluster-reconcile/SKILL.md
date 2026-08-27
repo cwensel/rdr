@@ -27,7 +27,12 @@ say so and point at `/rdr-implement NNNN`.
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** to bind `$RDR_ENV`,
    `$RDR_RESOURCES`, and `$RDR_RECORDS` (the consumer's RDR directory, exported by the
-   marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<cluster>/`.
+   marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<key>/`, where
+   `<key>` is the resolved members' record numbers joined in ascending order —
+   `0117-0118`, `0122-0123-0130-0131-0132`. The key is the membership, and
+   `rdr status` reads it to answer 7.1; a topical name (`dml-purpose`) is a
+   pre-2026-06-29 shape and reads as never reconciled. Use the members the stage
+   RESOLVED, not the ones proposed: a dropped candidate is not in the key.
 2. **Build the cluster**: list the Final-and-unimplemented RDRs under `{RDR_RECORDS}`;
    form the peer pairs to compare.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);

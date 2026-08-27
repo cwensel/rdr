@@ -221,8 +221,12 @@ and symmetric with the per-RDR `{ARTIFACT_DIR}` under `$RDR_RECORDS`: every RDR 
 `spikes/`, `tooling-pass/`, `action-items/` and `propose-premortem/` (Stage 2's
 hardened-critic output — a sibling, not a Stage-5 lens signal). Cluster reconcile
 output is the one thing NOT under the record: it is keyed by the cluster, at
-`<RDR_EVIDENCE>/cluster-reconcile/<cluster>/` (e.g. `0117-0118`), because the
-report is about the set, not about any one member.
+`<RDR_EVIDENCE>/cluster-reconcile/<key>/`, because the report is about the set,
+not about any one member. The key is the members' record numbers joined and
+sorted (`0117-0118`, `0122-0123-0130-0131-0132`) — so the key IS the membership,
+which is what lets `rdr status` answer 7.1 exactly instead of searching. Name a
+new run's directory that way; a topical key (`dml-purpose`) is a pre-2026-06-29
+shape that no longer reads.
 `{EVIDENCE_DIR}` is the **fully-bound per-lens dir** —
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/`; `{SPIKE_DIR}` is
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/spikes/`. A re-entry pass appends `iter-N/`

@@ -924,15 +924,30 @@ declare `prose = true`, which says its value is free text an author wrote
 rather than a token — see §status for what that changes and why the
 declaration lives in the table.
 
+One source is neither a probe nor a field. **Stage 7.1's output is keyed
+by the CLUSTER**, not by the slug — `cluster-reconcile/0122-0123-0130-0131-0132/`
+— because one run reconciles a set and writes one directory for all of
+it. In the current shape the key is the members' numbers joined, so the
+key IS the membership, and `cluster-member` reads that directory rather
+than naming a path. That is not the guess the probe rule bans: nothing is
+predicted, the tree is asked what it holds. The rejected alternative was a
+table of hand-authored keys, which makes a derived name a maintained one.
+
+Overlap there is not ambiguity — where a re-run widened a cluster both
+directories persist, one being the earlier iteration of the other, and
+both answer the only question asked: 7.1 ran.
+
 Two things the table deliberately does NOT declare, both recorded in it:
 
-- **Stage 8.1 cluster-reconcile has no probe.** Its output is keyed by
-  cluster, not by slug — `cluster-reconcile/0122-0123-0130-0131-0132/` —
-  and that key is not derivable from the record. On the reference corpus
-  one record's declared `Cluster` gives three members, `index
-  --cluster-of` gives four, and the directory names five. A probe would
-  have to glob, and the glob would report 8.1 un-run on records that
-  reconciled months ago. The fact is absent rather than wrong.
+- **The topical cluster epoch.** Before 2026-06-29 a 7.1 directory was
+  named for its subject, not its members — `dml-purpose`,
+  `final-cluster-2026-05-28`. Those are excluded by SHAPE rather than read
+  and filtered, because `final-cluster-2026-06-22` contains the four-digit
+  run `2026` and a rule that pulled numbers out of a name would mint a
+  membership claim for a record 2026 that no run ever made. Their real
+  membership survives only in prose, and whether they are even the same
+  object is open: `final-cluster-2026-05-28` has no whole-set critique and
+  no pairwise scan, and predates the stage file by three weeks.
 - **A legacy-shape probe that changes no routing.** The corpus migration
   moved directory-shaped evidence under each record and left file-shaped
   evidence where it was, so pre-migration output still sits at

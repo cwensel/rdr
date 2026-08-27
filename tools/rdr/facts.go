@@ -35,6 +35,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -132,6 +133,16 @@ var factKinds = map[string]bool{
 var factSources = map[string]bool{
 	"field": true, "probe": true, "probe-any": true, "ca-tally": true,
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
+	"cluster-member": true,
+}
+
+// rootedSource are the sources whose paths hang under a declared root,
+// and so must name a real root and an exact path. `cluster-member` reads
+// a directory under its root rather than stat-ing one path, but the path
+// it is GIVEN is still exact — the pattern ban applies to it for the same
+// reason it applies to a probe.
+var rootedSource = map[string]bool{
+	"probe": true, "probe-any": true, "cluster-member": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -184,7 +195,7 @@ func LoadFactTable(path string) (*FactTable, error) {
 			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: fact %q declared twice)", path, f.Name)
 		}
 		seen[f.Name] = true
-		if (f.Source == "probe" || f.Source == "probe-any") && f.Root != "" {
+		if rootedSource[f.Source] && f.Root != "" {
 			if _, ok := t.Roots[f.Root]; !ok {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: fact %q names undeclared root %q)", path, f.Name, f.Root)
 			}
@@ -266,9 +277,13 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 		if d.Label == "" {
 			return d, fmt.Errorf("fact %q: a verdict-line names a label", name)
 		}
+	case "cluster-member":
+		if d.Root == "" || d.Path == "" {
+			return d, fmt.Errorf("fact %q: a cluster-member names a root and a path", name)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
-		if (d.Source == "probe" || d.Source == "probe-any") && strings.ContainsAny(p, "*?[") {
+		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
 			return d, fmt.Errorf("fact %q: %q is a pattern; a probe names one exact path", name, p)
 		}
 	}
@@ -320,6 +335,7 @@ type FactEnv struct {
 	// synthetic tree without reaching for the real corpus.
 	readFile func(string) ([]byte, error)
 	statPath func(string) (os.FileInfo, error)
+	readDir  func(string) ([]os.DirEntry, error)
 }
 
 // NewFactEnv binds the roots a table declares from the seam.
@@ -330,7 +346,7 @@ type FactEnv struct {
 // false for all of them.
 func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 	e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
-		readFile: os.ReadFile, statPath: os.Stat}
+		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
 	for name, r := range t.Roots {
 		base := strings.TrimSpace(envOrSeam(r.Var))
 		if base == "" {
@@ -368,6 +384,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.verdictLine(d)
 	case "capsule-state":
 		return e.capsuleState(d)
+	case "cluster-member":
+		return e.clusterMember(d)
 	}
 	return Fact{}, false
 }
@@ -646,6 +664,70 @@ func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
 // scanning the whole file would let a state word in a later narrative
 // paragraph answer for the header.
 const capsuleHeaderLines = 20
+
+// numericClusterKey is the current shape of a Stage-7.1 output directory:
+// its members' record numbers, joined. `0122-0123-0130-0131-0132`.
+//
+// It is anchored and total on purpose. The corpus also holds an EARLIER
+// shape whose key is topical rather than derived — `dml-purpose`,
+// `replay-perf-2026-06-25`, `final-cluster-2026-06-22` — and those are
+// excluded here by shape, not read and then filtered. The difference
+// matters: `final-cluster-2026-06-22` contains the four-digit run `2026`,
+// so a rule that pulled numbers OUT of a name would mint a membership
+// claim for a record 2026 that no run ever made. Requiring the whole name
+// to be numbers-and-dashes cannot do that.
+var numericClusterKey = regexp.MustCompile(`^\d{4}(?:-\d{4})+$`)
+
+// clusterMember answers whether Stage 7.1 reconciled a set containing
+// this record.
+//
+// This reads a directory rather than naming a path, which every other
+// probe here refuses to do — so the reason it is allowed is worth
+// stating. A probe may not GUESS a path, because a guess that misses
+// reports a lens that ran as un-run. Nothing is guessed here: the key of
+// a current-shape directory IS its membership, written by the run that
+// made it, so the tool reads what the tree says instead of predicting
+// what it might have been called. The alternative on offer was a table of
+// sixteen hand-authored keys, which makes a DERIVED name into a
+// maintained one and drifts the moment a run forgets to update it.
+//
+// Absent when the evidence root is unbound, like any probe: "no evidence
+// root is configured" is not "7.1 has not run".
+//
+// The pre-2026-06-29 topical epoch answers false here and is declared as
+// undeclared in the table. Every record it covers is terminal, so no
+// routing reads it; the reason it stays out is that those directories may
+// not be the same object at all — `final-cluster-2026-05-28` carries no
+// whole-set critique and no pairwise scan, the two artifacts that define
+// the stage, and predates `stages/07.1-cluster-reconcile.md` outright.
+func (e *FactEnv) clusterMember(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	number := ident.RecordOf(e.Slug)
+	if number == "" || e.readDir == nil {
+		return Fact{}, false
+	}
+	entries, err := e.readDir(filepath.Join(base, filepath.FromSlash(d.Path)))
+	if err != nil {
+		// The tree has no cluster-reconcile directory at all. That is a
+		// real answer — no cluster has ever been reconciled here — and
+		// not the unbound-root case above.
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+	}
+	for _, ent := range entries {
+		if !ent.IsDir() || !numericClusterKey.MatchString(ent.Name()) {
+			continue
+		}
+		for _, member := range strings.Split(ent.Name(), "-") {
+			if member == number {
+				return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
+			}
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
 
 func boolLiteral(b bool) string {
 	if b {

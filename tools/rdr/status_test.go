@@ -94,14 +94,23 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 			"lens_critique_modelb": "false", "gate_written": "true"},
 			"foundational mid-row: critique is single-model, so the dual-model diff is still owed"},
 		{"0022", map[string]string{"status": "Draft", "status_form": "revised-from",
-			"status_reentry": "true", "impl_capsule": "true", "impl_state": "IN-PROGRESS"},
-			"the scoped backward edge, with a capsule header that states its own state"},
+			"status_reentry": "true", "impl_capsule": "true", "impl_state": "IN-PROGRESS",
+			"cluster_reconciled": "true"},
+			"the scoped backward edge, with a capsule header that states its own state; " +
+				"it is also in TWO cluster dirs (0021-0022 and 0021-0022-0023), which is a " +
+				"widened re-run rather than an ambiguity — nested overlap still answers true"},
 		{"0023", map[string]string{"status": "Implemented", "lens_3amigo": "false",
-			"legacy_evidence_shape": "true"},
+			"legacy_evidence_shape": "true", "cluster_reconciled": "true"},
 			"the warning case: 3amigo DID run, in the pre-migration file shape — " +
 				"without this probe the record reads as never lensed"},
-		{"0024", map[string]string{"status": "Deferred", "status_parked": "true"},
-			"parked is neither in flight nor terminal"},
+		{"0024", map[string]string{"status": "Deferred", "status_parked": "true",
+			"cluster_reconciled": "false"},
+			"parked is neither in flight nor terminal; and in no cluster, which is the " +
+				"false that routes a Final to /rdr-cluster-reconcile before implement"},
+		{"0020", map[string]string{"cluster_reconciled": "false"},
+			"the topical-epoch guard: final-cluster-2026-06-22/ exists in the fixture " +
+				"tree and carries the four-digit run 2026, but no record matches it — a " +
+				"rule that read numbers OUT of a name would mint a claim for record 2026"},
 	} {
 		code, out, errb := runCapture(t, "status", "--json", "--facts", table, c.record)
 		if code != 0 {

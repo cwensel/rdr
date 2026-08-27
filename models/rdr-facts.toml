@@ -561,25 +561,63 @@ path        = "status.md"
 domain      = ["COMPLETE", "INCOMPLETE", "IN-PROGRESS"]
 description = "The Stage-9 capsule header's state word."
 
+# --- Stage 7.1, the cluster half ------------------------------------------
+#
+# 7.1's output is the one stage that does not live under the record. It is
+# `$RDR_EVIDENCE/cluster-reconcile/<key>/`, keyed by the CLUSTER, because
+# one run reconciles a set and writes one directory for all of them.
+#
+# In the current shape the key is the members' numbers joined —
+# `0122-0123-0130-0131-0132` — so the key IS the membership, written by
+# the run that made it. That is why this reads the directory instead of
+# naming a path, and why doing so is not the guess the probe rule bans:
+# nothing is predicted, the tree is asked. The alternative considered and
+# rejected was a table of hand-authored keys, which turns a DERIVED name
+# into a maintained one and goes stale the first time a run forgets it.
+#
+# Overlap is not ambiguity. Where a re-run widened a cluster, both
+# directories persist — `0122-0123-0131-0132` is iteration 1 and
+# `0122-0123-0130-0131-0132` is iterations 2-3, which iter-3's own report
+# states in its "Prior iterations" line. On the reference corpus every
+# overlap is nested (7 records, 2 directories each, zero non-nested), and
+# both answer the only question asked here: 7.1 ran.
+[fact.cluster_reconciled]
+kind        = "bool"
+source      = "cluster-member"
+root        = "evidence-root"
+path        = "cluster-reconcile"
+description = "Stage 7.1 reconciled a cluster containing this record."
+
 # ===========================================================================
 # Not declared here, and why
 # ===========================================================================
 #
-# Stage 8.1 cluster-reconcile has NO probe. Its output does not live under
-# the record at all: it is `$RDR_EVIDENCE/cluster-reconcile/<cluster>/`,
-# keyed by the cluster, where <cluster> is the members' numbers joined —
-# `0122-0123-0130-0131-0132`. That name is not derivable from this record.
-# The Cluster field names the siblings the AUTHOR declared, and 7.1's
-# membership rule computes a cluster transitively, and on the reference
-# corpus neither reproduces the directory: one record's declared set gives
-# three members, `index --cluster-of` gives four, and the directory names
-# five. A probe would have to glob, and a glob here would report 8.1
-# un-run on clustered RDRs that reconciled months ago.
+# The TOPICAL cluster epoch is not covered by `cluster_reconciled`. Before
+# 2026-06-29 a 7.1 directory was named for its subject rather than its
+# members — `dml-purpose`, `dml-sidecar-append`, `replay-perf-2026-06-25`,
+# `final-cluster-2026-06-22`, `final-cluster-2026-05-28`. Five directories,
+# all earlier than every numeric-keyed one, with no interleaving.
 #
-# So the fact is absent rather than wrong. Closing this needs the cluster
-# key to become something a record can state or the tool can derive
-# exactly; until then the skill answers 8.1 by listing that directory,
-# which is honest about being a search.
+# They are excluded BY SHAPE rather than read and filtered, which is what
+# keeps the rule exact: `final-cluster-2026-06-22` contains the four-digit
+# run `2026`, and a rule that pulled numbers out of a name would mint a
+# membership claim for a record 2026 that no run ever made.
+#
+# Their membership is genuinely unrecoverable by any mechanical rule. Two
+# carry no pairwise files at all; `final-cluster-2026-06-22` names five
+# members of which one (cli/0067) appears in no filename, only in the
+# report's prose; and `final-cluster-2026-05-28` lists its ten members in
+# a sentence. Parsing that prose is the failure this table exists to end.
+#
+# Whether they are even the same OBJECT is open. `final-cluster-2026-05-28`
+# carries neither a whole-set critique nor a pairwise scan — the two
+# artifacts that define the stage — reads as a repo-wide survey of every
+# Final-and-unimplemented RDR, and predates `stages/07.1-cluster-reconcile.md`
+# (2026-06-18) by three weeks. It labels itself "Stage 08.1", a number the
+# stage vocabulary has never had. Segmenting these from the current shape
+# is deliberate: their role is decided by the corpus owner, not by a probe.
+#
+# Every record they cover is terminal, so no routing reads them today.
 #
 # Legacy evidence shapes have no probes either, and that one IS settled:
 # the pre-migration trees that remain — loose `3amigo/<slug>.md`,

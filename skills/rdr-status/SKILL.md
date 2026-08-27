@@ -59,7 +59,7 @@ per-slug paths above count.
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present, with `### Cross-Cutting Concerns` retained in the RDR (legacy RDRs: all five responses inline — either satisfies); README index row updated |
-| 8.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<cluster>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. The key is not derivable from the record (the `Cluster` field names the author's declared siblings; 7.1's rule computes membership transitively; neither reproduces the directory), so this row is a listing, not an exact-path probe (only when the RDR is in a cluster) |
+| 7.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<key>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. In the current shape the key is the members' numbers joined, so the key IS the membership and `cluster_reconciled` answers it exactly. An earlier topical epoch (`dml-purpose`, `final-cluster-2026-05-28`) is keyed by subject instead; those are out of scope and read `false` — all their records are terminal (only when the RDR is in a cluster) |
 | 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 ### The record half — one projection, not a body read
@@ -87,7 +87,8 @@ that section's bytes for those two:
 
 Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spikes`
 under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus
-`cluster-reconcile/` and `{ARTIFACT_DIR}/status.md`.
+`{ARTIFACT_DIR}/status.md`. Stage 7.1 needs no listing: `cluster_reconciled`
+answers it, because the directory's key is its membership.
 For an in-flight Stage 9, the status.md capsule header is the single authoritative
 resume read — do not open the detailed implementation artifacts unless it is absent
 or contradicts what the tree shows.
@@ -97,7 +98,9 @@ or contradicts what the tree shows.
 1. **`Status` first — it is the coarse position.**
    - `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
    - `Final` → next is `/rdr-implement` (unless a cluster of ≥2 Final-unimplemented
-     peers exists → `/rdr-cluster-reconcile` first). A `Final [joint decision →
+     peers exists and `cluster_reconciled` is `false` → `/rdr-cluster-reconcile`
+     first; `true` means 7.1 already ran over a set containing this RDR). A
+     `Final [joint decision →
      <home §-anchor>: <question>]` qualifier is still `Final` for routing —
      surface the home AND the open question so the human sees what is unanswered.
      But check the home first: if it has ANSWERED that question, the scoped

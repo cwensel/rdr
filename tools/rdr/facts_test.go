@@ -727,12 +727,12 @@ var stageFacts = map[string][]string{
 	},
 	"7 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
 	"8 Finalize":  {"status", "gate_written"},
-	// 8.1 Cluster is the row with no probe, and the table says why: the
-	// output is keyed by cluster, not by slug, and the key is not
-	// derivable from this record. `cluster` carries what the record
-	// DECLARES, which is what the tandem barrier reads; the directory
-	// itself stays a search the skill performs.
-	"8.1 Cluster": {"cluster"},
+	// 7.1 Cluster reads two different things, and both are facts.
+	// `cluster` is what the record DECLARES, which is what the tandem
+	// barrier reads; `cluster_reconciled` is whether a run actually
+	// wrote a directory covering this record, which is what routes a
+	// Final to /rdr-cluster-reconcile before /rdr-implement.
+	"7.1 Cluster": {"cluster", "cluster_reconciled"},
 	"9 Implement": {"impl_capsule", "impl_state"},
 }
 
@@ -917,5 +917,86 @@ func TestEmitFactsRendersTheVector(t *testing.T) {
 	}
 	if got.Facts[1].Value != "" || len(got.Facts[1].Members) != 2 {
 		t.Errorf("a set carries members and no scalar value: %+v", got.Facts[1])
+	}
+}
+
+// TestClusterMemberSegmentsTheEpochs is the boundary this fact is built
+// on. Stage 7.1's directory is keyed by the cluster, and the corpus holds
+// TWO keying conventions: a current shape whose key is the members'
+// numbers joined, and an earlier topical shape named for the subject.
+//
+// The current shape is exact — the key IS the membership — so it is read.
+// The topical shape is excluded BY SHAPE rather than read and filtered,
+// and the reason is the `2026` case below: `final-cluster-2026-06-22` is
+// a real directory in the reference corpus whose name contains a
+// well-formed four-digit record number that names no member of anything.
+// A rule that pulled numbers out of a name would report Stage 7.1 as
+// having reconciled a record 2026 that no run ever touched — the exact
+// inversion (a stage reading as run when it did not) that the no-globs
+// rule exists to prevent, in the direction that is harder to notice.
+func TestClusterMemberSegmentsTheEpochs(t *testing.T) {
+	root := t.TempDir()
+	for _, dir := range []string{
+		"0021-0022",                // current shape: the key is the membership
+		"0021-0022-0023",           // the widened re-run; nested overlap, not ambiguity
+		"final-cluster-2026-06-22", // topical epoch, and the 2026 trap
+		"dml-purpose",              // topical epoch, no numbers at all
+		"replay-perf-2026-06-25",   // topical epoch, dated
+	} {
+		if err := os.MkdirAll(filepath.Join(root, "cluster-reconcile", dir), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A loose FILE whose name looks like a key must not answer either:
+	// only a directory is a run's output.
+	if err := os.WriteFile(filepath.Join(root, "cluster-reconcile", "0031-0032"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	decl := FactDecl{Name: "cluster_reconciled", Kind: "bool",
+		Source: "cluster-member", Root: "evidence-root", Path: "cluster-reconcile"}
+
+	for _, c := range []struct {
+		slug string
+		want string
+		why  string
+	}{
+		{"0021-cache-warmup-order", "true", "a member of the current-shape key"},
+		{"0022-cache-metrics-surface", "true", "in BOTH dirs — a widened re-run answers true once"},
+		{"0023-cache-shard-count", "true", "admitted by the second iteration only"},
+		{"0024-cache-persistence", "false", "in no cluster: 7.1 is what runs next"},
+		{"2026-a-record-that-never-clustered", "false",
+			"THE GUARD: final-cluster-2026-06-22 must not make 2026 a member"},
+		{"0006-topical-era-member", "false",
+			"the topical epoch is out of scope by shape, not covered by a number rule"},
+		{"0031-loose-file-not-a-dir", "false", "a file named like a key is not a run"},
+	} {
+		e := &FactEnv{Slug: c.slug, Roots: map[string]string{"evidence-root": root},
+			readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+		got, ok := e.clusterMember(decl)
+		if !ok {
+			t.Errorf("%s: the fact went absent though the root is bound", c.slug)
+			continue
+		}
+		if got.Value != c.want {
+			t.Errorf("%s: cluster_reconciled = %s, want %s — %s", c.slug, got.Value, c.want, c.why)
+		}
+	}
+
+	// An unbound root is absent, never false: "no evidence root is
+	// configured" and "7.1 has not run" are different answers.
+	e := &FactEnv{Slug: "0021-cache-warmup-order", Roots: map[string]string{},
+		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+	if _, ok := e.clusterMember(decl); ok {
+		t.Error("an unbound root answered instead of going absent")
+	}
+
+	// A bound root with no cluster-reconcile tree at all IS false: the
+	// tool looked, and nothing has ever been reconciled here.
+	e = &FactEnv{Slug: "0021-cache-warmup-order", Roots: map[string]string{"evidence-root": t.TempDir()},
+		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+	got, ok := e.clusterMember(decl)
+	if !ok || got.Value != "false" {
+		t.Errorf("a bound root with no tree = %+v/%v, want false", got, ok)
 	}
 }
