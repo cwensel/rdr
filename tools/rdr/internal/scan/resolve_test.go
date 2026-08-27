@@ -642,3 +642,42 @@ func TestNumberedDecisionsAreAddressable(t *testing.T) {
 		t.Errorf("0001 has no D9 but resolved = %v", show(bad.Resolved))
 	}
 }
+
+// TestClusterTraversalReadsNoSource is the cost half of `--cluster-of`'s
+// gate: the facet walks the edge GRAPH — three edge kinds and a direction
+// test — and reads no `resolved` verdict, so deriving a cluster must not
+// touch the source tree at all. Counted rather than timed, because the
+// defect it guards is a walk that happens, not a walk that is slow.
+//
+// The output half is main.TestClusterOfIsIndependentOfTheRepo: same corpus
+// with and without a --repo, byte-identical. Together they say the facet
+// neither needs the walk nor pays for it.
+func TestClusterTraversalReadsNoSource(t *testing.T) {
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "w.go"), []byte("package w\n\nfunc Known() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	docs := corpus(t, map[string]string{
+		"0001-alpha.md": record("0001", "Alpha", "- **Predecessors**: 0002\n- **Seam Lineage**: `w::Known`"),
+		"0002-beta.md":  record("0002", "Beta", "- **Predecessors**: 0001"),
+	})
+
+	reads := 0
+	r := NewResolver(docs, repo)
+	r.onRead = func() { reads++ }
+
+	members := ClusterOf(docs, "0001")
+	if len(members) == 0 {
+		t.Fatal("no cluster derived; the fixture no longer exercises the traversal")
+	}
+	if reads != 0 {
+		t.Errorf("deriving a cluster read %d source files; the traversal reads no verdict and must read no source", reads)
+	}
+
+	// And the resolver still walks when something does ask for a verdict,
+	// so this test cannot pass by the walk being broken outright.
+	r.ResolveAll(docs)
+	if reads == 0 {
+		t.Error("resolution read no source at all; the counter is not wired to the walk")
+	}
+}

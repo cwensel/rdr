@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
@@ -44,7 +45,20 @@ type Resolver struct {
 	repo string
 	// symbols caches the grep verdict per symbol.
 	symbols map[string]bool
+	// onRead counts source files the walk reads. Some costs here are only
+	// assertable as a COUNT: a facet that must not walk the tree, and a
+	// primed pass that must walk it once, both produce the same verdicts
+	// as the versions that walk repeatedly.
+	onRead func()
 }
+
+// SourceReads counts source files read by every resolver walk in this
+// process. A facet that must not touch the source tree, and a primed pass
+// that must touch it once, are both invisible in the OUTPUT — they differ
+// from the versions that walk repeatedly only in what they read. This
+// counter is how a test says so at the command seam, where the regression
+// would actually land.
+var SourceReads atomic.Int64
 
 // NewResolver builds a resolver over already-scanned documents. Passing
 // the scanned corpus rather than a path keeps the resolver from
@@ -349,6 +363,10 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 		body, err := os.ReadFile(p)
 		if err != nil {
 			return nil
+		}
+		SourceReads.Add(1)
+		if r.onRead != nil {
+			r.onRead()
 		}
 		if !visit(body) {
 			done = true

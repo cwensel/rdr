@@ -1012,17 +1012,30 @@ type edgeRow struct {
 //	--unresolved  every typed edge whose target was looked for and not found
 //	--backlinks   the reverse edge set: who points at each target
 //	--cluster-of  the cluster of a record, derived from the edge graph
+//
+// Only two of the three can SHOW a `resolved` verdict, and only those two
+// pay for one. `--unresolved` is a query over the verdict itself and
+// `--backlinks` carries it on every row; `--cluster-of` is a walk of the
+// edge GRAPH — three edge kinds and a direction test — and reads no
+// verdict at all. Resolving for it walked the source tree for every symbol
+// the corpus cites to answer a question about record relations: 14.1s
+// where the traversal alone is 0.89s, for byte-identical output.
+//
+// This is the same shape as the worklist that ran the full resolver it
+// never used, and the same rule as inspect's: resolve when a facet can
+// show it, never because the corpus happened to be in hand.
 func indexEdges(f *flags, stdout, stderr io.Writer) int {
 	docs, skipped, code := records(f, stderr)
 	if code != 0 {
 		return code
 	}
-	scan.NewResolver(docs, *f.repo).ResolveAll(docs)
 
 	switch {
 	case *f.unresolved:
+		scan.NewResolver(docs, *f.repo).ResolveAll(docs)
 		return unresolvedFacet(docs, skipped, f, stdout, stderr)
 	case f.backlinks.set:
+		scan.NewResolver(docs, *f.repo).ResolveAll(docs)
 		return backlinksFacet(docs, f, stdout, stderr)
 	default:
 		return clusterFacet(docs, *f.clusterOf, f, stdout, stderr)

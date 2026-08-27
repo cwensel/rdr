@@ -563,9 +563,16 @@ whose structure is fully read but whose reference is untyped is not that.
 `rdr index` projects the whole records dir once — sub-second over a
 143-record corpus, byte-deterministic, no cache to go stale — and answers
 the corpus-level questions the flow used to answer by opening every file.
-With `--repo`, symbol resolution adds one walk of the source tree (~13s
-over a 110MB checkout citing ~1.2k symbols); every symbol is tested per
-file, so the cost is one traversal, not one per citation:
+
+Resolution is paid for **only by the facets that can show a verdict**.
+`--unresolved` queries the verdict itself and `--backlinks` carries it on
+every row, so both resolve; with `--repo` that adds a walk of the source
+tree, every symbol tested per file, so the cost is one traversal and not
+one per citation. `--cluster-of` reads no verdict — it walks the edge
+graph, three edge kinds and a direction test — and so resolves nothing:
+14.1s to 0.89s over the reference corpus, byte-identical output. The rule
+is `inspect`'s rule at corpus scale: resolve when a facet can show it,
+never because the corpus happened to be in hand.
 
     rdr index [--json]            # the graph: records, elements, edges, derived backlinks
     rdr index --status            # records grouped by status

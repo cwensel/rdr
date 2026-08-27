@@ -11,6 +11,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
 func fixturePath(name string) string { return filepath.Join("testdata", name) }
@@ -1332,5 +1334,96 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	}
 	if got := usageFacet("index", f, ""); got != "graph" {
 		t.Errorf("bare index logs as %q, want graph", got)
+	}
+}
+
+// TestIndexResolvesOnlyForFacetsThatShowIt is inspect's rule at corpus
+// scale: resolution is the only thing index does that reads beyond the
+// records dir, and only a facet that can SHOW a `resolved` verdict may pay
+// for it. `--unresolved` queries the verdict and `--backlinks` carries it
+// on every row; `--cluster-of` walks the edge graph — three edge kinds and
+// a direction test — and reads none.
+//
+// The witness is source files read, not output, because the resolver
+// changes nothing a cluster prints: resolving before the dispatch and
+// resolving only inside the two arms that need it are byte-identical, and
+// differ only in walking a source tree for every symbol the corpus cites
+// to answer a question about record relations.
+func TestIndexResolvesOnlyForFacetsThatShowIt(t *testing.T) {
+	dir := t.TempDir()
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "widget.go"), []byte("package w\n\nfunc KnownSymbol() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	const head = "## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	write("0001-alpha.md", "# Recommendation 0001: Alpha\n\n"+head+
+		"- **Predecessors**: 0002\n\n## Problem Statement\n\n"+
+		"Anchored at `widget.go::KnownSymbol` and at `widget.go::GoneSymbol`.\n")
+	write("0002-beta.md", "# Recommendation 0002: Beta\n\n"+head+
+		"- **Predecessors**: 0001\n\n## Problem Statement\n\nSynthetic.\n")
+
+	for _, tc := range []struct {
+		name  string
+		args  []string
+		walks bool
+	}{
+		{"unresolved", []string{"--unresolved"}, true},
+		{"backlinks", []string{"--backlinks"}, true},
+		{"cluster-of", []string{"--cluster-of", "0001"}, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			before := scan.SourceReads.Load()
+			args := append([]string{"index", "--json", "--records", dir, "--repo", repo}, tc.args...)
+			code, out, errb := runCapture(t, args...)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errb)
+			}
+			if out == "" {
+				t.Fatal("no output; the fixture no longer exercises the facet")
+			}
+			if got := scan.SourceReads.Load() > before; got != tc.walks {
+				t.Errorf("walked the source tree = %v, want %v", got, tc.walks)
+			}
+		})
+	}
+}
+
+// TestClusterOfIsIndependentOfTheRepo pins the reason --cluster-of may skip
+// resolution: its answer cannot depend on the source tree. Same corpus, with
+// and without a --repo, must be byte-identical — if it ever is not, the facet
+// grew a dependency on a verdict and skipping resolution for it is wrong.
+//
+// This is the CORRECTNESS half. The cost half — that the walk does not
+// happen — is asserted where the walk can be counted, in
+// scan.TestClusterTraversalReadsNoSource.
+func TestClusterOfIsIndependentOfTheRepo(t *testing.T) {
+	dir := t.TempDir()
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "widget.go"), []byte("package w\n\nfunc KnownSymbol() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Recommendation 0001: Alpha\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n" +
+		"- **Predecessors**: 0002\n\n## Problem Statement\n\n" +
+		"Anchored at `widget.go::KnownSymbol`.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0001-alpha.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	peer := "# Recommendation 0002: Beta\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n" +
+		"- **Predecessors**: 0001\n\n## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0002-beta.md"), []byte(peer), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	_, withRepo, _ := runCapture(t, "index", "--json", "--records", dir, "--repo", repo, "--cluster-of", "0001")
+	_, without, _ := runCapture(t, "index", "--json", "--records", dir, "--repo", "", "--cluster-of", "0001")
+	if withRepo != without {
+		t.Errorf("--cluster-of depends on the repo:\nwith:    %s\nwithout: %s", withRepo, without)
 	}
 }
