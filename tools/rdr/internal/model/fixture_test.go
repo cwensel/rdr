@@ -170,7 +170,7 @@ func TestFixturesClassifyClean(t *testing.T) {
 	for _, name := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md"} {
 		t.Run(name, func(t *testing.T) {
 			f := readFixture(t, name)
-			te := Template
+			te := Template()
 
 			for _, h := range f.headings {
 				if m := LookupSection(te, h.name, h.level); m.Kind == MatchUnknown {
@@ -217,7 +217,7 @@ func TestFixturesExerciseTolerancePaths(t *testing.T) {
 
 	for _, name := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md"} {
 		f := readFixture(t, name)
-		te := Template
+		te := Template()
 
 		for _, h := range f.headings {
 			kinds[LookupSection(te, h.name, h.level).Kind] = true

@@ -1,6 +1,4 @@
-package main
-
-// A TOML subset, exactly as wide as the fact table needs.
+// Package toml is a TOML subset, exactly as wide as the tables that use it.
 //
 // The binary is Go stdlib only, by design — `rdr-doctor` gets one static
 // thing to check for and the build has no dependency to age. TOML is not
@@ -21,34 +19,36 @@ package main
 // package spends all its care avoiding. So an unparseable line is an
 // error naming the line number, never a silent skip.
 
+package toml
+
 import (
 	"fmt"
 	"strconv"
 	"strings"
 )
 
-// tomlValue is one parsed right-hand side. A value is either a scalar or
+// Value is one parsed right-hand side. A value is either a scalar or
 // a list; the parser records which, so a fact declaring `paths` cannot
 // quietly be handed a single string.
-type tomlValue struct {
+type Value struct {
 	scalar string
 	list   []string
 	isList bool
 	line   int
 }
 
-// tomlTable is one `[header]` and the keys under it, with the header's
+// Table is one `[header]` and the keys under it, with the header's
 // declaration order preserved by the slice that holds these.
-type tomlTable struct {
-	name   string
-	line   int
-	values map[string]tomlValue
+type Table struct {
+	Name   string
+	Line   int
+	values map[string]Value
 	// order is the keys as written, so an error can name them in the
 	// order a reader would find them.
 	order []string
 }
 
-func (t tomlTable) str(key string) string {
+func (t Table) Str(key string) string {
 	v, ok := t.values[key]
 	if !ok || v.isList {
 		return ""
@@ -56,7 +56,7 @@ func (t tomlTable) str(key string) string {
 	return v.scalar
 }
 
-func (t tomlTable) list(key string) []string {
+func (t Table) List(key string) []string {
 	v, ok := t.values[key]
 	if !ok || !v.isList {
 		return nil
@@ -64,18 +64,34 @@ func (t tomlTable) list(key string) []string {
 	return v.list
 }
 
-func (t tomlTable) int_(key string) int {
-	n, err := strconv.Atoi(t.str(key))
+func (t Table) Int(key string) int {
+	n, err := strconv.Atoi(t.Str(key))
 	if err != nil {
 		return 0
 	}
 	return n
 }
 
-// parseTOMLSubset reads the subset and returns the tables in file order.
-func parseTOMLSubset(src string) ([]tomlTable, error) {
-	var tables []tomlTable
-	var cur *tomlTable
+// Scalar returns the key's scalar value and whether it was set. A
+// caller that must tell "absent" from "empty" — and `absent = ""` is a
+// real declaration in the fact table — cannot use Str, which collapses
+// both to "".
+func (t Table) Scalar(key string) (string, bool) {
+	v, ok := t.values[key]
+	if !ok || v.isList {
+		return "", false
+	}
+	return v.scalar, true
+}
+
+// Keys returns the keys as written, so a caller rejecting an unknown one
+// names it in the order a reader would find it.
+func (t Table) Keys() []string { return t.order }
+
+// Parse reads the subset and returns the tables in file order.
+func Parse(src string) ([]Table, error) {
+	var tables []Table
+	var cur *Table
 
 	lines := strings.Split(src, "\n")
 	for i := 0; i < len(lines); i++ {
@@ -99,7 +115,7 @@ func parseTOMLSubset(src string) ([]tomlTable, error) {
 			if strings.HasPrefix(name, "[") {
 				return nil, fmt.Errorf("line %d: array-of-tables is outside this subset", lineNo)
 			}
-			tables = append(tables, tomlTable{name: name, line: lineNo, values: map[string]tomlValue{}})
+			tables = append(tables, Table{Name: name, Line: lineNo, values: map[string]Value{}})
 			cur = &tables[len(tables)-1]
 			continue
 		}
@@ -119,7 +135,7 @@ func parseTOMLSubset(src string) ([]tomlTable, error) {
 			return nil, fmt.Errorf("line %d: key %q sits above every table header", lineNo, key)
 		}
 		if _, dup := cur.values[key]; dup {
-			return nil, fmt.Errorf("line %d: key %q is set twice in [%s]", lineNo, key, cur.name)
+			return nil, fmt.Errorf("line %d: key %q is set twice in [%s]", lineNo, key, cur.Name)
 		}
 		value := strings.TrimSpace(rest)
 		// A list may wrap across lines — the readable way to write six
@@ -145,15 +161,15 @@ func parseTOMLSubset(src string) ([]tomlTable, error) {
 }
 
 // parseValue reads a scalar or a list.
-func parseValue(s string, lineNo int) (tomlValue, error) {
+func parseValue(s string, lineNo int) (Value, error) {
 	if s == "" {
-		return tomlValue{}, fmt.Errorf("line %d: no value", lineNo)
+		return Value{}, fmt.Errorf("line %d: no value", lineNo)
 	}
 	if strings.HasPrefix(s, "[") {
 		if !strings.HasSuffix(s, "]") {
 			// The caller joins a wrapped list before calling in, so an
 			// unclosed bracket here means it never closed at all.
-			return tomlValue{}, fmt.Errorf("line %d: unterminated list", lineNo)
+			return Value{}, fmt.Errorf("line %d: unterminated list", lineNo)
 		}
 		body := strings.TrimSpace(s[1 : len(s)-1])
 		out := []string{}
@@ -165,18 +181,18 @@ func parseValue(s string, lineNo int) (tomlValue, error) {
 				}
 				lit, err := parseScalar(part, lineNo)
 				if err != nil {
-					return tomlValue{}, err
+					return Value{}, err
 				}
 				out = append(out, lit)
 			}
 		}
-		return tomlValue{list: out, isList: true, line: lineNo}, nil
+		return Value{list: out, isList: true, line: lineNo}, nil
 	}
 	lit, err := parseScalar(s, lineNo)
 	if err != nil {
-		return tomlValue{}, err
+		return Value{}, err
 	}
-	return tomlValue{scalar: lit, line: lineNo}, nil
+	return Value{scalar: lit, line: lineNo}, nil
 }
 
 // parseScalar reads a quoted string, a bare integer, or a bare boolean.

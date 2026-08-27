@@ -117,7 +117,7 @@ func headingFindings(d *scan.Document) []Finding {
 		if n.Level < 2 {
 			continue // the title is the record's, not the template's
 		}
-		m := model.LookupSection(model.Template, n.Heading, n.Level)
+		m := model.LookupSection(model.Template(), n.Heading, n.Level)
 		if m.Canonical == nil {
 			continue
 		}
@@ -674,11 +674,11 @@ func vocabularyFindings(d *scan.Document) []Finding {
 func vocabularyFor(field string) (model.Vocabulary, bool) {
 	switch field {
 	case "Status":
-		return model.StatusVocabulary, true
+		return model.StatusVocabulary(), true
 	case "Type":
-		return model.TypeVocabulary, true
+		return model.TypeVocabulary(), true
 	case "Profile":
-		return model.ProfileVocabulary, true
+		return model.ProfileVocabulary(), true
 	}
 	return model.Vocabulary{}, false
 }

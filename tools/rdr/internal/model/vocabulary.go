@@ -95,52 +95,14 @@ func (v Vocabulary) Classify(value string) Tier {
 // spelling. Reading is unaffected: the value classified before and
 // classifies now, in a stronger tier. What changed is that a new record
 // may write it, and knows the form to write.
-var StatusVocabulary = Vocabulary{
-	Field: "Status",
-	Canonical: []string{
-		"Draft", "Final", "Implemented", "Reverted",
-		"Abandoned", "Superseded", "Demoted", "Deferred",
-	},
-	ObservedAccepted: []string{"Rejected"},
-}
-
-// TerminalStatuses are the statuses after which a record is never amended.
-// They are why the ObservedAccepted tier exists at all.
-//
-// Deferred is deliberately absent. A Deferred RDR is PARKED, not closed:
-// it owes no post-mortem, keeps its trackers, and re-enters the flow at
-// the stage it stopped when its revisit trigger fires. Listing it here
-// would freeze a record that is expected to be amended, and would make
-// every consumer that reads this set — the lint's terminal check, the
-// status skill's "no next command" branch — wrong about it in the one
-// way that matters.
-var TerminalStatuses = []string{
-	"Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected",
-}
-
-// ParkedStatuses are the statuses that pause the lifecycle without ending
-// it. A parked record is still live: it may be amended, it owes no
-// post-mortem, and it has a next stage once its condition is met.
-var ParkedStatuses = []string{"Deferred"}
 
 // TypeVocabulary is TEMPLATE.md's Type line. No corpus value falls outside
 // it.
-var TypeVocabulary = Vocabulary{
-	Field: "Type",
-	Canonical: []string{
-		"Feature", "Bug Fix", "Technical Debt",
-		"Framework Workaround", "Architecture",
-	},
-}
 
 // ProfileVocabulary is TEMPLATE.md's Profile line: the Stage 5 routing
 // latch, sized by blast radius. The field's value is the label plus one
 // clause naming the contracts behind it, so a consumer takes the leading
 // label and classifies that.
-var ProfileVocabulary = Vocabulary{
-	Field:     "Profile",
-	Canonical: []string{"small", "mid", "large", "foundational"},
-}
 
 // MethodVocabulary is the Evidence Record Method set: the eight labels
 // from README.md's "Verifying load-bearing claims", which that section
@@ -151,13 +113,55 @@ var ProfileVocabulary = Vocabulary{
 // omission: every Method value in the frozen corpus resolves to one of
 // these eight once compounds are split and parenthetical glosses are
 // stripped. The eight are the whole vocabulary.
-var MethodVocabulary = Vocabulary{
-	Field: "Method",
-	Canonical: []string{
-		"Source Search", "Spike", "Prior Art", "Derivation",
-		"Design Decision", "Peer RDR", "MVV Test", "Docs Only",
-	},
+
+// vocabulary returns the loaded closed vocabulary for a metadata or
+// Evidence Record field, with the corpus-only tier the sidecar declares.
+//
+// Canonical comes from the document that states it — TEMPLATE.md for
+// Status, Type and Profile; README.md for Method. ObservedAccepted comes
+// from the sidecar, because those values exist precisely BECAUSE the
+// template never listed them.
+func vocabulary(field string) Vocabulary {
+	sc := current()
+	for _, v := range sc.Table.Vocabularies {
+		if v.Field == field {
+			if sc.Sidecar != nil {
+				v.ObservedAccepted = sc.Sidecar.Observed[field]
+			}
+			return v
+		}
+	}
+	return Vocabulary{Field: field}
 }
+
+// StatusVocabulary is TEMPLATE.md's Status line, plus the corpus-only
+// values the sidecar declares.
+func StatusVocabulary() Vocabulary { return vocabulary("Status") }
+
+// TypeVocabulary is TEMPLATE.md's Type line.
+func TypeVocabulary() Vocabulary { return vocabulary("Type") }
+
+// ProfileVocabulary is TEMPLATE.md's Profile line: the Stage 5 routing
+// latch, sized by blast radius. The field's value is the label plus one
+// clause naming the contracts behind it, so a consumer takes the leading
+// label and classifies that.
+func ProfileVocabulary() Vocabulary { return vocabulary("Profile") }
+
+// MethodVocabulary is the Evidence Record Method set, from README.md's
+// "Verifying load-bearing claims", which declares itself authoritative
+// precisely so the guidance does not ship inside the template body.
+func MethodVocabulary() Vocabulary { return vocabulary("Method") }
+
+// TerminalStatuses are the statuses after which a record's CONTENT is
+// never amended. The sidecar declares them: TEMPLATE.md discusses which
+// are terminal only in English, inside comments, and never writes
+// `Rejected` as a status at all.
+func TerminalStatuses() []string { return current().Sidecar.Terminal }
+
+// ParkedStatuses pause the lifecycle without ending it. A parked record
+// is still live: it may be amended, it owes no post-mortem, and it has a
+// next stage once its condition is met.
+func ParkedStatuses() []string { return current().Sidecar.Parked }
 
 // --- Compound Method parsing -----------------------------------------
 
@@ -182,7 +186,7 @@ type MethodMember struct {
 	// Trailing is the author's commentary after the label's clause
 	// boundary, or "" if there was none. Like Gloss, it is free text.
 	Trailing string
-	// Tier is Label's standing in MethodVocabulary.
+	// Tier is Label's standing in MethodVocabulary().
 	Tier Tier
 }
 
@@ -337,7 +341,7 @@ func parseMethodMember(part string) MethodMember {
 		// the remainder as trailing commentary. A member that does not
 		// start with a canonical label is left whole, so a genuinely
 		// wrong label still reports as itself.
-		if MethodVocabulary.Classify(label) == OffVocabulary {
+		if MethodVocabulary().Classify(label) == OffVocabulary {
 			if pre, rest := longestMethodPrefix(label); pre != "" {
 				if m.Trailing == "" {
 					m.Trailing = rest
@@ -347,7 +351,7 @@ func parseMethodMember(part string) MethodMember {
 				label = pre
 			}
 		}
-		m.Tier = MethodVocabulary.Classify(label)
+		m.Tier = MethodVocabulary().Classify(label)
 	}
 	m.Label = label
 	return m
@@ -356,7 +360,7 @@ func parseMethodMember(part string) MethodMember {
 // longestMethodPrefix returns the longest canonical Method label that
 // prefixes s at a word boundary, and the remainder after it.
 func longestMethodPrefix(s string) (prefix, rest string) {
-	for _, c := range MethodVocabulary.Canonical {
+	for _, c := range MethodVocabulary().Canonical {
 		if len(s) <= len(c) || !strings.EqualFold(s[:len(c)], c) {
 			continue
 		}
@@ -402,7 +406,7 @@ func ParseType(raw string) TypeValue {
 			continue
 		}
 		v.Members = append(v.Members, label)
-		if TypeVocabulary.Classify(label) == OffVocabulary {
+		if TypeVocabulary().Classify(label) == OffVocabulary {
 			allValid = false
 			v.OffVocabulary = append(v.OffVocabulary, label)
 		}
@@ -425,7 +429,7 @@ type StatusValue struct {
 	Qualifier string
 	// QualifierForm names which grammar the qualifier matched.
 	QualifierForm QualifierForm
-	// Tier is Label's standing in StatusVocabulary.
+	// Tier is Label's standing in StatusVocabulary().
 	Tier Tier
 }
 
@@ -443,7 +447,7 @@ func ParseStatus(raw string) StatusValue {
 	s.Label = strings.Trim(strings.TrimSpace(label), "`*_ ")
 	s.Qualifier = qualifier
 	s.QualifierForm = form
-	s.Tier = StatusVocabulary.Classify(s.Label)
+	s.Tier = StatusVocabulary().Classify(s.Label)
 	return s
 }
 
@@ -469,5 +473,5 @@ func ParseProfile(raw string) (label string, tier Tier) {
 		body = strings.TrimSpace(strings.Trim(body, "`*_ "))[:i]
 	}
 	label = strings.Trim(strings.TrimSpace(body), "`*_.,;: ")
-	return label, ProfileVocabulary.Classify(label)
+	return label, ProfileVocabulary().Classify(label)
 }

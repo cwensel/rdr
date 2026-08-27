@@ -3,7 +3,7 @@ package model
 import "testing"
 
 func TestLookupSectionKinds(t *testing.T) {
-	d := Template
+	d := Template()
 
 	cases := []struct {
 		name      string
@@ -106,12 +106,12 @@ func TestLookupSectionWarningBoundary(t *testing.T) {
 		"Phase 3: Rollout",
 	}
 	for _, h := range quiet {
-		if m := LookupSection(Template, h, 3); m.Kind == MatchUnknown {
+		if m := LookupSection(Template(), h, 3); m.Kind == MatchUnknown {
 			t.Errorf("%q classified unknown; unknown-to-template must fire only on foreign sections", h)
 		}
 	}
 	for _, h := range []string{"Snapshot rendering", "Why this needs a record", "The gap"} {
-		if m := LookupSection(Template, h, 4); m.Kind != MatchUnknown {
+		if m := LookupSection(Template(), h, 4); m.Kind != MatchUnknown {
 			t.Errorf("foreign heading %q classified %s, want unknown", h, m.Kind)
 		}
 	}
@@ -144,7 +144,7 @@ func TestLookupField(t *testing.T) {
 		{"Sprint", MatchUnknown},
 	}
 	for _, c := range cases {
-		if m := LookupField(Template, c.label); m.Kind != c.want {
+		if m := LookupField(Template(), c.label); m.Kind != c.want {
 			t.Errorf("LookupField(%q).Kind = %s, want %s", c.label, m.Kind, c.want)
 		}
 	}

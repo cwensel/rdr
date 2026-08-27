@@ -89,7 +89,7 @@ func (d *Document) MetadataField(canonical string) *Field {
 // IsTerminal reports whether a status is one a record is never amended
 // after (model.TerminalStatuses).
 func IsTerminal(status string) bool {
-	for _, t := range model.TerminalStatuses {
+	for _, t := range model.TerminalStatuses() {
 		if strings.EqualFold(t, status) {
 			return true
 		}

@@ -2,89 +2,19 @@ package model
 
 import (
 	"os"
-	"strings"
 	"testing"
 )
 
-// templateLabels reads every `- **Label**:` bullet out of TEMPLATE.md, at
-// any indent, keyed by the nearest heading above it. This is the
-// labelled-bullet half of the same-commit rule: SectionFields.Canonical
-// must equal what the template writes.
-func templateLabels(t *testing.T) map[string][]string {
+// templateLabelsFor reads TEMPLATE.md through the production parser, so
+// the anti-drift test below checks the model against the same reading the
+// binary does.
+func templateLabelsFor(t *testing.T) map[string][]string {
 	t.Helper()
 	raw, err := os.ReadFile(templatePath(t))
 	if err != nil {
 		t.Fatalf("reading TEMPLATE.md: %v", err)
 	}
-	out := map[string][]string{}
-	section, fenced := "", false
-	for _, line := range strings.Split(string(raw), "\n") {
-		if FenceDelimiter.MatchString(line) {
-			fenced = !fenced
-			continue
-		}
-		if fenced {
-			continue
-		}
-		if m := Heading.FindStringSubmatch(line); m != nil {
-			section = m[2]
-			continue
-		}
-		if m := EvidenceFieldBullet.FindStringSubmatch(line); m != nil {
-			out[section] = append(out[section], strings.TrimSpace(m[1]))
-		}
-	}
-	return out
-}
-
-// TestSectionFieldsMatchTemplate: each FieldSet's canonical labels are
-// exactly the labelled bullets TEMPLATE.md writes under that section, and
-// every section TEMPLATE.md gives labelled bullets has a FieldSet.
-func TestSectionFieldsMatchTemplate(t *testing.T) {
-	want := templateLabels(t)
-	const hint = "\n  Update SectionFields in fields.go in the same commit as the TEMPLATE.md change, " +
-		"and add a synthetic fixture exercising the label."
-	for _, fs := range SectionFields {
-		if _, ok := Template.SectionByName(fs.Section); !ok {
-			t.Errorf("FieldSet %q names no current-template section", fs.Section)
-		}
-		got := want[fs.Section]
-		if strings.Join(got, "|") != strings.Join(fs.Canonical, "|") {
-			t.Errorf("section %q: TEMPLATE.md writes labels %v, the model has %v"+hint, fs.Section, got, fs.Canonical)
-		}
-	}
-	for section, labels := range want {
-		if len(FieldSetOf(section).Canonical) == 0 {
-			t.Errorf("TEMPLATE.md writes labels %v under %q; the model has no FieldSet for it"+hint, labels, section)
-		}
-	}
-}
-
-// TestAssumptionStatusVocabularyMatchesTemplate: the canonical Evidence
-// Record statuses are TEMPLATE.md's `Verified | Pending | Unverified`.
-func TestAssumptionStatusVocabularyMatchesTemplate(t *testing.T) {
-	raw, err := os.ReadFile(templatePath(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, line := range strings.Split(string(raw), "\n") {
-		m := EvidenceFieldBullet.FindStringSubmatch(line)
-		if m == nil || strings.TrimSpace(m[1]) != "Status" || !strings.HasPrefix(line, " ") {
-			continue
-		}
-		var got []string
-		for _, p := range strings.Split(m[2], "|") {
-			got = append(got, strings.TrimSpace(p))
-		}
-		if strings.Join(got, "|") != strings.Join(AssumptionStatusVocabulary.Canonical, "|") {
-			t.Errorf("TEMPLATE.md's Evidence Record Status line is %v, the model has %v", got, AssumptionStatusVocabulary.Canonical)
-		}
-		if !isStatusPlaceholder(m[2]) {
-			t.Errorf("the template legend %q is not recognised as the placeholder", m[2])
-		}
-		return
-	}
-	t.Fatal("TEMPLATE.md has no indented Evidence Record Status bullet")
+	return templateLabels(string(raw))
 }
 
 func TestLookupLabel(t *testing.T) {

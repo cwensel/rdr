@@ -3,7 +3,7 @@ package model
 import "testing"
 
 func TestParseStatusBare(t *testing.T) {
-	for _, v := range StatusVocabulary.Canonical {
+	for _, v := range StatusVocabulary().Canonical {
 		s := ParseStatus(v)
 		if s.Label != v || s.Tier != Canonical || s.QualifierForm != NoQualifier {
 			t.Errorf("ParseStatus(%q) = %+v, want a bare canonical label", v, s)
@@ -246,7 +246,7 @@ func TestAssumptionBullet(t *testing.T) {
 }
 
 func TestEvidenceFieldBullet(t *testing.T) {
-	for _, label := range EvidenceFields {
+	for _, label := range EvidenceFields() {
 		line := "  - **" + label + "**: some value"
 		m := EvidenceFieldBullet.FindStringSubmatch(line)
 		if m == nil {

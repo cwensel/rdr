@@ -1,0 +1,117 @@
+# rdr-template.toml — what TEMPLATE.md cannot say about itself.
+#
+# TEMPLATE.md is the schema. The binary reads it directly: section names,
+# levels, nesting, classes, which sections key their items, the metadata
+# and Evidence Record field sets, the closed vocabularies, the decision
+# classes, and the gate items with their keys and retention all come out
+# of the file itself. Where the template can carry a fact, it carries it
+# — as a bracket marker beside the section it describes, the way
+# `[Retained at lock — …]` and `[Gate key: …]` do.
+#
+# This file holds ONLY what has no home there. Three things qualify, and
+# each qualifies for a different reason:
+#
+#   - the element-kind map is a READER fact. The template writes
+#     documents; it never names the id kinds a projector mints.
+#   - the observed tiers are CORPUS facts. They exist precisely because
+#     TEMPLATE.md never listed them, so writing them into it would erase
+#     the distinction the two tiers draw.
+#   - the lifecycle sets are stated in TEMPLATE.md only as English prose
+#     inside comments, and parsing a set out of prose is guessing.
+#
+# Anything that could be a marker instead belongs in TEMPLATE.md. A key
+# here that names a section the template does not have is a REFUSAL, not
+# a warning: this file and the template ship together, and a stale name
+# means one of them moved without the other.
+
+[template]
+version = 1
+description = "element kinds, the observed vocabulary tiers, and the status lifecycle"
+
+# --- element kind -> the section that answers for it ------------------
+#
+# Which section a kind is projected from, and therefore whether the
+# template gives that kind anywhere to write an id: KindKeys composes
+# this map with the section's own Keys column.
+#
+# The kinds ABSENT here are keyed by something other than a section's
+# list shape — G by the gate item, JC by a line anywhere in the record,
+# § by the heading itself — so absence is meaningful, not an omission.
+#
+# This is a reader fact by construction. It was created to keep section
+# knowledge OUT of the id grammar, which should know nothing about which
+# sections exist; a marker would put the reader's id vocabulary into the
+# authors' document and undo that.
+
+[elements]
+A = "Critical Assumptions"
+C = "Normative Contracts"
+D = "Load-Bearing Decisions"
+RT = "Round-Trip / Inverse Invariants"
+ALT = "Alternative 1: [Name]"
+BR = "Briefly Rejected"
+S = "Testing Strategy"
+MVV = "Minimum Viable Validation"
+F = "Failure Modes"
+
+# --- observed vocabulary tiers ----------------------------------------
+#
+# Values the frozen corpus writes that TEMPLATE.md never listed. The
+# reader accepts them with no warning and a gate or lint consumer treats
+# them as valid — they are legitimate practice the template simply never
+# spelled.
+#
+# An EMPTY set is a finding, not an omission. Method's emptiness says
+# every Method value in the corpus resolves to one of the eight
+# sanctioned labels once compounds are split and glosses stripped;
+# deleting the entry would lose that statement.
+#
+# There is deliberately no third "tolerated but wrong" tier. A value that
+# is neither sanctioned nor legitimate practice is a typo, and a typo is
+# what the gate exists to report; naming it here would launder it.
+
+[observed.status]
+field = "Status"
+values = ["Rejected"]
+
+[observed.type]
+field = "Type"
+values = []
+
+[observed.profile]
+field = "Profile"
+values = []
+
+[observed.method]
+field = "Method"
+values = []
+
+# The Evidence Record's own Status, which is a different field from the
+# metadata Status above. These four are dispositions frozen records wrote
+# for an assumption the flow had since settled; read, never judged.
+[observed.assumption-status]
+field = "Status (Evidence Record)"
+values = ["Refuted", "Resolved", "Accepted", "Downgraded"]
+
+# --- status lifecycle -------------------------------------------------
+#
+# TERMINAL statuses are the ones after which a record's content is never
+# amended. They are why the observed tier exists at all: `Rejected` is a
+# real terminal disposition written by frozen records that TEMPLATE.md
+# never listed.
+#
+# PARKED statuses pause the lifecycle without ending it. `Deferred` is
+# parked, NOT terminal: a Deferred RDR owes no post-mortem, keeps its
+# trackers, and re-enters the flow at the stage it stopped when its
+# revisit trigger fires. Listing it as terminal would freeze a record
+# that is expected to be amended, and would make every consumer that
+# reads this set — lint's terminal check, the status skill's "no next
+# command" branch — wrong about it in the one way that matters.
+#
+# TEMPLATE.md discusses which statuses are terminal, but only in English,
+# inside HTML comments, and it never writes `Rejected` as a status at
+# all. Parsing this from prose would be guessing.
+
+[lifecycle]
+terminal = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected"]
+parked = ["Deferred"]

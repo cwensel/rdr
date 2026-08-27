@@ -495,7 +495,7 @@ func (d *Document) findHeading(name string) *Node {
 // ID as the section it stands for. Everything else slugs its own text and
 // is flagged derived.
 func (d *Document) classify() {
-	te := model.Template
+	te := model.Template()
 	seen := map[string]int{}
 	for i, n := range d.nodes {
 		var key string

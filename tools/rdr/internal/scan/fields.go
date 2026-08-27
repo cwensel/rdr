@@ -162,7 +162,7 @@ var spaces = regexp.MustCompile(`\s+`)
 // warning, because the flow reads these fields by name and a misspelt
 // one is a field the flow will not find.
 func (d *Document) metadataField(f *Field) {
-	te := model.Template
+	te := model.Template()
 	m := model.LookupField(te, f.Label)
 	f.Match = m.Kind.String()
 	switch m.Kind {

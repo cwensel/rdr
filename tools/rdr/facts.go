@@ -44,6 +44,7 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/model"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
+	"github.com/cwensel/rdr/tools/rdr/internal/toml"
 )
 
 // FactTable is a parsed rdr-facts.toml: the roots a probe hangs under
@@ -188,7 +189,7 @@ func LoadFactTable(path string) (*FactTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("stopped:no-fact-table (%v)", err)
 	}
-	doc, err := parseTOMLSubset(string(raw))
+	doc, err := toml.Parse(string(raw))
 	if err != nil {
 		return nil, fmt.Errorf("stopped:malformed-fact-table (%s: %v)", path, err)
 	}
@@ -196,24 +197,24 @@ func LoadFactTable(path string) (*FactTable, error) {
 	t := &FactTable{Roots: map[string]FactRoot{}, Source: path}
 	for _, tbl := range doc {
 		switch {
-		case tbl.name == "facts":
-			t.Version = tbl.int_("version")
-			t.Description = tbl.str("description")
-		case strings.HasPrefix(tbl.name, "root."):
-			name := strings.TrimPrefix(tbl.name, "root.")
-			r := FactRoot{Name: name, Var: tbl.str("var"), Suffix: tbl.str("suffix")}
+		case tbl.Name == "facts":
+			t.Version = tbl.Int("version")
+			t.Description = tbl.Str("description")
+		case strings.HasPrefix(tbl.Name, "root."):
+			name := strings.TrimPrefix(tbl.Name, "root.")
+			r := FactRoot{Name: name, Var: tbl.Str("var"), Suffix: tbl.Str("suffix")}
 			if r.Var == "" {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: root %q names no var)", path, name)
 			}
 			t.Roots[name] = r
-		case strings.HasPrefix(tbl.name, "fact."):
+		case strings.HasPrefix(tbl.Name, "fact."):
 			d, err := factFromTable(tbl)
 			if err != nil {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: %v)", path, err)
 			}
 			t.Facts = append(t.Facts, d)
 		default:
-			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: unknown table [%s])", path, tbl.name)
+			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: unknown table [%s])", path, tbl.Name)
 		}
 	}
 	if t.Version != 1 {
@@ -243,39 +244,39 @@ func LoadFactTable(path string) (*FactTable, error) {
 // is refused rather than ignored. A silently-dropped key is a fact that
 // reads as declared and evaluates as something else — the failure this
 // whole file exists to avoid.
-func factFromTable(tbl tomlTable) (FactDecl, error) {
-	name := strings.TrimPrefix(tbl.name, "fact.")
+func factFromTable(tbl toml.Table) (FactDecl, error) {
+	name := strings.TrimPrefix(tbl.Name, "fact.")
 	d := FactDecl{
 		Name:        name,
-		Kind:        tbl.str("kind"),
-		Source:      tbl.str("source"),
-		Path:        tbl.str("path"),
-		Paths:       tbl.list("paths"),
-		Root:        tbl.str("root"),
-		Domain:      tbl.list("domain"),
-		Equals:      tbl.str("equals"),
-		Transform:   tbl.str("transform"),
-		Select:      tbl.str("select"),
-		Label:       tbl.str("label"),
-		Description: tbl.str("description"),
+		Kind:        tbl.Str("kind"),
+		Source:      tbl.Str("source"),
+		Path:        tbl.Str("path"),
+		Paths:       tbl.List("paths"),
+		Root:        tbl.Str("root"),
+		Domain:      tbl.List("domain"),
+		Equals:      tbl.Str("equals"),
+		Transform:   tbl.Str("transform"),
+		Select:      tbl.Str("select"),
+		Label:       tbl.Str("label"),
+		Description: tbl.Str("description"),
 	}
-	if v, ok := tbl.values["min"]; ok {
-		n, err := strconv.Atoi(v.scalar)
+	if v, ok := tbl.Scalar("min"); ok {
+		n, err := strconv.Atoi(v)
 		if err != nil {
-			return d, fmt.Errorf("fact %q: min %q is not an int", name, v.scalar)
+			return d, fmt.Errorf("fact %q: min %q is not an int", name, v)
 		}
 		d.Min = &n
 	}
-	if v, ok := tbl.values["prose"]; ok {
-		if v.scalar != "true" && v.scalar != "false" {
-			return d, fmt.Errorf("fact %q: prose is true or false, got %q", name, v.scalar)
+	if v, ok := tbl.Scalar("prose"); ok {
+		if v != "true" && v != "false" {
+			return d, fmt.Errorf("fact %q: prose is true or false, got %q", name, v)
 		}
-		d.Prose = v.scalar == "true"
+		d.Prose = v == "true"
 	}
-	if v, ok := tbl.values["absent"]; ok {
-		d.Absent, d.HasAbsent = v.scalar, true
+	if v, ok := tbl.Scalar("absent"); ok {
+		d.Absent, d.HasAbsent = v, true
 	}
-	for k := range tbl.values {
+	for _, k := range tbl.Keys() {
 		switch k {
 		case "kind", "source", "path", "paths", "root", "domain",
 			"equals", "transform", "select", "label", "min", "prose", "absent", "description":
@@ -901,6 +902,93 @@ func factTablePath(explicit string) (string, error) {
 }
 
 const factTableName = "rdr-facts.toml"
+
+// bindSchema loads TEMPLATE.md and installs it for this process.
+//
+// The template is the schema, so a reader cannot proceed without it: the
+// failure is a `stopped:` line and exit 2, never a zero schema that would
+// classify every value off-vocabulary and report a missing install as a
+// corpus-wide defect.
+func bindSchema(f *flags) error {
+	// A schema already installed stands: a test binary binds one in
+	// TestMain, and re-resolving here would look for a marker the test
+	// deliberately cleared. An explicit --template still rebinds.
+	explicit := ""
+	if f != nil && f.template != nil {
+		explicit = *f.template
+	}
+	if explicit == "" && model.Bound() {
+		return nil
+	}
+	tmpl, sidecar, err := templatePaths(explicit)
+	if err != nil {
+		return err
+	}
+	// The engine-root README is the authoritative Method vocabulary; it
+	// says so itself, so the guidance never ships inside the template.
+	readme, err := beside("", "README.md", "")
+	if err != nil {
+		return err
+	}
+	s, err := model.Load(tmpl, readme, sidecar)
+	if err != nil {
+		return err
+	}
+	model.Bind(s)
+	return nil
+}
+
+// templatePaths finds TEMPLATE.md and its sidecar.
+//
+// It is factTablePath's twin, and resolves the same three ways: an
+// explicit flag, then $RDR_HOME, then beside the binary. The template
+// sits at the ENGINE ROOT and the sidecar under models/, so the two
+// differ only in the join — the binary installs at $RDR_HOME/bin/rdr, so
+// two Dir calls reach the root either way, which keeps a `go test` binary
+// and a directly-invoked build working with no marker at all.
+//
+// --template names a different template; it does NOT redirect the
+// sidecar, which ships with the binary and describes the reader rather
+// than the document.
+func templatePaths(explicit string) (tmpl, sidecar string, err error) {
+	if sidecar, err = beside("models", sidecarName, ""); err != nil {
+		return "", "", err
+	}
+	if tmpl, err = beside("", templateName, explicit); err != nil {
+		return "", "", err
+	}
+	return tmpl, sidecar, nil
+}
+
+// beside resolves one engine-relative file: flag, then $RDR_HOME, then
+// the executable's own root.
+func beside(dir, name, explicit string) (string, error) {
+	if explicit != "" {
+		return explicit, nil
+	}
+	if home := strings.TrimSpace(envOrSeam("RDR_HOME")); home != "" {
+		if p := filepath.Join(home, dir, name); fileExists(p) {
+			return p, nil
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = resolved
+		}
+		if p := filepath.Join(filepath.Dir(filepath.Dir(exe)), dir, name); fileExists(p) {
+			return p, nil
+		}
+	}
+	if name == templateName {
+		return "", fmt.Errorf("stopped:no-template (looked in $RDR_HOME and beside the binary; --template names one)")
+	}
+	return "", fmt.Errorf("stopped:no-template-sidecar (looked in $RDR_HOME/models and beside the binary)")
+}
+
+const (
+	templateName = "TEMPLATE.md"
+	sidecarName  = "rdr-template.toml"
+)
 
 // emitFacts renders an evaluated set as the neutral JSON vector.
 func emitFacts(facts []Fact, record string, stdout, stderr interface{ Write([]byte) (int, error) }) int {

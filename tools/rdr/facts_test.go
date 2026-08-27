@@ -741,8 +741,8 @@ func TestEnumFactsStayInTheirDomain(t *testing.T) {
 // reads its expectations from the model rather than restating them, which
 // is what makes it fail when the model gains a value.
 
-func modelStatusCanonical() []string { return model.StatusVocabulary.Canonical }
-func modelStatusObserved() []string  { return model.StatusVocabulary.ObservedAccepted }
+func modelStatusCanonical() []string { return model.StatusVocabulary().Canonical }
+func modelStatusObserved() []string  { return model.StatusVocabulary().ObservedAccepted }
 
 // allQualifierForms enumerates model.QualifierForm by walking it from its
 // zero value until String() stops naming a form. The enum is a run of

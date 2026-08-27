@@ -51,55 +51,6 @@ func (c Class) String() string {
 	return "Unknown"
 }
 
-// Grammar names the element grammar a section's body carries. It tells a
-// scanner which extractor to run inside the section, and it is what makes
-// the section table more than a list of names.
-type Grammar int
-
-const (
-	// GrammarProse is free text with no extractable element structure.
-	GrammarProse Grammar = iota
-	// GrammarMetadataFields is the bold-label bullet list of the Metadata
-	// block: `- **Label**: value`, values that may wrap (see ValueContinues).
-	GrammarMetadataFields
-	// GrammarEvidenceRecords is the assumption bullet tree: an
-	// `- **A<N> [Statement]**` parent with the EvidenceFields sub-bullets.
-	GrammarEvidenceRecords
-	// GrammarNormativeBlocks is prose plus ```normative fences and the
-	// Transient contract marker.
-	GrammarNormativeBlocks
-	// GrammarTable is a markdown pipe table with a fixed header row.
-	GrammarTable
-	// GrammarScaffold is a repeated per-instance sub-structure whose own
-	// headings are instance-named (Alternative N, Step N) rather than
-	// template-drawn.
-	GrammarScaffold
-	// GrammarGatePointer is the Finalization Gate body: at lock it is
-	// replaced by a one-line pointer to gate.md. Older records inline the
-	// responses instead.
-	GrammarGatePointer
-)
-
-func (g Grammar) String() string {
-	switch g {
-	case GrammarProse:
-		return "prose"
-	case GrammarMetadataFields:
-		return "metadata-fields"
-	case GrammarEvidenceRecords:
-		return "evidence-records"
-	case GrammarNormativeBlocks:
-		return "normative-blocks"
-	case GrammarTable:
-		return "table"
-	case GrammarScaffold:
-		return "scaffold"
-	case GrammarGatePointer:
-		return "gate-pointer"
-	}
-	return "unknown"
-}
-
 // Section is one entry in the template's ordered section table.
 type Section struct {
 	// Name is the canonical heading text, verbatim, without the leading
@@ -114,8 +65,6 @@ type Section struct {
 	// Parent is the Name of the enclosing section, or "" for a top-level
 	// (`##`) section.
 	Parent string
-	// Grammar is the element grammar the section's body carries.
-	Grammar Grammar
 	// Keys records whether the section's own body shows its items
 	// carrying a key the projector can read back as an id — a numbered
 	// list (`1. **Scenario**:`), a labelled lead (`- **A<N> …**`), a
@@ -126,10 +75,9 @@ type Section struct {
 	//
 	// This is the template's to say, for the reason Retained is: a rule
 	// the reader spells out for itself is a second source for one fact,
-	// and the two drift. Grammar cannot answer it — Testing Strategy,
-	// Briefly Rejected and Failure Modes are all GrammarProse, and only
-	// the first shows a numbered list. The same-commit test binds this
-	// column to TEMPLATE.md's body.
+	// and the two drift. Nothing coarser answers it — Testing Strategy,
+	// Briefly Rejected and Failure Modes all carry prose, and only the
+	// first numbers its items — so it is read from the body itself.
 	Keys bool
 }
 
@@ -160,12 +108,6 @@ type Section struct {
 // asserts this table agrees, so the rule cannot rot silently.
 const SectionClassRule = "unmarked template sections are Required; Conditional requires either an explicit [Conditional marker or a parent scaffold clause"
 
-// EvidenceFields is the Critical Assumptions Evidence Record field set:
-// the bold-label sub-bullets under an `- **A<N> [Statement]**` bullet, in
-// template order. TEMPLATE.md states all four; a record missing one is
-// incomplete, not foreign.
-var EvidenceFields = []string{"Status", "Method", "Evidence", "If wrong"}
-
 // AssumptionBullet matches the Evidence Record's parent bullet, capturing
 // the assumption label. The template writes `**A1 [Statement]**`; the
 // corpus also writes `**A1 — Statement.**`, `**A1** Statement` and
@@ -183,23 +125,6 @@ var EvidenceFieldBullet = regexp.MustCompile(`^\s*-\s+\*\*([^*]+)\*\*:\s*(.*)$`)
 // label and the first line of its value. Metadata bullets sit at column
 // zero; the Evidence Record's are indented under their assumption.
 var MetadataFieldBullet = regexp.MustCompile(`^- \*\*([^*]+)\*\*:\s*(.*)$`)
-
-// MetadataFields is the Metadata block's canonical field set in template
-// order. Presence is not uniform across the corpus — Profile, Seam
-// Lineage, Overrides and Cluster arrived later, and Predecessors,
-// Overrides, Seam Lineage and Cluster are omitted when they have no value.
-var MetadataFields = []string{
-	"Date",
-	"Status",
-	"Type",
-	"Profile",
-	"Priority",
-	"Related Issues",
-	"Predecessors",
-	"Overrides",
-	"Seam Lineage",
-	"Cluster",
-}
 
 // ValueContinues reports whether next is a continuation of the metadata or
 // Evidence Record field value whose first line has already been consumed.
@@ -290,12 +215,7 @@ func hasPrefix(s, p string) bool {
 // names, in template order. A decision bullet whose bold label starts
 // with one of these is keyed by the class (`D-identity`); any other label
 // is an author's own class and gets a derived key.
-var DecisionClasses = []string{
-	"Identity",
-	"Wire / byte format",
-	"Naming",
-	"Selection / predicate",
-}
+func DecisionClasses() []string { return decisionClasses(current().Sections) }
 
 // DecisionClassOf returns the template class a decision label opens with,
 // or "". `Selection / predicate (remainder)` and `Selection` both resolve
@@ -305,7 +225,7 @@ var DecisionClasses = []string{
 func DecisionClassOf(label string) string {
 	l := strings.ToLower(strings.TrimSpace(label))
 	best := ""
-	for _, c := range DecisionClasses {
+	for _, c := range DecisionClasses() {
 		lc := strings.ToLower(c)
 		if hasPrefix(l, lc) && len(c) > len(best) {
 			best = c
@@ -334,22 +254,23 @@ func firstWord(s string) string {
 // template's to say — a rule the reader spelled out for itself would be a
 // second source for one fact, and the two would drift. The same-commit
 // test binds this column to the marker.
-var GateItems = []struct {
+// GateItem is one Finalization Gate sub-section: its heading, the key it
+// is cited by, and whether the template keeps it in the record at lock.
+type GateItem struct {
 	Section, Key string
 	Retained     bool
-}{
-	{"Contradiction Check", "contradiction", false},
-	{"Assumption Verification", "assumptions", false},
-	{"Scope Verification", "scope", false},
-	{"Cross-Cutting Concerns", "cross-cutting", true},
-	{"Proportionality", "proportionality", false},
+}
+
+func GateItems() []GateItem {
+	g, _ := gateItems(current().Sections)
+	return g
 }
 
 // SectionKeys reports whether the named canonical section's body shows
 // its items carrying a readable key. An unknown name reports false: a
 // section the template does not model cannot be said to key anything.
 func SectionKeys(name string) bool {
-	for _, s := range Template.Sections {
+	for _, s := range current().Table.Sections {
 		if s.Name == name {
 			return s.Keys
 		}
@@ -366,17 +287,7 @@ func SectionKeys(name string) bool {
 // The kinds absent here are keyed by something other than a section's
 // list shape: G by the gate item, JC by a line anywhere in the record,
 // § by the heading itself.
-var ElementSections = map[string]string{
-	"A":   "Critical Assumptions",
-	"C":   "Normative Contracts",
-	"D":   "Load-Bearing Decisions",
-	"RT":  "Round-Trip / Inverse Invariants",
-	"ALT": "Alternative 1: [Name]",
-	"BR":  "Briefly Rejected",
-	"S":   "Testing Strategy",
-	"MVV": "Minimum Viable Validation",
-	"F":   "Failure Modes",
-}
+func ElementSections() map[string]string { return current().Sidecar.ElementSections }
 
 // KindKeys reports whether the template gives the element kind — named by
 // its ID token — somewhere to write a key. A kind with no section here
@@ -397,14 +308,14 @@ var ElementSections = map[string]string{
 // so a template that starts numbering Briefly Rejected changes one table
 // row and the reader follows.
 func KindKeys(kind string) bool {
-	s, ok := ElementSections[kind]
+	s, ok := ElementSections()[kind]
 	return ok && SectionKeys(s)
 }
 
 // GateItemRetained reports whether a G-key names an item the template
 // keeps in the record at lock.
 func GateItemRetained(key string) bool {
-	for _, g := range GateItems {
+	for _, g := range GateItems() {
 		if g.Key == key {
 			return g.Retained
 		}
@@ -414,7 +325,7 @@ func GateItemRetained(key string) bool {
 
 // GateItemKey returns the G-key for a canonical gate sub-section, or "".
 func GateItemKey(section string) string {
-	for _, g := range GateItems {
+	for _, g := range GateItems() {
 		if g.Section == section {
 			return g.Key
 		}
@@ -430,7 +341,7 @@ func GateItemKey(section string) string {
 // coined for their own guard table is not read as a gate response the
 // target can never have; see edge.slugKind.
 func IsGateItemKey(key string) bool {
-	for _, g := range GateItems {
+	for _, g := range GateItems() {
 		if g.Key == key {
 			return true
 		}

@@ -17,7 +17,7 @@ func TestStatusTiers(t *testing.T) {
 		// Promoted from ObservedAccepted when TEMPLATE.md gained the
 		// parked-with-a-revisit-trigger spelling the corpus had already
 		// improvised. It is Canonical for writing and, being parked
-		// rather than closed, is NOT in TerminalStatuses.
+		// rather than closed, is NOT in TerminalStatuses().
 		{"Deferred", Canonical},
 
 		// Present in the frozen corpus, absent from TEMPLATE.md, and a
@@ -31,24 +31,24 @@ func TestStatusTiers(t *testing.T) {
 		{"", OffVocabulary},
 	}
 	for _, c := range cases {
-		if got := StatusVocabulary.Classify(c.value); got != c.want {
+		if got := StatusVocabulary().Classify(c.value); got != c.want {
 			t.Errorf("Status %q: got %s, want %s", c.value, got, c.want)
 		}
 	}
 }
 
 func TestTypeAndProfileTiers(t *testing.T) {
-	for _, v := range TypeVocabulary.Canonical {
-		if got := TypeVocabulary.Classify(v); got != Canonical {
+	for _, v := range TypeVocabulary().Canonical {
+		if got := TypeVocabulary().Classify(v); got != Canonical {
 			t.Errorf("Type %q: got %s, want canonical", v, got)
 		}
 	}
-	if got := TypeVocabulary.Classify("Refactor"); got != OffVocabulary {
+	if got := TypeVocabulary().Classify("Refactor"); got != OffVocabulary {
 		t.Errorf("Type \"Refactor\": got %s, want off-vocabulary", got)
 	}
-	if len(TypeVocabulary.ObservedAccepted) != 0 {
+	if len(TypeVocabulary().ObservedAccepted) != 0 {
 		t.Errorf("Type has observed-accepted members %v; the corpus census found none",
-			TypeVocabulary.ObservedAccepted)
+			TypeVocabulary().ObservedAccepted)
 	}
 }
 
@@ -79,9 +79,9 @@ func TestMethodVocabularyHasNoObservedMembers(t *testing.T) {
 	// once compounds are split and parenthetical glosses are stripped, so
 	// the eight are the whole vocabulary. A future entry here needs the
 	// same corpus evidence Status's two carry.
-	if len(MethodVocabulary.ObservedAccepted) != 0 {
+	if len(MethodVocabulary().ObservedAccepted) != 0 {
 		t.Errorf("Method gained observed-accepted members %v; the eight sanctioned labels are the whole vocabulary",
-			MethodVocabulary.ObservedAccepted)
+			MethodVocabulary().ObservedAccepted)
 	}
 }
 
@@ -253,23 +253,23 @@ func TestValueContinues(t *testing.T) {
 // existing at all. A Deferred RDR is PAUSED, not closed: it owes no
 // post-mortem, keeps its trackers, and re-enters the flow when its
 // revisit trigger fires. Every consumer that branches on "is this record
-// finished?" reads TerminalStatuses, so Deferred appearing there would
+// finished?" reads TerminalStatuses(), so Deferred appearing there would
 // close a record that is waiting to be re-opened — the exact conflation
 // the corpus record that improvised this status wrote itself to avoid.
 func TestParkedIsNotTerminal(t *testing.T) {
-	for _, p := range ParkedStatuses {
-		if StatusVocabulary.Classify(p) != Canonical {
+	for _, p := range ParkedStatuses() {
+		if StatusVocabulary().Classify(p) != Canonical {
 			t.Errorf("parked status %q must be canonical: a status a record may not write cannot park it", p)
 		}
-		for _, term := range TerminalStatuses {
+		for _, term := range TerminalStatuses() {
 			if p == term {
-				t.Errorf("%q is in both ParkedStatuses and TerminalStatuses; a record cannot be both "+
+				t.Errorf("%q is in both ParkedStatuses() and TerminalStatuses(); a record cannot be both "+
 					"paused and closed. FIX: a parked status owes no post-mortem and has a next stage.", p)
 			}
 		}
 	}
 	// The converse: nothing terminal may claim to be parked.
-	if len(ParkedStatuses) == 0 {
-		t.Error("ParkedStatuses is empty; Deferred should be in it")
+	if len(ParkedStatuses()) == 0 {
+		t.Error("ParkedStatuses() is empty; Deferred should be in it")
 	}
 }

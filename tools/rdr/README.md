@@ -131,32 +131,62 @@ over a full stage run.
 
 **A `TEMPLATE.md` change that adds, removes, renames or re-levels a
 section, or changes a class, field, label or qualifier grammar, ships in
-the same commit as its model update and a synthetic fixture.**
+the same commit as the marker or sidecar entry that carries it.**
 
-This is the rule the whole package exists to enforce. `TEMPLATE.md` is the
-only schema an RDR has and it is prose, so every consumer that needed its
-section names, classes, vocabularies and qualifier grammars restated them
-by hand — and they drifted. Four template generations became tribal
-knowledge because no rule like this existed.
+`TEMPLATE.md` is the only schema an RDR has and it is prose, so every
+consumer that needed its section names, classes, vocabularies and
+qualifier grammars restated them by hand — and they drifted. Four
+template generations became tribal knowledge because nothing checked.
 
-It is enforced mechanically, not by good intentions:
+The first answer was a hand-maintained Go table with a test standing
+between it and the file. That worked, and it was still one fact stated
+twice. **The binary now reads `TEMPLATE.md` at startup**, so the table it
+used to check no longer exists to disagree with: section names, levels,
+nesting, classes, the Keys column, the metadata and Evidence Record field
+sets, the Status/Type/Profile vocabularies, the decision classes and the
+gate items all come out of the document. Method comes out of this
+README's *Verifying load-bearing claims*, which declares itself
+authoritative precisely so the guidance does not ship inside the
+template.
+
+Where the template can carry a fact, it carries it — as a bracket marker
+beside the section it describes, deleted by the author with the rest of
+the guidance:
+
+| marker | says |
+| --- | --- |
+| `[Required — …` / `[Conditional — …` | the section's omission rule |
+| `[Conditional scaffold — …` | this block is a per-instance slot, or (on a parent) that a child it names is |
+| `[Retained at lock — …` | this gate sub-section stays in the record when the rest move to `gate.md` |
+| `[Gate key: <key>]` | the id a gate response is cited by — `cli/NNNN:G-<key>`, stable across a reworded heading |
+
+Three things have no home in the template and live in
+`models/rdr-template.toml`, which ships beside it: the element-kind map
+(a reader fact — the template never names the ids a projector mints), the
+observed vocabulary tiers (corpus facts, which exist *because* the
+template never listed them), and the status lifecycle (stated in the
+template only as English inside comments, and parsing a set out of prose
+is guessing).
+
+What still binds, mechanically:
 
 | test | asserts |
 | --- | --- |
-| `TestTemplateMatchesTemplateFile` | every section name, level, class and position in `model.Template` matches `TEMPLATE.md`, read from the file at test time |
-| `TestStatusVocabularyMatchesTemplate` | the canonical Status set matches `TEMPLATE.md`'s Status line |
-| `TestTypeVocabularyMatchesTemplate` | the canonical Type set matches its Type line |
-| `TestMethodVocabularyMatchesREADME` | the eight Method labels match `README.md`'s *Verifying load-bearing claims*, which declares itself authoritative |
+| `TestSidecarNamesNoUnknownSection` | every section the sidecar names still exists in `TEMPLATE.md` — rename one without updating the other and this fails |
+| `TestGateKeysComeFromMarkers` | every Finalization Gate sub-section declares a `[Gate key: …]`, and the set matches what the reader projects |
+| `TestMethodVocabularyMatchesREADME` | the eight Method labels match this README's authoritative list — still two documents, so still a real check |
+| `TestLoadReadsWhatTheTemplateStates` | the loader returns the values `TEMPLATE.md` visibly writes |
+| `TestSidecarDeclaresWhatTheReaderNeeds` | every minted element kind has a section, and the lifecycle sets are the ones lint and `rdr status` depend on |
+| `TestSidecarRefusesRatherThanSkips` | an unrecognised sidecar shape is an error naming it, never a silent default |
+| `TestObservedSectionsResolve` | the one label table left in Go — the corpus-derived `Observed` tier — still names sections the template has |
 | `TestFixturesKeepTheirShapeSignals` | the fixture set still spans the shapes the corpus contains |
-| `TestDecisionClassesMatchTemplate` | the D-key classes match the Load-Bearing Decisions bullets |
-| `TestGateItemsMatchTemplate` | the G-keys match the Finalization Gate sub-sections |
-| `TestSectionFieldsMatchTemplate` | each section's canonical `- **Label**:` set matches the bullets `TEMPLATE.md` writes under it, at any indent |
-| `TestAssumptionStatusVocabularyMatchesTemplate` | the Evidence Record's Status set matches its `Verified \| Pending \| Unverified` line |
 
-A divergence names itself and says what to update. Gaining, losing,
-renaming or re-levelling a section, or flipping its class, all fail — each
-was verified by mutating `TEMPLATE.md` and watching the test fail before
-the file was restored.
+A missing or unreadable template is `stopped:no-template` and exit 2 — not
+a zero schema. A zero schema does not fail; it succeeds wrongly,
+classifying every value off-vocabulary and every heading
+unknown-to-template, so `lint` would report a missing install as a
+corpus-wide defect. `receipt` is the one exemption: it reads only the
+usage log, and `§commit` refuses a commit without it.
 
 ## Identifiers
 
@@ -709,8 +739,9 @@ and one variant per known failure (`testdata/README.md`):
 
 ## One template, read never judge
 
-There is one template table: `model.Template`, the current `TEMPLATE.md`.
-Every record is read against it whatever its age.
+There is one template, and it is the file: `model.Template()` returns
+`TEMPLATE.md` as the binary read it at startup. Every record is read
+against it whatever its age.
 
 The reader used to carry four **epoch** tables and a fingerprint that
 placed each record in the generation that produced it, so a frozen record
@@ -1263,13 +1294,16 @@ could break an answer would be worse than no log.
         edges.go           the typed-edge pass: every stated relation, by kind
         resolve.go         resolution against the records dir and the repo; backlinks; cluster derivation
         corpus.go          corpus queries: record summaries, the graph document, anchor intersection, README drift
-      internal/model/      the template model
-        template.go        sections, grammars, markers, the value-continuation rule
+      internal/toml/       the TOML subset the data tables use; refuses, never skips
+      internal/model/      the template model, read from TEMPLATE.md at startup
+        parse.go           the reader: heading tree, class and gate markers, vocabularies
+        schema.go          Load and Bind: the schema this process reads records against
+        sidecar.go         models/rdr-template.toml: element kinds, observed tiers, lifecycle
+        template.go        section and class types, markers, the value-continuation rule
         fields.go          per-section label sets, prefix matching, the Evidence Record Status
         vocabulary.go      the four closed vocabularies; Method/Type/Profile parsing
         qualifier.go       the status qualifier grammars
-        template_table.go  the one template table: sections, fields, vocabularies
+        template_table.go  the loaded table: sections, fields, vocabularies
         alias.go           legacy names and the match kinds
         scaffold.go        filled-in template scaffolds
-        template.go        also DecisionClasses and GateItems, the D- and G-key tables
       testdata/            synthetic fixtures spanning the corpus shapes, plus variants/ (see its README)

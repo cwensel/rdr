@@ -142,6 +142,16 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
+		// The schema is TEMPLATE.md, read now rather than restated in Go.
+		// `receipt` is exempt: it reads only the usage log, and §commit
+		// refuses a commit without it, so a missing template must not
+		// break the commit path over a file receipt never opens.
+		if args[0] != "receipt" {
+			if err := bindSchema(f); err != nil {
+				fmt.Fprintln(stderr, err)
+				return 2
+			}
+		}
 		// Measure what this invocation cost to answer. The counter wraps
 		// stdout so the size is the real emitted size, not an estimate of
 		// it; the log is written on the way out, whatever the exit.
@@ -243,6 +253,7 @@ type flags struct {
 	since                 *string // receipt: the instant a lint must postdate
 	tags                  *bool   // status: render the facts as a resolver's argv
 	facts                 *string // status: the fact table to evaluate
+	template              *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -255,6 +266,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	project := fs.String("project", "", "project prefix for ids (cli/NNNN:C4); omitted inside one records dir")
 	repo := fs.String("repo", envOrSeam("RDR_SOURCE_REPO"), "repo root for source-anchor symbol resolution (default $RDR_SOURCE_REPO, else the marker's); unset leaves those edges unchecked")
 	f.records, f.project, f.repo = records, project, repo
+	f.template = fs.String("template", "", "the schema to read records against (default $RDR_HOME/TEMPLATE.md, else beside the binary)")
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")

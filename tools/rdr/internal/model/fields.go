@@ -40,20 +40,35 @@ type FieldSet struct {
 // SectionFields is the per-section labelled-bullet vocabulary. A section
 // absent from this table carries no template-drawn labels: every labelled
 // bullet written under it is the author's own (MatchAuthor).
-var SectionFields = []FieldSet{
-	{Section: "Metadata", Canonical: MetadataFields},
-	{Section: "Critical Assumptions", Canonical: EvidenceFields},
-	{Section: "Normative Contracts", Canonical: []string{
-		"Success output",
-		"Failure output",
-		"Status / sentinel errors",
-		"Preview / dry-run / validation-only mode",
-		"Environment divergence",
-	}, Observed: []string{"Preview / dry-run"}},
-	{Section: "Briefly Rejected", Canonical: []string{"[Alternative N]"}, Scaffold: true},
+// SectionFields is the per-section labelled-bullet vocabulary. A section
+// absent from this table carries no template-drawn labels: every labelled
+// bullet written under it is the author's own (MatchAuthor).
+//
+// Canonical comes from TEMPLATE.md — the `- **Label**:` bullets it writes
+// under each section, read back at load. Observed is the reader's own
+// two-tier allowance for labels a section's PROSE names and authors
+// bulletise; it stays in Go because the template states it as prose, not
+// as bullets, and inferring a set from prose is guessing.
+func SectionFields() []FieldSet {
+	canonical := templateLabels(current().TemplateSource)
+	out := make([]FieldSet, 0, len(sectionObserved))
+	for _, fs := range sectionObserved {
+		fs.Canonical = canonical[fs.Section]
+		out = append(out, fs)
+	}
+	return out
+}
+
+// sectionObserved carries the Observed and Scaffold columns, which the
+// template does not write as bullets.
+var sectionObserved = []FieldSet{
+	{Section: "Metadata"},
+	{Section: "Critical Assumptions"},
+	{Section: "Normative Contracts", Observed: []string{"Preview / dry-run"}},
+	{Section: "Briefly Rejected", Scaffold: true},
 	// TEMPLATE.md writes `**Mitigation**:` as the Risk bullet's second
 	// line, not as its own bullet; records promote it to one.
-	{Section: "Risks and Mitigations", Canonical: []string{"Risk"}, Observed: []string{"Mitigation"}},
+	{Section: "Risks and Mitigations", Observed: []string{"Mitigation"}},
 	// "Positive and negative consequences of the chosen approach."
 	{Section: "Consequences", Observed: []string{"Positive", "Negative"}},
 	// "What breaks visibly? What fails silently? Recovery path? How does
@@ -78,7 +93,7 @@ var SectionFields = []FieldSet{
 // FieldSetOf returns the vocabulary of a canonical section, or an empty
 // set when the section carries no template-drawn labels.
 func FieldSetOf(section string) FieldSet {
-	for _, fs := range SectionFields {
+	for _, fs := range SectionFields() {
 		if fs.Section == section {
 			return fs
 		}
@@ -184,10 +199,17 @@ func normaliseLabel(label string) string {
 // Refuted, Resolved (settled by a decision rather than evidence),
 // Accepted and Downgraded (a Stage 6 reconcile verdict carried onto the
 // record). Read, never judge: the records carrying them are terminal.
-var AssumptionStatusVocabulary = Vocabulary{
-	Field:            "Status (Evidence Record)",
-	Canonical:        []string{"Verified", "Pending", "Unverified"},
-	ObservedAccepted: []string{"Refuted", "Resolved", "Accepted", "Downgraded"},
+func AssumptionStatusVocabulary() Vocabulary {
+	const field = "Status (Evidence Record)"
+	v, err := assumptionStatuses(current().TemplateSource)
+	if err != nil {
+		return Vocabulary{Field: field}
+	}
+	return Vocabulary{
+		Field:            field,
+		Canonical:        v,
+		ObservedAccepted: current().Sidecar.Observed[field],
+	}
 }
 
 // AssumptionStatus is a parsed Evidence Record Status value, normalised
@@ -202,7 +224,7 @@ type AssumptionStatus struct {
 	// narrowed`, `at Stage 6 reconcile`, `-by-derivation`, a sentence —
 	// with its leading separator removed. Free text.
 	Qualifier string
-	// Tier is Value's standing in AssumptionStatusVocabulary.
+	// Tier is Value's standing in AssumptionStatusVocabulary().
 	Tier Tier
 	// Placeholder is true when the value is the template's own legend
 	// (`Verified | Pending | Unverified`) left unfilled. Reading it as
@@ -227,7 +249,7 @@ func ParseAssumptionStatus(raw string) AssumptionStatus {
 		return s
 	}
 	best := ""
-	for _, set := range [][]string{AssumptionStatusVocabulary.Canonical, AssumptionStatusVocabulary.ObservedAccepted} {
+	for _, set := range [][]string{AssumptionStatusVocabulary().Canonical, AssumptionStatusVocabulary().ObservedAccepted} {
 		for _, c := range set {
 			if HasWordPrefix(body, c) && len(c) > len(best) {
 				best = c
@@ -248,7 +270,7 @@ func ParseAssumptionStatus(raw string) AssumptionStatus {
 	}
 	s.Value = best
 	s.Qualifier = trimQualifier(body[len(best):])
-	s.Tier = AssumptionStatusVocabulary.Classify(best)
+	s.Tier = AssumptionStatusVocabulary().Classify(best)
 	return s
 }
 
@@ -264,7 +286,7 @@ func isStatusPlaceholder(body string) bool {
 		return false
 	}
 	for _, p := range parts {
-		if AssumptionStatusVocabulary.Classify(strings.TrimSpace(p)) == OffVocabulary {
+		if AssumptionStatusVocabulary().Classify(strings.TrimSpace(p)) == OffVocabulary {
 			return false
 		}
 	}

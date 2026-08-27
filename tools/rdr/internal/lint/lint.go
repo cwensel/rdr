@@ -232,7 +232,7 @@ func Run(d *scan.Document, opts Options) Report {
 }
 
 func isTerminal(label string) bool {
-	for _, t := range model.TerminalStatuses {
+	for _, t := range model.TerminalStatuses() {
 		if strings.EqualFold(t, label) {
 			return true
 		}
@@ -411,14 +411,18 @@ func missingRequired(d *scan.Document) []missing {
 			present[n.Canonical] = true
 		}
 	}
+	// The gate's responses move to gate.md at lock, so its sub-sections
+	// are not missing when absent. The template names them — GateItems is
+	// read from its own markers — and their shared parent is the section
+	// the pointer replaces.
 	pointer := map[string]bool{}
-	for _, s := range model.Template.Sections {
-		if s.Grammar == model.GrammarGatePointer {
-			pointer[s.Name] = true
+	for _, g := range model.GateItems() {
+		if s, ok := model.Template().SectionByName(g.Section); ok && s.Parent != "" {
+			pointer[s.Parent] = true
 		}
 	}
 	var out []missing
-	for _, s := range model.Template.Sections {
+	for _, s := range model.Template().Sections {
 		if s.Class != model.Required || present[s.Name] {
 			continue
 		}

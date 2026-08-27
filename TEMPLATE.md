@@ -359,6 +359,10 @@ full analysis; the `Briefly Rejected` list alone is fine.]
 
 ### Alternative 1: [Name]
 
+[Conditional scaffold — this block is a per-instance slot, not a
+section every RDR owes: the heading is the author's own and the
+block is omitted (never N/A-bulleted) when unused.]
+
 **Description**: [Brief description]
 
 **Pros**:
@@ -442,18 +446,26 @@ it.]
 
 #### Step 1: [Title]
 
+[Conditional scaffold]
+
 [Instructions]
 
 #### Step 2: [Title]
+
+[Conditional scaffold]
 
 [Instructions]
 
 ### Phase 2: Operational Activation
 
+[Conditional scaffold]
+
 [Deployment, CI/CD, credentials, shared infrastructure.
 Omit if not applicable.]
 
 #### Activation Step 1: [Title]
+
+[Conditional scaffold]
 
 [Instructions]
 
@@ -526,12 +538,18 @@ chosen approach over a rejected one.]
 
 ### Contradiction Check
 
+[Gate key: contradiction — a gate response is cited as
+`cli/NNNN:G-<key>`, so the key is a stable id and is
+not derived from this heading, which may be reworded.]
+
 [State any conflicts between Research Findings and
 the Proposed Solution. If none exist, state
 "No contradictions found between research findings,
 design principles, and proposed solution."]
 
 ### Assumption Verification
+
+[Gate key: assumptions]
 
 [Confirm every Critical Assumption Evidence Record
 is internally consistent: Status, Method, and
@@ -549,11 +567,15 @@ the RDR depending on it.]
 
 ### Scope Verification
 
+[Gate key: scope]
+
 [Confirm the Minimum Viable Validation is in scope
 and will be executed during implementation, not
 deferred. State the specific test or proof.]
 
 ### Cross-Cutting Concerns
+
+[Gate key: cross-cutting]
 
 [Retained at lock — this sub-section stays in the RDR
 when the other gate responses move to gate.md, because
@@ -582,6 +604,8 @@ distinguishability, and a version marker for future
 evolution.
 
 ### Proportionality
+
+[Gate key: proportionality]
 
 [Is the document right-sized for the change? Flag
 any sections that should be trimmed before locking.

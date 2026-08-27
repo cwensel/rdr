@@ -56,7 +56,7 @@ type routingAtom struct {
 
 // loadRoutingModel parses the shipped model far enough to check the seam.
 //
-// It does NOT reuse this package's `parseTOMLSubset`: that reader
+// It does NOT reuse `internal/toml`: that reader
 // deliberately refuses `[[array]]` tables, and the model is built of
 // them. Widening it to read a file this binary never loads would trade
 // away the narrowness that makes it safe for the fact table. So the
