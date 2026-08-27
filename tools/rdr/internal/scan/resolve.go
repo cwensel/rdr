@@ -565,12 +565,21 @@ type Member struct {
 // that cannot be resolved by implementing one first. Peer-evidence and
 // cross-cutting relate in either direction — a record whose claim rests
 // on a peer's element is entangled with it whichever way the citation
-// runs — and a declared `Cluster` field is authoritative on its own,
-// because the author asserted it.
+// runs — and a declared `Cluster` field earns membership on its own,
+// because the author asserted it and no edge has to confirm it.
+//
+// WHAT THIS RETURNS IS CANDIDATES, NOT THE MEMBERSHIP. The traversal
+// cannot see a peer that cites nobody, and the declared field it reads
+// was written at Propose and frozen at Final, so it cannot see a later
+// joiner. The two are lossy in opposite directions; 7.1 unions them and
+// judges. A caller that treats this set as the answer will silently mark
+// an omitted peer reconciled, which is the failure the stage exists to
+// catch.
 //
 // Membership is reported one hop from the seed, with the relation that
 // earned it, so the caller sees why each member is in the set rather than
-// a bare list to take on trust.
+// a bare list to take on trust. One hop is not a closure: the set is
+// asymmetric between peers, so 7.1 runs it from more than one seed.
 //
 // THE CANDIDATE TIER. Checked against the clusters Stage 7.1 actually
 // reconciled (seven snapshots of one consumer corpus), the typed rule

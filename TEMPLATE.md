@@ -129,7 +129,17 @@ N/A-bulleted). -->
   Declaring it mechanically constrains the Stage 2 gate:
   all members complete propose before any member advances
   to refine (the tandem barrier — the joint-decision check
-  then sees the whole set).]
+  then sees the whole set).
+  The field has a SECOND reader: Stage 7.1 takes it as a
+  membership assertion, and it is the only way in for a peer
+  the edge graph cannot derive — a sibling that neither cites
+  you nor is cited by you is reachable by no rule over the
+  records. So declare it when peers will not cite each other,
+  even outside a tandem propose. It is a claim, not the
+  membership: 7.1 unions it with the derived set (`rdr index
+  --cluster-of NNNN`) and judges. Written at Propose and
+  frozen at Final, it cannot see a later joiner, which is
+  why the union runs at 7.1 rather than reading this alone.]
 
 ## Problem Statement
 

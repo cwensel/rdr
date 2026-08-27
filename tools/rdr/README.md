@@ -605,9 +605,17 @@ author decides which side is wrong. Nothing here writes.
 Concern" — evaluated over `edges[]` instead of by reading every
 candidate. Mutual is strict: a one-way predecessor is the ordinary
 build-order dependency every record has several of, and it resolves by
-implementing one first. A declared `Cluster` field is authoritative on
-its own. Each member reports the relation that earned it and its status,
+implementing one first. A declared `Cluster` field earns membership on
+its own — it is the author's assertion, not something the graph has to
+confirm. Each member reports the relation that earned it and its status,
 so 7.1's Final-and-unimplemented scope is a filter, not a read.
+
+Neither the query nor the field is the membership. The query cannot see a
+peer that cites nobody; the field is written at Propose and frozen at
+Final, so it cannot see a later joiner. They are lossy in opposite
+directions, which is why 7.1 unions them and judges rather than taking
+either as the answer — and why TEMPLATE.md tells an author to declare the
+field when peers will not cite each other.
 
 Checked against seven clusters 7.1 actually reconciled, the typed rule
 reproduced three exactly and missed members in the rest — records joined
