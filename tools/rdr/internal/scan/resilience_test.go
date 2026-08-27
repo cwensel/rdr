@@ -17,21 +17,54 @@ import (
 // read out of it.
 
 // allFixtures lists every synthetic fixture, whole records and variants.
+// allFixtures is every RECORD fixture under testdata.
+//
+// Not every `.md` there is a record. The `status/` corpus ships an
+// evidence tree beside its records — a lens's `findings.md`, a
+// `gate.md`, a Stage-9 `status.md` — because the facts those fixtures
+// exercise are probes against exactly those paths. Those files are
+// artifacts, and holding an artifact to the record contract below would
+// fail on the first line: it carries no record number, and is not
+// supposed to.
+//
+// The rule is deliberately an EXCLUSION of the artifact trees rather
+// than a pattern records must match. Most fixtures here are named for
+// the shape they test (`current-shape.md`, `variants/label-variants.md`)
+// and carry their number in the title, so a naming pattern would quietly
+// drop eleven of them from this property — a silent drop, in the test
+// whose whole subject is silent drops.
 func allFixtures(t *testing.T) []string {
 	t.Helper()
 	var out []string
 	root := filepath.Join("..", "..", "testdata")
 	err := filepath.WalkDir(root, func(p string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".md") && d.Name() != "README.md" {
-			rel, _ := filepath.Rel(root, p)
-			out = append(out, rel)
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") || d.Name() == "README.md" {
+			return err
 		}
-		return err
+		rel, _ := filepath.Rel(root, p)
+		if isFixtureArtifact(rel) {
+			return nil
+		}
+		out = append(out, rel)
+		return nil
 	})
-	if err != nil || len(out) < 9 {
+	if err != nil || len(out) < 20 {
 		t.Fatalf("walking testdata: %v (%d fixtures)", err, len(out))
 	}
 	return out
+}
+
+// isFixtureArtifact names the two trees the `status` corpus ships that
+// hold things a record POINTS AT rather than records: the evidence root,
+// and the per-record artifact folder beside each record file.
+func isFixtureArtifact(rel string) bool {
+	parts := strings.Split(filepath.ToSlash(rel), "/")
+	if len(parts) > 1 && parts[0] == "status" && parts[1] == "evidence" {
+		return true
+	}
+	// `status/records/<slug>/…` — a record is the FILE `<slug>.md`, so
+	// anything under a directory of that name is its artifact.
+	return len(parts) > 3 && parts[0] == "status" && parts[1] == "records"
 }
 
 func variant(t *testing.T, name string) *Document {

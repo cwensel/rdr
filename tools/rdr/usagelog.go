@@ -200,7 +200,12 @@ func logUsage(rec usageRecord) {
 // usageFacet names which query was run, so the log distinguishes a whole
 // index build from a one-record projection. It reads the parsed flags
 // rather than re-scanning argv: the facet is whichever branch run() took.
-func usageFacet(cmd string, f *flags) string {
+//
+// `status` is the one branch a flag cannot name — its no-arg form is a
+// corpus scan and its one-record form is not, and the difference is
+// whether an operand was given — so the operand is passed in rather than
+// inferred. It is `""` or not; nothing here reads its value.
+func usageFacet(cmd string, f *flags, target string) string {
 	if f == nil {
 		return ""
 	}
@@ -229,7 +234,6 @@ func usageFacet(cmd string, f *flags) string {
 			{f.backlinks.set, "backlinks"},
 			{f.unresolved != nil && *f.unresolved, "unresolved"},
 			{f.clusterOf != nil && *f.clusterOf != "", "cluster-of"},
-			{f.inFlight != nil && *f.inFlight, "in-flight"},
 			{f.status != nil && *f.status, "status"},
 			{f.cycles != nil && *f.cycles, "cycles"},
 			{f.openJoint != nil && *f.openJoint, "open-joint"},
@@ -241,6 +245,23 @@ func usageFacet(cmd string, f *flags) string {
 			}
 		}
 		return "graph"
+	case "status":
+		// The worklist scans the corpus and one record does not, which is
+		// three orders of magnitude apart in wall time — the same gap
+		// `--filter` taught this log to record rather than average away.
+		// The rendering is carried too, because `--tags` is the call the
+		// navigator actually makes and its cost is the one to audit.
+		which := "record"
+		if target == "" {
+			which = "worklist"
+		}
+		switch {
+		case f.tags != nil && *f.tags:
+			return which + ":tags"
+		case f.json != nil && *f.json:
+			return which + ":json"
+		}
+		return which
 	case "lint":
 		// Two facets, because two things call lint: a gate, which needs
 		// the verdict, and a stage reading mid-flow, which needs the

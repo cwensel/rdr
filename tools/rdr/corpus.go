@@ -75,10 +75,16 @@ func statusWord(r scan.Summary) string {
 	return r.Status.Value
 }
 
-// statusFacet groups records by status; --in-flight keeps the worklist:
-// Draft, and Final not yet Implemented. Terminal records are skipped,
-// and so is Deferred, which is parked, not in flight.
-func statusFacet(f *flags, inFlight bool, stdout, stderr io.Writer) int {
+// statusFacet groups every record by status — the corpus question.
+//
+// It once also answered the WORKLIST (`--in-flight`: Draft, and Final
+// not yet Implemented), which is a different question with a different
+// caller: the navigator, which then had to go and derive each record's
+// signals itself. That form moved to `rdr status` with no argument,
+// where the facts come with it. Grouping the whole corpus stayed here,
+// because it is a question about the corpus and not about what to do
+// next.
+func statusFacet(f *flags, stdout, stderr io.Writer) int {
 	docs, skipped, code := corpus(f, stderr)
 	if code != 0 {
 		return code
@@ -87,9 +93,6 @@ func statusFacet(f *flags, inFlight bool, stdout, stderr io.Writer) int {
 	var rows []scan.Summary
 	for _, d := range docs {
 		s := scan.Summarize(d)
-		if inFlight && !s.InFlight {
-			continue
-		}
 		rows = append(rows, s)
 		groups[statusWord(s)] = append(groups[statusWord(s)], s)
 	}
@@ -98,13 +101,6 @@ func statusFacet(f *flags, inFlight bool, stdout, stderr io.Writer) int {
 			rows = []scan.Summary{}
 		}
 		return emit(map[string]any{"schema": schemaVersion, "records": rows, "skipped": skipped}, stdout, stderr)
-	}
-	if inFlight {
-		for _, s := range rows {
-			fmt.Fprintf(stdout, "%s %-8s %s\n", filepath.Base(strings.TrimSuffix(s.Path, ".md")), s.Status.Value, qualifier(s))
-		}
-		fmt.Fprintf(stdout, "total %d in flight over %d records\n", len(rows), len(docs))
-		return 0
 	}
 	keys := make([]string, 0, len(groups))
 	for k := range groups {

@@ -381,19 +381,23 @@ func TestIndexGraphIsDeterministic(t *testing.T) {
 	}
 }
 
-// TestIndexInFlight: the worklist is Draft and Final, never Implemented.
-func TestIndexInFlight(t *testing.T) {
+// TestIndexStatusGroups: `--status` groups every record by its status.
+// The WORKLIST half of this facet — Draft and Final, never Implemented —
+// moved to `rdr status` with no argument, where the facts come with it;
+// TestStatusWorklistIsTheInFlightSet is its heir and pins the same rule.
+func TestIndexStatusGroups(t *testing.T) {
 	dir := corpusDir(t)
-	code, out, errb := runCapture(t, "index", "--in-flight", "--records", dir)
+	code, out, errb := runCapture(t, "index", "--status", "--records", dir)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
-	if strings.Contains(out, "0004") || !strings.Contains(out, "total 3 in flight over 4 records") {
-		t.Errorf("worklist wrong:\n%s", out)
-	}
-	code, out, _ = runCapture(t, "index", "--status", "--records", dir)
-	if code != 0 || !strings.Contains(out, "Draft          2  0001 0002") || !strings.Contains(out, "Implemented    1  0004") {
+	if !strings.Contains(out, "Draft          2  0001 0002") || !strings.Contains(out, "Implemented    1  0004") {
 		t.Errorf("status groups wrong:\n%s", out)
+	}
+	// The facet it absorbed is gone, not merely undocumented: a flag that
+	// silently parsed and answered the graph would be worse than an error.
+	if code, _, _ := runCapture(t, "index", "--in-flight", "--records", dir); code != 2 {
+		t.Errorf("index --in-flight should be an unknown flag, got exit %d", code)
 	}
 }
 
@@ -956,7 +960,7 @@ func TestRecordsDirFailureSaysWhereItLooked(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("RDR_RECORDS", marker)
 
-	_, _, errb := runCapture(t, "index", "--in-flight", "--records", "nope/here")
+	_, _, errb := runCapture(t, "index", "--status", "--records", "nope/here")
 	if !strings.Contains(errb, "no-records") {
 		t.Fatalf("want a no-records stop, got %q", errb)
 	}
@@ -978,7 +982,21 @@ func TestRecordsDirFailureSaysWhereItLooked(t *testing.T) {
 // under a valid marker must FAIL — answering out of $RDR_RECORDS would
 // return a real, plausible corpus for a path that names nothing, which is
 // worse than an error because the answer looks right.
+// factTableForTest names the shipped fact table absolutely, for a test
+// that chdirs away from the repo before invoking `status`. The table's
+// own $RDR_HOME lookup is covered by TestFactTablePathFindsTheShippedTable;
+// here it would only be a second thing able to fail.
+func factTableForTest(t *testing.T) string {
+	t.Helper()
+	abs, err := filepath.Abs(filepath.Join("..", "..", "models", factTableName))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return abs
+}
+
 func TestRelativeRecordsNeverSilentlyBecomesTheMarker(t *testing.T) {
+	table := factTableForTest(t)
 	marker := t.TempDir()
 	body := "# Recommendation 0003: M\n\n## Metadata\n\n" +
 		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
@@ -989,16 +1007,16 @@ func TestRelativeRecordsNeverSilentlyBecomesTheMarker(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("RDR_RECORDS", marker)
 
-	code, out, _ := runCapture(t, "index", "--in-flight", "--records", "nope/here")
+	code, out, _ := runCapture(t, "index", "--status", "--records", "nope/here")
 	if code == 0 {
 		t.Errorf("a --records naming nothing returned the marker's corpus:\n%s", out)
 	}
 
 	// With no --records at all, the marker IS the answer — that is the
 	// documented default, not a guess.
-	code, out, errb := runCapture(t, "index", "--in-flight")
+	code, out, errb := runCapture(t, "status", "--facts", table)
 	if code != 0 {
-		t.Fatalf("bare --in-flight exit %d: %s", code, errb)
+		t.Fatalf("bare status exit %d: %s", code, errb)
 	}
 	if !strings.Contains(out, "0003-m") {
 		t.Errorf("the marker default did not resolve:\n%s", out)
@@ -1009,6 +1027,7 @@ func TestRelativeRecordsNeverSilentlyBecomesTheMarker(t *testing.T) {
 // doubled `…/docs/rdr/docs/rdr` in the wild — $RDR_RECORDS ends with the
 // same relative path the caller passed, and the cwd is already inside it.
 func TestRecordsDirResolvesFromInsideItself(t *testing.T) {
+	table := factTableForTest(t)
 	root := t.TempDir()
 	recs := filepath.Join(root, "docs", "rdr")
 	if err := os.MkdirAll(recs, 0o755); err != nil {
@@ -1023,7 +1042,7 @@ func TestRecordsDirResolvesFromInsideItself(t *testing.T) {
 	t.Setenv("RDR_RECORDS", recs)
 	t.Chdir(recs) // already inside the records dir
 
-	code, out, errb := runCapture(t, "index", "--in-flight", "--records", "docs/rdr")
+	code, out, errb := runCapture(t, "status", "--records", "docs/rdr", "--facts", table)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
@@ -1287,7 +1306,6 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 		{"-backlinks", "backlinks"},
 		{"-unresolved", "unresolved"},
 		{"-cluster-of=1", "cluster-of"},
-		{"-in-flight", "in-flight"},
 		{"-status", "status"},
 		{"-cycles", "cycles"},
 		{"-open-joint", "open-joint"},
@@ -1301,7 +1319,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 			t.Errorf("%s: parse: %v", c.flag, err)
 			continue
 		}
-		if got := usageFacet("index", f); got != c.want {
+		if got := usageFacet("index", f, ""); got != c.want {
 			t.Errorf("%s logs as %q, want %q", c.flag, got, c.want)
 		}
 	}
@@ -1312,7 +1330,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	if err := fs.Parse(nil); err != nil {
 		t.Fatal(err)
 	}
-	if got := usageFacet("index", f); got != "graph" {
+	if got := usageFacet("index", f, ""); got != "graph" {
 		t.Errorf("bare index logs as %q, want graph", got)
 	}
 }

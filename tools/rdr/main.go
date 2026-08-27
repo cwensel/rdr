@@ -6,8 +6,9 @@
 // Usage:
 //
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
-//	rdr index [--json] [--status|--in-flight|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
+//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
+//	rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
 //	rdr version
 //
 // Exit codes:
@@ -58,11 +59,12 @@ usage:
   rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
+  rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
   rdr version
 
 index with no facet is the corpus graph: every record, element and edge,
 plus the derived backlinks (README §Queries over the graph). Facets:
-  --status / --in-flight      records by status / the Draft+Final worklist
+  --status                    every record grouped by status
   --backlinks[=NNNN[:elem]]   who points at each target / at one target
   --cluster-of NNNN           7.1's membership rule as a query
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
@@ -98,6 +100,15 @@ only, and resolution findings — dangling edges, Peer-RDR Evidence naming no
 element, unlabelled contracts on a post-rule record — that block a lock.
 With no argument it lints the whole records dir.
 
+status evaluates models/rdr-facts.toml over one record — the navigator's
+whole read in one call (README §Facts, §status). Text is one fact per
+line; --json is the neutral vector; --tags renders "--tag k=v" argv for a
+resolver. A fact the table declares prose is not rendered as a tag: an
+unquoted $(rdr status --tags NNNN) splits on whitespace, so a sentence
+would arrive truncated at the first space. With no argument it is the
+Draft+Final worklist, each row carrying its facts; --tags needs a record.
+It never writes.
+
 receipt asks the usage log whether the record was linted at or after its
 last write (README §receipt): exit 0 and the lint's log line; 1 and
 stopped:no-lint-receipt; 2 when no log is bound. §commit refuses a record
@@ -124,7 +135,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint", "receipt":
+	case "inspect", "index", "lint", "receipt", "status":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -143,7 +154,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			logUsage(usageRecord{
 				TS:        started.Format(time.RFC3339),
 				Cmd:       cmd,
-				Facet:     usageFacet(cmd, f),
+				Facet:     usageFacet(cmd, f, target),
 				Target:    target,
 				BytesOut:  counted.n,
 				ElapsedMS: stamp().Sub(started).Milliseconds(),
@@ -188,8 +199,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if f.backlinks.set || *f.unresolved || *f.clusterOf != "" {
 			return indexEdges(f, stdout, stderr)
 		}
-		if *f.status || *f.inFlight {
-			return statusFacet(f, *f.inFlight, stdout, stderr)
+		if *f.status {
+			return statusFacet(f, stdout, stderr)
 		}
 		if *f.cycles {
 			return cyclesFacet(f, stdout, stderr)
@@ -208,6 +219,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return lintCmd(fs.Args(), f, stdout, stderr)
 	case "receipt":
 		return receipt(fs.Args(), f, stdout, stderr)
+	case "status":
+		return statusCmd(fs.Args(), f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -221,13 +234,15 @@ type flags struct {
 	sel, project, records *string
 	filter                *string
 	repo                  *string
-	status, inFlight      *bool
+	status                *bool
 	backlinks, readme     optString
 	clusterOf             *string
 	unresolved, anchors   *bool
 	openJoint, cycles     *bool
 	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
+	tags                  *bool   // status: render the facts as a resolver's argv
+	facts                 *string // status: the fact table to evaluate
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -252,7 +267,6 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.coverage = fs.Bool("coverage", false, "unclassified-line rate over the records dir, warnings by code, recurring unknown headings and labels — the drift alarm")
 		f.all = fs.Bool("all", false, "anchor-intersect: every record, not only those in flight")
 		f.status = fs.Bool("status", false, "group records by status")
-		f.inFlight = fs.Bool("in-flight", false, "the worklist: Draft and Final records")
 		fs.Var(&f.backlinks, "backlinks", "the reverse edge table; =NNNN[:elem] answers who cites one target, mentions included")
 		f.clusterOf = fs.String("cluster-of", "", "the record's cluster by 7.1's membership rule")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
@@ -265,6 +279,10 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
 	case "receipt":
 		f.since = fs.String("since", "", "RFC3339 instant the lint must postdate (default: the record's mtime)")
+	case "status":
+		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
+		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")
+		f.facts = fs.String("facts", "", "the fact table to evaluate (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
 	}
 	return f
 }

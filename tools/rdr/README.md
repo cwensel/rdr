@@ -54,7 +54,8 @@ call it instead of reading. The saving is real but it is **not uniform**,
 and the shape matters more than the headline:
 
     --select NNNN:C1      ~500 B    the contract-quoting path
-    index --in-flight     ~2 KB     replaces opening every record
+    status (no arg)       ~2 KB     the worklist WITH each record's facts
+    status NNNN --tags    ~1 KB     one record's whole position, as argv
     lint --locking        ~3 KB
     inspect --json        LARGER than the record it read
 
@@ -568,7 +569,6 @@ file, so the cost is one traversal, not one per citation:
 
     rdr index [--json]            # the graph: records, elements, edges, derived backlinks
     rdr index --status            # records grouped by status
-    rdr index --in-flight         # the worklist: Draft and Final (rdr-status no-arg mode)
     rdr index --backlinks         # the reverse edge set, transposed — never re-parsed
     rdr index --backlinks=0055:C4 # who cites this contract — typed edges and mentions
     rdr index --backlinks=0055    # who cites this record or anything in it
@@ -849,7 +849,7 @@ Every var this binary reads is written in a marker file the flow already
 maintains, so it reads the marker rather than waiting to be told.
 
     cd anywhere/in/the/project
-    rdr index --in-flight          # no --records, no exports, no seam bound
+    rdr status                     # no --records, no exports, no seam bound
 
 From the working directory it walks up for the project root, applies the
 flow's own nearest-marker-wins rule (a repo-local `.rdr/workspace` beats
@@ -919,7 +919,10 @@ The fact NAMES are a contract. `models/rdr-status.toml` matches on them,
 neither binary calls the other, and the skill composes the two in one
 call — so a rename is a breaking change to a file in another repo. Every
 fact declares one of the kinds that side accepts (`enum`, `bool`, `int`,
-`set`, `scalar`) and every value crosses as a string.
+`set`, `scalar`) and every value crosses as a string. A `scalar` may also
+declare `prose = true`, which says its value is free text an author wrote
+rather than a token — see §status for what that changes and why the
+declaration lives in the table.
 
 Two things the table deliberately does NOT declare, both recorded in it:
 
@@ -946,6 +949,84 @@ comments. Every line outside that subset is REFUSED with its line number.
 A parser that skips what it does not understand turns a typo into a
 missing fact, and a missing fact reads as absent when it was only
 misspelled.
+
+## status — the navigator's read, in one call
+
+`rdr status NNNN` evaluates the fact table over one record. It is the
+verb the table was written for: before it, answering "where is this
+record and what runs next" cost an `inspect --json --filter`, a
+`--select §decision-rationale` byte read, an `ls` per lens folder, a
+`status.md` read, and then a model re-deriving a prose signal table over
+the results. Each of those is a TURN, which re-sends the conversation.
+
+Three renderings of ONE evaluation:
+
+    rdr status 0055                # one fact per line — the cheap human read
+    rdr status --json 0055         # the neutral vector (§Facts)
+    rdr status --tags 0055         # `--tag k=v` argv for a resolver
+    rdr status                     # the Draft+Final worklist, each row with its facts
+
+With no argument it is the worklist, and it absorbed `index --in-flight`,
+which answered the same question without the facts. That is also 16×
+cheaper: the old facet ran the full edge resolver it never used (13.8s on
+the 144-record reference corpus; the worklist is 0.86s WITH the facts).
+`index --status`, which groups every record, stayed on `index` — that is
+a question about the corpus, not about what to do next.
+
+It never writes. Not the records, not the evidence, and not a resolver's
+owned-state artifact: that file's format belongs to the other side of the
+seam, and a navigator that writes is no longer derivable-from-disk.
+
+### Why `--tags` will not render prose
+
+The composition this exists for is one Bash call:
+
+    intrastate flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
+      $(rdr status --tags NNNN)
+
+An **unquoted** `$(…)` splits its output on IFS whitespace and then globs
+the words. It does not split on lines, and quotes inside the output are
+literal characters rather than syntax. So a value carrying a space does
+not arrive as one argument — it arrives as several, and the first of them
+is `k=<head>`: a well-formed tag with a silently truncated value. The
+resolver refuses the leftover words *usually*; a tail that happens to
+parse would be accepted, and the caller would route on words the record
+never said.
+
+The glob half is not theoretical either. Under `sh` and `bash`, with
+files `k=a` and `k=b` present, the word `k=[ab]` expands to TWO arguments,
+`k=a` and `k=b` — the value replaced by a filename.
+
+Every routing fact is safe by construction: an enum, a bool, an int, and
+a set rendered as a COMPACT JSON array (`["0131","0132"]`, no space after
+the comma) are each exactly one shell word. The exception is prose. On
+the reference corpus 91 records of 144 carry a `Profile` rationale tail —
+`mid — one contract plus the metrics surface` — which shatters into eight
+words.
+
+So a fact the table declares `prose = true` is not rendered as a tag at
+all, and is read through `--json`, where it is a JSON string and nothing
+splits it. That is a DECLARATION, not a discovery: which facts carry
+prose is a property of the fact, and deciding it from the value in hand
+would make `--tags` succeed on one record and fail on the next. The table
+already draws the same line one level in — the Status QUALIFIER is prose
+and is deliberately not a fact, while its `form` is.
+
+Omitting a prose fact is safe here, and only here, because the omission
+is declared rather than conditional: an omitted key is load-bearing on
+the other side (that kernel is three-valued, and absent leaves a rule
+undecided), but no routing rule can match on prose anyway, so a resolver
+never had it to lose. A non-prose fact that still would not survive means
+the table is wrong about itself, and that is a `stopped:unsafe-tag`
+refusal naming the fact — never a silent skip.
+
+| test | what it pins |
+| --- | --- |
+| `TestStatusGolden` | every fixture's whole fact vector, over a synthetic corpus — so it fails when the evaluator changes, not when a record does |
+| `TestStatusTagsRenderShellSafeArgv` | every rendered word is ONE shell word, asserted directly rather than trusting the renderer |
+| `TestStatusTagsOmitProseAndJSONKeepsIt` | the prose fact is absent from the tags AND still reachable in `--json` — omitting it is only correct because it is not lost |
+| `TestUnsafeTagWordCatchesWhatTheShellWouldRewrite` | the rule itself, including the set renderings it must NOT refuse |
+| `TestStatusWorklistIsTheInFlightSet` | Draft and Final, never terminal, never parked — and the facts travel with the row |
 
 ## Naming a record, and reading part of one
 
@@ -1103,7 +1184,7 @@ is silently unenforced.
 | --- | --- |
 | `ts` | RFC3339 with offset |
 | `cmd` | `inspect` \| `index` \| `lint` |
-| `facet` | which query ran (`json`, `select:element`, `in-flight`, `locking`, …) |
+| `facet` | which query ran (`json`, `select:element`, `status:tags`, `locking`, …) |
 | `target` | the positional argument, when there was one |
 | `bytes_out` | what was actually emitted, counted on the way out |
 | `elapsed_ms` | wall time |
@@ -1136,6 +1217,7 @@ could break an answer would be worse than no log.
       main.go              subcommand dispatch, flags, inspect, the per-record index facets
       usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
       seam.go              marker discovery: the records dir and source root, bound without a shell
+      status.go            the navigator's read: facts evaluated, rendered three ways
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars

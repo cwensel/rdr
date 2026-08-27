@@ -165,12 +165,16 @@ func TestSeamIsUsedByTheCommands(t *testing.T) {
 RDR_RECORDS="$PROJECT/docs/rdr"
 export RDR_RECORDS
 `
+	// The fact table is named absolutely because the test chdirs away
+	// from the repo; the seam is what is under test here, not the
+	// table's own lookup.
+	table := factTableForTest(t)
 	project, _ := newProject(t, "local", body)
 	t.Chdir(project)
 	t.Setenv("RDR_RECORDS", "")
 	t.Setenv("RDR_SOURCE_REPO", "")
 
-	code, out, errb := runCapture(t, "index", "--in-flight")
+	code, out, errb := runCapture(t, "status", "--facts", table)
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}

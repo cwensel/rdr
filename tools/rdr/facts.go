@@ -97,6 +97,22 @@ type FactDecl struct {
 	Select string
 	// Label is the verdict-line prefix a verdict-line fact looks for.
 	Label string
+	// Prose marks a fact whose value is free text rather than a token: a
+	// sentence, a rationale tail, anything an author wrote for a reader.
+	//
+	// It exists because the renderings are not equally expressive. A
+	// prose value is a JSON string in `--json` and nothing splits it, but
+	// as a resolver's argv it crosses through an unquoted `$(…)` — which
+	// splits on whitespace and globs the pieces — and arrives truncated
+	// at the first space, as a well-formed tag carrying half a value. So
+	// `--tags` omits these, and says so, rather than shattering one.
+	//
+	// The table declares it because that is where the knowledge lives: a
+	// fact is prose by the author's design, not by the accident of what
+	// one record happened to say. Discovering it at render time would
+	// make `--tags` succeed or fail depending on which record was asked
+	// about, which is the drift this whole file replaced.
+	Prose bool
 	// Min is an int's declared floor, checked at load.
 	Min *int
 	// Description is prose for the reader of the table.
@@ -206,10 +222,16 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 		}
 		d.Min = &n
 	}
+	if v, ok := tbl.values["prose"]; ok {
+		if v.scalar != "true" && v.scalar != "false" {
+			return d, fmt.Errorf("fact %q: prose is true or false, got %q", name, v.scalar)
+		}
+		d.Prose = v.scalar == "true"
+	}
 	for k := range tbl.values {
 		switch k {
 		case "kind", "source", "path", "paths", "root", "domain",
-			"equals", "transform", "select", "label", "min", "description":
+			"equals", "transform", "select", "label", "min", "prose", "description":
 		default:
 			return d, fmt.Errorf("fact %q: unknown key %q", name, k)
 		}
@@ -252,6 +274,13 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 	}
 	if d.Kind == "enum" && len(d.Domain) == 0 && d.Source != "capsule-state" {
 		return d, fmt.Errorf("fact %q: an enum declares its domain", name)
+	}
+	// Only a scalar can be prose. An enum is its domain, a bool is two
+	// literals, an int is digits and a set is a canonical array — each is
+	// a token by construction, so `prose` on one would either be a lie or
+	// a sign the kind is wrong.
+	if d.Prose && d.Kind != "scalar" {
+		return d, fmt.Errorf("fact %q: prose is for a scalar, not a %s", name, d.Kind)
 	}
 	return d, nil
 }

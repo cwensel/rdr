@@ -181,11 +181,13 @@ No writes. Confirm `git status` would be unchanged (you ran only reads).
 One command, no glob and no per-file read:
 
 ```sh
-"$RDR_HOME/bin/rdr" index --in-flight
+"$RDR_HOME/bin/rdr" status
 ```
 
 It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
-qualifier already split; report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
+qualifier already split, and each row's facts under it (the signal table above,
+evaluated) — so a row needs no follow-up read.
+Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
 Parked RDRs are not in flight, so add `--status --json` and take the records with
 `terminal:false, in_flight:false` (`Deferred`) — list each on a separate **parked**
 line with its `status.qualifier` revisit condition verbatim: not in flight, not

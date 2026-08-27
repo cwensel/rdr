@@ -144,10 +144,19 @@ transform   = "leading-word"
 domain      = ["small", "mid", "large", "foundational"]
 description = "The Profile keyword that selects the Stage-5 lens row."
 
+# PROSE, and the only fact so marked. The rationale tail is a sentence an
+# author wrote for a reader — on the reference corpus, 91 records of 144
+# carry one — so it is a JSON string in `--json` and is not rendered as a
+# tag at all. A tag crosses through an unquoted `$(rdr status --tags …)`,
+# which splits on whitespace and globs the pieces, so this value would
+# arrive as `profile_raw=mid`: a well-formed tag with a silently
+# truncated value, and a caller routing on words the record never said.
+# `profile` carries the routing half; nothing routes on the sentence.
 [fact.profile_raw]
 kind        = "scalar"
 source      = "field"
 path        = "metadata.Profile.value"
+prose       = true
 description = "Profile verbatim, rationale tail included, for the caveat line."
 
 # The Stage-5 Determinacy trigger reads the labelled contract count. A

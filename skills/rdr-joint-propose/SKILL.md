@@ -53,7 +53,7 @@ projection — one pass, no seed body read:
 ```sh
 "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all
 "$RDR_HOME/bin/rdr" index --json          # elements[] kind=="C"
-"$RDR_HOME/bin/rdr" index --in-flight
+"$RDR_HOME/bin/rdr" status
 ```
 
 `overlaps[]` `{records[], anchors[], cited}` **is** the overlap graph — seeds
@@ -74,8 +74,8 @@ prior, not a promise — the loop corrects it; this pass makes corrections rare.
 
 Spawn one proposer per member, sequentially in order (§delegation `Task` tool;
 model per §model-ceiling). Brief = the bound seam vars + `{RDR_PATH}`, the peer
-roster (NNNN + title — awareness, never solutions; `index --in-flight` prints
-exactly that, no body — do not widen it), and: run the sibling
+roster (NNNN + title — awareness, never solutions; take the ROW lines of
+`rdr status`, not the facts under them — do not widen it), and: run the sibling
 [`02-propose.prompt.md`](02-propose.prompt.md) **in full — including step 8**,
 which now compares real peer proposals — plus two batch-only additions:
 
