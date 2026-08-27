@@ -1352,6 +1352,7 @@ func (d *Document) gate() {
 	// stop reading — whatever sub-sections remain below it are still the
 	// record's own, and are projected as usual. A gate that is nothing
 	// but the pointer simply has no sub-sections to find.
+	found := false
 	for _, n := range d.nodes {
 		if n.Parent != g.ID || n.Level != g.Level+1 {
 			continue
@@ -1360,6 +1361,7 @@ func (d *Document) gate() {
 		if s > e {
 			continue
 		}
+		found = true
 		el := Element{Kind: ident.Gate, Label: n.Heading, Section: n.ID, LineStart: s, LineEnd: e}
 		if key := model.GateItemKey(n.Canonical); key != "" {
 			el.Key = key
@@ -1368,6 +1370,76 @@ func (d *Document) gate() {
 		}
 		d.add(el)
 	}
+	if !found {
+		d.gateItems(g)
+	}
+}
+
+// gateItems projects a gate written as a labelled LIST rather than as
+// sub-headings — `- **Contradiction Check**: …`. Two of the oldest
+// records answer the gate that way, and reading only sub-headings made
+// their five responses project as nothing: `counts.elements.G` was 0 and
+// `coverage.unclassified` was 0 too, so the items were classified and
+// then dropped without a word. A bullet the projector cannot place is
+// supposed to be a warning, never silence.
+//
+// It is the same gate, in the other shape markdown offers for a list of
+// labelled things, so it reads through the same table: the label is
+// matched against the sub-sections TEMPLATE.md declares, and the key is
+// the `[Gate key: …]` marker beside the one it names. Nothing about the
+// item set is written here — a template that renames a gate item, adds
+// one, or drops one moves both shapes together.
+//
+// A label naming no declared item still projects, derived, exactly as an
+// author's own gate sub-heading does: `API Verification` is a real
+// response those two records wrote, and dropping it would be the silence
+// this function exists to end.
+func (d *Document) gateItems(g *Node) {
+	for _, i := range d.topItems(g.LineStart+1, g.LineEnd) {
+		label := itemLabel(d.lines[i-1])
+		if label == "" {
+			continue
+		}
+		el := Element{
+			Kind: ident.Gate, Label: label, Section: g.ID,
+			LineStart: i, LineEnd: d.itemEnd(i, g.LineEnd),
+		}
+		if key := gateKeyForLabel(label); key != "" {
+			el.Key = key
+		} else {
+			el.Key, el.Derived = ident.Slug(label), true
+		}
+		d.add(el)
+	}
+}
+
+// gateKeyForLabel resolves a bullet's label onto a declared gate item.
+//
+// A heading is canonicalised before it reaches GateItemKey; a bullet
+// label is not, so this asks the same table directly. The match is by
+// name, case-insensitively, and also accepts a label that is the
+// declared name's own lead — `Cross-Cutting` for `Cross-Cutting
+// Concerns` — because that is how those records abbreviate it and the
+// key it resolves to (`cross-cutting`) is the one peers already cite.
+// Anything looser would be guessing, and a wrong gate key is worse than
+// a derived one.
+func gateKeyForLabel(label string) string {
+	l := strings.ToLower(strings.TrimSpace(strings.Trim(label, "`*: ")))
+	if l == "" {
+		return ""
+	}
+	for _, g := range model.GateItems() {
+		name := strings.ToLower(g.Section)
+		if l == name {
+			return g.Key
+		}
+		// The lead must end on a word boundary, so `Scope` matches
+		// `Scope Verification` but `Scoped` does not.
+		if strings.HasPrefix(name, l) && len(name) > len(l) && name[len(l)] == ' ' {
+			return g.Key
+		}
+	}
+	return ""
 }
 
 func (d *Document) count() {

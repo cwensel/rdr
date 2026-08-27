@@ -184,6 +184,7 @@ What still binds, mechanically:
 | `TestSidecarNamesNoUnknownSection` | every section the sidecar names still exists in `TEMPLATE.md` — rename one without updating the other and this fails |
 | `TestProjectedSectionsComeFromTheSidecar` | each list-projected kind reads the section `[elements]` names it — a section name reintroduced as a Go literal drifts from the table and this fails |
 | `TestGateKeysComeFromMarkers` | every Finalization Gate sub-section declares a `[Gate key: …]`, and the set matches what the reader projects |
+| `TestBulletGateProjectsTheSameItems` | a gate written as a labelled list projects the same keys as one written as sub-headings, and the two shapes never both fire |
 | `TestMethodVocabularyMatchesREADME` | the eight Method labels match this README's authoritative list — still two documents, so still a real check |
 | `TestLoadReadsWhatTheTemplateStates` | the loader returns the values `TEMPLATE.md` visibly writes |
 | `TestSidecarDeclaresWhatTheReaderNeeds` | every minted element kind has a section, and the lifecycle sets are the ones lint and `rdr status` depend on |
@@ -770,6 +771,7 @@ reader still absorbs it — but as TOLERANCE, not as a second table:
 | --- | --- |
 | Critical Assumptions at `###` rather than `##` | `level-variant` — the same section |
 | gate responses inlined rather than a `gate.md` pointer | projected as `G-<item>` elements |
+| gate responses written as a labelled LIST rather than sub-headings | the same `G-<item>` elements, keyed by the template's `[Gate key: …]` markers |
 | pre-Evidence-Record verification headings | the alias table maps them onto Critical Assumptions |
 | `Profile` / `Seam Lineage` / `Load-Bearing Decisions` absent | a Required section the record does not carry: a conformance finding, never blocking |
 

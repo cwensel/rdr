@@ -917,3 +917,83 @@ func TestProjectedSectionsComeFromTheSidecar(t *testing.T) {
 		}
 	}
 }
+
+// TestBulletGateProjectsTheSameItems pins the second shape a Finalization
+// Gate is written in. Two of the oldest records answer it as a labelled
+// list rather than as sub-headings; reading only sub-headings projected
+// nothing for them, and because the bullets WERE classified, coverage
+// reported no unclassified lines — the responses were dropped in silence,
+// which is the one thing the projector is not allowed to do.
+//
+// The keys must come from TEMPLATE.md's own `[Gate key: …]` markers, not
+// from the bullet's wording, because that is what peers cite. A label
+// naming no declared item still projects, derived: it is a real response
+// the record wrote.
+func TestBulletGateProjectsTheSameItems(t *testing.T) {
+	doc := Bytes([]byte(`# Recommendation 0099: Bullet gate
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+- **Contradiction Check**: none found.
+- **Assumption Verification**: A1 stands.
+- **Scope Verification**: the MVV is in scope.
+- **API Verification**: the surface was re-read.
+- **Cross-Cutting**: no project-wide policy changes.
+- **Proportionality**: the design is no larger than the problem.
+`), Options{})
+
+	want := []struct {
+		id      string
+		derived bool
+	}{
+		{"0099:G-contradiction", false},
+		{"0099:G-assumptions", false},
+		{"0099:G-scope", false},
+		{"0099:G-api-verification", true}, // the author's own item
+		{"0099:G-cross-cutting", false},   // an abbreviated declared name
+		{"0099:G-proportionality", false},
+	}
+	if n := doc.Counts.Elements[ident.Gate]; n != len(want) {
+		t.Fatalf("bullet gate projected %d G elements, want %d", n, len(want))
+	}
+	for _, w := range want {
+		e := element(t, doc, w.id)
+		if e.Derived != w.derived {
+			t.Errorf("%s: derived = %v, want %v", w.id, e.Derived, w.derived)
+		}
+		if e.LineStart == 0 || e.LineEnd < e.LineStart {
+			t.Errorf("%s: names lines %d-%d, want a real range", w.id, e.LineStart, e.LineEnd)
+		}
+	}
+
+	// The two shapes are alternatives, not additives: a gate with
+	// sub-headings must not also read its prose as items.
+	sub := Bytes(fixture(t, "legacy-shape.md"), Options{})
+	if n := sub.Counts.Elements[ident.Gate]; n != 5 {
+		t.Errorf("sub-heading gate projected %d G elements, want 5 — the bullet "+
+			"fallback fired on a gate that already had sub-sections", n)
+	}
+}
+
+// TestBulletGateKeysAreNotGuessed pins the narrow match. A label is a
+// declared item only when it IS the declared name or its leading words;
+// anything looser would mint a gate key the record never answered, and a
+// wrong key is worse than a derived one because peers cite these.
+func TestBulletGateKeysAreNotGuessed(t *testing.T) {
+	for _, tc := range []struct{ label, want string }{
+		{"Contradiction Check", "contradiction"},
+		{"contradiction check", "contradiction"}, // case is not the author's meaning
+		{"Scope", "scope"},                       // a declared name's own lead
+		{"Scoped Review", ""},                    // a longer word, not a lead
+		{"Verification", ""},                     // a trailing word is not a lead
+		{"", ""},
+	} {
+		if got := gateKeyForLabel(tc.label); got != tc.want {
+			t.Errorf("gateKeyForLabel(%q) = %q, want %q", tc.label, got, tc.want)
+		}
+	}
+}

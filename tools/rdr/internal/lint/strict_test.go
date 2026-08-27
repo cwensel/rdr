@@ -904,3 +904,71 @@ func TestPlaceholderSurvivedIsSilentOnAConformantRecord(t *testing.T) {
 		}
 	}
 }
+
+// TestGateInlineSeesABulletGate: the two oldest records answer the gate as
+// a labelled LIST, not as sub-headings. The projector read nothing there,
+// so `gate:inline` never fired on them and the externalization pass left
+// them behind — the rule reported a clean corpus while the two records it
+// could not see stayed unmigrated.
+//
+// Their elements carry the GATE's own id as their section (there is no
+// sub-heading to carry it), which is why the rule counts the gate node as
+// being "under" itself.
+func TestGateInlineSeesABulletGate(t *testing.T) {
+	const rec = `# Recommendation 0005: Bullet gate
+
+## Metadata
+
+- **Status**: Implemented
+
+## Finalization Gate
+
+- **Contradiction Check**: none found.
+- **Assumption Verification**: A1 stands.
+- **Scope Verification**: the MVV is in scope.
+- **Proportionality**: proportionate.
+`
+	d := scan.Bytes([]byte(rec), scan.Options{})
+	r := Run(d, Options{})
+	if !has(r, "gate:inline") {
+		t.Fatalf("gate:inline did not fire on a bullet-written gate (codes: %v)", codes(r))
+	}
+	f := find(t, r, "gate:inline")
+	if !strings.HasSuffix(f.Element, ":§finalization-gate") {
+		t.Errorf("gate:inline element = %q, want the gate section", f.Element)
+	}
+}
+
+// TestBulletGateUnderAPointerIsNotInline: a locked record may keep its
+// retained item as a BULLET under the gate.md pointer. The pointer is
+// checked first and settles it — reading those bullets as an inlined gate
+// would report a correctly split record as unmigrated forever.
+func TestBulletGateUnderAPointerIsNotInline(t *testing.T) {
+	const rec = `# Recommendation 0032: Pointer plus bullets
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+Responses: 0032-pointer/artifacts/gate.md (Gate PASS 2026-08-26)
+
+- **Cross-Cutting**: schema names fold ASCII-only.
+`
+	d := scan.Bytes([]byte(rec), scan.Options{})
+	r := Run(d, Options{})
+	if has(r, "gate:inline") {
+		t.Errorf("gate:inline fired on a pointer gate whose retained item is a bullet (codes: %v)", codes(r))
+	}
+	// The retained item still has to be citable.
+	var found bool
+	for _, e := range d.Elements {
+		if e.ID == "0032:G-cross-cutting" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("0032:G-cross-cutting was not projected; a retained bullet must stay citable")
+	}
+}

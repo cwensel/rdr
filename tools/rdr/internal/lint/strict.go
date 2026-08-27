@@ -877,8 +877,14 @@ func hasGatePointer(d *scan.Document, n scan.Node) bool {
 // gate's ID against that section — by prefix or by equality — therefore
 // never fires. The relation to test is the one the projector itself used to
 // mint these elements: the element's section node is a child of the gate.
+//
+// A gate written as a labelled LIST has no sub-heading to be stamped with,
+// so those elements carry the GATE's own ID as their section. Both shapes
+// are the same inlined gate and both owe the same move, so the gate itself
+// counts as being "under" it — otherwise the two records that answer the
+// gate in bullets would be the two the migration never reported.
 func hasGateElements(d *scan.Document, gate scan.Node) bool {
-	under := map[string]bool{}
+	under := map[string]bool{gate.ID: true}
 	for _, n := range d.Outline {
 		if n.Parent == gate.ID {
 			under[n.ID] = true
