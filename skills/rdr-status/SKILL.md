@@ -96,13 +96,14 @@ or contradicts what the tree shows.
 ## How it decides "next"
 
 These branches are also **data** — `$RDR_HOME/models/rdr-status.toml`, one linted
-decision table. With `intrastate` installed (an accelerator, never a dependency —
-absent, read on), one call answers each half:
+decision table. When `intrastate` resolves, one call answers each half; it is an
+accelerator, never a dependency, so if it does not, read on.
 
 ```sh
-M="$RDR_HOME/models/rdr-status.toml"
-intrastate flow resolve --model "$M" --outcome locate $(rdr status --tags NNNN)  # step 1
-intrastate flow resolve --model "$M" --outcome lens   $(rdr status --tags NNNN)  # steps 2-3
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH, else skip
+M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
+[ -x "$IS" ] && "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
+[ -x "$IS" ] && "$IS" flow resolve --model "$M" --outcome lens   $("$R" status --tags NNNN)
 ```
 
 Unquoted `$(…)` is safe: every fact is one shell word, prose facts aren't rendered.

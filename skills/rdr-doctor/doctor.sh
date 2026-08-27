@@ -171,9 +171,20 @@ fi
 # An absent intrastate is INFO, not WARN: it is an accelerator, nothing is broken,
 # and naming the check that did not run is the point - a skip that reads as a pass
 # is the failure this flow warns about everywhere else.
+#
+# Resolution order is the skill's: $RDR_INTRASTATE, else PATH. A marker naming a
+# binary that is not there is a WARN on its own - it was configured on purpose, so
+# silently falling through to PATH would hide a typo in the marker.
 if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
-  if command -v intrastate >/dev/null 2>&1; then
-    if lintout=$(intrastate lint --model "$RDR_HOME/models/rdr-status.toml" --as json 2>&1); then
+  IS=""
+  if [ -n "$RDR_INTRASTATE" ]; then
+    if [ -x "$RDR_INTRASTATE" ]; then IS="$RDR_INTRASTATE"
+    else warn "12 RDR_INTRASTATE names $RDR_INTRASTATE, which is not executable - fix the path in $MARKER or unset it to fall back to PATH"; fi
+  else
+    IS=$(command -v intrastate 2>/dev/null)
+  fi
+  if [ -n "$IS" ]; then
+    if lintout=$("$IS" lint --model "$RDR_HOME/models/rdr-status.toml" --as json 2>&1); then
       case "$lintout" in
         # Exit 0 still carries advisories, and one of them matters here:
         # coverage closed by a bare escape row is closed, not proved.
@@ -184,8 +195,10 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     else
       warn "12 routing model fails graph-lint, so the navigator's coverage proof is broken - $(echo "$lintout" | head -c 200)"
     fi
-  else
-    echo "  [INFO] 12 intrastate not installed - the routing model's coverage proof went UNCHECKED (accelerator, not a dependency): intrastate lint --model \$RDR_HOME/models/rdr-status.toml"
+  elif [ -z "$RDR_INTRASTATE" ]; then
+    # Only when nothing was configured: a bad RDR_INTRASTATE already WARNed, and
+    # repeating it as an INFO would read as a second, milder finding.
+    echo "  [INFO] 12 intrastate not on PATH - the routing model's coverage proof went UNCHECKED (accelerator, not a dependency) - install it, or set RDR_INTRASTATE in $MARKER to a built binary"
   fi
 fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."

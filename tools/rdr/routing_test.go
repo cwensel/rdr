@@ -438,10 +438,18 @@ func TestRoutingStopsAreNamed(t *testing.T) {
 // A skip that reads as a pass is exactly the failure the flow's own rules
 // warn about, which is why the skip message says what went unchecked.
 func TestRoutingModelLints(t *testing.T) {
-	bin, err := exec.LookPath("intrastate")
-	if err != nil {
-		t.Skip("intrastate is not installed; the model's coverage proof went UNCHECKED here " +
-			"(run: intrastate lint --model models/rdr-status.toml)")
+	// The same resolution order the skill and rdr-doctor 12 use:
+	// $RDR_INTRASTATE, else PATH. A test that only looked at PATH would
+	// skip on a machine where the flow itself would have run the check.
+	bin := os.Getenv("RDR_INTRASTATE")
+	if bin == "" {
+		found, err := exec.LookPath("intrastate")
+		if err != nil {
+			t.Skip("intrastate resolves neither from $RDR_INTRASTATE nor on PATH; " +
+				"the model's coverage proof went UNCHECKED here " +
+				"(run: intrastate lint --model models/rdr-status.toml)")
+		}
+		bin = found
 	}
 	model := repoFile(t, filepath.Join("models", routingModelName))
 	out, err := exec.Command(bin, "lint", "--model", model, "--as", "json").CombinedOutput()

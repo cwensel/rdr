@@ -174,7 +174,11 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      `$RDR_RECORDS`) — at `$PROJECT/.rdr/workspace` (repo-local default, auto-ignored by
      `.rdr/.gitignore`) or `$WS/.rdr-workspace` (`--workspace`, shared). Uncomment
      `RDR_USAGE_LOG="true"` there when the log was asked for; leave it commented
-     otherwise. `RDR_USAGE_LOG` is in the marker's `export` line either way,
+     otherwise. `RDR_USAGE_LOG` is in the marker's `export` line either way.
+     `RDR_INTRASTATE` is the same shape and stays commented: it names the
+     `intrastate` binary that lints the navigator's routing model, and unset means
+     "look on PATH, else skip" — set it only when a built binary was never
+     installed. Nothing here builds it; it is an accelerator in another repo,
    - scaffolds the RDR home: `mkdir -p "$RDR_RECORDS"` and, if no index yet, copies
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
