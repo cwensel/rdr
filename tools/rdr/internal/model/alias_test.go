@@ -28,13 +28,16 @@ func TestLookupSectionKinds(t *testing.T) {
 		{"lowercase Briefly Rejected", "Briefly rejected", 3, MatchCaseVariant, "Briefly Rejected"},
 		{"lowercase Technical Environment", "Technical environment", 3, MatchCaseVariant, "Technical Environment"},
 
-		// Legacy alias: the pre-Evidence-Record verification headings and
-		// the folded premortem.
-		{"API Verification", "API Verification", 4, MatchLegacyAlias, "Critical Assumptions"},
+		// Legacy alias: the pre-Evidence-Record verification heading, the
+		// one mapped entry with records still writing it.
 		{"Dependency Source Verification at ####", "Dependency Source Verification", 4, MatchLegacyAlias, "Critical Assumptions"},
 		{"Dependency Source Verification at ###", "Dependency Source Verification", 3, MatchLegacyAlias, "Critical Assumptions"},
-		{"Premortem", "Premortem", 3, MatchLegacyAlias, "Decision Rationale"},
-		{"Premortem with its parenthetical", "Premortem (chosen approach)", 3, MatchLegacyAlias, "Decision Rationale"},
+
+		// The premortem is recognised and deliberately unmapped: prospective
+		// hindsight is not an old spelling of the argument that a choice was
+		// sound. See SectionAliases.
+		{"Premortem", "Premortem", 3, MatchRecognizedUnmapped, ""},
+		{"Premortem with its parenthetical", "Premortem (chosen approach)", 3, MatchRecognizedUnmapped, ""},
 
 		// Recognised but with no canonical home: author-added sections
 		// the template never adopted. Not foreign, so not a warning, but
@@ -45,6 +48,7 @@ func TestLookupSectionKinds(t *testing.T) {
 		{"Decision", "Decision", 2, MatchRecognizedUnmapped, ""},
 		{"Consumers", "Consumers", 3, MatchRecognizedUnmapped, ""},
 		{"Scope Fences", "Scope Fences", 3, MatchRecognizedUnmapped, ""},
+		{"Out of scope", "Out of scope", 3, MatchRecognizedUnmapped, ""},
 		{"What this RDR locks", "What this RDR locks", 3, MatchRecognizedUnmapped, ""},
 		{"Pre-release scope", "Pre-release scope", 3, MatchRecognizedUnmapped, ""},
 
@@ -95,7 +99,8 @@ func TestLookupSectionKinds(t *testing.T) {
 // exists to serve: only MatchUnknown is a finding.
 func TestLookupSectionWarningBoundary(t *testing.T) {
 	quiet := []string{
-		"Critical Assumptions", "Briefly rejected", "API Verification",
+		"Critical Assumptions", "Briefly rejected",
+		"Dependency Source Verification",
 		"Premortem", "Escaped-Defect Ledger", "Open Questions",
 		"Alternative 4: Reuse the existing walker", "Step 7: Backfill",
 		"Phase 3: Rollout",

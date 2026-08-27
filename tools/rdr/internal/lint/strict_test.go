@@ -308,33 +308,37 @@ func TestJudgmentFindingsCarryNoPatch(t *testing.T) {
 	}
 }
 
-// TestRenameDeclinesOnCollision: the alias table is many-to-one, and a
-// record carrying two predecessors of one canonical section must not be
-// told to give both the same name. The second is reported and left alone.
-func TestRenameDeclinesOnCollision(t *testing.T) {
+// TestLegacyNameNeverPatches: a rename moves the section's id and can
+// re-parent the content below it, so `section:legacy-name` reports and
+// withholds. This is the whole reason the code exists separately from
+// `heading:level`, which does patch.
+//
+// It replaces TestRenameDeclinesOnCollision, which pinned the two-aliases-
+// of-one-section case. The table is no longer many-to-one — API
+// Verification was retired once no corpus record wrote it — and no record
+// in either corpus ever carried two aliases of one canonical section, so
+// that test asserted a hazard nothing exhibited.
+func TestLegacyNameNeverPatches(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "epoch-a.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	d := scan.Bytes(raw, scan.Options{})
-	seen := map[string]int{}
-	patched := map[string]int{}
+	n := 0
 	for _, f := range Run(d, Options{}).Findings {
 		if f.Code != "section:legacy-name" {
 			continue
 		}
-		seen[f.Message]++
+		n++
 		if f.Patch != nil {
-			patched[f.Patch.Text]++
+			t.Errorf("%s carries a patch; a rename is a hand pass with lint as the checker", f.Message)
+		}
+		if f.Fix == "" {
+			t.Errorf("%s carries no fix; a withheld patch must say what to do instead", f.Message)
 		}
 	}
-	if len(seen) < 2 {
-		t.Fatalf("epoch-a should carry two aliases of one section, got %v", seen)
-	}
-	for text, n := range patched {
-		if n > 1 {
-			t.Errorf("%d patches all write %q; the record would carry duplicate sections", n, text)
-		}
+	if n == 0 {
+		t.Fatal("epoch-a should carry a legacy heading name")
 	}
 }
 

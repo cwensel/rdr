@@ -111,61 +111,94 @@ type sectionAlias struct {
 
 // SectionAliases maps legacy heading names onto canonical sections.
 //
-// Every entry is a heading observed in the frozen corpus. They fall into
-// three groups.
+// Every entry is a heading observed in the frozen corpus, in one of two
+// groups: it either has a canonical home or it does not.
 //
-// LEGACY PREDECESSORS of the Evidence Record apparatus. Before Critical
-// Assumptions carried Evidence Records, records verified dependency claims
-// under their own headings; those headings are the same content under an
-// older name.
+// MAPPED ENTRIES are genuine predecessors — the same content under the
+// name the template used to give it. Both survivors are pre-Evidence-Record
+// headings, retired by the commit that introduced the Evidence Record
+// apparatus.
 //
-// FOLDED SECTIONS. The premortem used to have its own section; the
-// current template folds its verdict into Decision Rationale as one
-// greppable line. The heading is legacy, its content is not.
+// A mapped entry is NOT automatically a reformat in the waiting. Whether
+// renaming a record's heading to the canonical name is an improvement is a
+// question about that record's CONTENT, and for these two the answer is no
+// — see PERMANENTLY RETAINED below. The table's job is to keep a frozen
+// record's headings classified and its elements addressable; migrating the
+// record is a separate decision that the mapping does not license.
 //
-// LOCAL SPELLINGS. Case variants and small rewordings of canonical names.
-// These are matched by the case-insensitive lookup rather than needing an
-// entry, and are listed here only where the wording differs too.
+// UNMAPPED ENTRIES map to "" and classify as MatchRecognizedUnmapped:
+// recognised as something authors demonstrably wrote, with no canonical
+// section to project onto. That keeps them out of `unknown-to-template`
+// without pretending they have a home. Two reasons a heading lands here —
+// the template never adopted it, or the template deliberately rehomed its
+// content elsewhere (Open Questions -> the Status qualifier, Rationale ->
+// Decision Rationale, Premortem -> a verdict line plus Risks and
+// Mitigations / Failure Modes).
 //
-// A handful of headings are recognised with no canonical home: sections
-// authors invented that the template never adopted. They map to "" and
-// classify as MatchRecognizedUnmapped, which keeps them out of
-// `unknown-to-template` without pretending they project onto anything.
+// An entry earns deletion only when no record in any consuming corpus
+// writes the heading any more. At that point it classifies nothing and
+// costs a lookup. Deleting an entry a record still writes reclassifies
+// that heading as MatchUnknown and fires `unknown-to-template` on a
+// section that is merely old — which is why the audit is per-corpus, not
+// per-intuition.
 //
-// EVERY MAPPED ENTRY IS A REFORMAT IN THE WAITING. The table is not a
-// permanent tolerance for a spelling the template rejects — it is what
-// keeps a frozen record's elements addressable until the record is
-// migrated to the canonical heading. That matters because the mapping is
-// load-bearing, not cosmetic: emptying this table drops 18 elements and
-// 24 edges from the corpus, because nine records cite `cli/0035:D-*`
-// through the `Decisions` entry alone. An entry may be deleted only after
-// the records that need it have been rewritten, never before.
+// WHAT AN ENTRY DOES NOT DO. It does not hold ids up. A section's id is a
+// slug of its own heading text, and the elements under it carry their own
+// authored keys — the 21 citations onto `cli/0035:D-*` from six records
+// resolve through the authored `D-N` bullet labels, not through any entry
+// here. An earlier version of this comment claimed emptying the table drops
+// 18 elements and 24 edges because nine records cite `cli/0035:D-*` through
+// the `Decisions` entry; that was measured wrong on both counts and is what
+// made the retirement look blocked. Renaming a heading moves that heading's
+// own `§` id and nothing else.
+//
+// PERMANENTLY RETAINED — the two mapped entries, and why neither record
+// set should be migrated:
+//
+//   - `Dependency Source Verification` (17 records) is a dependency SURVEY
+//     TABLE under Research Findings — `| Dependency | Source Searched? |
+//     Key Findings |`. Critical Assumptions is a top-level section of
+//     per-assumption Evidence Records (Status / Method / Evidence / If
+//     wrong). Renaming re-parents the table across a section boundary and
+//     reads a survey as assumptions the record never made.
+//
+//   - `Finalization Gate — Verdict` (2 records) carries its verdict inline,
+//     at the same level and position as the canonical gate. The current
+//     template puts gate responses in `{ARTIFACT_DIR}/gate.md` and expresses
+//     the verdict as the Status flip, so there is no verdict subsection to
+//     rename toward.
 var SectionAliases = []sectionAlias{
 	// Legacy predecessors of the Evidence Record apparatus.
-	{"API Verification", "Critical Assumptions",
-		"pre-Evidence-Record heading for verified dependency API claims"},
+	// Both permanently retained; see PERMANENTLY RETAINED above.
 	{"Dependency Source Verification", "Critical Assumptions",
 		"pre-Evidence-Record heading for Source Search evidence"},
 
-	// The premortem, before its verdict line moved into Decision Rationale.
-	{"Premortem", "Decision Rationale",
-		"legacy section; the current template carries the premortem verdict as a line in Decision Rationale"},
-	{"Premortem (chosen approach)", "Decision Rationale",
-		"legacy section; the current template carries the premortem verdict as a line in Decision Rationale"},
-
 	// Local spellings that differ by more than case.
-	{"Context / Background", "Background",
-		"combined heading for the Context/Background pair"},
-	{"Day 2 Operations / New Dependencies", "Day 2 Operations",
-		"combined heading for two Implementation Plan sub-sections"},
 	{"Finalization Gate — Verdict", "Finalization Gate",
 		"gate heading carrying its verdict inline"},
-	{"Out of scope", "Scope Fences",
-		"local spelling of the scope-boundary section"},
-	{"Decisions", "Load-Bearing Decisions",
-		"shortened spelling of Load-Bearing Decisions; the bullets under it are the same D-elements"},
 
 	// Recognised, with no canonical home in the template.
+	//
+	// The premortem is the load-bearing case. It is NOT an old spelling of
+	// Decision Rationale: a premortem is prospective hindsight — assume the
+	// approach shipped and failed, enumerate why (Klein 2007, cited in
+	// RESEARCH.md §Critique / premortem lens) — where rationale argues the
+	// choice was sound. They point in opposite directions and the template
+	// homes them separately: Stage 2 keeps only the greppable `Premortem:`
+	// verdict line closing Decision Rationale, sends the ledger to
+	// `evidence/propose-premortem/critic.md`, and leaves the failure content
+	// to Risks and Mitigations / Failure Modes. So the heading has no
+	// canonical section to rename toward, and mapping it onto Decision
+	// Rationale would relocate a failure narrative into an argument for
+	// soundness — for 8 of the 15 records, across a top-level boundary from
+	// Trade-offs. Three records already write an unlisted premortem heading
+	// (`Premortem outcome`, `Premortem (chosen approach A)`); they classify
+	// as MatchAuthorSubsection, report nothing, and stay addressable. That
+	// is the healthy outcome these entries now share.
+	{"Premortem", "",
+		"author-added; the template carries the premortem as the `Premortem:` verdict line closing Decision Rationale, its ledger in evidence/, and its failure content in Risks and Mitigations / Failure Modes"},
+	{"Premortem (chosen approach)", "",
+		"author-added; see Premortem"},
 	{"Escaped-Defect Ledger", "",
 		"author-added ledger; never a template section"},
 	{"Open Questions", "",
@@ -180,6 +213,8 @@ var SectionAliases = []sectionAlias{
 		"author-added; downstream consumers are named in Normative Contracts"},
 	{"Scope Fences", "",
 		"author-added scope-boundary section; never a template section"},
+	{"Out of scope", "",
+		"author-added scope-boundary section; the same thing under its commoner spelling. It mapped to `Scope Fences` until this was audited, but that is not a template section either — it is the entry two lines up, which maps to \"\". A mapping onto a non-existent canonical is a lookup that can never project."},
 	{"What this RDR locks", "",
 		"author-added summary of the locked contracts"},
 	{"Pre-release scope", "",

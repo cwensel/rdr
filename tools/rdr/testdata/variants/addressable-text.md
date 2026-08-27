@@ -45,7 +45,7 @@ The rest of the approach is ordinary prose, and a **bold run written
 mid-paragraph** is emphasis: it opens nothing and names nothing, so it is
 not addressable.
 
-### Decisions
+### Load-Bearing Decisions
 
 - **D1** The pad run is declared, never inferred. A reader computes the
   payload end from the declared length alone.

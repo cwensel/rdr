@@ -609,7 +609,7 @@ func TestBoldLeadResolvesExactlyOnly(t *testing.T) {
 func TestNumberedDecisionsAreAddressable(t *testing.T) {
 	docs := corpus(t, map[string]string{
 		"0001-alpha.md": record("0001", "Alpha", "") + `
-### Decisions
+### Load-Bearing Decisions
 
 - **D1** Bodies inline on the op. No sidefiles, no blob hashes.
 - **D2** Element-ID-keyed storage throughout.

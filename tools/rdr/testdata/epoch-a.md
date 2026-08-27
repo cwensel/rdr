@@ -30,13 +30,10 @@ Fix the prefix at four bytes, unsigned, big-endian.
 The writer emits the width unconditionally. The reader consumes exactly
 four bytes before interpreting anything that follows.
 
-#### API Verification
+#### Dependency Source Verification
 
 The upstream buffer library exposes `buffer::PutUint32` and
 `buffer::Uint32`, both big-endian, so no byte-order shim is needed.
-
-#### Dependency Source Verification
-
 `buffer::PutUint32` writes most-significant byte first; confirmed by
 reading the package source rather than its documentation.
 

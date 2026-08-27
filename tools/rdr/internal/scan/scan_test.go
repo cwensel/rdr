@@ -666,7 +666,7 @@ See gate.md.
 `), Options{})
 	want := map[string]string{
 		"0013:§critical-assumptions": "case-variant",
-		"0013:§premortem":            "legacy-alias",
+		"0013:§premortem":            "recognized-unmapped",
 		"0013:§decision-rationale":   "exact",
 		"0013:§step-1-one":           "scaffold-instance",
 		"0013:§step-1-one-again":     "scaffold-instance",

@@ -96,13 +96,21 @@ func templateFindings(d *scan.Document) []Finding {
 // the alias table says about the heading.
 //
 // So the rename is reported and left to a hand pass with lint as the
-// checker. The corpus makes that cheap: fourteen renames across ten
-// records, and not one of the sections involved is cited by anything.
-// The alias table is also MANY-TO-ONE — `API Verification` and
-// `Dependency Source Verification` are both predecessors of Critical
-// Assumptions, and one record carries both — so the repair is
-// sometimes a MERGE of two bodies, which is a judgment about ordering
-// that no line-range op can express in the first place.
+// checker — and the hand pass is where it belongs, because whether a
+// rename is an improvement at all is a question about the record's
+// CONTENT that this pass cannot see.
+//
+// The cheap half of that has been done: fourteen headings whose canonical
+// section the record did not already carry were renamed, and not one of
+// the sections involved was cited by anything. What remains is not a
+// backlog of the same kind. Every surviving `section:legacy-name` names a
+// heading whose canonical section the record ALREADY HAS, as a separate
+// sibling holding different content — `Dependency Source Verification` is
+// a dependency survey table under Research Findings, beside the record's
+// own Critical Assumptions. Renaming those merges two bodies, which is a
+// judgment about ordering that no line-range op can express, and mostly
+// should not happen at all. See model.SectionAliases, PERMANENTLY
+// RETAINED.
 func headingFindings(d *scan.Document) []Finding {
 	var out []Finding
 	for _, n := range d.Outline {
