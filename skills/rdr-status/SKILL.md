@@ -29,173 +29,155 @@ Read the shared bones in [`rdr-common.md`](rdr-common.md): run **§seam-bind**
 then **§rdr-resolve** to bind `$RDR_ENV`, `RDR_PATH`, `RDR_SLUG`, and the evidence
 roots. Then derive position as below. Do **not** edit any file.
 
-## What it reads (the disk signals)
-
-**`rdr status` evaluates all of these — you do not walk the tree.** The shapes are
-here to make a fact's name legible and the table reviewable, not to run by hand.
-
-- **Lenses:** `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` — slug, literal `evidence/`,
-  then the lens. (A check at `<slug>/<lens>/` finds nothing and falsely reports the
-  lens un-run, which is why probes spell whole paths and never guess.)
-- **Spikes:** `…/<slug>/evidence/spikes/` (`{SPIKE_DIR}`, rdr-common §evidence).
-- `propose-premortem/` is Stage 2's critic output, a non-lens sibling — never count
-  it toward Stage-5 lens convergence.
-- Loose top-level lens folders are an older layout; `legacy_evidence_shape` names
-  them, so they can never read as "lens un-run".
-
-| Stage | Done-signal on disk |
-| --- | --- |
-| 1 Seed | RDR file exists; `Status: Draft`; Problem Statement filled (not placeholder) |
-| 2 Propose | Proposed Solution / Alternatives / Decision Rationale filled; Critical Assumptions list present (even if Pending); `Premortem:`, `Ground-sweep:`, and `Joint-check:` verdict lines in Decision Rationale (legacy RDRs predate them — absence alone doesn't reopen propose when the sections are filled, but surface it as a Caveat naming the unrun check, since a skipped gate item otherwise reads as a passed one; a *paused* joint-decision fire or bridge choice is propose not done) |
-| 3 Refine | *human-judged* — certified only by **Stage 4's product**: an assumption at `Status: Verified`, or `{SPIKE_DIR}`. A `Method:`/`Evidence:` line is **not** a signal (TEMPLATE.md ships both as skeleton labels; Stage 2 lists CAs `Pending` by design) — an all-`Pending` list means Refine is un-run. Never certify it from Stage-2 output (CA count, `Premortem:`/`Joint-check:` verdicts, propose evidence) |
-| 4 Resolve | Critical Assumptions all `Verified` or `Pending`-with-plan (the **primary** signal, from the CA tallies above); `{SPIKE_DIR}` present when spikes were named. A pure source-search resolve names no spikes and writes **no** evidence folder — verdicts are inline; an absent `<slug>/` dir is then expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` (the MVV, or a normative fixture it consumes, rests on it) resolves at Stage 4 — surface it as a Caveat, don't mark Resolve unrun. |
-| 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
-| 6 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
-| 7 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present, with `### Cross-Cutting Concerns` retained in the RDR (legacy RDRs: all five responses inline — either satisfies); README index row updated |
-| 7.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<key>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. In the current shape the key is the members' numbers joined, so the key IS the membership and `cluster_reconciled` answers it exactly. An earlier topical epoch (`dml-purpose`, `final-cluster-2026-05-28`) is keyed by subject instead; those are out of scope and read `false` — all their records are terminal (only when the RDR is in a cluster) |
-| 8 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
-
-### Both halves — one call, no listing
-
-```sh
-"$RDR_HOME/bin/rdr" status --json <NNNN>     # ~250 lines / 5KB — read it whole
-```
-
-`models/rdr-facts.toml` declares every signal in the table above — projected
-fields AND exact-path probes — and this evaluates them all, small enough that
-**paging it with `head`/`tail`/`sed` just re-runs the command.**
-
-**Do not `ls` the evidence tree, re-read the record, or poll the cluster peers**:
-the probes already looked, by exact path, and a hand-built path is how a lens that
-ran reads as un-run. A record's own `clustered` + `cluster_reconciled` settle
-Stage 7.1 — a peer's facts change no answer. `impl_state` is the Stage-8 capsule's
-own state word: open implementation artifacts only if it is absent or contradicts
-the tree.
-
-In `--json` an **absent** key means nothing looked (unbound root); it is not
-`false`, and never read one as the other. (`--tags` substitutes declared sentinels
-for the routing dimensions, since argv cannot spell absence.)
-
-Only two signals need a second call, both by design — the facts say a verdict line
-*is written*, not what it said, and Status qualifier prose is deliberately not a
-fact (`status_form` is):
-
-```sh
-"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>  # Premortem:/Ground-sweep: text
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata <NNNN>             # qualifier, where Output says "verbatim"
-```
-
-## How it decides "next"
-
-These branches are also **data** — `$RDR_HOME/models/rdr-status.toml`, one linted
-decision table. When `intrastate` resolves, one call answers each half; it is an
-accelerator, never a dependency, so if it does not, read on.
+## One call
 
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH, else skip
 M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
-if [ -x "$IS" ]; then
-  "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
-  "$IS" flow resolve --model "$M" --outcome lens   $("$R" status --tags NNNN)
+if [ -x "$IS" ]; then "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
 else echo "note: routing model not consulted (intrastate unresolved)"; fi
 ```
 
-If that note fires, the branches came from prose — **say so in Caveats**. The
-model is linted and the prose is not, so an unannounced skip reads as the checked
-answer when it is the unchecked one.
+Test the binary, never the exit code: a refusal exits 2, and `&& … ||` would
+report a model that WAS consulted and refused as one that never ran — the
+opposite of what happened, and the one thing this note must never get wrong.
 
-Unquoted `$(…)` is safe — every fact is one shell word, prose facts aren't
-rendered — but keep it **inline**: zsh does not word-split an unquoted variable,
-so `T=$(…)` then `$T` sends the whole vector as one argument (`unknown flag:
---tag`). Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and
-`emit.surface` (print verbatim); append `NNNN` yourself — emit interpolates nothing.
+That one call answers both halves. `observed.*` in its output **is** the fact
+vector — every signal the checklist renders, echoed back — and `emit` is the
+answer. There is nothing else to fetch: **do not** also run `status --json`, `ls`
+the evidence tree, re-read the record, or poll the cluster peers. The probes
+already looked, by exact path; a hand-built path is how a lens that ran reads as
+un-run, and a record's own `clustered` + `cluster_reconciled` settle Stage 7.1
+without a peer's facts changing any answer.
 
-**Edit the model with any change here.** `intrastate lint --model` proves every
-status×qualifier×ca×cluster and profile×lens cell is claimed exactly once — the
-guarantee this prose cannot give, and where a gap becomes a test failure.
+**Run `--outcome lens` only when `emit.next` is `resolve:lens`.** That token is
+the model's own chain instruction and one row emits it (a `Draft` whose
+assumptions are all terminal, where Resolve is behind you and §lens-row owns the
+question). Every other row answers completely, so a second call adds a duplicate
+48-fact echo and nothing else.
 
-1. **`Status` first — it is the coarse position.**
-   - `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
-   - `Final` → next is `/rdr-implement` (unless a cluster of ≥2 Final-unimplemented
-     peers exists and `cluster_reconciled` is `false` → `/rdr-cluster-reconcile`
-     first; `true` means 7.1 already ran over a set containing this RDR). A
-     `Final [joint decision →
-     <home §-anchor>: <question>]` qualifier is still `Final` for routing —
-     surface the home AND the open question so the human sees what is unanswered.
-     But check the home first: if it has ANSWERED that question, the scoped
-     answer-vs-fences check is owed **before** implement (Stage 7.1) — that check
-     is the next step, not `/rdr-implement`.
-   - A bare `Draft` that declares `Cluster` is barred from refine until every
-     member has completed propose (the tandem barrier) — if a sibling hasn't
-     proposed, next is that sibling's `/rdr-propose`, not this RDR's `/rdr-refine`.
-   - `Implemented` / `Reverted` / `Abandoned` / `Superseded` → terminal; report the
-     post-mortem state, no next command.
-   - `Deferred [revisit when <condition>]` → **parked, not terminal**. No post-mortem
-     is owed and no next command is due *while the condition holds* — report the
-     condition verbatim so the human can judge whether it has fired. If it plainly
-     has, next is the stage the RDR stopped at (usually `/rdr-propose`, which is
-     what returned no acceptable mechanism).
-   - A re-entry qualifier `Draft [revised from Final <date>; re-verify <IDs>]` →
-     this is a **scoped backward-edge**; next is `/rdr-resolve NNNN` (it self-scopes
-     to the listed IDs). Surface the qualifier so the human knows the run is a delta.
-   - bare `Draft` → front-half; use the evidence signals to find the furthest stage.
-     **Read the in-record signals, not just folders.** Some stages prove "done" in
-     the RDR body, not on disk: Stage 4 Resolve is done when the Critical
-     Assumptions are all `Verified`/`Pending`-with-plan **even if no evidence folder
-     exists** — a pure source-search resolve (no spikes, no lenses) writes its
-     verdicts inline and creates no `<RDR_EVIDENCE>/<slug>/` dir at all. A missing
-     evidence folder therefore does **not** mean Resolve hasn't run; check the CA
-     verdicts first. Never recommend re-running a stage whose done-signal (folder
-     **or** record) is already satisfied — if CAs are all `Verified`, Resolve is
-     behind you and next is the first Pre-Lock lens, not `/rdr-resolve`.
-     The converse binds equally: an **open `~` is the next command**, not a
-     footnote to step past. Refine is the front half's only `~` — when CAs are all
-     `Pending`, next is `/rdr-refine`, *then* `/rdr-resolve`.
-2. **Bind the `Profile` field first — it is the routing latch, not a Caveats
-   footnote.** It maps to an exact lens row: **rdr-common §lens-row** is the
-   authority (row, first-lens fork, Determinacy add-on, completion rules) —
-   never reconstruct it from memory. The Pre-Lock row you print lists **only
-   this profile's lenses**, plus a Determinacy-owed `repeatability` when it
-   fires (an owed obligation is never hidden); other off-profile lenses are
-   absent, not `–`. A `Draft`
-   Profile is provisional (Resolve earns it, Stage 7 latches it) — a hint, never
-   a basis for certifying a lens-skip; flag the basis when unearned. If the field
-   is absent, infer from the row and flag it (Caveats).
-3. **Per-lens for Stage 5**: if some profile lenses ran and others haven't, next is
-   the first un-run lens (`/rdr-prelock NNNN <lens>`) — that one command runs the
-   lens *and* resolves its findings (review + fix are one cycle now). For
-   `repeatability`, the variant follows `Profile`, not the files present:
-   `mid`/`large` = lite (only `run-1` then a focused RDR-vs-run diff);
-   `foundational`/escalation = full (`run-1/2/3` then `diff`). Point at the next
-   missing piece for that variant; the diff session also resolves `diff.md`.
-   Escalation is additive and the row never shrinks — §lens-row.
+```sh
+"$IS" flow resolve --model "$M" --outcome lens $("$R" status --tags NNNN)
+```
+
+Keep `$(…)` **inline**. Unquoted is safe — every fact is one shell word and prose
+facts are not rendered — but zsh does not word-split an unquoted *variable*, so
+`T=$(…)` then `$T` sends the whole vector as one argument (`unknown flag:
+--tag`). The repeated ~25ms call is the cost of the correct shape.
+
+Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and
+`emit.surface` (print verbatim); append `NNNN` yourself — emit interpolates
+nothing. A `flow-guard-unevaluable` refusal means a fact went **absent**, not
+false: a root is unbound or names no directory. Say so; never fill the gap.
+
+Only one signal needs a second `rdr` call, and only when `status_form` is not
+`none` — the Status qualifier's prose is deliberately not a fact:
+
+```sh
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata NNNN   # the qualifier text
+```
+
+### When the model is not consulted
+
+If the note fired, the facts and the routing both have to come from elsewhere:
+
+```sh
+"$RDR_HOME/bin/rdr" status --json NNNN     # ~250 lines / 5KB — read it whole, do not page it
+```
+
+and read the rows of `$RDR_HOME/models/rdr-status.toml` for the routing. **They
+are the prose of record — do not re-derive the branches from memory.** Then
+**say so in Caveats**: the model is linted and this path is not, so an
+unannounced skip reads as the checked answer when it is the unchecked one.
+
+In `--json` an **absent** key means nothing looked (unbound root); it is not
+`false`, and never read one as the other. (`--tags` substitutes declared
+sentinels for the routing dimensions, since argv cannot spell absence.)
+
+**Edit the model with any routing change.** `intrastate lint --model` proves
+every status×qualifier×ca×cluster and profile×lens cell is claimed exactly once —
+the guarantee prose cannot give, and where a gap becomes a test failure.
+
+## What the facts mean
+
+`models/rdr-facts.toml` declares every signal; these are the judgements it
+**cannot** make, which is the whole of what this skill still decides.
+
+| Stage | Facts | Judgement left to you |
+| --- | --- | --- |
+| 1 Seed | `status` | — |
+| 2 Propose | `premortem_line`, `ground_sweep_line`, `joint_checks` | Legacy records predate the verdict lines: absence alone does not reopen propose when the sections are filled, but **surface the unrun check as a Caveat** — a skipped gate item otherwise reads as a passed one. A *paused* joint-decision fire is propose-not-done. |
+| 3 Refine | `ca_verified`, `ca_pending`, `spikes` | Human-judged, certified only by **Stage 4's product** — a Verified assumption, or spikes. A `Method:`/`Evidence:` line is not a signal (TEMPLATE ships both as skeleton labels). All-`Pending` means Refine is un-run. |
+| 4 Resolve | `ca` (rollup), `spikes` | `Pending`-with-plan counts as terminal; the plan is prose, so you read it. A pure source-search resolve names no spikes and writes **no** folder — an absent dir is expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` resolves here — Caveat it, don't mark Resolve unrun. |
+| 5+6 Pre-Lock | `lens_*` (ran), `lens_*_findings`/`_consolidation`/`_run1..3`/`_diff`/`_modelb` (finished), `reconcile`, `iter_2` | Review + resolve are one cycle. Resolution is human-judged: a lens converged if the next lens's folder exists, or `reconcile`. `critique` on a `foundational` RDR owes the dual-model diff — a lone `lens_critique_single` is in-progress, not done. |
+| 6 Reconcile | `reconcile`, `reconcile_report{,_alt,_alt2}` | A bare folder with no report is a real state: the stage started and left nothing. |
+| 7 Finalize | `status`, `gate_written` | Legacy records carry all five gate responses inline — either satisfies. The README index row is not a fact; do not claim it. |
+| 7.1 Cluster | `clustered`, `cluster_reconciled` | Both, or a solo Final routes to a stage with nothing to reconcile. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
+| 8 Implement | `impl_capsule`, `impl_state` | `impl_state` is the capsule header's own state word. Open req-list/coverage/verification.md **only** if it is absent or contradicts the tree. |
+
+`propose_premortem` is Stage 2's critic output, a non-lens sibling — never count it
+toward Stage-5 convergence. `legacy_evidence_shape` names the older top-level
+layout, so those can never read as "lens un-run".
+
+## Judgement the facts cannot make
+
+Four questions route nothing, because each is about **another record** or about
+prose. The model declines them on purpose; they are yours.
+
+- **The tandem barrier.** A bare `Draft` declaring a `Cluster` is barred from
+  refine until every member has completed propose. `cluster` is set-valued and no
+  row guards it — if a sibling has not proposed, next is that sibling's
+  `/rdr-propose`, not this RDR's `/rdr-refine`.
+- **Has the home answered?** `stopped:check-the-joint-decision-home` means a
+  `Final` owes a joint decision. If the home has ANSWERED, the scoped
+  answer-vs-fences check (Stage 7.1) is owed **before** implement. Surface the home
+  and the open question.
+- **The Determinacy trigger.** On a `mid`/`large` RDR an algorithmic contract
+  appends `repeatability` (lite) to the row. `contracts` is a count and **zero
+  means unlabelled, not absent** — read the Normative Contracts section and judge.
+  Variant follows `Profile`, never the files present: `mid`/`large` = lite
+  (`run-1` then a focused diff); `foundational` = full (`run-1/2/3` then `diff`).
+- **Is a `Profile` earned?** A `Draft` Profile is provisional (Resolve earns it,
+  Stage 7 latches it) — a hint, never a basis for certifying a lens-skip. Absent
+  is `profile=none`, a §stop-packet rather than a default.
 
 ## Output
 
-Be brief. Print:
+Be brief. Everything below comes from `observed.*` and `emit` — nothing is
+fetched for it.
 
-1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`.
-2. **Stage checklist** — one line per row of the signal table above, verbatim in
+1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`. The bare status is
+   `status`; the qualifier text needs the `--filter metadata` call, and only when
+   `status_form` is not `none`.
+2. **Stage checklist** — one line per row of **What the facts mean**, verbatim in
    name and order; never invent, split, or rename a row. **Pre-Lock is the single
-   `5+6` row** (review+resolve are one cycle) — no separate "Resolve-findings"
-   stage; a lens shows `✓` when its folder exists, its resolution certified by the
-   next lens's folder or `evidence/reconcile/` in that same row. Mark `✓` (present),
-   `–` (not started), or `~` (no durable artifact by design — certified downstream,
-   not forgotten), naming the evidence keyed on
-   (e.g. `5+6 Pre-Lock  ✓ grounding  ✓ 3amigo` for a mid RDR). For `~`, name the
-   downstream signal, not just the verdict
-   (`3 Refine  ~ judged done — A3/A5 Verified`); if absent the `~` is open — say
-   so and let it own **Next** (`3 Refine  ~ open — CAs all Pending`). Never write
-   `~` as done while naming no Stage-4 product.
-3. **Next** — the exact command to run, e.g. `Next: /rdr-prelock 0046 critique`.
-   If terminal, say so and name the disposition.
-4. **Caveats** — only genuinely-open items: a `~` gate whose downstream signal is
-   **absent** (a `~` already certified downstream stays in the checklist, never
-   here — don't nudge a re-run of a done stage); a re-entry qualifier; and an
-   unearned Profile basis (absent → "no Profile; inferred mid"; `Draft` →
-   "Profile mid is Seed's estimate — Resolve to confirm"). A `Final` Profile is
-   earned → no caveat. And an **unconsulted routing model**, when `intrastate` did
-   not resolve.
+   `5+6` row** — no separate "Resolve-findings" stage. Mark each:
+   - `✓` — the row's facts are `true`.
+   - `–` — they are `false`.
+   - `~` — no durable artifact by design (Stage 3, and Stage 4 without spikes):
+     certified downstream, not forgotten. Name the downstream signal, not just the
+     verdict (`3 Refine  ~ judged done — A3/A5 Verified`). If that signal is
+     absent the `~` is **open** — say so and let it own **Next**
+     (`3 Refine  ~ open — CAs all Pending`). Never write `~` as done while naming
+     no Stage-4 product.
+   - **absent** (the fact is missing, not `false`) — write `?` and name the
+     unbound root. Never render an absent fact as `–`.
+
+   Print only **this profile's** lenses on the 5+6 row, plus a Determinacy-owed
+   `repeatability` when it fires — an owed obligation is never hidden. Off-profile
+   lenses are absent from the row, not `–`
+   (`5+6 Pre-Lock  ✓ grounding  ✓ 3amigo` for a mid RDR).
+3. **Next** — `emit.next` with `NNNN` appended, e.g.
+   `Next: /rdr-prelock 0046 critique`. `none` → say terminal and name the
+   disposition. `stopped:…` → print `emit.why` and stop there; a stop is an answer,
+   never a stage to guess past.
+4. **Caveats** — `emit.surface` verbatim, plus only genuinely-open items: a `~`
+   gate whose downstream signal is **absent** (a `~` already certified downstream
+   stays in the checklist, never here — don't nudge a re-run of a done stage); an
+   unearned Profile basis (`profile=none` → "no Profile; inferred mid"; a `Draft`
+   Profile → "Profile mid is Seed's estimate — Resolve to confirm"; a `Final`
+   Profile is earned, no caveat); a Stage-2 verdict line the record does not carry;
+   and an **unconsulted routing model**, when `intrastate` did not resolve.
 
 No writes. Confirm `git status` would be unchanged (you ran only reads).
 
@@ -208,11 +190,10 @@ One command, no glob and no per-file read:
 ```
 
 It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
-qualifier already split, and each row's facts under it (the signal table above,
-evaluated) — so a row needs no follow-up read.
-Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN` — each row's `next`
-comes from the same branches below (resolve per row only where a row is the one
-being acted on; the worklist itself needs no per-row resolve call).
+qualifier already split, and every fact under it — so a row needs no follow-up
+read. Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`, routing
+from the same model; resolve per row only for the row being acted on, since the
+worklist itself needs no per-row call.
 Parked RDRs are not in flight, so add `--status --json` and take the records with
 `terminal:false, in_flight:false` (`Deferred`) — list each on a separate **parked**
 line with its `status.qualifier` revisit condition verbatim: not in flight, not
@@ -227,7 +208,9 @@ breadth-first keeps joint-decision fires against still-fluid drafts
 
 ## Self-update
 
-If the disk signals here drift from how the stages actually write (a lens renames
-its output, a new evidence dir appears), update the signal table in this file and
-`rdr-common.md` §evidence. Stage-mechanics changes live in the stage `.md` +
-its prompt file, not here.
+When the stages change how they write, the signal is data: add or amend the fact
+in `models/rdr-facts.toml`, and the routing that reads it in
+`models/rdr-status.toml` (the two are coupled by fact NAME and nothing else, so a
+rename is a breaking change across both). Update this file only for the
+judgement columns above and `rdr-common.md` §evidence. Stage-mechanics changes
+live in the stage `.md` + its prompt file, not here.
