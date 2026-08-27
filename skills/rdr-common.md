@@ -8,12 +8,10 @@ files, then prints §next-step.
 
 These skills **stay on the current branch** — never `git branch`/`switch -c`/
 `checkout -b`, never a worktree (the "branch before feature work" reflex is wrong
-here). Many sessions share one branch on the instance folder; the §commit
-compare-and-swap *is* the isolation, so branching hides work from siblings and a
-worktree swaps the branch out from under them. They also **do not edit the consumer
-project's source** — they author/inspect RDR documents and write flow evidence. The
-only writes are to the RDR file, the evidence dirs, and (Stage 8) the artifact dir,
-all named via the seam. `/rdr-status` writes **nothing**.
+here); §commit owns why. They also **do not edit the consumer project's source** —
+they author/inspect RDR documents and write flow evidence. The only writes are to
+the RDR file, the evidence dirs, and (Stage 8) the artifact dir, all named via the
+seam. `/rdr-status` writes **nothing**.
 
 ## Invocation syntax
 
@@ -132,13 +130,11 @@ returns `resolved:false`, a false finding a consumer chases, where omitting
 ## §rdr-resolve — RDR number → file path
 
 Every stage skill except `/rdr-seed` takes a 4-digit number `NNNN`. Resolve it
-against the **canonical RDR directory** — `$RDR_RECORDS`, the absolute path the marker
-exports (this consumer's RDR-instances dir; the parent of `{ARTIFACT_DIR}`).
-`$RDR_RECORDS` is bound by §seam-bind — read it, **never** recompute it from a repo
-root or parse it out of `$RDR_ENV`'s cwd-relative strings (brittle). Look in
-**only** that dir so the many decoy `NNNN-*` entries
-under `$FLOW_ROOT/rdr/evidence/` (per-lens, tooling-pass, spikes — e.g. a real
-`evidence/tooling-pass/0039-*.md` is **not** an RDR) can never be picked:
+against the **canonical RDR directory** — `$RDR_RECORDS`, bound by §seam-bind (this
+consumer's RDR-instances dir; the parent of `{ARTIFACT_DIR}`). Look in **only** that
+dir so the many decoy `NNNN-*` entries under `$RDR_EVIDENCE` (per-lens, tooling-pass,
+spikes — e.g. a real `evidence/tooling-pass/0039-*.md` is **not** an RDR) can never
+be picked:
 
 ```sh
 # One call, no seam needed. `rdr` finds the marker itself for the records dir,
@@ -490,6 +486,9 @@ the last lens of an older, smaller profile.
 
 ## §mechanical-gate — 30-second template/anchor grep at stage exit
 
+Cited by the 02/03/04 stage prompts, not by any SKILL.md — a SKILL-only reference
+count reads this as dead; it is not.
+
 Propose, refine, and resolve close with a grep of the RDR for: a surviving
 verbatim template bracket (`[Required`, `[Conditional`, `[Resource]`,
 `[Capability]`), `_Draft placeholder._` or a seed-skeleton header in any
@@ -531,6 +530,8 @@ check did not run rather than closing over it. `rdr index --unresolved` is the
 corpus-wide form.
 
 ## §amendment-sweep — propagate clause changes at disposition
+
+Cited by the 04/05/06 stage prompts, not by any SKILL.md (as §mechanical-gate).
 
 Amending OR adding a normative predicate/contract clause: (1) grep the draft
 for the pre-edit token(s) — every surviving stale site updates in the same
@@ -723,7 +724,14 @@ one: the doc/README commit is the **design history** (`docs(rdr):`, real subject
 
 Be brief without being lossy (the flow's standing doctrine —
 `$RDR_HOME/stages/README.md` *Doctrine*). Spend tokens on load-bearing or
-complex design; terse everywhere else. Delegate heavy reads (corpus, source,
-several round-output files) to a sub-agent that returns verdict + evidence
-pointer — the read-heavy stages (4, 6, 7) and `/rdr-status` rely on this. Defer
-to CLAUDE.md and the README Doctrine on any conflict.
+complex design; terse everywhere else. This file is read whole on every
+`/rdr-*` run, so **its size is a per-run cost paid by every skill** — an added
+paragraph is charged fourteen times over. Defer to CLAUDE.md and the README
+Doctrine on any conflict.
+
+**Do not split this file into a hot core + cold appendix.** Measured 2026-08-27:
+counting each skill *plus the stage prompt it runs in the same context*, all 9
+skills that read it cite ≥1 "cold" section, so a split buys zero avoided reads
+and costs an extra Read turn each — and the turn is the cost. Prune duplication
+instead. (Re-measure before re-opening; section reference counts taken from
+SKILL.md alone will mislead you — prompts cite anchors too.)
