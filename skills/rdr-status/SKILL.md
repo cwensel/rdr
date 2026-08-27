@@ -31,24 +31,17 @@ roots. Then derive position as below. Do **not** edit any file.
 
 ## What it reads (the disk signals)
 
-The **evidence folder is the primary signal.** For `RDR_SLUG`, check existence and
-combine with the RDR's own header. All reads are cheap; delegate nothing unless an
-evidence folder is large.
+**`rdr status` evaluates all of these — you do not walk the tree.** The shapes are
+here to make a fact's name legible and the table reviewable, not to run by hand.
 
-**Artifact shapes:**
-- **Lenses:** `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` — slug, then a literal
-  `evidence/`, then the lens. (The `evidence/` segment is the one most-missed; a
-  check at `<slug>/<lens>/` finds nothing and falsely reports the lens un-run.)
-- **Spikes:** `<RDR_EVIDENCE>/<slug>/evidence/spikes/` (`{SPIKE_DIR}`, rdr-common
-  §evidence). Legacy trees may hold `<RDR_EVIDENCE>/spikes/<slug>/` instead —
-  either satisfies.
-- `propose-premortem/` under `<slug>/evidence/` is Stage 2's critic output, a
-  non-lens sibling — never count it toward Stage-5 lens convergence.
-
-There is no `<round>/<slug>` shape — don't invent one and flag the real tree as
-deviating. Stale top-level lens folders may sit loose under `<RDR_EVIDENCE>/`
-(e.g. `<RDR_EVIDENCE>/3amigo/`) from an older layout — ignore them; only the
-per-slug paths above count.
+- **Lenses:** `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` — slug, literal `evidence/`,
+  then the lens. (A check at `<slug>/<lens>/` finds nothing and falsely reports the
+  lens un-run, which is why probes spell whole paths and never guess.)
+- **Spikes:** `…/<slug>/evidence/spikes/` (`{SPIKE_DIR}`, rdr-common §evidence).
+- `propose-premortem/` is Stage 2's critic output, a non-lens sibling — never count
+  it toward Stage-5 lens convergence.
+- Loose top-level lens folders are an older layout; `legacy_evidence_shape` names
+  them, so they can never read as "lens un-run".
 
 | Stage | Done-signal on disk |
 | --- | --- |
@@ -62,36 +55,31 @@ per-slug paths above count.
 | 7.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<key>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. In the current shape the key is the members' numbers joined, so the key IS the membership and `cluster_reconciled` answers it exactly. An earlier topical epoch (`dml-purpose`, `final-cluster-2026-05-28`) is keyed by subject instead; those are out of scope and read `false` — all their records are terminal (only when the RDR is in a cluster) |
 | 8 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
-### The record half — one projection, not a body read
+### Both halves — one call, no listing
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata,elements,counts <NNNN>
+"$RDR_HOME/bin/rdr" status --json <NNNN>     # or --tags, to feed the model above
 ```
 
-Read literally, never re-parsed from the markdown:
-- **Status** — `metadata[]` where `label=="Status"` → `.status.{value,qualifier,form,raw}`.
-  `value` is the bare Status, `qualifier` the bracket contents already split out;
-  print `raw` where the Output section says "verbatim".
-- **Profile** — `metadata[]` where `label=="Profile"` → `.value`.
-- **CA tallies** — `elements[]` where `kind=="A"`; each one's `fields[]` where
-  `label=="Status"` → `.status.value`. Count `Verified` vs `Pending`.
-- **Determinacy trigger** — `counts.elements.C` > 0 (Normative Contracts present),
-  for `mid`/`large` per §lens-row.
+`models/rdr-facts.toml` declares every signal in the table above — the record's
+projected fields AND the exact-path probes — and this evaluates them all. **Do not
+`ls` the evidence tree or re-read the record**: the probes already did, by exact
+path, and a hand-built path is how a lens that ran reads as un-run. `impl_state`
+is the Stage-8 capsule's own state word — open implementation artifacts only if it
+is absent or contradicts the tree.
 
-`Joint-check:` lines ARE projected — each is a `JC` element carrying a parsed
-verdict, targets, home and `open` flag, counted in `counts.elements.JC`. Only
-`Premortem:` and `Ground-sweep:` are prose the projection does not carry; read
-that section's bytes for those two:
-`"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>`
-(the id is stable however the record spells the heading).
+In `--json` an **absent** key means nothing looked (unbound root); it is not
+`false`, and never read one as the other. (`--tags` substitutes declared sentinels
+for the routing dimensions, since argv cannot spell absence.)
 
-Then `ls` each folder at the exact shape above — lenses, `reconcile`, and `spikes`
-under `<slug>/evidence/` (legacy: top-level `spikes/<slug>/`), plus
-`{ARTIFACT_DIR}/status.md`. Stage 7.1 needs no listing: `cluster_reconciled`
-answers it, because the directory's key is its membership.
-For an in-flight Stage 8, the status.md capsule header is the single authoritative
-resume read — do not open the detailed implementation artifacts unless it is absent
-or contradicts what the tree shows.
+Only two signals need a second call, both by design — the facts say a verdict line
+*is written*, not what it said, and Status qualifier prose is deliberately not a
+fact (`status_form` is):
+
+```sh
+"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>  # Premortem:/Ground-sweep: text
+"$RDR_HOME/bin/rdr" inspect --json --filter metadata <NNNN>             # qualifier, where Output says "verbatim"
+```
 
 ## How it decides "next"
 
@@ -102,9 +90,15 @@ accelerator, never a dependency, so if it does not, read on.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH, else skip
 M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
-[ -x "$IS" ] && "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
-[ -x "$IS" ] && "$IS" flow resolve --model "$M" --outcome lens   $("$R" status --tags NNNN)
+if [ -x "$IS" ]; then
+  "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
+  "$IS" flow resolve --model "$M" --outcome lens   $("$R" status --tags NNNN)
+else echo "note: routing model not consulted (intrastate unresolved)"; fi
 ```
+
+If that note fires, the branches came from prose — **say so in Caveats**. The
+model is linted and the prose is not, so an unannounced skip reads as the checked
+answer when it is the unchecked one.
 
 Unquoted `$(…)` is safe: every fact is one shell word, prose facts aren't rendered.
 Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and `emit.surface`
@@ -194,7 +188,8 @@ Be brief. Print:
    here — don't nudge a re-run of a done stage); a re-entry qualifier; and an
    unearned Profile basis (absent → "no Profile; inferred mid"; `Draft` →
    "Profile mid is Seed's estimate — Resolve to confirm"). A `Final` Profile is
-   earned → no caveat.
+   earned → no caveat. And an **unconsulted routing model**, when `intrastate` did
+   not resolve.
 
 No writes. Confirm `git status` would be unchanged (you ran only reads).
 
@@ -209,7 +204,9 @@ One command, no glob and no per-file read:
 It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
 qualifier already split, and each row's facts under it (the signal table above,
 evaluated) — so a row needs no follow-up read.
-Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`.
+Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN` — each row's `next`
+comes from the same branches below (resolve per row only where a row is the one
+being acted on; the worklist itself needs no per-row resolve call).
 Parked RDRs are not in flight, so add `--status --json` and take the records with
 `terminal:false, in_flight:false` (`Deferred`) — list each on a separate **parked**
 line with its `status.qualifier` revisit condition verbatim: not in flight, not
