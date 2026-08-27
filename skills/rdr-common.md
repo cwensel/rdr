@@ -422,67 +422,38 @@ silently route past the lenses.
 ## §lens-row — Profile → the Stage-5 lens row (one authority)
 
 Every "which lens next?" answer — resolve's first pointer, prelock's next
-pointer, status's derived position — is this table plus what's on disk. Mirrors
-the `$RDR_HOME/stages/README.md` matrix (still the human-facing authority);
-inlined here so a skill never reconstructs it from memory. **Read the `Profile`
-field, then the row — never default to a lens.** Read it typed —
-`metadata[]` where `label=="Profile"`, then `.value`:
+pointer, status's derived position — **is resolved by the routing model, not by
+reading this section**. `$RDR_HOME/models/rdr-status.toml` is the authority:
+`intrastate lint` *proves* every profile × lens-flag cell is claimed by exactly
+one rule, which is a guarantee prose cannot give.
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata,counts,outline "$NNNN"
-# metadata[] label=="Profile" -> .value ; counts.elements.C ; outline[] canonical=="Normative Contracts"
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
+  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
 ```
 
-`.value` carries the keyword **plus its rationale tail** (`mid — one contract plus
-the metrics surface`), so match the leading word, never the whole string. No
-`Profile` entry = the field is absent: that is a §stop-packet, not a default.
+It answers with the next command and its reason, and returns
+`stopped:no-profile` when the `Profile` field is absent — a §stop-packet, never
+a default. The row it walks (`small` skips Stage 5; `mid` grounding → 3amigo;
+`large` + critique; `foundational` cove → 3amigo → critique → repeatability,
+leading with cove because cove subsumes grounding's sweep), the
+first-missing-lens rule, and the additive-never-shrinks rule are all encoded
+there — do not restate or re-derive them here.
 
-| `Profile` | Lens row (in order) | First lens |
-| --- | --- | --- |
-| `small` | *(none — skip Stage 5)* | → `/rdr-reconcile NNNN` |
-| `mid` | grounding → 3amigo | `grounding` |
-| `large` | grounding → 3amigo → critique | `grounding` |
-| `foundational` | cove → 3amigo → critique → repeatability | **`cove`** |
+**Unavailable `intrastate` is the only reason to walk the row by hand**, from
+the `$RDR_HOME/stages/README.md` matrix (the human-facing authority). Say that
+the model was not consulted rather than inferring silently.
 
-`foundational` leads with **cove**, never `grounding`: cove subsumes the grounding
-sweep as its Step 0. Subsumption runs one way — a standalone `grounding/` from a
-pre-escalation `mid`/`large` pass does **not** discharge cove's Step 0.
-
-**Next lens = first row entry with no completed evidence.** Take the row as the
-required checklist and subtract only *completed* lens evidence under
-`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/` — a bare folder is not completion
-(`repeatability` owes its run/diff files; `critique` on `foundational` owes the
-dual-model diff, §model-stamp). When the Stage 5 Determinacy trigger fires on a
-`mid`/`large` RDR (algorithmic contract — `$RDR_HOME/stages/05-prelock.md`),
-**append `repeatability` (lite variant) to the row** — a row entry, not a
-footnote, so the first-missing rule sees it and `evidence/repeatability/` is its
-completion signal. It is discharged only by those files or a written
-`determinacy: n/a — <reason>` disposition. Whole row complete →
-`/rdr-reconcile NNNN`.
-
-Read the contracts the trigger judges from `counts.elements.C` plus the
-`§normative-contracts` outline entry (`canonical=="Normative Contracts"`, whose
-`line_start`/`line_end` bound them). **A zero `C` count does not skip the
-trigger** — contracts written as prose are unaddressable and count zero, so on
-an older record zero means *unlabelled*, not *absent*: read the section's lines
-and judge the trigger on what they say.
-
-`counts.derived` is the labelling BACKLOG — ids an author could still write
-down — and it reads the opposite way: zero there means *nothing to do*, not
-*nothing there*. Kinds the template keys nowhere (`BR`, `F`, and every section
-whose heading is the author's own) carry their minted ids in
-`counts.structural`, where the ordinal IS the element's identity and no edit
-improves it. Never read a zero backlog as "this record has no BR/F elements",
-and never propose labelling something the template gives no slot to: check
-`counts.elements` for presence, `counts.derived` for work.
-
-**Profile changes are additive, and the row never shrinks.** Recompute from the
-*current* field on every close-out, not from the lens just run or a profile
-remembered earlier in the session. On a reset/escalation to `foundational`, keep
-lower-profile lens folders as done, but the full `cove 3amigo critique
-repeatability` row is still owed — and `grounding` is not a member of it, so a
-complete `grounding/` subtracts nothing there. Never infer "all lenses done" from
-the last lens of an older, smaller profile.
+**The one judgment the table does not make** is the Stage 5 Determinacy trigger
+(`$RDR_HOME/stages/05-prelock.md`): on a `mid`/`large` algorithmic contract it
+appends `repeatability` (lite) as a *row entry*, discharged only by
+`evidence/repeatability/` files or a written `determinacy: n/a — <reason>`.
+A fact cannot decide it, because **a zero `counts.elements.C` means
+*unlabelled*, not *absent*** — read the `Normative Contracts` lines
+(`outline[]` bounds them) and judge the trigger on what they say. The
+`row-complete` rules surface this obligation rather than silently routing past
+it.
 
 ## §mechanical-gate — 30-second template/anchor grep at stage exit
 
