@@ -58,15 +58,19 @@ here to make a fact's name legible and the table reviewable, not to run by hand.
 ### Both halves — one call, no listing
 
 ```sh
-"$RDR_HOME/bin/rdr" status --json <NNNN>     # or --tags, to feed the model above
+"$RDR_HOME/bin/rdr" status --json <NNNN>     # ~250 lines / 5KB — read it whole
 ```
 
-`models/rdr-facts.toml` declares every signal in the table above — the record's
-projected fields AND the exact-path probes — and this evaluates them all. **Do not
-`ls` the evidence tree or re-read the record**: the probes already did, by exact
-path, and a hand-built path is how a lens that ran reads as un-run. `impl_state`
-is the Stage-8 capsule's own state word — open implementation artifacts only if it
-is absent or contradicts the tree.
+`models/rdr-facts.toml` declares every signal in the table above — projected
+fields AND exact-path probes — and this evaluates them all, small enough that
+**paging it with `head`/`tail`/`sed` just re-runs the command.**
+
+**Do not `ls` the evidence tree, re-read the record, or poll the cluster peers**:
+the probes already looked, by exact path, and a hand-built path is how a lens that
+ran reads as un-run. A record's own `clustered` + `cluster_reconciled` settle
+Stage 7.1 — a peer's facts change no answer. `impl_state` is the Stage-8 capsule's
+own state word: open implementation artifacts only if it is absent or contradicts
+the tree.
 
 In `--json` an **absent** key means nothing looked (unbound root); it is not
 `false`, and never read one as the other. (`--tags` substitutes declared sentinels
@@ -100,9 +104,11 @@ If that note fires, the branches came from prose — **say so in Caveats**. The
 model is linted and the prose is not, so an unannounced skip reads as the checked
 answer when it is the unchecked one.
 
-Unquoted `$(…)` is safe: every fact is one shell word, prose facts aren't rendered.
-Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and `emit.surface`
-(print verbatim); append `NNNN` yourself — emit values interpolate nothing.
+Unquoted `$(…)` is safe — every fact is one shell word, prose facts aren't
+rendered — but keep it **inline**: zsh does not word-split an unquoted variable,
+so `T=$(…)` then `$T` sends the whole vector as one argument (`unknown flag:
+--tag`). Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and
+`emit.surface` (print verbatim); append `NNNN` yourself — emit interpolates nothing.
 
 **Edit the model with any change here.** `intrastate lint --model` proves every
 status×qualifier×ca×cluster and profile×lens cell is claimed exactly once — the
