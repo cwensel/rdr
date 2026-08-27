@@ -793,3 +793,114 @@ Responses: 0031-split-gate/artifacts/gate.md (Gate PASS 2026-08-26)
 		t.Error("0031:G-cross-cutting is not projected; peers cite it by that id")
 	}
 }
+
+// TestPlaceholderSurvivedFiresOnTemplateText: the defect this rule exists
+// for is a record that lints PERFECTLY — every section present, every
+// heading canonical, coverage zero — while carrying TEMPLATE.md's own
+// guidance where the author's words belong. A verbatim template copy was
+// the proof: it passed with no findings at all.
+//
+// Both message variants are asserted, because the pair is the rule's
+// judgement. A block sitting above real content and a block standing in
+// for content never written need different repairs, and a rule that
+// reported one message for both would be telling an author to delete a
+// paragraph when the section is empty underneath.
+func TestPlaceholderSurvivedFiresOnTemplateText(t *testing.T) {
+	const guidanceOnly = `# Recommendation 0091: Authored, guidance left behind
+
+## Metadata
+
+- **Status**: Implemented
+
+## Normative Contracts
+
+[Required — never omit. Load-bearing — implementers must
+match exactly.]
+
+- **C1** The ` + "`--into`" + ` flag desugars into the existing record.
+`
+	const skeleton = `# Recommendation 0115: Never authored
+
+## Metadata
+
+- **Status**: Draft
+
+## Critical Assumptions
+
+[Required — never omit. Load-bearing assumptions — if
+wrong, the approach fails.]
+
+- **A1 [Statement]**
+  - **Status**: Verified | Pending | Unverified
+  - **Method**: ` + "`one of the eight below`" + `
+`
+	for _, tc := range []struct {
+		name    string
+		rec     string
+		wantMsg string
+	}{
+		{"guidance above authored content", guidanceOnly, "not the author's"},
+		{"guidance over an unfilled skeleton", skeleton, "unfilled skeleton"},
+	} {
+		d := scan.Bytes([]byte(tc.rec), scan.Options{})
+		r := Run(d, Options{})
+		f := find(t, r, "placeholder:survived")
+		if !strings.Contains(f.Message, tc.wantMsg) {
+			t.Errorf("%s: message = %q, want it to contain %q", tc.name, f.Message, tc.wantMsg)
+		}
+		// Migration advice, never a block - on any record, at any gate.
+		if f.Blocking {
+			t.Errorf("%s: placeholder:survived blocks; conformance never does", tc.name)
+		}
+		// The range must be the marker's own lines, not the section's, so
+		// the reader is pointed at the text to delete.
+		if f.LineEnd < f.LineStart {
+			t.Errorf("%s: spans %d-%d", tc.name, f.LineStart, f.LineEnd)
+		}
+		if got := d.Line(f.LineStart); !strings.HasPrefix(got, "[Required") && !strings.HasPrefix(got, "[Conditional") {
+			t.Errorf("%s: range opens at %q, want the marker line", tc.name, got)
+		}
+		if !strings.Contains(d.Line(f.LineEnd), "]") {
+			t.Errorf("%s: range ends at %q, want the marker's closing bracket", tc.name, d.Line(f.LineEnd))
+		}
+	}
+}
+
+// TestPlaceholderSurvivedIgnoresSchemaMarkers: `[Gate key: …]` and
+// `[Retained at lock — …]` are the template's SCHEMA, read as data by the
+// model - a record carries none of them, and a rule matching every
+// bracketed lead would report the template's own grammar as a defect on
+// the corpus's own fixtures. A false finding is worse than an absent one.
+func TestPlaceholderSurvivedIgnoresSchemaMarkers(t *testing.T) {
+	const rec = `# Recommendation 0031: Schema markers are not guidance
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+[Gate key: contradiction]
+[Retained at lock — this sub-section stays in the RDR]
+`
+	d := scan.Bytes([]byte(rec), scan.Options{})
+	if r := Run(d, Options{}); has(r, "placeholder:survived") {
+		t.Errorf("placeholder:survived fired on schema markers (codes: %v)", codes(r))
+	}
+}
+
+// TestPlaceholderSurvivedIsSilentOnAConformantRecord: the rule must be
+// quiet on a record whose sections are the author's own words. This is
+// the guard that keeps 123 of the corpus's 144 records clean.
+func TestPlaceholderSurvivedIsSilentOnAConformantRecord(t *testing.T) {
+	for _, name := range []string{"current-shape.md", "gate-inline.md"} {
+		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		d := scan.Bytes(raw, scan.Options{})
+		if r := Run(d, Options{}); has(r, "placeholder:survived") {
+			t.Errorf("%s: placeholder:survived fired on a conformant record", name)
+		}
+	}
+}

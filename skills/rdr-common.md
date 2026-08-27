@@ -476,40 +476,36 @@ it.
 Cited by the 02/03/04 stage prompts, not by any SKILL.md — a SKILL-only reference
 count reads this as dead; it is not.
 
-Propose, refine, and resolve close with a grep of the RDR for: a surviving
-verbatim template bracket (`[Required`, `[Conditional`, `[Resource]`,
-`[Capability]`), `_Draft placeholder._` or a seed-skeleton header in any
-section this stage's `Advance when` requires authored, and (propose/resolve)
-each NEW `path::Symbol` resolving somewhere in the repo. Any hit → fix now,
-or close `Gate: NOT READY (mechanical: <item>)`. This is the Stage-7
-tooling-pass CHECK 1/5 subset run where the regression is created instead of
-four stages later; the Stage-7 sweep stays the backstop. (Mined: a Required
-contract section once survived propose, refine, resolve, and four lenses as
-verbatim template text.)
-
-`rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
-does the structural share: unlabelled contracts, Peer-RDR Evidence naming a
-record not an element, unresolvable typed references — and leaves the receipt
-§commit demands (`rdr receipt <NNNN>`: a lint at/after the record's last write,
-else the commit is refused). `conformance` findings
-are advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
-`resolution` findings are the fix-now class above. A dangling reference into
-a *terminal* peer comes back as a fix pointer with a line range — correcting
-that reference text is the one sanctioned amendment to a locked RDR.
+Propose, refine, and resolve close by running `rdr lint`, then judging its
+`placeholder:survived` findings against what this stage's `Advance when`
+requires authored. Any hit in a section this stage owed → fix now, or close
+`Gate: NOT READY (mechanical: <item>)`. This is the Stage-7 tooling-pass
+CHECK 1/5 subset run where the regression is created instead of four stages
+later; the Stage-7 sweep stays the backstop. (Mined: a Required contract
+section once survived propose, refine, resolve, and four lenses as verbatim
+template text.)
 
 ```sh
-"$RDR_HOME/bin/rdr" lint "$NNNN"
-# scope the bracket/placeholder grep: outline[] gives each section its canonical + line_start/line_end
-"$RDR_HOME/bin/rdr" inspect --select outline "$NNNN"
-# NEW path::Symbol: edges[] kind=="source-anchor" -> resolved
-"$RDR_HOME/bin/rdr" inspect --json --filter edges "$NNNN"
+"$RDR_HOME/bin/rdr" lint "$NNNN"                            # placeholder:survived + the structural share
+"$RDR_HOME/bin/rdr" inspect --json --filter edges "$NNNN"   # NEW path::Symbol: edges[] source-anchor -> resolved
 ```
 
-**Neither lint nor `warnings[]` sees a surviving placeholder** — a record copied
-straight from TEMPLATE.md lints PASS with no warnings, by design: the projector
-judges structure and what a record emits, never whether a section was authored.
-So the grep above stays, and is the only thing that catches this; `outline[]`
-only narrows it to the `line_start`..`line_end` of the sections this stage owes.
+**The tool reports the text; the stage judges the obligation.** A finding says
+TEMPLATE.md's own words survived at that range — it never says the section is
+unauthored, because a record can carry a real contract with the guidance block
+still above it. Which sections this stage owed authored is the stage's call,
+and the two messages separate the cases: a block over an *unfilled skeleton*
+is always a fix, a block over authored content is a deletion.
+
+`rdr lint` also does the structural share: unlabelled contracts, Peer-RDR
+Evidence naming a record not an element, unresolvable typed references — and
+leaves the receipt §commit demands (`rdr receipt <NNNN>`: a lint at/after the
+record's last write, else the commit is refused). `conformance` findings are
+advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
+`resolution` findings are the fix-now class, and the only ones that block
+(`--locking`, live record, exit 1). A dangling reference into a *terminal* peer
+comes back as a fix pointer with a line range — correcting that reference text
+is the one sanctioned amendment to a locked RDR.
 
 For anchors, `resolved` is **three-valued** (§source-root): `true`, `false`, or
 **absent** — nothing looked. Absent is neither pass nor fail; the gate says the

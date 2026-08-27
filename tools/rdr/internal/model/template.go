@@ -190,6 +190,22 @@ var FenceDelimiter = regexp.MustCompile("^\\s*(```|~~~)")
 // Finalization Gate body at lock.
 var GatePointer = regexp.MustCompile(`gate\.md`)
 
+// AuthoringMarker matches TEMPLATE.md's own guidance blocks — the
+// `[Required — …]` / `[Conditional — …]` clauses that tell an author what
+// a section owes. They declare the section's class while the template is
+// being read (parse.go), and in a RECORD they are text the author was
+// meant to delete: the template's words standing where the author's
+// should be.
+//
+// It is deliberately NOT every bracketed lead. `[Gate key: …]` and
+// `[Retained at lock — …]` are SCHEMA markers the reader parses as data
+// and a record legitimately carries none of them — matching those would
+// report the template's own grammar as a defect, which is the false
+// finding the never-guess rule exists to prevent. Anchored at column zero
+// because a guidance block opens its own line; an indented bracket is a
+// field's placeholder and has an owner.
+var AuthoringMarker = regexp.MustCompile(`^\[(Required|Conditional)\b`)
+
 // --- Heading -------------------------------------------------------
 
 // Heading matches an ATX heading, capturing its hashes and its text.

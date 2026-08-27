@@ -330,7 +330,9 @@ scanner is what is wrong — and the fix is a fixture.
 
 **conformance** is migration advice: unlabelled contracts, a Required
 section the current template carries and this record does not, a heading
-written at a non-canonical level, a citation in a non-canonical form. It
+written at a non-canonical level, a citation in a non-canonical form, and
+TEMPLATE.md's own `[Required — …]` / `[Conditional — …]` guidance left
+standing where the author's words belong (`placeholder:survived`). It
 is phrased for the stage already holding the file open, and it never
 blocks — on ANY record. Terminal records get it too, because a frozen
 record's CONTENT is never amended but its STRUCTURE may be migrated
@@ -381,6 +383,7 @@ read by a script; this tool writes no record.
 | `citation:form` | the line, every citation on it at once | the target is a section, the text is fenced or repeats in range |
 | `section:legacy-name` | never | always — see below |
 | `gate:inline` | never | always — a cross-file move |
+| `placeholder:survived` | never | always — a block above authored content and one standing in for missing content need different repairs, and telling them apart is judgment |
 
 **The patch set is a fixpoint, applied bottom-up.** A second pass over
 the result proposes nothing: conformance is reached in ONE pass, and

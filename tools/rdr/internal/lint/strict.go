@@ -65,6 +65,7 @@ func templateFindings(d *scan.Document) []Finding {
 	out = append(out, citationFindings(d)...)
 	out = append(out, vocabularyFindings(d)...)
 	out = append(out, gateFindings(d)...)
+	out = append(out, placeholderFindings(d)...)
 	return out
 }
 
@@ -698,6 +699,112 @@ func canonicalFor(v model.Vocabulary, observed string) string {
 		}
 	}
 	return hit
+}
+
+// --- surviving template text -------------------------------------------
+
+// placeholderFindings report TEMPLATE.md's own guidance blocks left in a
+// record: `[Required — …]` / `[Conditional — …]` clauses standing where
+// the author's words belong.
+//
+// WHY LINT COULD NOT SEE THIS BEFORE. The projector judges structure and
+// what a record EMITS, and a record copied verbatim from TEMPLATE.md
+// emits a structurally perfect document — every section present, every
+// heading canonical. It lints PASS with no warnings, and the coverage
+// rate is zero because the guidance parses cleanly as section prose. So
+// the one thing that catches it is reading the bytes, and nothing did.
+// (Mined: a Required contract section once survived propose, refine,
+// resolve and four lenses as verbatim template text.)
+//
+// WHY CONFORMANCE, NOT RESOLUTION. Resolution judges what a record emits
+// — a dangling edge, a citation naming no element. Surviving guidance is
+// the ABSENCE of authoring, which is a shape the current template would
+// not produce, so it is migration advice: reported on every record,
+// blocking none. That reaches terminal records too, and should: deleting
+// a stale guidance block is a structural repair, and the tier already
+// holds that a frozen record's CONTENT is never amended while its
+// STRUCTURE may be migrated.
+//
+// WHAT IT DOES NOT CLAIM. A marker means the template's words survived,
+// never that the section is unauthored — a record can carry a real
+// contract with the guidance block still sitting above it. Whether the
+// stage owed that section authored is the stage's call, so the finding
+// reports the text and the range and stops there.
+//
+// NO PATCH. Deleting the block is mechanical, but a block sitting above
+// authored content and one standing in for missing content need
+// different repairs, and telling them apart is judgment.
+func placeholderFindings(d *scan.Document) []Finding {
+	var out []Finding
+	for _, n := range d.Outline {
+		start, end := markerRange(d, n)
+		if start == 0 {
+			continue
+		}
+		msg := "TEMPLATE.md's guidance block survived here; it is the template's words, not the author's"
+		fix := "delete the bracketed guidance block, keeping whatever the author wrote around it"
+		if sectionHasPlaceholderElement(d, n) {
+			msg = "TEMPLATE.md's guidance block survived here, and an element under it is still the unfilled skeleton"
+			fix = "author this section: delete the bracketed guidance block and replace the skeleton element with real content"
+		}
+		out = append(out, Finding{
+			Tier:      TierConformance,
+			Code:      "placeholder:survived",
+			Element:   n.ID,
+			Message:   msg,
+			LineStart: start,
+			LineEnd:   end,
+			Fix:       fix,
+		})
+	}
+	return out
+}
+
+// markerRange finds the first authoring marker in a section's own body and
+// returns the lines it spans — a marker runs to its closing bracket, and
+// the template wraps them over as many as eight lines. Lines belonging to
+// a nested sub-section are skipped: that heading's own node reports them,
+// and attributing them twice would double-count one block.
+func markerRange(d *scan.Document, n scan.Node) (int, int) {
+	child := map[int]bool{}
+	for _, c := range d.Outline {
+		if c.Parent != n.ID {
+			continue
+		}
+		for i := c.LineStart; i <= c.LineEnd; i++ {
+			child[i] = true
+		}
+	}
+	for i := n.LineStart + 1; i <= n.LineEnd; i++ {
+		if child[i] || !model.AuthoringMarker.MatchString(d.Line(i)) {
+			continue
+		}
+		for j := i; j <= n.LineEnd; j++ {
+			if strings.Contains(d.Line(j), "]") {
+				return i, j
+			}
+		}
+		return i, i // unclosed: report the opening line rather than the rest of the section
+	}
+	return 0, 0
+}
+
+// sectionHasPlaceholderElement reports whether an element in this section
+// still carries the template's unfilled Status legend — the signal that
+// separates a guidance block left above real content from one standing in
+// for content that was never written.
+func sectionHasPlaceholderElement(d *scan.Document, n scan.Node) bool {
+	for _, e := range d.Elements {
+		if e.Section != n.ID {
+			continue
+		}
+		for _, f := range e.Fields {
+			if f.Status != nil && f.Status.Placeholder {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // --- the gate ---------------------------------------------------------
