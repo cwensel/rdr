@@ -64,11 +64,13 @@ top — never carry an `export RDR_…=…` prefix from one call to the next, an
 re-run this block just to reach `rdr`.
 
 **`rdr` never needs it.** The binary finds the marker itself, by the same
-nearest-wins rule, and reads `$RDR_RECORDS` and `$RDR_SOURCE_REPO` from it — so a
-bare `"$RDR_HOME/bin/rdr" inspect …` works from any directory in the project with
-no seam bound at all. An exported var still wins over the marker, and a flag over
-both. Run §seam-bind for what the tool does *not* read: `$RDR_EVIDENCE`,
-`$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+nearest-wins rule, and reads `$RDR_RECORDS`, `$RDR_SOURCE_REPO`, `$RDR_EVIDENCE`
+and `$RDR_HOME` from it — so a bare `"$RDR_HOME/bin/rdr" inspect …` works from any
+directory in the project with no seam bound at all. (`$RDR_EVIDENCE` roots the
+fact table's exact-path probes and `$RDR_HOME` is where that table lives —
+tools/rdr/README.md §Facts.) An exported var still wins over the marker, and a
+flag over both. Run §seam-bind for what the tool does *not* read: `$RDR_ENV`,
+`$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
 
 ```sh
 # §seam-bind — copy/run verbatim; do NOT source the marker file directly (exits 1 without $WS).
@@ -216,9 +218,12 @@ The evidence tree is **per-RDR-first**, rooted at `$RDR_EVIDENCE` (the contract 
 and symmetric with the per-RDR `{ARTIFACT_DIR}` under `$RDR_RECORDS`: every RDR owns
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/`, holding one folder per lens
 (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`) plus siblings `reconcile/`,
-`spikes/`, `tooling-pass/`, `action-items/`, `propose-premortem/` (Stage 2's
-hardened-critic output — a sibling, not a Stage-5 lens signal), and the per-cluster
-`cluster-reconcile/<cluster>/`. `{EVIDENCE_DIR}` is the **fully-bound per-lens dir** —
+`spikes/`, `tooling-pass/`, `action-items/` and `propose-premortem/` (Stage 2's
+hardened-critic output — a sibling, not a Stage-5 lens signal). Cluster reconcile
+output is the one thing NOT under the record: it is keyed by the cluster, at
+`<RDR_EVIDENCE>/cluster-reconcile/<cluster>/` (e.g. `0117-0118`), because the
+report is about the set, not about any one member.
+`{EVIDENCE_DIR}` is the **fully-bound per-lens dir** —
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/`; `{SPIKE_DIR}` is
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/spikes/`. A re-entry pass appends `iter-N/`
 (`…/evidence/<lens>/iter-2/`); loose files directly under `…/evidence/<lens>/` are

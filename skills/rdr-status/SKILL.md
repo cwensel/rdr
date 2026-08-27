@@ -59,7 +59,7 @@ per-slug paths above count.
 | 5+6 Pre-Lock (review+resolve) | which `<RDR_EVIDENCE>/<slug>/evidence/<lens>/` folders exist — per lens (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`), incl. `iter-N`. Review + resolve are one cycle; *resolution is human-judged* — infer a lens converged from the next lens's folder existing, or from `evidence/reconcile/`. **`critique` on a `foundational` RDR needs the dual-model diff** (`critique-modelB.md`/diff), not just `critique.md` — a lone single-model file is in-progress, not done (rdr-common §model-stamp). |
 | 7 Reconcile | `<RDR_EVIDENCE>/<slug>/evidence/reconcile/` report exists; assumptions all terminal (no Pending without impl-plan) |
 | 8 Finalize | `Status: Final`; `{ARTIFACT_DIR}/gate.md` present, with `### Cross-Cutting Concerns` retained in the RDR (legacy RDRs: all five responses inline — either satisfies); README index row updated |
-| 8.1 Cluster | `<RDR_EVIDENCE>/<slug>/evidence/cluster-reconcile/<cluster>/` (only when the RDR is in a cluster) |
+| 8.1 Cluster | `<RDR_EVIDENCE>/cluster-reconcile/<cluster>/` — keyed by the CLUSTER (`0117-0118`), not by slug, so it is not under `<slug>/`. The key is not derivable from the record (the `Cluster` field names the author's declared siblings; 7.1's rule computes membership transitively; neither reproduces the directory), so this row is a listing, not an exact-path probe (only when the RDR is in a cluster) |
 | 9 Implement | `{ARTIFACT_DIR}/status.md` capsule header read first (phase/next/blocker/state in one pass); state reads `COMPLETE`, `INCOMPLETE`, or `IN-PROGRESS`. Only open req-list/coverage/verification.md if the header is missing, stale, or contradicts the tree |
 
 ### The record half — one projection, not a body read
@@ -78,8 +78,10 @@ Read literally, never re-parsed from the markdown:
 - **Determinacy trigger** — `counts.elements.C` > 0 (Normative Contracts present),
   for `mid`/`large` per §lens-row.
 
-The `Premortem:` / `Ground-sweep:` / `Joint-check:` verdict lines are prose, not
-fields — the projection does not carry them. Read only that section's bytes:
+`Joint-check:` lines ARE projected — each is a `JC` element carrying a parsed
+verdict, targets, home and `open` flag, counted in `counts.elements.JC`. Only
+`Premortem:` and `Ground-sweep:` are prose the projection does not carry; read
+that section's bytes for those two:
 `"$RDR_HOME/bin/rdr" inspect --select <NNNN>:§decision-rationale <NNNN>`
 (the id is stable however the record spells the heading).
 

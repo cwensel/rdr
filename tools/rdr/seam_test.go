@@ -420,3 +420,54 @@ func TestCommitRefusesARecordWithoutALintReceipt(t *testing.T) {
 		t.Fatalf("no log: exit %d %q, want a commit with a note", code, out)
 	}
 }
+
+// TestSeamBindsTheFactRoots: $RDR_EVIDENCE and $RDR_HOME come off the
+// marker like every other var.
+//
+// They were deliberately absent while the projector read records and
+// nothing else — §seam-bind names them as what this tool does NOT read.
+// The fact table changed that: a fact about whether a lens ran is a fact
+// about a directory, so the tool answering it has to know where the
+// evidence tree is, and where its own table lives.
+func TestSeamBindsTheFactRoots(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+RDR_EVIDENCE="$PROJECT/evidence"
+RDR_HOME="$PROJECT/engine"
+export RDR_RECORDS RDR_EVIDENCE RDR_HOME
+`
+	project, _ := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_EVIDENCE", "")
+	t.Setenv("RDR_HOME", "")
+
+	got := bindSeam()
+	if want := filepath.Join(project, "evidence"); got["RDR_EVIDENCE"] != want {
+		t.Errorf("RDR_EVIDENCE = %q, want %q", got["RDR_EVIDENCE"], want)
+	}
+	if want := filepath.Join(project, "engine"); got["RDR_HOME"] != want {
+		t.Errorf("RDR_HOME = %q, want %q", got["RDR_HOME"], want)
+	}
+}
+
+// TestUnboundEvidenceRootIsNotAnError: a marker that binds no evidence
+// root binds nothing, and that is a legitimate consumer — the probes
+// that would hang under it go absent rather than answering false.
+func TestUnboundEvidenceRootIsNotAnError(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+export RDR_RECORDS
+`
+	project, records := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_EVIDENCE", "")
+
+	got := bindSeam()
+	if got["RDR_RECORDS"] != records {
+		t.Errorf("RDR_RECORDS = %q, want %q", got["RDR_RECORDS"], records)
+	}
+	if v, ok := got["RDR_EVIDENCE"]; ok {
+		t.Errorf("RDR_EVIDENCE = %q; an unbound var must stay unbound, not bind empty "+
+			"(an empty root would anchor every probe at the filesystem root)", v)
+	}
+}

@@ -1,0 +1,580 @@
+# rdr-facts.toml — the rdr-status signal table, as data.
+#
+# `skills/rdr-status/SKILL.md` answers "I lost my place — what do I run
+# next?" by reading two things: the record's own projection, and what is
+# on disk. Both halves used to be prose in that skill, re-derived by a
+# model on every run. This file declares them, and `rdr` evaluates them.
+#
+# A fact is one of two kinds:
+#
+#   probe — does an exact path exist? `root` names which tree it hangs
+#           under and `path` is the whole remainder. There are NO globs
+#           and no patterns: a probe names one path, or it does not
+#           exist. Guessing a path is how a lens that ran reads as
+#           un-run, and the flow's own rule is that a skipped check must
+#           never read as a passed one — the inverse is just as wrong.
+#
+#   field — a projection path into `rdr inspect --json`. The projector
+#           already normalises emphasis, punctuation, qualifier grammars
+#           and vocabulary tiers; a fact reads the field it publishes
+#           rather than re-parsing the string it rendered.
+#
+# THREE-VALUED, like `resolved`. A probe whose root is bound answers true
+# or false. A probe whose root is UNBOUND answers neither — the fact is
+# absent from the output entirely. `--repo` set to the wrong tree is worse
+# than `--repo` unset, for the same reason: false says "looked, not
+# there", absent says "nothing looked", and only one of those is honest
+# when no evidence root was bound.
+#
+# The names here are a CONTRACT. `models/rdr-status.toml` matches on them
+# and neither binary calls the other, so a rename is a breaking change to
+# a file in another repo. Values are strings, and every fact declares one
+# of the four kinds that side accepts — enum, bool, int, set.
+
+[facts]
+version = 1
+description = "rdr-status's signals: what the record says, and what is on disk."
+
+# --- roots -----------------------------------------------------------------
+#
+# Two, and only two, because those are the two the seam binds absolutely.
+#
+# `evidence` is $RDR_EVIDENCE/<slug>/evidence/ — the per-RDR-first tree
+# (rdr-common §evidence), where a lens folder's existence is the signal
+# that the lens ran.
+#
+# `artifacts` is $RDR_RECORDS/<slug>/ — the per-RDR artifact folder that
+# sits beside the record. It is NOT read from $RDR_ENV: that file's
+# `{ARTIFACT_DIR}` row is a cwd-relative string a consumer writes for a
+# human, rdr-common says never to parse it, and on the reference consumer
+# its value disagrees with where gate.md actually sits. A probe spells the
+# whole remainder instead, so `artifacts/gate.md` and `status.md` are each
+# exactly what they say.
+
+[root.evidence]
+var    = "RDR_EVIDENCE"
+suffix = "{slug}/evidence"
+
+[root.artifacts]
+var    = "RDR_RECORDS"
+suffix = "{slug}"
+
+# The evidence root itself, unsuffixed: the pre-migration shapes hang
+# directly off it, keyed by slug, rather than under the record's folder.
+[root.evidence-root]
+var    = "RDR_EVIDENCE"
+suffix = ""
+
+# ===========================================================================
+# The record half — fields off the projection
+# ===========================================================================
+
+# Stage 1's done-signal and the coarse position every routing decision
+# starts from. `value` is the bare lifecycle status with any qualifier
+# already split off.
+[fact.status]
+kind        = "enum"
+source      = "field"
+path        = "metadata.Status.status.value"
+domain      = ["Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+description = "The record's lifecycle Status, bare."
+
+# The qualifier grammar, which is what distinguishes a plain Draft from a
+# scoped re-entry and a plain Final from one waiting on a joint decision.
+# The skill routes on the FORM, not on the qualifier prose: `revised-from`
+# means /rdr-resolve self-scoped to the listed IDs, `joint-decision` means
+# check the home before implement, `revisit-when` means parked.
+#
+# The issue that filed this called the domain bare|joint-decision|
+# re-entry|deferred. Those are the four the routing cares about, but the
+# projector emits model.QualifierForm, and inventing a second spelling of
+# a vocabulary the reader already publishes is the drift the same-commit
+# rule exists to stop. So the form is carried through verbatim and
+# `status_reentry` / `status_parked` below name the two routing cases that
+# do not fall out of the bare form.
+[fact.status_form]
+kind        = "enum"
+source      = "field"
+path        = "metadata.Status.status.form"
+domain      = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+description = "Which qualifier grammar the Status matched (model.QualifierForm)."
+
+# A scoped backward edge: `Draft [revised from Final <date>; re-verify
+# <IDs>]`. Still a Draft for every binary gate, but the next command is
+# /rdr-resolve, not the front-half stage the evidence would otherwise
+# suggest — so the routing needs it as its own predicate.
+[fact.status_reentry]
+kind        = "bool"
+source      = "field"
+path        = "metadata.Status.status.form"
+equals      = "revised-from"
+description = "The Status is a scoped re-entry from Final."
+
+# Parked, not terminal: no post-mortem is owed and no next command is due
+# while the condition holds. A park that nobody re-reads is how a park
+# becomes an abandon by default, so this is a fact and not a footnote.
+[fact.status_parked]
+kind        = "bool"
+source      = "field"
+path        = "metadata.Status.status.form"
+equals      = "revisit-when"
+description = "The Status is Deferred with a revisit condition."
+
+# The joint decisions this record is still waiting on, and only those —
+# read off the field, never scraped from the qualifier. A record that has
+# FINISHED answering its joint decisions writes them down, and a regex
+# over the prose reports a finished record as blocked (README §A field,
+# not a regex).
+[fact.open_joint_decisions]
+kind        = "set"
+source      = "field"
+path        = "metadata.Status.status.open_joint_decisions"
+description = "Joint decisions still open on this record, from the routing form alone."
+
+# The routing latch. `Profile`'s value carries the keyword PLUS a
+# rationale tail — `mid — one contract plus the metrics surface` — and
+# §lens-row is explicit that a consumer matches the leading word and never
+# the whole string. That is the projection missing a field, so the fact
+# carries the leading word and `profile_raw` keeps the sentence.
+[fact.profile]
+kind        = "enum"
+source      = "field"
+path        = "metadata.Profile.value"
+transform   = "leading-word"
+domain      = ["small", "mid", "large", "foundational"]
+description = "The Profile keyword that selects the Stage-5 lens row."
+
+[fact.profile_raw]
+kind        = "scalar"
+source      = "field"
+path        = "metadata.Profile.value"
+description = "Profile verbatim, rationale tail included, for the caveat line."
+
+# The Stage-5 Determinacy trigger reads the labelled contract count. A
+# ZERO does not skip the trigger — contracts written as prose are
+# unaddressable and count zero, so on an older record zero means
+# *unlabelled*, not *absent*, and the section's lines have to be read.
+# The fact reports the count; judging it stays with the skill.
+[fact.contracts]
+kind        = "int"
+source      = "field"
+path        = "counts.elements.C"
+min         = 0
+description = "Labelled Normative Contracts. Zero may mean unlabelled, not absent."
+
+# Declared tandem siblings. The Stage-2 tandem barrier bars a clustered
+# Draft from refine until every member has completed propose, so whether
+# the field is present is itself routing.
+[fact.cluster]
+kind        = "set"
+source      = "field"
+path        = "metadata.Cluster.value"
+transform   = "record-numbers"
+description = "Sibling record numbers from the Cluster field, if declared."
+
+# --- Critical Assumption tallies ------------------------------------------
+#
+# Stage 4's primary signal, and Stage 3's only certificate. The tallies
+# come off the projection's A elements, each one's Evidence Record Status
+# already normalised: `**Verified**`, `Verified.`, `REFUTED (…)` and
+# `Verified as narrowed — …` all land on their vocabulary label.
+#
+# Placeholders are counted SEPARATELY and never as Pending. A Draft that
+# still carries the template legend `Verified | Pending | Unverified`
+# projects a placeholder with an empty value; folding those into Pending
+# would report a seeded record as having a real un-run assumption list,
+# and folding them into nothing would hide that the list is unfilled.
+
+[fact.ca_total]
+kind        = "int"
+source      = "ca-tally"
+select      = "total"
+min         = 0
+description = "Critical Assumptions carrying an Evidence Record Status."
+
+[fact.ca_verified]
+kind        = "int"
+source      = "ca-tally"
+select      = "Verified"
+min         = 0
+description = "Assumptions at Verified."
+
+[fact.ca_pending]
+kind        = "int"
+source      = "ca-tally"
+select      = "Pending"
+min         = 0
+description = "Assumptions at Pending."
+
+[fact.ca_unverified]
+kind        = "int"
+source      = "ca-tally"
+select      = "Unverified"
+min         = 0
+description = "Assumptions at Unverified."
+
+# Refuted, Resolved, Accepted and Downgraded are ObservedAccepted: the
+# corpus writes them, the template never listed them. They are terminal
+# verdicts — an assumption the flow is done with — so they are tallied
+# together rather than silently dropped into neither column.
+[fact.ca_other_terminal]
+kind        = "int"
+source      = "ca-tally"
+select      = "observed-terminal"
+min         = 0
+description = "Assumptions at a corpus-only terminal verdict (Refuted/Resolved/Accepted/Downgraded)."
+
+[fact.ca_placeholder]
+kind        = "int"
+source      = "ca-tally"
+select      = "placeholder"
+min         = 0
+description = "Assumptions still carrying the template legend — an unfilled list, not a Pending one."
+
+# An assumption status in no tier at all. It is a typo the gate exists to
+# report, and naming it in a tally keeps it from reading as terminal.
+[fact.ca_off_vocabulary]
+kind        = "int"
+source      = "ca-tally"
+select      = "off-vocabulary"
+min         = 0
+description = "Assumptions whose Status matches no vocabulary label."
+
+# The rolled-up shape the routing actually branches on.
+#
+#   all-pending   — every assumption Pending: Refine is un-run, and the
+#                   open `~` is the next command, not a footnote.
+#   mixed         — some terminal, some not.
+#   all-terminal  — every assumption Verified or a terminal verdict:
+#                   Resolve is behind you whether or not a folder exists.
+#   unknown-plan  — the list is unfilled or unreadable (placeholders, an
+#                   off-vocabulary value, or no assumptions at all), so
+#                   the tallies cannot certify a stage. Never guess here:
+#                   an unreadable list is not an empty one.
+[fact.ca]
+kind        = "enum"
+source      = "ca-rollup"
+domain      = ["all-pending", "mixed", "all-terminal", "unknown-plan"]
+description = "The Critical Assumption list rolled up to the shape Stage 3/4 routing reads."
+
+# --- Decision Rationale verdict lines --------------------------------------
+#
+# Stage 2's gate items. `Joint-check:` IS projected — it is a JC element
+# with a parsed verdict, targets, home and open flag — so it is a field.
+# `Premortem:` and `Ground-sweep:` are not projected at all, and a byte
+# read of §decision-rationale is the only way to see them. Their absence
+# alone does not reopen propose on a legacy record, but a skipped gate
+# item must be surfaced rather than read as a passed one.
+
+[fact.joint_checks]
+kind        = "int"
+source      = "field"
+path        = "counts.elements.JC"
+min         = 0
+description = "Joint-check: lines, projected as JC elements."
+
+[fact.premortem_line]
+kind        = "bool"
+source      = "verdict-line"
+label       = "Premortem:"
+description = "A Premortem: verdict line is written in Decision Rationale."
+
+[fact.ground_sweep_line]
+kind        = "bool"
+source      = "verdict-line"
+label       = "Ground-sweep:"
+description = "A Ground-sweep: verdict line is written in Decision Rationale."
+
+# ===========================================================================
+# The disk half — exact-path probes
+# ===========================================================================
+#
+# Every path below is `<root>/<exact remainder>`. A lens FOLDER says the
+# lens ran; the files inside say it finished. The two are separate facts
+# on purpose — §lens-row is explicit that a bare folder is not completion.
+
+# --- lens folders: the lens ran -------------------------------------------
+
+[fact.lens_grounding]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "grounding"
+description = "The grounding lens ran."
+
+[fact.lens_3amigo]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "3amigo"
+description = "The 3amigo lens ran."
+
+[fact.lens_critique]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "critique"
+description = "The critique lens ran."
+
+[fact.lens_repeatability]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "repeatability"
+description = "The repeatability lens ran."
+
+[fact.lens_cove]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "cove"
+description = "The cove lens ran."
+
+# --- lens completion: the lens finished ------------------------------------
+#
+# Each lens names its own product, and they differ: grounding and cove
+# write findings.md, 3amigo writes consolidation.md beside its three
+# personas, critique writes critique.md. A single generic "the lens is
+# done" probe would be wrong for four of the five.
+
+[fact.lens_grounding_findings]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "grounding/findings.md"
+description = "grounding produced its findings."
+
+[fact.lens_cove_findings]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "cove/findings.md"
+description = "cove produced its findings."
+
+[fact.lens_3amigo_consolidation]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "3amigo/consolidation.md"
+description = "3amigo consolidated its three personas."
+
+[fact.lens_critique_single]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "critique/critique.md"
+description = "critique produced a first-model pass."
+
+# `critique` on a foundational RDR owes the DUAL-MODEL diff, not just
+# critique.md: a lone single-model file is in-progress, not done
+# (rdr-common §model-stamp). Folder existence proves a lens ran, never
+# which model ran it, and for the cross-model lenses that identity is the
+# whole signal.
+[fact.lens_critique_modelb]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "critique/critique-modelB.md"
+description = "critique ran a second base model."
+
+[fact.lens_critique_diff]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "critique/diff.md"
+description = "critique's two model passes were diffed."
+
+# repeatability's variant follows Profile, not the files present:
+# mid/large = lite (run-1 then a focused RDR-vs-run diff);
+# foundational/escalation = full (run-1/2/3 then diff). Both owe the diff.
+# Probing each run separately is what lets the routing point at the next
+# missing piece for the variant the Profile selects, rather than at a
+# folder that is merely non-empty.
+[fact.lens_repeatability_run1]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "repeatability/run-1.md"
+description = "repeatability run 1."
+
+[fact.lens_repeatability_run2]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "repeatability/run-2.md"
+description = "repeatability run 2 — the full variant only."
+
+[fact.lens_repeatability_run3]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "repeatability/run-3.md"
+description = "repeatability run 3 — the full variant only."
+
+[fact.lens_repeatability_diff]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "repeatability/diff.md"
+description = "repeatability's runs were diffed — owed by both variants."
+
+# --- the non-lens siblings -------------------------------------------------
+
+# Stage 2's hardened-critic output. A sibling, never a Stage-5 lens
+# signal: counting it toward lens convergence would certify a Pre-Lock row
+# from a Propose artifact.
+[fact.propose_premortem]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "propose-premortem"
+description = "Stage 2's premortem critic wrote output. NOT a Stage-5 lens."
+
+# Stage 4 writes an evidence folder only when it names spikes. A pure
+# source-search resolve records its verdicts inline and creates no folder
+# at all, so an absent spikes dir is expected, not a sign Resolve is
+# un-run — the CA tallies are the authority there.
+[fact.spikes]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "spikes"
+description = "Spikes were run. Absence does not mean Resolve is un-run."
+
+# Stage 7. The folder existing also certifies the last lens's resolution,
+# which is why it is a fact the Pre-Lock row reads too.
+[fact.reconcile]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "reconcile"
+description = "The reconcile folder exists — also certifies the last lens's resolution."
+
+# The reconcile report has three spellings in the corpus and no glob may
+# guess between them, so each is its own probe and the routing takes the
+# disjunction. A bare reconcile folder with none of them is a real state:
+# the stage started and left no report.
+[fact.reconcile_report]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "reconcile/reconcile.md"
+description = "The reconcile report, canonical spelling."
+
+[fact.reconcile_report_alt]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "reconcile/report.md"
+description = "The reconcile report, second corpus spelling."
+
+[fact.reconcile_report_alt2]
+kind = "bool"
+source = "probe"
+root = "evidence"
+path = "reconcile/reconcile-report.md"
+description = "The reconcile report, third corpus spelling."
+
+# A re-entry pass appends iter-N/ beside the loose iteration-1 files. Two
+# is the one that says a lens was re-entered at all; deeper iterations are
+# the same signal and the skill reports the highest it finds.
+[fact.iter_2]
+kind = "bool"
+source = "probe-any"
+root = "evidence"
+paths = [
+  "grounding/iter-2",
+  "3amigo/iter-2",
+  "critique/iter-2",
+  "repeatability/iter-2",
+  "cove/iter-2",
+  "reconcile/iter-2",
+]
+description = "Some lens was re-entered for a second iteration."
+
+# The pre-migration evidence shapes, probed so that a legacy folder can
+# never silently read as "lens un-run".
+#
+# The migration moved directory-shaped evidence under the record it
+# belongs to and left FILE-shaped evidence where it was, so these three
+# paths still hold real lens output for records that were never
+# migrated. Every one of those records is terminal, and a terminal
+# record's next command is none, so this fact changes no routing today.
+#
+# It is declared anyway because that is a claim about the corpus, and a
+# claim nothing checks is a claim that quietly stops being true. If a
+# record with legacy evidence ever appears in flight, this says so
+# instead of reporting its lenses un-run. `{slug}` is spelled here
+# because these paths are keyed by slug at the TOP of the evidence root
+# rather than under the record's own directory — the whole reason the
+# migration happened.
+[fact.legacy_evidence_shape]
+kind = "bool"
+source = "probe-any"
+root = "evidence-root"
+paths = [
+  "3amigo/{slug}.md",
+  "critique/{slug}-critique.md",
+  "reconcile/{slug}",
+]
+description = "Pre-migration evidence exists for this record outside its own directory."
+
+# --- the artifact half -----------------------------------------------------
+
+# Stage 8's done-signal. The locked gate's four judgement responses move
+# out of the record into this file, and the record keeps the pointer plus
+# Cross-Cutting Concerns. A legacy record with all five inline satisfies
+# the stage too, which is why this is a fact and not the whole verdict.
+[fact.gate_written]
+kind = "bool"
+source = "probe"
+root = "artifacts"
+path = "artifacts/gate.md"
+description = "The Finalization Gate's responses are written out of the record."
+
+# Stage 9's capsule. Its header is the single authoritative resume read —
+# phase, next, blocker and state in one pass — and the detailed
+# implementation artifacts are opened only when it is absent or
+# contradicts the tree.
+[fact.impl_capsule]
+kind = "bool"
+source = "probe"
+root = "artifacts"
+path = "status.md"
+description = "The Stage-9 status capsule exists."
+
+# The capsule's own state word, read from the header rather than inferred
+# from the tree. Absent when the file is not there — never guessed.
+[fact.impl_state]
+kind        = "enum"
+source      = "capsule-state"
+path        = "status.md"
+domain      = ["COMPLETE", "INCOMPLETE", "IN-PROGRESS"]
+description = "The Stage-9 capsule header's state word."
+
+# ===========================================================================
+# Not declared here, and why
+# ===========================================================================
+#
+# Stage 8.1 cluster-reconcile has NO probe. Its output does not live under
+# the record at all: it is `$RDR_EVIDENCE/cluster-reconcile/<cluster>/`,
+# keyed by the cluster, where <cluster> is the members' numbers joined —
+# `0122-0123-0130-0131-0132`. That name is not derivable from this record.
+# The Cluster field names the siblings the AUTHOR declared, and 7.1's
+# membership rule computes a cluster transitively, and on the reference
+# corpus neither reproduces the directory: one record's declared set gives
+# three members, `index --cluster-of` gives four, and the directory names
+# five. A probe would have to glob, and a glob here would report 8.1
+# un-run on clustered RDRs that reconciled months ago.
+#
+# So the fact is absent rather than wrong. Closing this needs the cluster
+# key to become something a record can state or the tool can derive
+# exactly; until then the skill answers 8.1 by listing that directory,
+# which is honest about being a search.
+#
+# Legacy evidence shapes have no probes either, and that one IS settled:
+# the pre-migration trees that remain — loose `3amigo/<slug>.md`,
+# `critique/<slug>-critique.md`, `reconcile/<slug>/` — belong exclusively
+# to terminal records. A navigator answers "what do I run next", no
+# in-flight record carries a legacy shape, and a terminal record's next
+# command is none.

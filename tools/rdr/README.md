@@ -855,8 +855,8 @@ From the working directory it walks up for the project root, applies the
 flow's own nearest-marker-wins rule (a repo-local `.rdr/workspace` beats
 the shared `../.rdr-workspace`), sources the marker with `sh` — markers
 are plain assignments that expand `$WS`/`$PROJECT` internally, so they
-need a real shell, not a regex — and reads `RDR_RECORDS` and
-`RDR_SOURCE_REPO` back out.
+need a real shell, not a regex — and reads `RDR_RECORDS`,
+`RDR_SOURCE_REPO`, `RDR_EVIDENCE` and `RDR_HOME` back out.
 
 The binding order is **flag, then environment, then marker**. A flag is
 someone spelling out a path; an exported var is a decision someone made;
@@ -872,8 +872,80 @@ neither carrying anything the marker did not already hold. `rdr-doctor`
 check 11c watches that this keeps working, with the environment cleared
 so an exported var cannot mask a broken bind.
 
-`§seam-bind` is still the authority for what this tool does *not* read —
-`$RDR_EVIDENCE`, `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+`$RDR_EVIDENCE` and `$RDR_HOME` joined that list when the fact table
+landed (§Facts). Neither is a records path: the first roots the exact-path
+probes a fact declares, the second is where the fact table itself lives.
+`§seam-bind` remains the authority for what this tool still does *not*
+read — `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+
+## Facts
+
+`models/rdr-facts.toml` declares the signals `rdr-status` reads, and the
+binary evaluates them. It exists because those signals were prose in a
+skill: a table of directory shapes and projection paths that a model
+re-derived every run, describing a tree nothing checked it against. The
+corpus already holds the predictable result — a path documented in two
+skills that exists nowhere in the evidence tree.
+
+A fact is a **probe** or a **field**.
+
+A probe asks whether an exact path exists, under one of two roots: the
+per-RDR evidence tree (`$RDR_EVIDENCE/<slug>/evidence/`) or the record's
+artifact folder (`$RDR_RECORDS/<slug>/`). It names ONE path. No globs, no
+patterns, no first match — a load error, not a path that quietly matches
+nothing. The reason is the one this whole tool is built on: a lens that
+ran, read as un-run, sends a consumer to redo work that is already done,
+and that is the same class of error as a skipped check reading as a
+passed one.
+
+A field is a projection path. The projector has already split a Status
+from its qualifier, named the qualifier's grammar, normalised an
+assumption's `**Verified**` and `REFUTED (…)` onto a vocabulary label and
+placed it in a tier. A fact reads what it published. Where a fact would
+otherwise have to parse a rendered string — the `Profile` value carries a
+rationale tail, and §lens-row says match the leading word — that is the
+projection missing a field, so the fact carries the word and a second
+carries the sentence.
+
+**Absent is not false**, exactly as with `resolved`. A probe whose root is
+bound answers true or false: the tool looked. A probe whose root is
+UNBOUND is omitted from the output entirely, because "no evidence root is
+configured" and "the lens did not run" are different answers and only one
+of them should route. This matters more than it looks: the consuming
+navigator is a three-valued kernel, where an omitted key leaves a rule
+undecided and `false` decides it.
+
+The fact NAMES are a contract. `models/rdr-status.toml` matches on them,
+neither binary calls the other, and the skill composes the two in one
+call — so a rename is a breaking change to a file in another repo. Every
+fact declares one of the kinds that side accepts (`enum`, `bool`, `int`,
+`set`, `scalar`) and every value crosses as a string.
+
+Two things the table deliberately does NOT declare, both recorded in it:
+
+- **Stage 8.1 cluster-reconcile has no probe.** Its output is keyed by
+  cluster, not by slug — `cluster-reconcile/0122-0123-0130-0131-0132/` —
+  and that key is not derivable from the record. On the reference corpus
+  one record's declared `Cluster` gives three members, `index
+  --cluster-of` gives four, and the directory names five. A probe would
+  have to glob, and the glob would report 8.1 un-run on records that
+  reconciled months ago. The fact is absent rather than wrong.
+- **A legacy-shape probe that changes no routing.** The corpus migration
+  moved directory-shaped evidence under each record and left file-shaped
+  evidence where it was, so pre-migration output still sits at
+  `3amigo/<slug>.md` and `critique/<slug>-critique.md`. Every such record
+  is terminal, so nothing routes on it today — but a claim about the
+  corpus that nothing checks is a claim that quietly stops being true, and
+  the failure it guards is precisely a lens that ran reading as un-run.
+
+The table is found at `$RDR_HOME/models/rdr-facts.toml`, or beside the
+binary (`$RDR_HOME/bin/rdr` → `../models/`) when no marker is bound.
+Reading it needs a TOML parser and the stdlib has none, so `toml.go` reads
+the subset the table uses — table headers, string/int/bool values, lists,
+comments. Every line outside that subset is REFUSED with its line number.
+A parser that skips what it does not understand turns a typo into a
+missing fact, and a missing fact reads as absent when it was only
+misspelled.
 
 ## Naming a record, and reading part of one
 

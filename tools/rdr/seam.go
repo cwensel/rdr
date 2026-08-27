@@ -2,10 +2,11 @@ package main
 
 // The seam binds itself.
 //
-// Every var this binary reads — $RDR_RECORDS, $RDR_SOURCE_REPO — is
-// written in a marker file the flow already maintains. Until now only a
-// shell could read it, so every call site had to carry the seam through
-// the turn: either a fifteen-line resolver block re-run verbatim, or an
+// Every var this binary reads — $RDR_RECORDS, $RDR_SOURCE_REPO,
+// $RDR_EVIDENCE, $RDR_HOME — is written in a marker file the flow
+// already maintains. Until now only a shell could read it, so every call
+// site had to carry the seam through the turn: either a fifteen-line
+// resolver block re-run verbatim, or an
 // `export RDR_HOME=… RDR_RECORDS=… RDR_EVIDENCE=… RDR_ENV=…` prefix
 // repeated on invocation after invocation, because shell state dies
 // between tool calls and the harness starts each one fresh.
@@ -35,9 +36,17 @@ import (
 )
 
 // seamVars are the marker values this binary can use. The marker exports
-// more — evidence roots, path maps, per-consumer conveniences — and none
-// of it is this tool's business.
-var seamVars = []string{"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG"}
+// more — path maps, per-consumer conveniences — and none of it is this
+// tool's business.
+//
+// RDR_EVIDENCE and RDR_HOME joined the list when the fact table landed
+// (facts.go). Neither is a records path: RDR_EVIDENCE roots the exact-path
+// probes a fact declares, and RDR_HOME is where the fact table itself
+// lives. Both were previously "what the seam binds and this tool does
+// not" — the projector read records and nothing else. A fact about
+// whether a lens ran is a fact about a directory, so the tool that
+// answers it has to know where that directory is.
+var seamVars = []string{"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME"}
 
 // seam resolves once per working directory. A projection may consult it
 // several times and the marker cannot change mid-run, so the common case

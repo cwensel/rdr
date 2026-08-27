@@ -1,0 +1,716 @@
+package main
+
+// The fact table: rdr-status's signals, declared as data.
+//
+// `skills/rdr-status/SKILL.md` decides "what do I run next" from two
+// halves — what the record says and what is on disk — and both halves
+// were prose in that skill, re-derived by a model on every run. A prose
+// signal table drifts from the tree it describes and nothing catches it;
+// the corpus already holds a documented path that exists nowhere.
+//
+// So the signals move into `$RDR_HOME/models/rdr-facts.toml` and this
+// file evaluates them. The tool holds the grammar, the skill holds the
+// judgment: a fact says `spikes: false`, it does not say "Refine was
+// judged done".
+//
+// Three rules govern everything here.
+//
+// A probe names ONE path. No globs, no patterns, no first-match. A path
+// the tool has to guess is a path it can get wrong, and a lens that ran
+// reading as un-run is the same class of error as a skipped check
+// reading as a passed one.
+//
+// Absent is not false. A probe whose root is unbound emits nothing at
+// all, exactly as `resolved` goes absent rather than false when no
+// `--repo` was given. The consumer is a three-valued kernel: an omitted
+// key leaves a rule undecided, where `false` decides it.
+//
+// The reader never re-parses what the projector already published. A
+// Status qualifier's grammar, an assumption's vocabulary tier, a
+// contract count — each is a field, because a consumer that has to parse
+// a projected string means the projection is missing a field.
+
+import (
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/cwensel/rdr/tools/rdr/internal/ident"
+	"github.com/cwensel/rdr/tools/rdr/internal/model"
+	"github.com/cwensel/rdr/tools/rdr/internal/scan"
+)
+
+// FactTable is a parsed rdr-facts.toml: the roots a probe hangs under
+// and the facts themselves, in declaration order so the output is
+// stable and diffable.
+type FactTable struct {
+	Version     int
+	Description string
+	Roots       map[string]FactRoot
+	Facts       []FactDecl
+	// Source is the path the table was read from, for error messages
+	// that have to say which file disagreed.
+	Source string
+}
+
+// FactRoot is a tree a probe's path is relative to: a seam var, plus the
+// per-record suffix that turns it into this record's own directory.
+type FactRoot struct {
+	Name string
+	// Var is the seam/environment variable naming the tree. Unbound is
+	// not an error — every probe under it goes absent.
+	Var string
+	// Suffix is appended to the var's value, with `{slug}` replaced by
+	// the record's slug.
+	Suffix string
+}
+
+// FactDecl is one declared fact.
+type FactDecl struct {
+	Name string
+	// Kind is the value's type as the downstream tag model spells it:
+	// enum, bool, int, set or scalar. It is carried, not interpreted,
+	// except that it decides how a value is rendered.
+	Kind string
+	// Source names the evaluator that answers this fact.
+	Source string
+	// Path is a projection path for a field, or the relative path for a
+	// probe. Paths is the probe-any list.
+	Path  string
+	Paths []string
+	// Root names the FactRoot a probe hangs under.
+	Root string
+	// Domain is an enum's declared values, checked at load: a fact whose
+	// evaluator can produce a value outside its own domain is a bug the
+	// table should catch, not export.
+	Domain []string
+	// Equals turns a field read into a bool: true when the field's value
+	// equals this literal.
+	Equals string
+	// Transform names a normalisation applied to a field's value.
+	Transform string
+	// Select names which tally a ca-tally fact reports.
+	Select string
+	// Label is the verdict-line prefix a verdict-line fact looks for.
+	Label string
+	// Min is an int's declared floor, checked at load.
+	Min *int
+	// Description is prose for the reader of the table.
+	Description string
+}
+
+// factKinds are the value types the downstream tag model accepts. The
+// list is closed on purpose: a kind that side cannot declare is a fact
+// nothing can consume.
+var factKinds = map[string]bool{
+	"enum": true, "bool": true, "int": true, "set": true, "scalar": true,
+}
+
+// factSources are the evaluators. Closed for the same reason a kind is:
+// an unknown source in the table means the table is ahead of the binary,
+// and reading it as "no fact" would silently drop a signal.
+var factSources = map[string]bool{
+	"field": true, "probe": true, "probe-any": true, "ca-tally": true,
+	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
+}
+
+// LoadFactTable reads and validates a fact table.
+//
+// Validation is fail-fast and returns ONE categorized error, never a
+// list: a table that does not load is not partially usable, and a caller
+// staring at fourteen complaints fixes the first one anyway.
+func LoadFactTable(path string) (*FactTable, error) {
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("stopped:no-fact-table (%v)", err)
+	}
+	doc, err := parseTOMLSubset(string(raw))
+	if err != nil {
+		return nil, fmt.Errorf("stopped:malformed-fact-table (%s: %v)", path, err)
+	}
+
+	t := &FactTable{Roots: map[string]FactRoot{}, Source: path}
+	for _, tbl := range doc {
+		switch {
+		case tbl.name == "facts":
+			t.Version = tbl.int_("version")
+			t.Description = tbl.str("description")
+		case strings.HasPrefix(tbl.name, "root."):
+			name := strings.TrimPrefix(tbl.name, "root.")
+			r := FactRoot{Name: name, Var: tbl.str("var"), Suffix: tbl.str("suffix")}
+			if r.Var == "" {
+				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: root %q names no var)", path, name)
+			}
+			t.Roots[name] = r
+		case strings.HasPrefix(tbl.name, "fact."):
+			d, err := factFromTable(tbl)
+			if err != nil {
+				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: %v)", path, err)
+			}
+			t.Facts = append(t.Facts, d)
+		default:
+			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: unknown table [%s])", path, tbl.name)
+		}
+	}
+	if t.Version != 1 {
+		return nil, fmt.Errorf("stopped:unsupported-fact-table (%s: version %d; this binary reads version 1)", path, t.Version)
+	}
+	if len(t.Facts) == 0 {
+		return nil, fmt.Errorf("stopped:malformed-fact-table (%s: declares no facts)", path)
+	}
+	seen := map[string]bool{}
+	for _, f := range t.Facts {
+		if seen[f.Name] {
+			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: fact %q declared twice)", path, f.Name)
+		}
+		seen[f.Name] = true
+		if (f.Source == "probe" || f.Source == "probe-any") && f.Root != "" {
+			if _, ok := t.Roots[f.Root]; !ok {
+				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: fact %q names undeclared root %q)", path, f.Name, f.Root)
+			}
+		}
+	}
+	return t, nil
+}
+
+// factFromTable validates one [fact.<name>] table into a declaration.
+//
+// Every key the table may carry is named here, and an unrecognised one
+// is refused rather than ignored. A silently-dropped key is a fact that
+// reads as declared and evaluates as something else — the failure this
+// whole file exists to avoid.
+func factFromTable(tbl tomlTable) (FactDecl, error) {
+	name := strings.TrimPrefix(tbl.name, "fact.")
+	d := FactDecl{
+		Name:        name,
+		Kind:        tbl.str("kind"),
+		Source:      tbl.str("source"),
+		Path:        tbl.str("path"),
+		Paths:       tbl.list("paths"),
+		Root:        tbl.str("root"),
+		Domain:      tbl.list("domain"),
+		Equals:      tbl.str("equals"),
+		Transform:   tbl.str("transform"),
+		Select:      tbl.str("select"),
+		Label:       tbl.str("label"),
+		Description: tbl.str("description"),
+	}
+	if v, ok := tbl.values["min"]; ok {
+		n, err := strconv.Atoi(v.scalar)
+		if err != nil {
+			return d, fmt.Errorf("fact %q: min %q is not an int", name, v.scalar)
+		}
+		d.Min = &n
+	}
+	for k := range tbl.values {
+		switch k {
+		case "kind", "source", "path", "paths", "root", "domain",
+			"equals", "transform", "select", "label", "min", "description":
+		default:
+			return d, fmt.Errorf("fact %q: unknown key %q", name, k)
+		}
+	}
+	if !factNameOK(name) {
+		return d, fmt.Errorf("fact %q: a fact name is lower-case, digits and underscore", name)
+	}
+	if !factKinds[d.Kind] {
+		return d, fmt.Errorf("fact %q: unknown kind %q", name, d.Kind)
+	}
+	if !factSources[d.Source] {
+		return d, fmt.Errorf("fact %q: unknown source %q", name, d.Source)
+	}
+	switch d.Source {
+	case "probe":
+		if d.Root == "" || d.Path == "" {
+			return d, fmt.Errorf("fact %q: a probe names a root and a path", name)
+		}
+	case "probe-any":
+		if d.Root == "" || len(d.Paths) == 0 {
+			return d, fmt.Errorf("fact %q: a probe-any names a root and paths", name)
+		}
+	case "field":
+		if d.Path == "" {
+			return d, fmt.Errorf("fact %q: a field names a path", name)
+		}
+	case "ca-tally":
+		if d.Select == "" {
+			return d, fmt.Errorf("fact %q: a ca-tally names a select", name)
+		}
+	case "verdict-line":
+		if d.Label == "" {
+			return d, fmt.Errorf("fact %q: a verdict-line names a label", name)
+		}
+	}
+	for _, p := range append([]string{d.Path}, d.Paths...) {
+		if (d.Source == "probe" || d.Source == "probe-any") && strings.ContainsAny(p, "*?[") {
+			return d, fmt.Errorf("fact %q: %q is a pattern; a probe names one exact path", name, p)
+		}
+	}
+	if d.Kind == "enum" && len(d.Domain) == 0 && d.Source != "capsule-state" {
+		return d, fmt.Errorf("fact %q: an enum declares its domain", name)
+	}
+	return d, nil
+}
+
+func factNameOK(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		if !(r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '_') {
+			return false
+		}
+	}
+	return true
+}
+
+// Fact is one evaluated fact. A fact that could not be answered is not
+// in the output at all, so there is no "unknown" value to render.
+type Fact struct {
+	Name  string `json:"name"`
+	Kind  string `json:"kind"`
+	Value string `json:"value"`
+	// Members carries a set's members, already canonical: sorted and
+	// duplicate-free, the form the consuming seam compares by bytes.
+	Members []string `json:"members,omitempty"`
+}
+
+// FactEnv is what the evaluator may look at: the record's projection,
+// its slug, and the bound roots.
+type FactEnv struct {
+	Doc  *scan.Document
+	Slug string
+	// Roots maps a root name to its resolved directory, absent when the
+	// var behind it is unbound.
+	Roots map[string]string
+	// readFile is the file reader, injectable so a test drives a
+	// synthetic tree without reaching for the real corpus.
+	readFile func(string) ([]byte, error)
+	statPath func(string) (os.FileInfo, error)
+}
+
+// NewFactEnv binds the roots a table declares from the seam.
+//
+// An unbound var is not an error and not a zero value: the root is
+// simply not in the map, and every probe under it goes absent. Binding
+// it to "" would root every probe at the filesystem root and answer
+// false for all of them.
+func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
+	e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
+		readFile: os.ReadFile, statPath: os.Stat}
+	for name, r := range t.Roots {
+		base := strings.TrimSpace(envOrSeam(r.Var))
+		if base == "" {
+			continue
+		}
+		e.Roots[name] = filepath.Join(base, strings.ReplaceAll(r.Suffix, "{slug}", slug))
+	}
+	return e
+}
+
+// Evaluate answers every fact the table declares, in declaration order.
+func (t *FactTable) Evaluate(e *FactEnv) []Fact {
+	out := []Fact{}
+	for _, d := range t.Facts {
+		if f, ok := t.evaluate(d, e); ok {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
+	switch d.Source {
+	case "probe":
+		return e.probe(d, []string{d.Path})
+	case "probe-any":
+		return e.probe(d, d.Paths)
+	case "field":
+		return e.field(d)
+	case "ca-tally":
+		return e.caTally(d)
+	case "ca-rollup":
+		return e.caRollup(d)
+	case "verdict-line":
+		return e.verdictLine(d)
+	case "capsule-state":
+		return e.capsuleState(d)
+	}
+	return Fact{}, false
+}
+
+// probe answers whether an exact path exists under a bound root.
+//
+// The root being unbound is the absent case and the whole reason this
+// returns two values: "no evidence root is configured" and "the lens did
+// not run" are different answers, and only one of them should route.
+func (e *FactEnv) probe(d FactDecl, paths []string) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	for _, p := range paths {
+		// `{slug}` appears only where a path is keyed by the record's slug
+		// at the top of a root rather than under the record's own folder.
+		p = strings.ReplaceAll(p, "{slug}", e.Slug)
+		if _, err := e.statPath(filepath.Join(base, filepath.FromSlash(p))); err == nil {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
+
+// field reads a value the projector already published.
+func (e *FactEnv) field(d FactDecl) (Fact, bool) {
+	v, members, ok := e.lookup(d.Path)
+	if !ok {
+		return Fact{}, false
+	}
+	if d.Equals != "" {
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(v == d.Equals)}, true
+	}
+	switch d.Transform {
+	case "leading-word":
+		v = leadingWord(v)
+	case "record-numbers":
+		members = recordNumbers(v)
+		v = ""
+	}
+	if d.Kind == "set" {
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(members)}, true
+	}
+	if v == "" {
+		return Fact{}, false
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// lookup walks a projection path. Only the paths the table actually
+// declares are supported, and an unknown one is a load-time error rather
+// than a silent absent, so this cannot quietly answer nothing.
+func (e *FactEnv) lookup(path string) (string, []string, bool) {
+	if e.Doc == nil {
+		return "", nil, false
+	}
+	switch {
+	case strings.HasPrefix(path, "metadata."):
+		rest := strings.TrimPrefix(path, "metadata.")
+		label, tail, _ := strings.Cut(rest, ".")
+		f := metadataField(e.Doc, label)
+		if f == nil {
+			return "", nil, false
+		}
+		switch tail {
+		case "value":
+			return f.Value, nil, f.Value != ""
+		case "status.value":
+			if f.Status == nil {
+				return "", nil, false
+			}
+			return f.Status.Value, nil, true
+		case "status.form":
+			if f.Status == nil {
+				return "", nil, false
+			}
+			// A bare status carries no qualifier and the projector omits
+			// the field; the form is "none", which is a real answer.
+			if f.Status.Form == "" {
+				return model.NoQualifier.String(), nil, true
+			}
+			return f.Status.Form, nil, true
+		case "status.open_joint_decisions":
+			if f.Status == nil {
+				return "", nil, false
+			}
+			return "", f.Status.OpenJointDecisions, true
+		}
+		return "", nil, false
+	case strings.HasPrefix(path, "counts.elements."):
+		kind := ident.Kind(strings.TrimPrefix(path, "counts.elements."))
+		n, ok := e.Doc.Counts.Elements[kind]
+		if !ok {
+			return "", nil, false
+		}
+		return strconv.Itoa(n), nil, true
+	}
+	return "", nil, false
+}
+
+func metadataField(doc *scan.Document, label string) *scan.Field {
+	for i := range doc.Metadata {
+		if doc.Metadata[i].Canonical == label || doc.Metadata[i].Label == label {
+			return &doc.Metadata[i]
+		}
+	}
+	return nil
+}
+
+// caTally counts Critical Assumptions by their Evidence Record Status.
+//
+// The projector has already normalised emphasis, trailing punctuation
+// and case, and has already placed each value in a vocabulary tier, so
+// this counts labels rather than re-reading prose. Placeholders and
+// off-vocabulary values get their own buckets: the template legend left
+// unfilled is not a Pending assumption, and a typo is not a verdict.
+func (e *FactEnv) caTally(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	t := tallyAssumptions(e.Doc)
+	n, ok := t[d.Select]
+	if !ok {
+		return Fact{}, false
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(n)}, true
+}
+
+// observedTerminal are the assumption verdicts the corpus writes and the
+// template never listed (model.AssumptionStatusVocabulary's observed
+// tier). Each one closes an assumption, so they tally as terminal rather
+// than falling into neither column.
+var observedTerminal = map[string]bool{
+	"Refuted": true, "Resolved": true, "Accepted": true, "Downgraded": true,
+}
+
+func tallyAssumptions(doc *scan.Document) map[string]int {
+	t := map[string]int{
+		"total": 0, "Verified": 0, "Pending": 0, "Unverified": 0,
+		"observed-terminal": 0, "placeholder": 0, "off-vocabulary": 0,
+	}
+	for _, el := range doc.Elements {
+		if el.Kind != ident.Assumption {
+			continue
+		}
+		for _, f := range el.Fields {
+			if f.Canonical != "Status" || f.Status == nil {
+				continue
+			}
+			t["total"]++
+			switch {
+			case f.Status.Placeholder:
+				t["placeholder"]++
+			case observedTerminal[f.Status.Value]:
+				t["observed-terminal"]++
+			case f.Status.Tier == model.OffVocabulary.String():
+				t["off-vocabulary"]++
+			default:
+				if _, known := t[f.Status.Value]; known {
+					t[f.Status.Value]++
+				} else {
+					t["off-vocabulary"]++
+				}
+			}
+		}
+	}
+	return t
+}
+
+// caRollup reduces the tallies to the shape the routing branches on.
+//
+// `unknown-plan` is the honest answer whenever the list cannot certify a
+// stage: no assumptions at all, a legend still unfilled, or a value in
+// no vocabulary. An unreadable list is not an empty one, and reading it
+// as all-terminal would certify Resolve off a record that never ran it.
+func (e *FactEnv) caRollup(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	t := tallyAssumptions(e.Doc)
+	if t["total"] == 0 || t["placeholder"] > 0 || t["off-vocabulary"] > 0 {
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "unknown-plan"}, true
+	}
+	terminal := t["Verified"] + t["observed-terminal"]
+	open := t["Pending"] + t["Unverified"]
+	switch {
+	case open == t["total"]:
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "all-pending"}, true
+	case terminal == t["total"]:
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "all-terminal"}, true
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "mixed"}, true
+}
+
+// verdictLine reports whether a Stage-2 verdict line is written in
+// Decision Rationale.
+//
+// These lines are prose the projector does not carry — unlike
+// `Joint-check:`, which IS projected as a JC element with a parsed
+// verdict — so the only way to see them is to read that section's bytes.
+// The read is bounded by the section's own line range, never the file.
+func (e *FactEnv) verdictLine(d FactDecl) (Fact, bool) {
+	if e.Doc == nil || e.Doc.Path == "" {
+		return Fact{}, false
+	}
+	var start, end int
+	for _, n := range e.Doc.Outline {
+		if n.Canonical == "Decision Rationale" {
+			start, end = n.LineStart, n.LineEnd
+			break
+		}
+	}
+	if start == 0 {
+		return Fact{}, false
+	}
+	raw, err := e.readFile(e.Doc.Path)
+	if err != nil {
+		return Fact{}, false
+	}
+	lines := strings.Split(string(raw), "\n")
+	if end > len(lines) {
+		end = len(lines)
+	}
+	for i := start - 1; i < end && i < len(lines); i++ {
+		if i < 0 {
+			continue
+		}
+		// The label opens the line; emphasis around it is presentation,
+		// the same reading the assumption-status parser applies.
+		bare := strings.TrimSpace(strings.NewReplacer("**", "", "*", "", "_", "", "`", "", "- ", "").Replace(lines[i]))
+		if strings.HasPrefix(bare, d.Label) {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
+
+// capsuleState reads the Stage-9 capsule's state word.
+//
+// Absent when the capsule is not there, and absent when it is there and
+// states nothing this understands. The capsule header is the
+// authoritative resume read precisely because it is written down;
+// inferring a state from the tree instead is what it replaced.
+func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots["artifacts"]
+	if !ok {
+		return Fact{}, false
+	}
+	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	if err != nil {
+		return Fact{}, false
+	}
+	// The header is a capsule at the top of the file; the state word is
+	// read from it, not from anywhere the word may later appear in prose.
+	lines := strings.Split(string(raw), "\n")
+	if len(lines) > capsuleHeaderLines {
+		lines = lines[:capsuleHeaderLines]
+	}
+	for _, ln := range lines {
+		up := strings.ToUpper(ln)
+		if !strings.Contains(up, "STATE") {
+			continue
+		}
+		for _, want := range d.Domain {
+			if strings.Contains(up, want) {
+				return Fact{Name: d.Name, Kind: d.Kind, Value: want}, true
+			}
+		}
+	}
+	return Fact{}, false
+}
+
+// capsuleHeaderLines bounds the capsule read. The header is a fixed
+// block at the top of status.md (phase/next/blocker/state in one pass);
+// scanning the whole file would let a state word in a later narrative
+// paragraph answer for the header.
+const capsuleHeaderLines = 20
+
+func boolLiteral(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}
+
+// leadingWord takes the keyword off a value that carries a rationale
+// tail — `mid — one contract plus the metrics surface`. §lens-row is
+// explicit that a consumer matches the leading word and never the whole
+// string.
+func leadingWord(s string) string {
+	s = strings.TrimSpace(s)
+	for i, r := range s {
+		if r == ' ' || r == '\t' || r == ',' || r == ';' || r == ':' || r == '—' || r == '-' {
+			return strings.TrimSpace(s[:i])
+		}
+	}
+	return s
+}
+
+// recordNumbers pulls the NNNN out of a comma-separated `NNNN-slug` list.
+func recordNumbers(s string) []string {
+	out := []string{}
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if n := ident.RecordOf(part); n != "" && n != part {
+			out = append(out, n)
+			continue
+		}
+		if ident.RecordNumber.MatchString(part) {
+			out = append(out, part)
+		}
+	}
+	return out
+}
+
+// canonicalSet renders a set the way the consuming seam compares one:
+// sorted and duplicate-free, so read-back equality is byte equality.
+func canonicalSet(in []string) []string {
+	seen := map[string]bool{}
+	out := []string{}
+	for _, v := range in {
+		if v == "" || seen[v] {
+			continue
+		}
+		seen[v] = true
+		out = append(out, v)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// factTablePath finds the table.
+//
+// $RDR_HOME is the engine root and the marker exports it, so that is the
+// first answer. Failing that, the binary installs at $RDR_HOME/bin/rdr,
+// so `models/` beside the executable's own directory is the same place
+// reached a different way — which is what keeps a `go test` binary and a
+// directly-invoked build working with no marker at all.
+func factTablePath(explicit string) (string, error) {
+	if explicit != "" {
+		return explicit, nil
+	}
+	if home := strings.TrimSpace(envOrSeam("RDR_HOME")); home != "" {
+		p := filepath.Join(home, "models", factTableName)
+		if fileExists(p) {
+			return p, nil
+		}
+	}
+	if exe, err := os.Executable(); err == nil {
+		if resolved, err := filepath.EvalSymlinks(exe); err == nil {
+			exe = resolved
+		}
+		p := filepath.Join(filepath.Dir(filepath.Dir(exe)), "models", factTableName)
+		if fileExists(p) {
+			return p, nil
+		}
+	}
+	return "", fmt.Errorf("stopped:no-fact-table (looked in $RDR_HOME/models and beside the binary; --facts names one)")
+}
+
+const factTableName = "rdr-facts.toml"
+
+// emitFacts renders an evaluated set as the neutral JSON vector.
+func emitFacts(facts []Fact, record string, stdout, stderr interface{ Write([]byte) (int, error) }) int {
+	payload := map[string]any{"schema": schemaVersion, "record": record, "facts": facts}
+	enc := json.NewEncoder(stdout)
+	enc.SetIndent("", "  ")
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(payload); err != nil {
+		fmt.Fprintf(stderr, "stopped:encode (%v)\n", err)
+		return 2
+	}
+	return 0
+}
