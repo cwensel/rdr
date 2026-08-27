@@ -630,7 +630,7 @@ func summary(doc *scan.Document, w io.Writer) int {
 		// label carries no mark: its ordinal is the identity, so there is
 		// nothing for a reader to act on.
 		mark := " "
-		if e.Derived && e.Kind.Labelled() {
+		if e.Backlog {
 			mark = "~"
 		}
 		fmt.Fprintf(w, "%s %-24s %5d-%-5d %s\n", mark, e.ID, e.LineStart, e.LineEnd, e.Label)
@@ -646,10 +646,11 @@ func summary(doc *scan.Document, w io.Writer) int {
 	return 0
 }
 
-// derivedLine reports the labelling backlog per kind. A kind the template
-// does not label (BR, F, MVV) has no backlog to report, so it carries its
-// count in the structural tail rather than a `0/540` column that reads
-// like work already done.
+// derivedLine reports the labelling backlog per kind, and the ids that
+// are not a backlog in a `structural:` tail. A kind whose every minted id
+// is structural — BR, F and MVV, which the template keys nowhere — never
+// shows a `0/540` column, because that reads like work already done
+// rather than work that was never there.
 func derivedLine(c scan.Counts) string {
 	var parts []string
 	var structural []string
@@ -657,11 +658,12 @@ func derivedLine(c scan.Counts) string {
 		if c.Elements[k] == 0 {
 			continue
 		}
-		if k.Labelled() {
+		if c.Derived[k] > 0 || c.Structural[k] == 0 {
 			parts = append(parts, fmt.Sprintf("%s %d/%d", k, c.Derived[k], c.Elements[k]))
-			continue
 		}
-		structural = append(structural, fmt.Sprintf("%s %d", k, c.Elements[k]))
+		if c.Structural[k] > 0 {
+			structural = append(structural, fmt.Sprintf("%s %d", k, c.Structural[k]))
+		}
 	}
 	line := strings.Join(parts, "  ")
 	if len(structural) > 0 {

@@ -119,10 +119,15 @@ type Element struct {
 	// the first line of a list item.
 	Label string `json:"label,omitempty"`
 	// Derived is true when the projector minted the key from the
-	// element's ordinal rather than reading a label. Whether that is a
-	// backlog or the element's permanent identity is the KIND's business,
-	// not the element's: see ident.Kind.Labelled and Counts.
+	// element's ordinal rather than reading a label.
 	Derived bool `json:"derived"`
+	// Backlog is true when a derived id is one an author could write
+	// down: the template keys the kind (model.KindKeys) and the slot was
+	// left empty. A derived id that is NOT a backlog is the element's
+	// identity — the template keys the kind nowhere, so no edit improves
+	// it. Whether a derived id is work is the TEMPLATE's answer, not the
+	// element's; this field carries it so a consumer need not re-derive it.
+	Backlog bool `json:"backlog,omitempty"`
 	// Hash is the short content hash (ident.Hash) over the element's
 	// lines; it separates "same ID, same content" from "same ID, changed".
 	Hash string `json:"hash"`
@@ -1362,24 +1367,33 @@ func (d *Document) count() {
 		d.Counts.Derived[k] = 0
 		d.Counts.Structural[k] = 0
 	}
-	// A minted id lands in exactly one of the two columns: the backlog
-	// where the template labels the kind, the structural count where it
-	// does not. Elements[k] stays the total either way.
-	tally := func(k ident.Kind, derived bool) {
+	// A minted id lands in exactly one of the two columns: Derived where
+	// an author could write the key down, Structural where the ordinal is
+	// the identity. Elements[k] stays the total either way.
+	tally := func(k ident.Kind, derived, backlog bool) {
 		d.Counts.Elements[k]++
 		switch {
 		case !derived:
-		case k.Labelled():
+		case backlog:
 			d.Counts.Derived[k]++
 		default:
 			d.Counts.Structural[k]++
 		}
 	}
-	for _, e := range d.Elements {
-		tally(e.Kind, e.Derived)
+	for i, e := range d.Elements {
+		// A minted id is BACKLOG only where the template gives the kind
+		// somewhere to write one; otherwise the ordinal is the identity.
+		d.Elements[i].Backlog = e.Derived && model.KindKeys(string(e.Kind))
+		tally(e.Kind, e.Derived, d.Elements[i].Backlog)
 	}
 	for _, n := range d.Outline {
-		tally(ident.Section, n.Derived)
+		// A section's id is derived for several reasons, and only one is
+		// work: a LEGACY ALIAS is a reformat in the waiting, retired when
+		// the record is migrated to the canonical heading. A scaffold
+		// instance (`### Alternative 2: …`), the author's own sub-heading,
+		// and a heading recognised with no canonical home are the author's
+		// text, permanent, and no template edit labels them.
+		tally(ident.Section, n.Derived, n.Match == model.MatchLegacyAlias.String())
 	}
 }
 

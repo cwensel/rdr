@@ -462,6 +462,15 @@ trigger** — contracts written as prose are unaddressable and count zero, so on
 an older record zero means *unlabelled*, not *absent*: read the section's lines
 and judge the trigger on what they say.
 
+`counts.derived` is the labelling BACKLOG — ids an author could still write
+down — and it reads the opposite way: zero there means *nothing to do*, not
+*nothing there*. Kinds the template keys nowhere (`BR`, `F`, and every section
+whose heading is the author's own) carry their minted ids in
+`counts.structural`, where the ordinal IS the element's identity and no edit
+improves it. Never read a zero backlog as "this record has no BR/F elements",
+and never propose labelling something the template gives no slot to: check
+`counts.elements` for presence, `counts.derived` for work.
+
 **Profile changes are additive, and the row never shrinks.** Recompute from the
 *current* field on every close-out, not from the lens just run or a profile
 remembered earlier in the session. On a reset/escalation to `foundational`, keep
@@ -484,9 +493,10 @@ contract section once survived propose, refine, resolve, and four lenses as
 verbatim template text.)
 
 `rdr lint <NNNN>` (`--locking` at lock; exit 1 = BLOCK)
-does the structural share — and leaves the receipt §commit demands (`rdr receipt
-<NNNN>`: a lint at/after the record's last write, else the commit is refused). It unlabelled contracts, Peer-RDR Evidence naming a
-record not an element, unresolvable typed references. `conformance` findings
+does the structural share: unlabelled contracts, Peer-RDR Evidence naming a
+record not an element, unresolvable typed references — and leaves the receipt
+§commit demands (`rdr receipt <NNNN>`: a lint at/after the record's last write,
+else the commit is refused). `conformance` findings
 are advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
 `resolution` findings are the fix-now class above. A dangling reference into
 a *terminal* peer comes back as a fix pointer with a line range — correcting

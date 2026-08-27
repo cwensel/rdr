@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
+	"github.com/cwensel/rdr/tools/rdr/internal/model"
 )
 
 func fixture(t *testing.T, name string) []byte {
@@ -539,8 +540,8 @@ Negative cases:
 func TestStructuralIdsAreNotBacklog(t *testing.T) {
 	doc := Bytes(fixture(t, "epoch-d.md"), Options{})
 	for _, k := range []ident.Kind{ident.Rejected, ident.Failure, ident.MVV} {
-		if k.Labelled() {
-			t.Errorf("%s: the template labels none of these kinds", k)
+		if model.KindKeys(string(k)) {
+			t.Errorf("%s: the template keys none of these kinds", k)
 		}
 		if n := doc.Counts.Derived[k]; n != 0 {
 			t.Errorf("%s: backlog = %d, want 0 — the template labels it nowhere", k, n)
@@ -552,12 +553,12 @@ func TestStructuralIdsAreNotBacklog(t *testing.T) {
 		t.Error("BR: structural = 0; the ids stopped being minted")
 	}
 	e := element(t, doc, "0004:BR1")
-	if !e.Derived || e.LineStart == 0 {
-		t.Errorf("0004:BR1 = %+v, want a minted id naming real lines", e)
+	if !e.Derived || e.Backlog || e.LineStart == 0 {
+		t.Errorf("0004:BR1 = %+v, want a minted id, not a backlog, naming real lines", e)
 	}
 	// A labelled kind keeps reporting a backlog: the split narrows the
 	// queue, it does not empty it.
-	if !ident.Contract.Labelled() || doc.Counts.Derived[ident.Contract] != 1 {
+	if !model.KindKeys(string(ident.Contract)) || doc.Counts.Derived[ident.Contract] != 1 {
 		t.Errorf("C backlog = %d, want 1 — an unlabelled contract is still work",
 			doc.Counts.Derived[ident.Contract])
 	}

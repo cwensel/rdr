@@ -188,19 +188,37 @@ legacy record is fully addressable at zero edit cost. On a live record a
 derived ID holds until a sibling is inserted before it — which is what
 labels are for, and what `index --derived` counts down.
 
-A derived ID means one of two things, and the difference is the kind's,
-not the element's. Where the template gives the kind somewhere to write
-an ID — A, C, D, S, RT, ALT — a derived one is a **backlog**: the slot is
-empty and a label would pin the ID against an insertion. Where the
-template labels nothing — **BR**, **F** and **MVV**, whose sections are
-plain bullet lists — the ordinal *is* the identity, there is no edit that
-would improve it, and `index --derived` reports the count in a
-`structural:` tail rather than as a backlog column. Both are minted IDs
-naming real bytes; only the first names work. Counting them together
-reported 976 pending edits corpus-wide against a real backlog of zero,
-and made "stop minting them" look like the way to clear the queue — which
-would strip the IDs off 976 elements and unanchor the 236 edges written
-from them.
+A derived ID means one of two things, and **the template decides which**.
+Where the section an element is projected from shows its items carrying a
+key — a numbered list (`1. **Scenario**:`), a labelled lead (`- **A1
+[Statement]**`, `**C1**`) — a derived ID is a **backlog**: the slot is
+empty and writing the key pins the ID against an insertion. Where the
+section shows an unnumbered bullet (`- **[Alternative N]**:` under
+Briefly Rejected) or plain prose (Failure Modes), there is no key to
+write: the ordinal *is* the identity, no edit improves it, and `index
+--derived` reports the count in a `structural:` tail rather than as a
+backlog column.
+
+That fact lives in one place — `Section.Keys` in the template table,
+bound to TEMPLATE.md's own body by the same-commit test — so a template
+that starts numbering Briefly Rejected changes one row and the reader
+follows. `Grammar` cannot answer it: Testing Strategy, Briefly Rejected
+and Failure Modes are all `GrammarProse`, and only the first shows a
+numbered list.
+
+Sections work the same way, and only one of their derivation causes is
+work: a **legacy alias** is a reformat in the waiting, retired when the
+record is migrated to the canonical heading. A scaffold instance (`###
+Alternative 2: …`), the author's own sub-heading, and a heading
+recognised with no canonical home are the author's text — permanent, and
+no template edit labels them. So `§` reports 39 of 6,190 as backlog, not
+1,400.
+
+Both are minted IDs naming real bytes; only the first names work.
+Counting them together reported 976 pending edits corpus-wide against a
+real backlog of zero, and made "stop minting them" look like the way to
+clear the queue — which would strip the IDs off 976 elements and unanchor
+the 236 edges written from them.
 
 Two rules keep IDs unique when a live record is part-way through
 labelling: a label always wins its number (first writer; a repeated

@@ -34,6 +34,12 @@ type observedSection struct {
 	// ClassExplicit records whether the class came from a bracket marker
 	// or from the unmarked-means-Required default.
 	ClassExplicit bool
+	// Keys records whether the section's own body shows its items
+	// carrying a readable key: a numbered list (`1. **Scenario**:`), a
+	// bold label that is not a `[placeholder]` (`- **A1 [Statement]**`,
+	// `**C1**`). An unnumbered `- **[Alternative N]**:` bullet is a
+	// placeholder, not a key, and plain prose has no items at all.
+	Keys bool
 }
 
 var (
@@ -55,6 +61,44 @@ var (
 // HTML comments so that a marker quoted in guidance is not mistaken for a
 // declaration. A section with no marker takes the Required default per
 // SectionClassRule; the caller reconciles the scaffold exceptions.
+// numberedItem is a list item the author numbers: `1. **Scenario**:`.
+var numberedItem = regexp.MustCompile(`^\s*\d+[.)]\s`)
+
+// boldKeyLead is a bold lead that names a key rather than a placeholder:
+// `- **A1 [Statement]**`, `**C1**`, `- **Identity** — …`. A lead whose
+// bold text OPENS with `[` is the template's placeholder for the author's
+// own words (`- **[Alternative N]**:`) and keys nothing.
+var boldKeyLead = regexp.MustCompile(`^\s*(?:[-*]\s+)?\*\*([^*]+)\*\*`)
+
+// sectionKeys reads a section's template body and reports whether it
+// shows its items carrying a key the projector can read back as an id.
+// This is the observed half of the Section.Keys column: the model states
+// the fact, TEMPLATE.md's own body is the oracle, and they must agree.
+func sectionKeys(body []string) bool {
+	for _, l := range body {
+		if numberedItem.MatchString(l) {
+			return true
+		}
+		if m := boldKeyLead.FindStringSubmatch(l); m != nil {
+			if !strings.HasPrefix(strings.TrimSpace(m[1]), "[") {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// elementSection reports whether a canonical section is one an element
+// kind is projected from, and which kind.
+func elementSection(name string) (string, bool) {
+	for kind, section := range ElementSections {
+		if section == name {
+			return kind, true
+		}
+	}
+	return "", false
+}
+
 func parseTemplate(t *testing.T, path string) []observedSection {
 	t.Helper()
 
@@ -78,6 +122,7 @@ func parseTemplate(t *testing.T, path string) []observedSection {
 			text = delegatedMarker.ReplaceAllString(text, "")
 		}
 		s := &out[len(out)-1]
+		s.Keys = sectionKeys(body)
 		switch {
 		case conditionalMarker.MatchString(text):
 			s.Class, s.ClassExplicit = Conditional, true
@@ -142,7 +187,7 @@ func TestTemplateMatchesTemplateFile(t *testing.T) {
 	observed := parseTemplate(t, path)
 	model := Template.Sections
 
-	const fixHint = "\n\nFIX: update Template in tools/rdr/internal/model/epoch.go in the SAME commit " +
+	const fixHint = "\n\nFIX: update Template in tools/rdr/internal/model/template_table.go in the SAME commit " +
 		"as the TEMPLATE.md change, and add a synthetic fixture under tools/rdr/testdata/ if the " +
 		"change affects how a record is read. See tools/rdr/README.md, 'The same-commit rule'."
 
@@ -155,6 +200,17 @@ func TestTemplateMatchesTemplateFile(t *testing.T) {
 		if o.Level != m.Level {
 			t.Errorf("section %q: TEMPLATE.md writes it at level %d, the model has level %d.\n"+
 				"The section was re-levelled."+fixHint, o.Name, o.Level, m.Level)
+		}
+		// Keys is asserted only for the sections an element kind is
+		// projected from: it answers "can an author write this element's
+		// id down", which is a question only those sections raise. A
+		// prose section whose body happens to show a bold lead
+		// (Illustrative Code, Key Discoveries) keys nothing, because
+		// nothing is projected from it.
+		if _, projects := elementSection(m.Name); projects && o.Keys != m.Keys {
+			t.Errorf("section %q: TEMPLATE.md's body %s its items, the model says Keys: %v.\n"+
+				"An element kind's id slot changed."+fixHint,
+				o.Name, map[bool]string{true: "keys", false: "does not key"}[o.Keys], m.Keys)
 		}
 		if o.Class != m.Class {
 			// The unmarked default and a scaffold clause carried by the

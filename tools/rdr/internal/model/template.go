@@ -116,6 +116,21 @@ type Section struct {
 	Parent string
 	// Grammar is the element grammar the section's body carries.
 	Grammar Grammar
+	// Keys records whether the section's own body shows its items
+	// carrying a key the projector can read back as an id — a numbered
+	// list (`1. **Scenario**:`), a labelled lead (`- **A<N> …**`), a
+	// keyed table row. Where the template shows an unnumbered bullet
+	// (`- **[Alternative N]**:` under Briefly Rejected) or plain prose
+	// (Failure Modes), there is no key to write and the projector's
+	// ordinal IS the element's identity.
+	//
+	// This is the template's to say, for the reason Retained is: a rule
+	// the reader spells out for itself is a second source for one fact,
+	// and the two drift. Grammar cannot answer it — Testing Strategy,
+	// Briefly Rejected and Failure Modes are all GrammarProse, and only
+	// the first shows a numbered list. The same-commit test binds this
+	// column to TEMPLATE.md's body.
+	Keys bool
 }
 
 // SectionClassRule documents how Class is derived, so a reader of the
@@ -328,6 +343,62 @@ var GateItems = []struct {
 	{"Scope Verification", "scope", false},
 	{"Cross-Cutting Concerns", "cross-cutting", true},
 	{"Proportionality", "proportionality", false},
+}
+
+// SectionKeys reports whether the named canonical section's body shows
+// its items carrying a readable key. An unknown name reports false: a
+// section the template does not model cannot be said to key anything.
+func SectionKeys(name string) bool {
+	for _, s := range Template.Sections {
+		if s.Name == name {
+			return s.Keys
+		}
+	}
+	return false
+}
+
+// ElementSections names the canonical section each element kind is
+// projected from, by the kind's ID token. It is the one place the reader
+// says which section answers for which kind, so a question about a kind
+// — does the template key it? — is answerable from the template table
+// rather than from a list restated beside it.
+//
+// The kinds absent here are keyed by something other than a section's
+// list shape: G by the gate item, JC by a line anywhere in the record,
+// § by the heading itself.
+var ElementSections = map[string]string{
+	"A":   "Critical Assumptions",
+	"C":   "Normative Contracts",
+	"D":   "Load-Bearing Decisions",
+	"RT":  "Round-Trip / Inverse Invariants",
+	"ALT": "Alternative 1: [Name]",
+	"BR":  "Briefly Rejected",
+	"S":   "Testing Strategy",
+	"MVV": "Minimum Viable Validation",
+	"F":   "Failure Modes",
+}
+
+// KindKeys reports whether the template gives the element kind — named by
+// its ID token — somewhere to write a key. A kind with no section here
+// reports false.
+//
+// This is what separates the two things a derived id can mean. Where the
+// template keys the kind, a derived id is a BACKLOG: the slot is empty
+// and writing the label pins the id against a sibling being inserted
+// before it. Where the template keys nothing, the ordinal IS the
+// element's identity — the standing MVV has always had — and no edit
+// would improve it. Counting the second as backlog reports work that
+// cannot be done: BR 436/436 and F 540/540 read as 976 pending edits
+// corpus-wide against a real backlog of zero, which made "stop minting
+// them" look like the way to clear the queue.
+//
+// Both are minted, and neither is a defect. This says only which one an
+// author could ever act on — and it says it by reading the template,
+// so a template that starts numbering Briefly Rejected changes one table
+// row and the reader follows.
+func KindKeys(kind string) bool {
+	s, ok := ElementSections[kind]
+	return ok && SectionKeys(s)
 }
 
 // GateItemRetained reports whether a G-key names an item the template

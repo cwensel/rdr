@@ -74,30 +74,6 @@ func (k Kind) Keyed() bool {
 	return k == Decision || k == Gate || k == Section
 }
 
-// Labelled reports whether the current TEMPLATE.md gives the kind a place
-// to write its id. A, C, D, S, RT and ALT have one; BR, F and MVV do not
-// — `### Briefly Rejected` and `### Failure Modes` are plain bullet
-// lists, and Minimum Viable Validation is one per record.
-//
-// The distinction is what separates the two things a derived id can mean.
-// Where the template labels the kind, a derived id is a BACKLOG: the
-// author left the slot empty and a label would pin the id against a
-// sibling being inserted before it. Where the template labels nothing,
-// the ordinal IS the identity — the same standing MVV has always had —
-// and there is no edit that would improve it. Counting the second kind as
-// backlog reports work that does not exist: BR 436/436 and F 540/540 read
-// as 976 pending edits corpus-wide when the pending count is zero.
-//
-// Both are minted, and neither is a defect. This says only which one an
-// author could ever act on.
-func (k Kind) Labelled() bool {
-	switch k {
-	case Rejected, Failure, MVV:
-		return false
-	}
-	return true
-}
-
 // ID is one parsed element identifier.
 type ID struct {
 	// Project is the records-dir qualifier, or "" inside one dir.
