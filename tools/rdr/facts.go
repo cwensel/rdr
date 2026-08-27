@@ -36,6 +36,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -114,6 +115,32 @@ type FactDecl struct {
 	// make `--tags` succeed or fail depending on which record was asked
 	// about, which is the drift this whole file replaced.
 	Prose bool
+	// Absent is the value `--tags` renders when this fact evaluates to
+	// nothing — the sentinel that carries "the record does not say".
+	//
+	// It exists because the two consumers of a fact are not equally
+	// expressive about absence. `--json` omits an absent fact entirely
+	// and a reader sees three values; a resolver's argv has no way to
+	// spell "this key is absent" at all. Worse, a routing dimension that
+	// is merely *sometimes* supplied cannot be routed on: declaring it
+	// optional withholds the coverage proof at lint, and an absent value
+	// under a guard atom refuses at resolve. Either way the navigator
+	// stops on a record whose Profile field is simply missing — which is
+	// a real corpus state, not an error.
+	//
+	// So a fact that a routing table discriminates on declares the value
+	// absence takes, and `--tags` always renders the key. The sentinel is
+	// a DECLARED member of the fact's own domain, so the table it feeds
+	// claims that cell positively rather than defaulting into it.
+	//
+	// Only `--tags` substitutes. `--json` still omits, because there the
+	// distinction survives and collapsing it would throw away the honest
+	// answer this table's header insists on: false says "looked, not
+	// there", absent says "nothing looked".
+	Absent string
+	// HasAbsent records that `absent` was declared, so an empty-string
+	// sentinel (a set's `[]`, say) is not read as undeclared.
+	HasAbsent bool
 	// Min is an int's declared floor, checked at load.
 	Min *int
 	// Description is prose for the reader of the table.
@@ -125,6 +152,12 @@ type FactDecl struct {
 // nothing can consume.
 var factKinds = map[string]bool{
 	"enum": true, "bool": true, "int": true, "set": true, "scalar": true,
+}
+
+// factTransforms are the normalisations a field may declare. Closed, so
+// a misspelling is refused at load rather than quietly doing nothing.
+var factTransforms = map[string]bool{
+	"leading-word": true, "record-numbers": true, "record-numbers-any": true,
 }
 
 // factSources are the evaluators. Closed for the same reason a kind is:
@@ -239,10 +272,13 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 		}
 		d.Prose = v.scalar == "true"
 	}
+	if v, ok := tbl.values["absent"]; ok {
+		d.Absent, d.HasAbsent = v.scalar, true
+	}
 	for k := range tbl.values {
 		switch k {
 		case "kind", "source", "path", "paths", "root", "domain",
-			"equals", "transform", "select", "label", "min", "prose", "description":
+			"equals", "transform", "select", "label", "min", "prose", "absent", "description":
 		default:
 			return d, fmt.Errorf("fact %q: unknown key %q", name, k)
 		}
@@ -255,6 +291,13 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 	}
 	if !factSources[d.Source] {
 		return d, fmt.Errorf("fact %q: unknown source %q", name, d.Source)
+	}
+	// A transform is named here for the same reason a key is: one this
+	// switch does not know would silently apply NOTHING, and the fact
+	// would read as declared while evaluating to the raw field — the
+	// exact silent-drift this table replaced.
+	if d.Transform != "" && !factTransforms[d.Transform] {
+		return d, fmt.Errorf("fact %q: unknown transform %q", name, d.Transform)
 	}
 	switch d.Source {
 	case "probe":
@@ -296,6 +339,29 @@ func factFromTable(tbl tomlTable) (FactDecl, error) {
 	// a sign the kind is wrong.
 	if d.Prose && d.Kind != "scalar" {
 		return d, fmt.Errorf("fact %q: prose is for a scalar, not a %s", name, d.Kind)
+	}
+	// A sentinel is only meaningful for a fact something can route on,
+	// and prose is the one kind nothing routes on — `--tags` omits it
+	// wholesale, so a sentinel there would name a rendering that never
+	// happens.
+	if d.HasAbsent && d.Prose {
+		return d, fmt.Errorf("fact %q: a prose fact is never rendered as a tag, so absent would not apply", name)
+	}
+	// The sentinel must be a value the fact could otherwise carry, or the
+	// table it feeds cannot claim its cell. For an enum that means a
+	// DECLARED member: routing on a value outside the domain is exactly
+	// the drift this table replaced, and a downstream model declaring the
+	// same domain would refuse it.
+	if d.HasAbsent && d.Kind == "enum" && !slices.Contains(d.Domain, d.Absent) {
+		return d, fmt.Errorf("fact %q: absent %q is not in the declared domain; add it, so a routing table can claim that cell", name, d.Absent)
+	}
+	if d.HasAbsent && d.Kind == "bool" && d.Absent != "true" && d.Absent != "false" {
+		return d, fmt.Errorf("fact %q: absent %q is not a bool", name, d.Absent)
+	}
+	if d.HasAbsent && d.Kind == "int" {
+		if _, err := strconv.Atoi(d.Absent); err != nil {
+			return d, fmt.Errorf("fact %q: absent %q is not an int", name, d.Absent)
+		}
 	}
 	return d, nil
 }
@@ -426,6 +492,14 @@ func (e *FactEnv) field(d FactDecl) (Fact, bool) {
 	case "record-numbers":
 		members = recordNumbers(v)
 		v = ""
+	case "record-numbers-any":
+		// The set's CARDINALITY as a bool, for a routing dimension that
+		// asks "is this record clustered at all" rather than "with
+		// whom". A set cannot be a guard dimension — its domain is a
+		// power set, not a partition — so the question a routing table
+		// can actually decide is this one, and it is derived here rather
+		// than re-derived from the members by every consumer.
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(len(recordNumbers(v)) > 0)}, true
 	}
 	if d.Kind == "set" {
 		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(members)}, true

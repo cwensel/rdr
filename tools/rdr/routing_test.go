@@ -1,0 +1,486 @@
+package main
+
+import (
+	"encoding/json"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+// The routing table (`models/rdr-status.toml`) is the other half of what
+// the fact table started: N1 and N2 moved rdr-status's SIGNALS into data,
+// and that file moves its ROUTING there. These tests bind the two halves
+// the same way `facts_test.go` binds the fact table to the skill's signal
+// table — in both directions, so neither file can drift from the other
+// without a test going red.
+//
+// WHY THESE TESTS DO NOT RUN `intrastate`. The coverage proof is that
+// binary's job and re-implementing it here would be a second, weaker
+// answer to a question already answered — `intrastate lint --model` is
+// the acceptance criterion and it runs in the flow, not in `go test`.
+// What these tests own is the SEAM: that every tag the model matches on
+// is a fact this binary actually renders, that every value it compares
+// against is one the fact can actually carry, and that the model stays
+// parseable. Those are properties of this repo's data, checkable with no
+// second binary installed — which matters because `intrastate` is an
+// accelerator here, never a hard dependency.
+
+const routingModelName = "rdr-status.toml"
+
+// routingModel is the parsed model, reduced to what the seam needs: the
+// observed tags it declares and the atoms its rules compare.
+type routingModel struct {
+	// Tags maps a declared observed tag to its domain, empty for a kind
+	// that declares none.
+	Tags map[string][]string
+	// Kinds maps a declared observed tag to its kind.
+	Kinds map[string]string
+	// Atoms are every guard comparison, in file order.
+	Atoms []routingAtom
+	// Outcomes are the declared recognized outcomes.
+	Outcomes []string
+	// RuleIDs are every rule's id, in file order.
+	RuleIDs []string
+	// Emits maps a rule id to its emit block.
+	Emits map[string]map[string]string
+}
+
+// routingAtom is one `[rule.guard.*.<key>]` comparison.
+type routingAtom struct {
+	Rule     string
+	Key      string
+	Literals []string
+}
+
+// loadRoutingModel parses the shipped model far enough to check the seam.
+//
+// It does NOT reuse this package's `parseTOMLSubset`: that reader
+// deliberately refuses `[[array]]` tables, and the model is built of
+// them. Widening it to read a file this binary never loads would trade
+// away the narrowness that makes it safe for the fact table. So the
+// reading here is local, line-oriented, and covers exactly the four
+// shapes the model uses — a header, an array-of-tables header, a bare
+// scalar, and a bare list. Anything else is a parse error rather than a
+// silent skip, because a dropped table would make every check below pass
+// vacuously.
+func loadRoutingModel(t *testing.T) *routingModel {
+	t.Helper()
+	path := repoFile(t, filepath.Join("models", routingModelName))
+	src, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the shipped routing model is unreadable: %v", err)
+	}
+
+	m := &routingModel{
+		Tags:  map[string][]string{},
+		Kinds: map[string]string{},
+		Emits: map[string]map[string]string{},
+	}
+	section, rule := "", ""
+	pending := map[string]string{} // the open [tags.*] table's keys
+	flush := func() {
+		if strings.HasPrefix(section, "tags.") && pending["provenance"] == "observed" {
+			name := strings.TrimPrefix(section, "tags.")
+			m.Tags[name] = splitTOMLList(pending["domain"])
+			m.Kinds[name] = pending["kind"]
+		}
+		pending = map[string]string{}
+	}
+
+	for i, raw := range strings.Split(string(src), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "[[") {
+			flush()
+			if !strings.HasSuffix(line, "]]") {
+				t.Fatalf("line %d: unterminated array-of-tables header", i+1)
+			}
+			section = strings.TrimSpace(line[2 : len(line)-2])
+			if section != "rule" {
+				t.Fatalf("line %d: unexpected array-of-tables %q", i+1, section)
+			}
+			rule = ""
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			flush()
+			if !strings.HasSuffix(line, "]") {
+				t.Fatalf("line %d: unterminated table header", i+1)
+			}
+			section = strings.TrimSpace(line[1 : len(line)-1])
+			continue
+		}
+
+		key, rest, ok := strings.Cut(line, "=")
+		if !ok {
+			t.Fatalf("line %d: not a key = value or a header: %q", i+1, line)
+		}
+		key = strings.TrimSpace(key)
+		val := strings.Trim(strings.TrimSpace(rest), `"`)
+
+		switch {
+		case section == "" && key == "outcomes":
+			m.Outcomes = splitTOMLList(strings.TrimSpace(rest))
+		case strings.HasPrefix(section, "tags."):
+			pending[key] = strings.TrimSpace(rest)
+			if key != "domain" {
+				pending[key] = val
+			}
+		case section == "rule" && key == "id":
+			rule = val
+			m.RuleIDs = append(m.RuleIDs, rule)
+		case strings.HasPrefix(section, "rule.guard."):
+			block, gkey, ok := strings.Cut(strings.TrimPrefix(section, "rule.guard."), ".")
+			if !ok || (block != "all" && block != "unless") {
+				t.Fatalf("line %d: unrecognised guard block %q", i+1, section)
+			}
+			var lits []string
+			switch key {
+			case "eq":
+				lits = []string{val}
+			case "in":
+				lits = splitTOMLList(strings.TrimSpace(rest))
+			default:
+				continue
+			}
+			m.Atoms = append(m.Atoms, routingAtom{Rule: rule, Key: gkey, Literals: lits})
+		case section == "rule.emit":
+			if m.Emits[rule] == nil {
+				m.Emits[rule] = map[string]string{}
+			}
+			m.Emits[rule][key] = val
+		}
+	}
+	flush()
+
+	if len(m.RuleIDs) == 0 {
+		t.Fatal("the routing model declares no rules; the parse moved and this test is blind")
+	}
+	if len(m.Atoms) == 0 {
+		t.Fatal("the routing model declares no guard atoms; without them lint proves nothing")
+	}
+	return m
+}
+
+// splitTOMLList reads a single-line `["a", "b"]` literal.
+func splitTOMLList(s string) []string {
+	s = strings.TrimSpace(s)
+	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
+		return nil
+	}
+	var out []string
+	for _, part := range strings.Split(s[1:len(s)-1], ",") {
+		if p := strings.Trim(strings.TrimSpace(part), `"`); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// TestRoutingModelMatchesTheFactTable is the seam, checked forward.
+//
+// Every tag the model declares as observed must be a fact the table
+// declares, and every literal a guard atom compares against must be a
+// value that fact can actually carry. A model comparing `status` against
+// `"Locked"`, or guarding a tag no fact renders, is a rule that can never
+// fire — and it would fire nothing SILENTLY, since the resolver has no
+// way to know the caller meant a value the corpus never produces.
+//
+// This is the same claim `TestEveryStageRowIsExpressedAsFacts` makes for
+// the signal table, one file further along: the fact names are a contract
+// between two repos, and this is the consumer that binds to them.
+func TestRoutingModelMatchesTheFactTable(t *testing.T) {
+	tbl := loadRealTable(t)
+	m := loadRoutingModel(t)
+
+	decl := map[string]FactDecl{}
+	for _, f := range tbl.Facts {
+		decl[f.Name] = f
+	}
+
+	for name := range m.Tags {
+		if _, ok := decl[name]; !ok {
+			t.Errorf("the model declares observed tag %q, which the fact table does not declare; "+
+				"a tag no fact renders can never be supplied, so every rule guarding it is dead", name)
+		}
+	}
+
+	for _, a := range m.Atoms {
+		f, ok := decl[a.Key]
+		if !ok {
+			t.Errorf("rule %q guards on %q, which the fact table does not declare", a.Rule, a.Key)
+			continue
+		}
+		if _, ok := m.Tags[a.Key]; !ok {
+			t.Errorf("rule %q guards on %q, which the model does not declare as an observed tag", a.Rule, a.Key)
+		}
+		// A prose fact is never rendered as a tag at all, so guarding on
+		// one is a rule that cannot fire however the record reads.
+		if f.Prose {
+			t.Errorf("rule %q guards on %q, which is declared prose and is never rendered as a tag", a.Rule, a.Key)
+		}
+		for _, lit := range a.Literals {
+			if !factCanCarry(f, lit) {
+				t.Errorf("rule %q compares %q against %q, which that fact cannot carry (kind %s, domain %v)",
+					a.Rule, a.Key, lit, f.Kind, f.Domain)
+			}
+		}
+	}
+}
+
+// TestRoutingDimensionsAreAlwaysRendered is the absence half of the seam.
+//
+// A dimension that is merely SOMETIMES supplied cannot be routed on: an
+// optional tag withholds the coverage claim at lint and refuses at
+// resolve, so a record whose field is simply unwritten would stop the
+// navigator rather than route. The fact table's answer is a declared
+// `absent` sentinel, and `--tags` then always renders the key.
+//
+// So: every fact a guard atom reads must either be one that is always
+// present, or one that declares a sentinel. This test is what keeps a
+// later edit from guarding on a fact that can go missing — the failure
+// would otherwise appear only on the one record in the corpus that
+// happens to omit that field.
+func TestRoutingDimensionsAreAlwaysRendered(t *testing.T) {
+	tbl := loadRealTable(t)
+	m := loadRoutingModel(t)
+
+	decl := map[string]FactDecl{}
+	for _, f := range tbl.Facts {
+		decl[f.Name] = f
+	}
+
+	// Totality is MEASURED, not assumed from the source kind. Some facts
+	// cannot go absent — every record has a Status, and a rollup always
+	// answers — while others read a field the template does not require.
+	// Which is which is a property of the corpus and the evaluator
+	// together, so the check evaluates the real fixtures and asserts
+	// that every dimension came out rendered on every one of them.
+	//
+	// The fixtures are the right subject: they were built to span the
+	// shapes the routing cares about, and they include the sparse
+	// Draft whose fields are missing. A dimension that survives them all
+	// is one `--tags` always emits.
+	dims := map[string]bool{}
+	for _, a := range m.Atoms {
+		dims[a.Key] = true
+	}
+
+	_, table := bindStatusFixture(t)
+	for _, rec := range routingFixtures {
+		rendered := fixtureTags(t, table, rec)
+		for key := range dims {
+			if _, ok := rendered[key]; ok {
+				continue
+			}
+			f := decl[key]
+			t.Errorf("fixture %s does not render dimension %q (source %s, absent declared: %v); "+
+				"a guard atom over a missing tag refuses at resolve instead of routing — "+
+				"declare the value absence takes on that fact, and claim its cell",
+				rec, key, f.Source, f.HasAbsent)
+		}
+	}
+}
+
+// routingFixtures are the `status` fixture records, which span the shapes
+// the routing tells apart — including the sparse Draft whose optional
+// fields are simply not written.
+var routingFixtures = []string{"0020", "0021", "0022", "0023", "0024", "0025"}
+
+// fixtureTags renders one fixture's `--tags` argv into a key/value map,
+// asserting the argv shape on the way through.
+func fixtureTags(t *testing.T, table, rec string) map[string]string {
+	t.Helper()
+	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", rec)
+	if code != 0 {
+		t.Fatalf("%s: --tags exit %d: %s", rec, code, errb)
+	}
+	got := map[string]string{}
+	lines := strings.Split(strings.TrimSpace(out), "\n")
+	for i := 0; i+1 < len(lines); i += 2 {
+		if strings.TrimSpace(lines[i]) != "--tag" {
+			t.Fatalf("%s: argv is not --tag/value pairs at line %d: %q", rec, i, lines[i])
+		}
+		k, v, _ := strings.Cut(strings.TrimSpace(lines[i+1]), "=")
+		got[k] = v
+	}
+	return got
+}
+
+// TestRoutingSentinelsRenderOnlyAsTags asserts BOTH halves of what a
+// sentinel is for, on the one fixture that omits the fields.
+//
+// `--tags` must render it, because a resolver's argv cannot spell
+// absence and a guard atom over a missing tag refuses rather than routes.
+// `--json` must still OMIT it, because there the distinction survives —
+// and the fact table's whole header rests on it: false says "looked, not
+// there", absent says "nothing looked".
+//
+// Either half alone is misleading, which is why they are asserted
+// together. A sentinel that leaked into `--json` would quietly convert
+// every "nothing looked" into a claim.
+func TestRoutingSentinelsRenderOnlyAsTags(t *testing.T) {
+	tbl := loadRealTable(t)
+	_, table := bindStatusFixture(t)
+
+	var sentinels []FactDecl
+	for _, f := range tbl.Facts {
+		if f.HasAbsent {
+			sentinels = append(sentinels, f)
+		}
+	}
+	if len(sentinels) == 0 {
+		t.Fatal("no fact declares an `absent` sentinel; the routing dimensions cannot be total")
+	}
+
+	// 0025 is the sparse Draft: no Profile, no Cluster, no Joint-check:.
+	const sparse = "0025"
+	tags := fixtureTags(t, table, sparse)
+
+	code, out, errb := runCapture(t, "status", "--json", "--facts", table, sparse)
+	if code != 0 {
+		t.Fatalf("%s: --json exit %d: %s", sparse, code, errb)
+	}
+	var env struct {
+		Facts []Fact `json:"facts"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatal(err)
+	}
+	inJSON := map[string]bool{}
+	for _, f := range env.Facts {
+		inJSON[f.Name] = true
+	}
+
+	// At least one sentinel must actually be exercised, or this test
+	// passes without proving anything.
+	exercised := 0
+	for _, f := range sentinels {
+		if inJSON[f.Name] {
+			continue // the fixture carries a real value for this one
+		}
+		exercised++
+		got, ok := tags[f.Name]
+		if !ok {
+			t.Errorf("fact %q is absent on %s and declares absent=%q, but `--tags` omitted it; "+
+				"the sentinel exists precisely so the dimension is always supplied",
+				f.Name, sparse, f.Absent)
+			continue
+		}
+		if got != f.Absent {
+			t.Errorf("fact %q rendered %q on %s, want the declared sentinel %q", f.Name, got, sparse, f.Absent)
+		}
+		if fields := strings.Fields(f.Name + "=" + got); len(fields) != 1 {
+			t.Errorf("sentinel %q=%q renders %d shell words, not one", f.Name, got, len(fields))
+		}
+	}
+	if exercised == 0 {
+		t.Fatalf("fixture %s carries a value for every sentinel fact, so this test proves nothing; "+
+			"the absence fixture must omit the fields the sentinels stand in for", sparse)
+	}
+}
+
+// TestEveryRoutingRuleAnswers checks that no rule can select and then say
+// nothing.
+//
+// `emit` is the whole answer over this model class — there is no write
+// block and no owned state — so a rule with no `next` is a row that
+// resolves successfully and leaves the caller with nothing to run. That
+// is worse than a refusal, which at least names itself.
+func TestEveryRoutingRuleAnswers(t *testing.T) {
+	m := loadRoutingModel(t)
+	for _, id := range m.RuleIDs {
+		e, ok := m.Emits[id]
+		if !ok || len(e) == 0 {
+			t.Errorf("rule %q emits nothing; over a decision table the emit block IS the answer", id)
+			continue
+		}
+		if strings.TrimSpace(e["next"]) == "" {
+			t.Errorf("rule %q emits no `next`; every row answers with a command, `none`, or a stopped: token", id)
+		}
+		if strings.TrimSpace(e["why"]) == "" {
+			t.Errorf("rule %q emits no `why`; the reason is what the skill prints beside the answer", id)
+		}
+	}
+}
+
+// TestRoutingStopsAreNamed holds the §stop-packet rule: where the flow's
+// answer is a judgement a fact cannot make, the row must SAY so rather
+// than route to a plausible stage. A `stopped:` token is how it says it,
+// and each one must name what is missing.
+func TestRoutingStopsAreNamed(t *testing.T) {
+	m := loadRoutingModel(t)
+	for _, id := range m.RuleIDs {
+		next := m.Emits[id]["next"]
+		if !strings.HasPrefix(next, "stopped:") {
+			continue
+		}
+		if strings.TrimSpace(strings.TrimPrefix(next, "stopped:")) == "" {
+			t.Errorf("rule %q emits a bare `stopped:` with no reason token", id)
+		}
+		if strings.TrimSpace(m.Emits[id]["surface"]) == "" {
+			t.Errorf("rule %q stops but surfaces nothing; a stop names what the human must read", id)
+		}
+	}
+}
+
+// TestRoutingModelLints runs the real acceptance criterion when — and
+// only when — `intrastate` is installed.
+//
+// The coverage proof is the whole reason this model is data rather than
+// prose, so it is checked here where it can be. But `intrastate` is an
+// accelerator for this flow and not a hard dependency: a contributor
+// without it must still get a green suite, so an absent binary SKIPS.
+// A skip that reads as a pass is exactly the failure the flow's own rules
+// warn about, which is why the skip message says what went unchecked.
+func TestRoutingModelLints(t *testing.T) {
+	bin, err := exec.LookPath("intrastate")
+	if err != nil {
+		t.Skip("intrastate is not installed; the model's coverage proof went UNCHECKED here " +
+			"(run: intrastate lint --model models/rdr-status.toml)")
+	}
+	model := repoFile(t, filepath.Join("models", routingModelName))
+	out, err := exec.Command(bin, "lint", "--model", model, "--as", "json").CombinedOutput()
+	if err != nil {
+		t.Fatalf("intrastate lint refused the shipped model: %v\n%s", err, out)
+	}
+	// Exit 0 still carries advisories, and one of them matters: a table
+	// closed by a bare escape row is closed, not proved. This model
+	// claims every cell positively, so the advisory must be absent.
+	if strings.Contains(string(out), "graph-coverage-closed-by-escape") {
+		t.Errorf("the model's coverage is closed by an escape row rather than proved over its domains:\n%s", out)
+	}
+}
+
+// factCanCarry reports whether a fact could ever hold this literal.
+func factCanCarry(f FactDecl, lit string) bool {
+	switch f.Kind {
+	case "enum":
+		return containsString(f.Domain, lit)
+	case "bool":
+		return lit == "true" || lit == "false"
+	case "int":
+		for _, r := range lit {
+			if r < '0' || r > '9' {
+				return false
+			}
+		}
+		return lit != ""
+	}
+	// A set is compared by containment rather than equality, and a
+	// scalar has no declared domain to check against.
+	return true
+}
+
+func containsString(hay []string, needle string) bool {
+	for _, s := range hay {
+		if s == needle {
+			return true
+		}
+	}
+	return false
+}

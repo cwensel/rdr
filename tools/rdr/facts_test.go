@@ -727,12 +727,20 @@ var stageFacts = map[string][]string{
 	},
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
 	"7 Finalize":  {"status", "gate_written"},
-	// 7.1 Cluster reads two different things, and both are facts.
+	// 7.1 Cluster reads three different things, and all are facts.
 	// `cluster` is what the record DECLARES, which is what the tandem
-	// barrier reads; `cluster_reconciled` is whether a run actually
-	// wrote a directory covering this record, which is what routes a
-	// Final to /rdr-cluster-reconcile before /rdr-implement.
-	"7.1 Cluster": {"cluster", "cluster_reconciled"},
+	// barrier reads and what the row surfaces; `clustered` is that
+	// reduced to the yes/no the stage's own precondition asks ("only
+	// when the RDR is in a cluster"), because a set cannot be a routing
+	// dimension; `cluster_reconciled` is whether a run actually wrote a
+	// directory covering this record, which is what routes a Final to
+	// /rdr-cluster-reconcile before /rdr-implement.
+	//
+	// The pair is load-bearing, not redundant: an UNCLUSTERED Final
+	// reads `cluster_reconciled=false` correctly — no run covers it —
+	// and reading that flag alone would route every solo Final to a
+	// stage with nothing to reconcile.
+	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled"},
 	"8 Implement": {"impl_capsule", "impl_state"},
 }
 

@@ -1,0 +1,773 @@
+# rdr-status.toml — the navigator's routing table, as data.
+#
+# `skills/rdr-status/SKILL.md` answers "I lost my place — what do I run
+# next?". N1 and N2 moved its SIGNALS into data (`rdr-facts.toml`, read by
+# `rdr status --tags NNNN`). This file is the other half: the ROUTING,
+# which was §How it decides next plus `rdr-common.md` §lens-row — prose a
+# model re-derived on every run.
+#
+# The point is a guarantee prose cannot give. `intrastate lint --model`
+# proves every cell of each declared product is claimed by exactly one
+# row; the 2026-08-26 proof-of-concept found a 208/512 hole in a partial
+# table. A missing branch is a lint failure here, not a wrong answer to a
+# human three months from now.
+#
+# THE COUPLING IS THE FACT NAMES, AND NOTHING ELSE. Neither binary calls
+# the other: `rdr` renders tags, `intrastate` resolves them, and the
+# skill composes the two in one Bash call —
+#
+#   intrastate flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
+#     --outcome locate $(rdr status --tags NNNN)
+#
+# so every `[tags.*]` name below must match a fact `rdr-facts.toml`
+# declares. A rename there is a breaking change to this file in another
+# repo, which is why that table says so in its own header.
+#
+# ---------------------------------------------------------------------
+# WHY A DECISION TABLE, AND WHY THE ROWS LOOK LIKE THIS
+#
+# This is a `decision-table` (intrastate RDR 0010): zero owned tags, no
+# `[initial]`, no accessors, no `--artifact`. The navigator is stateless
+# by doctrine — `stages/README.md` resources-vs-memory: a position
+# computed from the artifacts cannot drift from them — so a model that
+# held state would be the wrong shape even where one was available.
+#
+# THE DIMENSIONS ARE GUARD ATOMS, NEVER MATCH ATOMS. `[rule.match.*]`
+# scopes a row's group and contributes NO dimension to the product lint
+# proves exhaustiveness over, so a table discriminated by match atoms
+# ranges over an empty product that any single row closes — green whether
+# or not the table is complete. Only `[rule.guard.all.*]` and
+# `[rule.guard.unless.*]` participate.
+#
+# EVERY DIMENSION IS `required` AND `single_valued`. An optional tag
+# withholds the coverage claim at lint (`graph-unprovable-coverage`,
+# reason `row-can-refuse`) AND refuses at resolve
+# (`flow-guard-unevaluable`), so a dimension that is merely sometimes
+# supplied cannot be routed on at all. Where the underlying field is
+# genuinely sometimes absent — a record with no Profile — the FACT TABLE
+# declares the sentinel and `--tags` always renders the key; here that
+# sentinel is an ordinary declared member whose cell a row claims. See
+# `[fact.cluster]`'s `absent` note in rdr-facts.toml.
+#
+# TWO OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Dimensions
+# accumulate over a whole group and the bound is 2048 assignments;
+# `status × profile × ca` alone is 180, leaving room for three booleans
+# against the five lens flags and their completion probes. Splitting the
+# question splits the product: `locate` ranges over the coarse-position
+# dimensions, `lens` over the lens-row ones, and neither pays for the
+# other's. It also matches how the flow asks: prelock/resolve/reconcile
+# close-out needs only `lens`.
+#
+# THE ANSWER IS `emit`. Values are uninterpreted strings compared by
+# bytes — there is no interpolation, so `NNNN` is never spelled here. A
+# row emits the stage verb (and the lens, where the row names one) and
+# the caller appends the record number it already holds.
+#
+#   next     the command, or `none`, or a `stopped:` token
+#   why      one line the skill can print as the reason
+#   surface  what the skill must show verbatim beside the answer (a
+#            qualifier, a home, a caveat) — absent when there is none
+#
+# `next` is never a guess. Where the flow's own answer is a judgement a
+# fact cannot make, the row emits a `stopped:` token naming what is
+# missing, exactly as §stop-packet requires — a skipped check must never
+# read as a passed one.
+
+outcomes = ["locate", "lens"]
+
+[model]
+id          = "rdr-status"
+version     = 1
+class       = "decision-table"
+description = "RDR navigator: the record's facts to the next command."
+
+[model.metadata]
+owner  = "rdr"
+source = "skills/rdr-status/SKILL.md"
+facts  = "models/rdr-facts.toml"
+
+# --- the recognized outcome ------------------------------------------------
+#
+# `locate` asks the coarse-position question (§How it decides next step
+# 1); `lens` asks §lens-row's (steps 2-3). Rescue is scoped per outcome,
+# so each group closes its own remainder.
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["locate", "lens"]
+single_valued = true
+required      = true
+
+# ===========================================================================
+# Dimensions
+# ===========================================================================
+
+# The lifecycle Status, bare. The full domain is carried so a value the
+# corpus can write is never off-domain — `unless` rows below fold the
+# terminal spellings together rather than dropping them.
+[tags.status]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+single_valued = true
+required      = true
+
+# The qualifier grammar, carried verbatim from model.QualifierForm. The
+# routing reads the FORM, never the qualifier prose: `revised-from` is a
+# scoped re-entry, `joint-decision` is a Final owing a home check,
+# `revisit-when` is a park.
+[tags.status_form]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+single_valued = true
+required      = true
+
+# The Critical Assumption list rolled up to the shape Stage 3/4 read.
+# `unknown-plan` is an unreadable list, never an empty one — it routes to
+# a stop, not to a stage.
+[tags.ca]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["all-pending", "mixed", "all-terminal", "unknown-plan"]
+single_valued = true
+required      = true
+
+# Stage 7.1's fact. False on a clustered Final means no run has written a
+# directory covering this record, which routes to /rdr-cluster-reconcile
+# BEFORE /rdr-implement. The pre-2026-06-29 topical epoch is out of scope
+# and reads false; every record it covers is terminal.
+[tags.cluster_reconciled]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# WHETHER the record is clustered, which gates the fact above. Stage 7.1
+# applies "only when the RDR is in a cluster", so an UNCLUSTERED Final
+# reads `cluster_reconciled=false` — no run covers it, correctly — and
+# must still go straight to implement. Reading the reconciled flag alone
+# would route every solo Final to /rdr-cluster-reconcile, which is a
+# stage that has nothing to reconcile.
+#
+# The set-valued `cluster` cannot serve here: a set's domain is a power
+# set, not a partition, so it can carry no dimension. This is the same
+# question reduced to the one a table can prove.
+[tags.clustered]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# The routing latch. `none` is the ABSENT SENTINEL — a record with no
+# Profile field — and §lens-row is explicit that this is a stop-packet
+# rather than a default, which is what the `no-profile` rows below do.
+[tags.profile]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["small", "mid", "large", "foundational", "none"]
+single_valued = true
+required      = true
+
+# --- the lens flags --------------------------------------------------------
+#
+# A lens FOLDER says the lens ran; the completion probes say it finished.
+# The two are separate facts on purpose (§lens-row: a bare folder is not
+# completion), and the rows below take the folder as the "ran" signal and
+# defer completion to the per-lens rows.
+
+[tags.lens_grounding]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_3amigo]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_critique]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_cove]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_repeatability]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# Stage 7's folder. Its existence also certifies the last lens's
+# resolution, which is why the lens group reads it as the row-complete
+# signal rather than probing every lens's findings file.
+[tags.reconcile]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# --- declared, but not dimensions -----------------------------------------
+#
+# These two are SET-VALUED and no row guards on them, so they contribute
+# no dimension and cost the product nothing. They are declared anyway
+# because the skill passes the whole `rdr status --tags NNNN` output in
+# one substitution, and a set arrives as a JSON array literal (`[]`,
+# `["0106","0108"]`).
+#
+# An UNDECLARED key is not ignored on that path: it is validated against
+# the ZERO declaration, whose kind is not `set`, so an array literal is
+# refused as "not set-valued" and the whole call exits 2 — a model that
+# simply omitted these would refuse every record in the corpus. Declaring
+# them as sets is what makes the one-substitution call shape work.
+#
+# `cluster` is the tandem barrier's input (a bare Draft declaring
+# siblings is barred from refine until every member has proposed) and
+# `open_joint_decisions` names the decisions a Final is still waiting on.
+# Both are judgements about OTHER records — whether a sibling has
+# proposed, whether a home has answered — which no fact about THIS record
+# can decide, so they are surfaced by the rows that stop rather than
+# guarded on here.
+[tags.cluster]
+provenance = "observed"
+kind       = "set"
+
+[tags.open_joint_decisions]
+provenance = "observed"
+kind       = "set"
+
+# ===========================================================================
+# `locate` — the coarse position (§How it decides next, step 1)
+# ===========================================================================
+#
+# Dimensions: status × status_form × ca × cluster_reconciled.
+# Rows are ordered as the skill's prose orders them, and every row's
+# comment cites the clause it encodes.
+
+# --- terminal and parked ---------------------------------------------------
+
+# `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
+# It is matched before the other terminals because its reason differs:
+# nothing was decided, so no post-mortem is owed either.
+[[rule]]
+id = "locate-demoted"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Demoted"
+[rule.emit]
+next    = "none"
+why     = "Demoted — the RDR exited at Seed and was refiled as an issue."
+surface = "no post-mortem is owed"
+
+# `Implemented` / `Reverted` / `Abandoned` / `Superseded` / `Rejected` →
+# terminal; report the post-mortem state, no next command. `Rejected` is
+# in the fact's domain and belongs here: a decision that was declined is
+# as closed as one that was reverted.
+[[rule]]
+id = "locate-terminal"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+in = ["Implemented", "Reverted", "Abandoned", "Superseded", "Rejected"]
+[rule.emit]
+next    = "none"
+why     = "Terminal — report the disposition and the post-mortem state."
+surface = "the disposition, verbatim"
+
+# `Deferred [revisit when <condition>]` → PARKED, not terminal. No
+# post-mortem is owed and no next command is due while the condition
+# holds, so the condition itself must be surfaced verbatim: a trigger
+# nobody re-reads is how a park becomes an abandon by default. Whether it
+# has fired is the human's call, which is why this stops rather than
+# naming a stage.
+[[rule]]
+id = "locate-parked"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Deferred"
+[rule.guard.all.status_form]
+eq = "revisit-when"
+[rule.emit]
+next    = "none"
+why     = "Parked, not terminal — no next command while the revisit condition holds."
+surface = "the revisit condition, verbatim, for the human to judge"
+
+# A `Deferred` carrying no revisit condition is a park with no trigger.
+# The flow has no rule for it and inventing one would be the guess this
+# table exists to refuse, so it stops and names what is missing.
+[[rule]]
+id = "locate-deferred-no-condition"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Deferred"
+[rule.guard.unless.status_form]
+eq = "revisit-when"
+[rule.emit]
+next    = "stopped:deferred-without-condition"
+why     = "Deferred with no revisit condition — a park with no trigger to re-read."
+surface = "the Status line, verbatim"
+
+# --- Final ----------------------------------------------------------------
+#
+# Three rows partition `cluster_reconciled` against the joint-decision
+# form, so the group's coverage is proved rather than defaulted.
+
+# A `Final [joint decision → <home §-anchor>: <question>]` is still
+# `Final` for routing, but the home must be checked FIRST: if the home has
+# ANSWERED the question, the scoped answer-vs-fences check (Stage 7.1) is
+# owed before implement. Whether the home has answered is not a fact this
+# table can read — it is another record's content — so this row stops and
+# names the check rather than routing past it.
+[[rule]]
+id = "locate-final-joint-decision"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.status_form]
+eq = "joint-decision"
+[rule.emit]
+next    = "stopped:check-the-joint-decision-home"
+why     = "Final, but a joint decision is open — check the home before implement; if it has answered, the scoped answer-vs-fences check (7.1) is owed first."
+surface = "the home anchor AND the open question, so the human sees what is unanswered"
+
+# A CLUSTERED `Final` whose cluster has not been reconciled →
+# /rdr-cluster-reconcile first. `cluster_reconciled` is false when no 7.1
+# run wrote a directory covering this record; the directory's key IS its
+# membership, so this is read from the tree rather than predicted.
+[[rule]]
+id = "locate-final-cluster-unreconciled"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.unless.status_form]
+eq = "joint-decision"
+[rule.guard.all.clustered]
+eq = "true"
+[rule.guard.all.cluster_reconciled]
+eq = "false"
+[rule.emit]
+next    = "/rdr-cluster-reconcile"
+why     = "Final and clustered, and no Stage 7.1 run has reconciled a cluster containing this record."
+surface = "the declared Cluster members"
+
+# `Final` and reconciled → `/rdr-implement`. `true` means 7.1 already ran
+# over a set containing this RDR.
+[[rule]]
+id = "locate-final-implement"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.unless.status_form]
+eq = "joint-decision"
+[rule.guard.all.cluster_reconciled]
+eq = "true"
+[rule.emit]
+next = "/rdr-implement"
+why  = "Final and its cluster is reconciled — implement is the next stage."
+
+# An UNCLUSTERED `Final` → `/rdr-implement`. Stage 7.1 applies only when
+# the RDR is in a cluster, so `cluster_reconciled=false` here means
+# "nothing to reconcile", not "a reconcile is owed". Reading the flag
+# without this guard sent every solo Final to a stage with no cluster to
+# work on — a real defect this table's cross-check caught.
+[[rule]]
+id = "locate-final-solo"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.unless.status_form]
+eq = "joint-decision"
+[rule.guard.all.clustered]
+eq = "false"
+[rule.guard.all.cluster_reconciled]
+eq = "false"
+[rule.emit]
+next = "/rdr-implement"
+why  = "Final and not clustered — Stage 7.1 does not apply, so implement is the next stage."
+
+# --- Draft ----------------------------------------------------------------
+
+# A re-entry `Draft [revised from Final <date>; re-verify <IDs>]` is a
+# scoped BACKWARD EDGE: next is /rdr-resolve, which self-scopes to the
+# listed IDs. It is still a Draft for every binary gate, so it must be
+# matched before the front-half rows that read the CA rollup — the
+# evidence would otherwise suggest a stage this record is not at.
+[[rule]]
+id = "locate-draft-reentry"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.status_form]
+eq = "revised-from"
+[rule.emit]
+next    = "/rdr-resolve"
+why     = "A scoped re-entry from Final — /rdr-resolve self-scopes to the listed IDs."
+surface = "the qualifier, so the human knows the run is a delta"
+
+# bare `Draft`, CAs all Pending → Refine is un-run. Refine is the front
+# half's only `~`, and an open `~` IS the next command, not a footnote to
+# step past: /rdr-refine, THEN /rdr-resolve.
+[[rule]]
+id = "locate-draft-refine"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.unless.status_form]
+eq = "revised-from"
+[rule.guard.all.ca]
+eq = "all-pending"
+[rule.emit]
+next = "/rdr-refine"
+why  = "Every Critical Assumption is Pending — Refine is un-run, and the open ~ is the next command."
+
+# bare `Draft`, CAs mixed → Resolve is still open. Some assumptions are
+# terminal and some are not, so the verdicts are the authority and an
+# absent evidence folder proves nothing: a pure source-search resolve
+# writes its verdicts inline and creates no folder at all.
+[[rule]]
+id = "locate-draft-resolve"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.unless.status_form]
+eq = "revised-from"
+[rule.guard.all.ca]
+eq = "mixed"
+[rule.emit]
+next = "/rdr-resolve"
+why  = "Some assumptions are still open — Resolve is the stage, whether or not an evidence folder exists."
+
+# bare `Draft`, CAs all terminal → Resolve is BEHIND this record, so the
+# next question is the lens row's. Never recommend re-running a stage
+# whose done-signal is already satisfied. The answer is not a command
+# here: it is a second call, `--outcome lens`, which is the only place
+# §lens-row is encoded.
+[[rule]]
+id = "locate-draft-prelock"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.unless.status_form]
+eq = "revised-from"
+[rule.guard.all.ca]
+eq = "all-terminal"
+[rule.emit]
+next = "resolve:lens"
+why  = "Assumptions are all terminal — Resolve is behind you; ask the lens row for the next Pre-Lock step."
+
+# bare `Draft` whose CA list cannot be read — placeholders, an
+# off-vocabulary status, or no assumptions at all. An unreadable list is
+# NOT an empty one, and the tallies certify no stage, so this stops and
+# says which lines to read rather than guessing a front-half position.
+[[rule]]
+id = "locate-draft-unknown-plan"
+[rule.match.recognized]
+eq = "locate"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.unless.status_form]
+eq = "revised-from"
+[rule.guard.all.ca]
+eq = "unknown-plan"
+[rule.emit]
+next    = "stopped:assumption-list-unreadable"
+why     = "The Critical Assumption list is unfilled or off-vocabulary — it certifies no stage, and an unreadable list is not an empty one."
+surface = "the Critical Assumptions section's lines, to be read directly"
+
+# NO ESCAPE ROW HERE, AND THAT IS THE POINT. The rows above claim every
+# cell of `status × status_form × ca × cluster_reconciled` positively, so
+# lint PROVES this group rather than accepting a default. An "otherwise"
+# row would close the same coverage while earning
+# `graph-coverage-closed-by-escape` — the advisory that exists precisely
+# to say a table leaned on its default instead of enumerating. Adding one
+# was tried and it rescued nothing: every cell it claimed was already
+# claimed, so it was unreachable as well as unproved.
+#
+# The consequence to keep in mind when editing: NARROWING a row here can
+# open a real coverage gap, and lint will say so at exit 2. That is the
+# guarantee, not an obstacle.
+
+# ===========================================================================
+# `lens` — the Stage-5 lens row (rdr-common.md §lens-row)
+# ===========================================================================
+#
+# Dimensions: profile × the five lens flags × reconcile.
+#
+# §lens-row is the one authority for the row, the first-lens fork and the
+# completion rules, and this group is that table:
+#
+#   small         (none — skip Stage 5)     -> /rdr-reconcile
+#   mid           grounding -> 3amigo
+#   large         grounding -> 3amigo -> critique
+#   foundational  cove -> 3amigo -> critique -> repeatability
+#
+# NEXT LENS = FIRST ROW ENTRY WITH NO EVIDENCE. Each profile's rows walk
+# its own row in order, and `unless` on the earlier lenses is what makes
+# each row claim exactly the cells where that lens is the first missing
+# one. Off-row lenses are not dimensions of a profile's rows at all —
+# `grounding` is not a member of the foundational row, so a complete
+# `grounding/` subtracts nothing there.
+#
+# The rows below take the FOLDER as the "this lens ran" signal.
+# Completion — repeatability's run/diff files, critique's dual-model diff
+# on a foundational record — is a per-lens judgement the skill makes from
+# the completion probes, which is why `/rdr-prelock NNNN <lens>` is also
+# the answer for a lens that is present but unfinished: that one command
+# runs the lens AND resolves its findings.
+
+# --- no Profile ------------------------------------------------------------
+#
+# §lens-row: "No `Profile` entry = the field is absent: that is a
+# §stop-packet, not a default." `none` is the fact table's absent
+# sentinel, and this row is why it exists — the alternative was a
+# dimension that sometimes went missing, which cannot be routed on at all.
+[[rule]]
+id = "lens-no-profile"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "none"
+[rule.emit]
+next    = "stopped:no-profile"
+why     = "The Profile field is absent — §lens-row makes that a stop-packet, never a default."
+surface = "that no Profile is written; infer the row only with the basis flagged"
+
+# --- small: no Stage 5 -----------------------------------------------------
+#
+# The row is empty, so there is no lens to be first-missing and Stage 5 is
+# skipped outright.
+[[rule]]
+id = "lens-small"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "small"
+[rule.emit]
+next = "/rdr-reconcile"
+why  = "Profile small — §lens-row skips Stage 5 entirely."
+
+# --- mid: grounding -> 3amigo ---------------------------------------------
+
+[[rule]]
+id = "lens-mid-grounding"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_grounding]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock grounding"
+why  = "Profile mid — grounding is the first lens of the row and has not run."
+
+[[rule]]
+id = "lens-mid-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock 3amigo"
+why  = "Profile mid — grounding has run; 3amigo is the next row entry."
+
+# The mid row is complete. A Determinacy-owed `repeatability` is an
+# ADD-ON to this row when the Stage-5 trigger fires on an algorithmic
+# contract, and the trigger is a judgement over the Normative Contracts
+# section — a zero `C` count means UNLABELLED, not absent, so a fact
+# cannot decide it. The row therefore names both the discharge and the
+# obligation rather than silently choosing reconcile.
+[[rule]]
+id = "lens-mid-row-complete"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.emit]
+next    = "/rdr-reconcile"
+why     = "Profile mid — the grounding -> 3amigo row is complete."
+surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
+
+# --- large: grounding -> 3amigo -> critique -------------------------------
+
+[[rule]]
+id = "lens-large-grounding"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_grounding]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock grounding"
+why  = "Profile large — grounding is the first lens of the row and has not run."
+
+[[rule]]
+id = "lens-large-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock 3amigo"
+why  = "Profile large — 3amigo is the next row entry."
+
+[[rule]]
+id = "lens-large-critique"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock critique"
+why  = "Profile large — critique is the last row entry and has not run."
+
+[[rule]]
+id = "lens-large-row-complete"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "true"
+[rule.emit]
+next    = "/rdr-reconcile"
+why     = "Profile large — the grounding -> 3amigo -> critique row is complete."
+surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
+
+# --- foundational: cove -> 3amigo -> critique -> repeatability ------------
+#
+# The row leads with COVE, never grounding: cove subsumes the grounding
+# sweep as its Step 0. Subsumption runs one way — a standalone
+# `grounding/` from a pre-escalation mid/large pass does not discharge
+# cove's Step 0 — which is why `lens_grounding` is not a guard on any row
+# here. Escalation is additive and the row never shrinks.
+[[rule]]
+id = "lens-foundational-cove"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock cove"
+why  = "Profile foundational — cove leads the row (it subsumes grounding's sweep as Step 0) and has not run."
+
+[[rule]]
+id = "lens-foundational-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock 3amigo"
+why  = "Profile foundational — 3amigo is the next row entry."
+
+[[rule]]
+id = "lens-foundational-critique"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Profile foundational — critique is the next row entry."
+surface = "critique on a foundational RDR owes the DUAL-MODEL diff, not just critique.md"
+
+[[rule]]
+id = "lens-foundational-repeatability"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "true"
+[rule.guard.all.lens_repeatability]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability"
+why     = "Profile foundational — repeatability is the last row entry and has not run."
+surface = "foundational takes the FULL variant: run-1/2/3 then diff"
+
+[[rule]]
+id = "lens-foundational-row-complete"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "true"
+[rule.guard.all.lens_repeatability]
+eq = "true"
+[rule.emit]
+next = "/rdr-reconcile"
+why  = "Profile foundational — the cove -> 3amigo -> critique -> repeatability row is complete."
+
+# NO ESCAPE ROW HERE EITHER. The product ranges over every lens flag for
+# every profile, so cells exist that no row names in prose — a `small`
+# record carrying a `critique/` folder, a `mid` one carrying `cove/`.
+# Those are OFF-ROW lenses, and §lens-row's answer is that they are absent
+# from the row rather than owed by it, so they change no answer: each
+# profile's rows guard only its own row's lenses, which is exactly what
+# makes them span those cells already. Coverage is therefore proved here
+# too, and an "otherwise" row would have been unreachable.

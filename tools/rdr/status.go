@@ -214,11 +214,57 @@ func (i indentWriter) Write(p []byte) (int, error) {
 // anyway, so a resolver never had it to lose. What would NOT be safe is
 // dropping a fact because this particular record's value looked
 // awkward, which is why that case is a refusal rather than a skip.
+// withAbsentSentinels fills in the declared sentinel for every fact that
+// declares one and evaluated to nothing, returning the facts in the
+// TABLE's declaration order so the argv stays stable and diffable.
+//
+// This is the one place absence is collapsed, and it is collapsed only
+// for `--tags`. A resolver's argv cannot spell "absent" — a key is
+// present or the guard atom over it refuses — so a fact a routing table
+// discriminates on must always arrive. The sentinel says which value
+// carries that meaning, and because the table declares it as a domain
+// member the model claims the cell positively.
+//
+// A fact with no `absent` declaration is untouched: it is omitted when
+// absent exactly as before, which is right for the facts nothing routes
+// on. Adding a sentinel to one is a deliberate act, not a default.
+func withAbsentSentinels(tbl *FactTable, facts []Fact) []Fact {
+	have := make(map[string]bool, len(facts))
+	for _, f := range facts {
+		have[f.Name] = true
+	}
+	missing := false
+	for _, d := range tbl.Facts {
+		if d.HasAbsent && !have[d.Name] {
+			missing = true
+			break
+		}
+	}
+	if !missing {
+		return facts
+	}
+	byName := make(map[string]Fact, len(facts))
+	for _, f := range facts {
+		byName[f.Name] = f
+	}
+	out := make([]Fact, 0, len(facts)+1)
+	for _, d := range tbl.Facts {
+		switch f, ok := byName[d.Name]; {
+		case ok:
+			out = append(out, f)
+		case d.HasAbsent:
+			out = append(out, Fact{Name: d.Name, Kind: d.Kind, Value: d.Absent})
+		}
+	}
+	return out
+}
+
 func emitTags(tbl *FactTable, facts []Fact, stdout, stderr io.Writer) int {
 	prose := map[string]bool{}
 	for _, d := range tbl.Facts {
 		prose[d.Name] = d.Prose
 	}
+	facts = withAbsentSentinels(tbl, facts)
 	var lines []string
 	for _, f := range facts {
 		if prose[f.Name] {

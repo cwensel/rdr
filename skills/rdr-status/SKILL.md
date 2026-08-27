@@ -95,6 +95,24 @@ or contradicts what the tree shows.
 
 ## How it decides "next"
 
+These branches are also **data** — `$RDR_HOME/models/rdr-status.toml`, one linted
+decision table. With `intrastate` installed (an accelerator, never a dependency —
+absent, read on), one call answers each half:
+
+```sh
+M="$RDR_HOME/models/rdr-status.toml"
+intrastate flow resolve --model "$M" --outcome locate $(rdr status --tags NNNN)  # step 1
+intrastate flow resolve --model "$M" --outcome lens   $(rdr status --tags NNNN)  # steps 2-3
+```
+
+Unquoted `$(…)` is safe: every fact is one shell word, prose facts aren't rendered.
+Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and `emit.surface`
+(print verbatim); append `NNNN` yourself — emit values interpolate nothing.
+
+**Edit the model with any change here.** `intrastate lint --model` proves every
+status×qualifier×ca×cluster and profile×lens cell is claimed exactly once — the
+guarantee this prose cannot give, and where a gap becomes a test failure.
+
 1. **`Status` first — it is the coarse position.**
    - `Demoted` → the RDR exited at Seed; next is none (refiled as an issue).
    - `Final` → next is `/rdr-implement` (unless a cluster of ≥2 Final-unimplemented

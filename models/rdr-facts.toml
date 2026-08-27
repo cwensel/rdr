@@ -136,12 +136,22 @@ description = "Joint decisions still open on this record, from the routing form 
 # §lens-row is explicit that a consumer matches the leading word and never
 # the whole string. That is the projection missing a field, so the fact
 # carries the leading word and `profile_raw` keeps the sentence.
+#
+# `none` is the ABSENT SENTINEL, not a fifth profile. A record with no
+# Profile field is a real corpus state (0033 today), and §lens-row is
+# explicit that it is a stop-packet rather than a default — "No `Profile`
+# entry = the field is absent: that is a §stop-packet, not a default."
+# The sentinel is what lets the routing table SAY that: `--tags` always
+# renders the key, and the model claims the `none` cell with a row that
+# stops. See the `absent` note in `[fact.cluster]` below for why a
+# routing dimension cannot simply go missing.
 [fact.profile]
 kind        = "enum"
 source      = "field"
 path        = "metadata.Profile.value"
 transform   = "leading-word"
-domain      = ["small", "mid", "large", "foundational"]
+domain      = ["small", "mid", "large", "foundational", "none"]
+absent      = "none"
 description = "The Profile keyword that selects the Stage-5 lens row."
 
 # PROSE, and the only fact so marked. The rationale tail is a sentence an
@@ -174,12 +184,54 @@ description = "Labelled Normative Contracts. Zero may mean unlabelled, not absen
 # Declared tandem siblings. The Stage-2 tandem barrier bars a clustered
 # Draft from refine until every member has completed propose, so whether
 # the field is present is itself routing.
+#
+# `absent = "[]"` — the empty set — because the tandem barrier reads "is
+# this record clustered", and an undeclared Cluster field answers no.
+#
+# WHY A SENTINEL AT ALL, for this fact and the two others that carry one.
+# Absence is honest in `--json`, where a reader sees three values and the
+# key is simply not there. It cannot survive `--tags`: a resolver's argv
+# has no spelling for "this key is absent". A routing table that
+# discriminates on a dimension must therefore always receive it —
+# declaring the dimension optional withholds the coverage proof at lint
+# (the claim a partial table cannot make), and an absent value under a
+# guard atom refuses at resolve rather than routing. Either way the
+# navigator would stop on a record whose field is merely unwritten.
+#
+# So the three facts a routing table discriminates on — `profile`,
+# `cluster`, `joint_checks` — declare the value absence takes, and the
+# sentinel is a declared member of the fact's own domain so the table
+# claims that cell positively instead of defaulting into it. Every other
+# fact keeps three-valued absence untouched; a sentinel is a deliberate
+# act per fact, never a table-wide default.
 [fact.cluster]
 kind        = "set"
 source      = "field"
 path        = "metadata.Cluster.value"
 transform   = "record-numbers"
+absent      = "[]"
 description = "Sibling record numbers from the Cluster field, if declared."
+
+# WHETHER the record is clustered, as opposed to with whom.
+#
+# A set cannot be a routing dimension: its domain is a power set, not a
+# partition, so no table can enumerate its cells. But the two clauses
+# that read the Cluster field only ever ask this yes/no — Stage 7.1
+# applies "only when the RDR is in a cluster", and the Stage-2 tandem
+# barrier fires on a Draft that DECLARES siblings. Deriving it here keeps
+# that question answerable by a rule, and keeps every consumer from
+# re-deriving it from the members.
+#
+# It is a separate fact rather than a reading of `cluster` because the
+# two answer different questions and `cluster` is still what the skill
+# surfaces: an unreconciled clustered Final has to name its peers.
+[fact.clustered]
+kind        = "bool"
+source      = "field"
+path        = "metadata.Cluster.value"
+transform   = "record-numbers-any"
+absent      = "false"
+description = "The record declares Cluster siblings — the tandem barrier's and Stage 7.1's precondition."
 
 # --- Critical Assumption tallies ------------------------------------------
 #
@@ -275,11 +327,18 @@ description = "The Critical Assumption list rolled up to the shape Stage 3/4 rou
 # alone does not reopen propose on a legacy record, but a skipped gate
 # item must be surfaced rather than read as a passed one.
 
+# `absent = "0"` reads the same way a zero does here, and that is not the
+# conflation it looks like: the fact counts PROJECTED JC elements, so a
+# record with no Joint-check: line and a record whose section holds none
+# are the same record to every consumer. Contrast `contracts`, where zero
+# may mean *unlabelled* rather than absent — which is why that fact
+# carries no sentinel and nothing routes on it directly.
 [fact.joint_checks]
 kind        = "int"
 source      = "field"
 path        = "counts.elements.JC"
 min         = 0
+absent      = "0"
 description = "Joint-check: lines, projected as JC elements."
 
 [fact.premortem_line]

@@ -164,6 +164,30 @@ else
     fi
   fi
 fi
+
+# 12 - the routing model. Its whole value is that `intrastate lint` PROVES every
+# cell of each declared product is claimed by exactly one row. A model that stops
+# linting keeps answering, just without the proof, so this WARNs rather than FAILs.
+# An absent intrastate is INFO, not WARN: it is an accelerator, nothing is broken,
+# and naming the check that did not run is the point - a skip that reads as a pass
+# is the failure this flow warns about everywhere else.
+if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
+  if command -v intrastate >/dev/null 2>&1; then
+    if lintout=$(intrastate lint --model "$RDR_HOME/models/rdr-status.toml" --as json 2>&1); then
+      case "$lintout" in
+        # Exit 0 still carries advisories, and one of them matters here:
+        # coverage closed by a bare escape row is closed, not proved.
+        *graph-coverage-closed-by-escape*)
+          warn "12 routing model coverage is closed by an escape row rather than proved over its declared domains - a bare green is deliberately not available" ;;
+        *) pass "12 routing model lints clean - every routing cell is claimed exactly once" ;;
+      esac
+    else
+      warn "12 routing model fails graph-lint, so the navigator's coverage proof is broken - $(echo "$lintout" | head -c 200)"
+    fi
+  else
+    echo "  [INFO] 12 intrastate not installed - the routing model's coverage proof went UNCHECKED (accelerator, not a dependency): intrastate lint --model \$RDR_HOME/models/rdr-status.toml"
+  fi
+fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."
 elif [ "$nw" -gt 0 ]; then echo "Verdict: 0 FAIL, $nw WARN - healthy; WARNs are advisory."
 else echo "Verdict: all checks PASS - the seam is healthy."; fi

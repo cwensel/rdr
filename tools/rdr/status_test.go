@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -111,6 +111,15 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 			"the topical-epoch guard: final-cluster-2026-06-22/ exists in the fixture " +
 				"tree and carries the four-digit run 2026, but no record matches it — a " +
 				"rule that read numbers OUT of a name would mint a claim for record 2026"},
+		{"0025", map[string]string{"status": "Draft", "ca": "unknown-plan",
+			"ca_placeholder": "1"},
+			"the sparse Draft: no Profile, no Cluster, no Joint-check:, and a CA still " +
+				"carrying the template legend. It is the ABSENCE fixture — here in " +
+				"--json `profile`, `cluster`, `clustered` and `joint_checks` are all " +
+				"ABSENT rather than false, which is the honest answer this table's " +
+				"header insists on; TestRoutingSentinelsRenderOnlyAsTags asserts the " +
+				"other half, that --tags renders each one's declared sentinel so a " +
+				"routing dimension is never merely missing"},
 	} {
 		code, out, errb := runCapture(t, "status", "--json", "--facts", table, c.record)
 		if code != 0 {
@@ -132,6 +141,32 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 			}
 		}
 	}
+
+	// The absence fixture's other half, asserted as absence rather than
+	// as a value: `--json` must OMIT a fact the record does not carry.
+	// A sentinel that leaked into this rendering would turn every
+	// "nothing looked" into a claim, which is the one thing the fact
+	// table's three-valued header forbids.
+	code, out, errb := runCapture(t, "status", "--json", "--facts", table, "0025")
+	if code != 0 {
+		t.Fatalf("0025: exit %d: %s", code, errb)
+	}
+	var env struct {
+		Facts []Fact `json:"facts"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatal(err)
+	}
+	present := map[string]bool{}
+	for _, f := range env.Facts {
+		present[f.Name] = true
+	}
+	for _, name := range []string{"profile", "profile_raw", "cluster", "clustered", "joint_checks"} {
+		if present[name] {
+			t.Errorf("0025 carries no such field, but --json reports %q; absence must survive "+
+				"the JSON rendering even though --tags substitutes a sentinel there", name)
+		}
+	}
 }
 
 // TestStatusWorklistIsTheInFlightSet: no argument is the worklist, and
@@ -145,7 +180,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
 	for _, want := range []string{"0020-cache-eviction-policy", "0021-cache-warmup-order",
-		"0022-cache-metrics-surface", "total 3 in flight over 5 records"} {
+		"0022-cache-metrics-surface", "0025-cache-key-encoding",
+		"total 4 in flight over 6 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -178,7 +214,7 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 // property directly rather than trusting the renderer.
 func TestStatusTagsRenderShellSafeArgv(t *testing.T) {
 	_, table := bindStatusFixture(t)
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025"} {
 		code, out, errb := runCapture(t, "status", "--tags", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
