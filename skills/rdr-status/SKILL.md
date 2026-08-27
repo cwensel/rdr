@@ -45,10 +45,11 @@ opposite of what happened, and the one thing this note must never get wrong.
 That one call answers both halves. `observed.*` in its output **is** the fact
 vector — every signal the checklist renders, echoed back — and `emit` is the
 answer. There is nothing else to fetch: **do not** also run `status --json`, `ls`
-the evidence tree, re-read the record, or poll the cluster peers. The probes
+the evidence tree, re-read the record, or loop the cluster peers' facts. The probes
 already looked, by exact path; a hand-built path is how a lens that ran reads as
-un-run, and a record's own `clustered` + `cluster_reconciled` settle Stage 7.1
-without a peer's facts changing any answer.
+un-run, and a record's own `clustered` + `cluster_reconciled` settle **which
+stage** is next without a peer's facts changing it. That is routing, not
+membership: §7.1 below is the one place a peer call is owed.
 
 **Run `--outcome lens` only when `emit.next` is `resolve:lens`.** That token is
 the model's own chain instruction and one row emits it (a `Draft` whose
@@ -112,7 +113,7 @@ the guarantee prose cannot give, and where a gap becomes a test failure.
 | 5+6 Pre-Lock (review+resolve) | `profile`, `contracts`, `lens_grounding`, `lens_3amigo`, `lens_critique`, `lens_cove`, `lens_repeatability` (ran); `lens_grounding_findings`, `lens_cove_findings`, `lens_3amigo_consolidation`, `lens_critique_single`, `lens_critique_modelb`, `lens_critique_diff`, `lens_repeatability_run1`/`run2`/`run3`, `lens_repeatability_diff` (finished); `reconcile`, `iter_2` | Review + resolve are one cycle. Resolution is human-judged: a lens converged if the next lens's folder exists, or `reconcile`. `critique` on a `foundational` RDR owes the dual-model diff — a lone `lens_critique_single` is in-progress, not done. |
 | 6 Reconcile | `reconcile`, `reconcile_report{,_alt,_alt2}` | A bare folder with no report is a real state: the stage started and left nothing. |
 | 7 Finalize | `status`, `gate_written` | Legacy records carry all five gate responses inline — either satisfies. The README index row is not a fact; do not claim it. |
-| 7.1 Cluster | `clustered`, `cluster_reconciled` | Both, or a solo Final routes to a stage with nothing to reconcile. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
+| 7.1 Cluster | `cluster` (declared), `clustered`, `cluster_reconciled` | Read both booleans, or a solo Final routes to a stage with nothing to reconcile. See §7.1 below. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
 | 8 Implement | `impl_capsule`, `impl_state` | `impl_state` is the capsule header's own state word. Open req-list/coverage/verification.md **only** if it is absent or contradicts the tree. |
 
 `propose_premortem` is Stage 2's critic output, a non-lens sibling — never count it
@@ -121,13 +122,21 @@ layout, so those can never read as "lens un-run".
 
 ## Judgement the facts cannot make
 
-Four questions route nothing, because each is about **another record** or about
+Five questions route nothing, because each is about **another record** or about
 prose. The model declines them on purpose; they are yours.
 
 - **The tandem barrier.** A bare `Draft` declaring a `Cluster` is barred from
   refine until every member has completed propose. `cluster` is set-valued and no
   row guards it — if a sibling has not proposed, next is that sibling's
   `/rdr-propose`, not this RDR's `/rdr-refine`.
+- **§7.1 — who is in the cluster?** `cluster` is what the record *declares*, not
+  a computed set, so a Final peer declaring nothing reads solo and routes to
+  implement. Before recommending `/rdr-cluster-reconcile` — only then — run
+  `"$RDR_HOME/bin/rdr" index --cluster-of NNNN` and Caveat any **Final** peer it
+  omits. Report both sets; never substitute the computed one, which is one-hop,
+  asymmetric, and includes `Implemented` records 7.1 excludes (open: rdr#yj7z).
+  The stage is a whole-set pass and its directory key IS the membership, so a
+  run over an incomplete set marks the omitted peers reconciled unchecked.
 - **Has the home answered?** `stopped:check-the-joint-decision-home` means a
   `Final` owes a joint decision. If the home has ANSWERED, the scoped
   answer-vs-fences check (Stage 7.1) is owed **before** implement. Surface the home
