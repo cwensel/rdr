@@ -168,11 +168,21 @@ template never listed them), and the status lifecycle (stated in the
 template only as English inside comments, and parsing a set out of prose
 is guessing).
 
+The element-kind map is what the **projector** reads to find a kind's
+section, not merely what answers "does the template key this kind". A
+kind the map does not name projects from no section list at all, and
+that is a statement rather than an omission: `G` is keyed by the gate
+item, `JC` by a line anywhere in the record, `§` by the heading itself.
+So retargeting a kind — or pointing the binary at a second document
+family — is a table edit, not a code edit; nothing in `internal/scan`
+writes a section name of its own.
+
 What still binds, mechanically:
 
 | test | asserts |
 | --- | --- |
 | `TestSidecarNamesNoUnknownSection` | every section the sidecar names still exists in `TEMPLATE.md` — rename one without updating the other and this fails |
+| `TestProjectedSectionsComeFromTheSidecar` | each list-projected kind reads the section `[elements]` names it — a section name reintroduced as a Go literal drifts from the table and this fails |
 | `TestGateKeysComeFromMarkers` | every Finalization Gate sub-section declares a `[Gate key: …]`, and the set matches what the reader projects |
 | `TestMethodVocabularyMatchesREADME` | the eight Method labels match this README's authoritative list — still two documents, so still a real check |
 | `TestLoadReadsWhatTheTemplateStates` | the loader returns the values `TEMPLATE.md` visibly writes |

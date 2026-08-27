@@ -685,6 +685,19 @@ func (d *Document) dropEdgeWarnings() {
 // spelling, and this table is what keeps the citations resolving until it
 // is. Deleting an entry before the records are rewritten silently drops
 // the elements under it.
+// kindNodes returns the canonical nodes of the section that answers for
+// an element kind, per the sidecar's [elements] map. A kind the map does
+// not name projects from no section — that is a statement, not an
+// omission (G is keyed by the gate item, JC by a line anywhere, § by the
+// heading), so an unnamed kind reads as no nodes rather than a guess.
+func (d *Document) kindNodes(kind ident.Kind) []*Node {
+	section := model.ElementSections()[string(kind)]
+	if section == "" {
+		return nil
+	}
+	return d.canonicalNodes(section)
+}
+
 func (d *Document) canonicalNodes(name string) []*Node {
 	var out []*Node
 	for _, n := range d.nodes {
@@ -812,12 +825,12 @@ func (d *Document) extract() {
 	d.assumptions()
 	d.contracts()
 	d.decisions()
-	d.listKind(ident.RoundTrip, "Round-Trip / Inverse Invariants", roundTripLabel)
+	d.listKind(ident.RoundTrip, roundTripLabel)
 	d.alternatives()
-	d.listKind(ident.Rejected, "Briefly Rejected", nil)
-	d.listKind(ident.Scenario, "Testing Strategy", nil)
+	d.listKind(ident.Rejected, nil)
+	d.listKind(ident.Scenario, nil)
 	d.mvv()
-	d.listKind(ident.Failure, "Failure Modes", nil)
+	d.listKind(ident.Failure, nil)
 	d.gate()
 	d.jointChecks()
 	d.anchors()
@@ -869,7 +882,7 @@ func (d *Document) statement(start, end int) string {
 func (d *Document) assumptions() {
 	var items []keyed
 	labelled := false
-	for _, n := range d.canonicalNodes("Critical Assumptions") {
+	for _, n := range d.kindNodes(ident.Assumption) {
 		for _, i := range d.topItems(n.LineStart+1, n.LineEnd) {
 			it := keyed{section: n.ID, start: i, end: d.itemEnd(i, n.LineEnd)}
 			if m := model.AssumptionBullet.FindStringSubmatch(d.lines[i-1]); m != nil {
@@ -1149,7 +1162,7 @@ func decisionKey(label string) string {
 // own text and is derived.
 func (d *Document) decisions() {
 	seen := map[string]int{}
-	for _, n := range d.canonicalNodes("Load-Bearing Decisions") {
+	for _, n := range d.kindNodes(ident.Decision) {
 		for _, i := range d.topItems(n.LineStart+1, n.LineEnd) {
 			label := itemLabel(d.lines[i-1])
 			end := d.itemEnd(i, n.LineEnd)
@@ -1189,8 +1202,16 @@ func roundTripLabel(label string) string {
 // one kind. The key is as written when the item carries a label the
 // kind's labeller recognises, or when the section is a numbered list
 // whose numbers are unique; otherwise it is the item's ordinal, derived.
-func (d *Document) listKind(kind ident.Kind, section string, labeller func(string) string) {
-	nodes := d.canonicalNodes(section)
+//
+// WHICH section answers for the kind is not written here: it is read
+// from the sidecar's [elements] map, the one place that already states
+// it. Naming the section again in Go would be a second source for one
+// fact, and the two would drift — the same reason GateItems() reads its
+// keys off the template rather than restating them. It also means a
+// second document family retargets the projector by editing a table,
+// not by editing this function.
+func (d *Document) listKind(kind ident.Kind, labeller func(string) string) {
+	nodes := d.kindNodes(kind)
 	if len(nodes) == 0 {
 		return
 	}
@@ -1253,7 +1274,7 @@ func (d *Document) listKind(kind ident.Kind, section string, labeller func(strin
 			e.Key = it.key
 		case it.key != "":
 			d.warn(strings.ToLower(string(kind))+":duplicate", it.line, it.end,
-				"%s item number %s repeats; addressed by ordinal", section, it.key)
+				"%s item number %s repeats; addressed by ordinal", it.n.Canonical, it.key)
 			fallthrough
 		default:
 			// The suffix is a letter, not `-N`: the ID grammar's
@@ -1305,7 +1326,7 @@ func (d *Document) alternatives() {
 // mvv projects the Minimum Viable Validation body as the record's one MVV
 // element. It is never derived: the template fixes its identity.
 func (d *Document) mvv() {
-	for _, n := range d.canonicalNodes("Minimum Viable Validation") {
+	for _, n := range d.kindNodes(ident.MVV) {
 		s, e := d.body(n)
 		if s > e {
 			continue

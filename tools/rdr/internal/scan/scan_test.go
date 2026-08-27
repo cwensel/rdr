@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -843,5 +844,76 @@ Joint-check: clear
 	}
 	if start, end, ok := doc.Select("0009:JC2"); !ok || start != end {
 		t.Errorf("select JC2 = %d-%d %v, want one line", start, end, ok)
+	}
+}
+
+// TestProjectedSectionsComeFromTheSidecar pins the one-source rule for
+// "which section answers for which element kind". The map lives in
+// rdr-template.toml [elements]; before this, four of those names were
+// ALSO written as Go literals in extract(), so the table could be edited
+// and the projector would keep reading the old section.
+//
+// It asserts the BINDING, not today's values: a record is synthesised
+// with one uniquely-worded item under each section the sidecar names,
+// and each kind must come back carrying its own section's item. That is
+// what makes a retarget visible — point a kind at another section and
+// the item it returns is the other section's, so the test fails. An
+// assertion that merely walked a fixture's elements would pass
+// vacuously for any kind the fixture happens not to exercise.
+func TestProjectedSectionsComeFromTheSidecar(t *testing.T) {
+	sections := model.ElementSections()
+	if len(sections) == 0 {
+		t.Fatal("the sidecar names no element sections; the projector would read nothing")
+	}
+
+	// Three kinds the sidecar names are not projected from a section's
+	// LIST, so a labelled bullet is not how they are found: C is read
+	// from the normative fences wherever they sit, and ALT and MVV key
+	// off the heading itself. They still belong in [elements] — that is
+	// what answers "does the template key this kind" — but the binding
+	// this test pins is the list one.
+	byHeadingOrFence := map[string]bool{
+		string(ident.Contract): true, string(ident.Alternative): true, string(ident.MVV): true,
+	}
+
+	// One item per section, worded so the item names the section it sits
+	// in — that is what turns a silent retarget into a visible one.
+	var b strings.Builder
+	b.WriteString("# Recommendation 0099: Sidecar binding\n\n## Metadata\n\n- **Status**: Draft\n")
+	want := map[string]string{}
+	for kind, name := range sections {
+		if byHeadingOrFence[kind] {
+			continue
+		}
+		// A scaffold section names itself with a placeholder
+		// (`Alternative 1: [Name]`); an instance fills it in.
+		heading := strings.Replace(name, "[Name]", "Only", 1)
+		marker := "item of " + kind
+		want[kind] = marker
+		fmt.Fprintf(&b, "\n## %s\n\n- **%s**: body\n", heading, marker)
+	}
+
+	doc := Bytes([]byte(b.String()), Options{})
+	got := map[string]string{}
+	for _, e := range doc.Elements {
+		if _, named := want[string(e.Kind)]; !named {
+			continue
+		}
+		if _, seen := got[string(e.Kind)]; !seen {
+			got[string(e.Kind)] = e.Label
+		}
+	}
+
+	for kind, marker := range want {
+		switch got[kind] {
+		case "":
+			t.Errorf("%s: the sidecar names section %q but nothing projected from it",
+				kind, sections[kind])
+		case marker:
+		default:
+			t.Errorf("%s: projected %q, want %q — the kind is reading a section "+
+				"other than the %q the sidecar names",
+				kind, got[kind], marker, sections[kind])
+		}
 	}
 }
