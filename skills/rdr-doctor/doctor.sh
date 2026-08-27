@@ -165,21 +165,23 @@ else
   fi
 fi
 
-# 12 - the routing model. Its whole value is that `intrastate lint` PROVES every
-# cell of each declared product is claimed by exactly one row. A model that stops
-# linting keeps answering, just without the proof, so this WARNs rather than FAILs.
-# An absent intrastate is INFO, not WARN: it is an accelerator, nothing is broken,
-# and naming the check that did not run is the point - a skip that reads as a pass
-# is the failure this flow warns about everywhere else.
+# 12 - the routing binary and its model. `intrastate` is a DEPENDENCY (rdr-common
+# §intrastate): the models under models/ are the authority for which stage and
+# which lens come next, so a skill that cannot reach it has no routing answer and
+# stops. Absent is therefore a FAIL, not the INFO it was while it was an
+# accelerator.
+#
+# A model that stops LINTING still answers, just without the proof, so a broken
+# lint stays a WARN - that distinction is the reason these are two findings.
 #
 # Resolution order is the skill's: $RDR_INTRASTATE, else PATH. A marker naming a
-# binary that is not there is a WARN on its own - it was configured on purpose, so
+# binary that is not there FAILs on its own - it was configured on purpose, so
 # silently falling through to PATH would hide a typo in the marker.
 if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
   IS=""
   if [ -n "$RDR_INTRASTATE" ]; then
     if [ -x "$RDR_INTRASTATE" ]; then IS="$RDR_INTRASTATE"
-    else warn "12 RDR_INTRASTATE names $RDR_INTRASTATE, which is not executable - fix the path in $MARKER or unset it to fall back to PATH"; fi
+    else fail "12 RDR_INTRASTATE names $RDR_INTRASTATE, which is not executable - fix the path in $MARKER or unset it to fall back to PATH"; fi
   else
     IS=$(command -v intrastate 2>/dev/null)
   fi
@@ -196,9 +198,9 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
       warn "12 routing model fails graph-lint, so the navigator's coverage proof is broken - $(echo "$lintout" | head -c 200)"
     fi
   elif [ -z "$RDR_INTRASTATE" ]; then
-    # Only when nothing was configured: a bad RDR_INTRASTATE already WARNed, and
-    # repeating it as an INFO would read as a second, milder finding.
-    echo "  [INFO] 12 intrastate not on PATH - the routing model's coverage proof went UNCHECKED (accelerator, not a dependency) - install it, or set RDR_INTRASTATE in $MARKER to a built binary"
+    # Only when nothing was configured: a bad RDR_INTRASTATE already FAILed, and
+    # repeating it would read as a second, separate finding.
+    fail "12 intrastate not found - the routing models cannot be resolved, so every stage's next-step answer stops - \$rdr-init in Codex or /rdr-init in Claude installs it, or set RDR_INTRASTATE in $MARKER to a built binary"
   fi
 fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."

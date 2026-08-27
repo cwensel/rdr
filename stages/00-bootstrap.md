@@ -202,6 +202,30 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    and name the install (go.dev/dl) — the projector is not optional, and a seam
    without it cannot answer a structural question. Report the stamped version line.
 
+6b. INSTALL `intrastate` if it is not already resolvable. It resolves the routing
+   models under `$RDR_HOME/models/` — which stage, which lens — so it is a
+   dependency, not an accelerator (rdr-common §intrastate): without it every
+   stage's next-step answer stops. Unlike step 6 this **needs network** (the
+   module has third-party deps), so it is asked, not forced.
+
+   ```sh
+   IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+   if [ -x "$IS" ]; then echo "intrastate: $IS (already installed)"
+   else
+     # ASK FIRST. On yes — drop GOBIN to install onto PATH instead of beside rdr:
+     GOBIN="$RDR_HOME/bin" go install github.com/cwensel/intrastate/cmd/intrastate@latest \
+       || echo "stopped:intrastate-install-failed — install by hand, then re-run"
+     # Installed under GOBIN: record it, since it is not on PATH.
+     [ -x "$RDR_HOME/bin/intrastate" ] && echo "add RDR_INTRASTATE=\"\$RDR_HOME/bin/intrastate\" to $MARKER"
+   fi
+   "${RDR_INTRASTATE:-$(command -v intrastate)}" lint --model "$RDR_HOME/models/rdr-status.toml" \
+     && echo "routing model lints clean"
+   ```
+
+   That lint is the acceptance test — it is the reason the binary is wanted. A
+   decline is not fatal to the init: finish the remaining steps and say plainly
+   that `/rdr-doctor` 12 will FAIL until it is installed.
+
 7. OFFER (do not auto-install) the SessionStart seam hook. The `/rdr-*` skills
    work without it — they run §seam-bind each call — but a consumer can pre-resolve
    the seam once per session. Opt-in only; do not write it silently.

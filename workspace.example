@@ -72,16 +72,16 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 #   numbers accumulate over ordinary use, with no dashboard and nothing to run.
 # RDR_USAGE_LOG="true"
 
-# RDR_INTRASTATE — optional. The `intrastate` binary, which lints and resolves
-#   $RDR_HOME/models/rdr-status.toml (the navigator's routing as a decision table).
-#   It lives in ANOTHER repo, so it is not under $RDR_HOME/bin/ like `rdr` is, and
-#   nothing here builds it.
-#     unset          look for `intrastate` on PATH — its own `make install` puts it
-#                    in ~/.local/bin — and if it is not there, skip the check
-#     <a path>       use this binary, e.g. a checkout's "$WS/intrastate/bin/intrastate"
-#   It is an ACCELERATOR, never a dependency: with no binary the skills read their
-#   own prose and every stage still runs. Set it when the binary is built but not
-#   installed, so rdr-doctor 12 can prove the routing model still covers every cell.
-# RDR_INTRASTATE="$WS/intrastate/bin/intrastate"
+# RDR_INTRASTATE — where the `intrastate` binary is, when it is not on PATH. It
+#   lints and resolves $RDR_HOME/models/*.toml (the navigator's routing as a
+#   decision table). It lives in ANOTHER repo; /rdr-init installs it.
+#     unset          look for `intrastate` on PATH (its own `make install`, or a
+#                    `go install` with no GOBIN, puts it in ~/.local/bin)
+#     <a path>       use this binary — set this when /rdr-init installed it beside
+#                    `rdr` (GOBIN=$RDR_HOME/bin), or for a checkout's build
+#   It is a DEPENDENCY, not an accelerator: the routing models are the authority
+#   for which stage and which lens come next, so a skill that cannot reach it
+#   stops rather than inferring an answer, and rdr-doctor 12 FAILs.
+# RDR_INTRASTATE="$RDR_HOME/bin/intrastate"
 
 export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_USAGE_LOG RDR_INTRASTATE

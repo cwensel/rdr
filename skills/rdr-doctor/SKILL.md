@@ -71,10 +71,11 @@ A `dev` stamp means someone built it by hand rather than through `/rdr-init`.
 the log is the lint receipt `§commit` refuses a record without — off means unlinted
 records commit unchecked.
 
-**12** lints `models/rdr-status.toml`, the navigator's routing. A failing lint is a
-**WARN**, never a FAIL: the model still answers, just without the coverage proof.
-Closed-by-escape warns too — closed is not proved. No `intrastate` is **INFO** naming
-the check that did not run; it is an accelerator, not a dependency.
+**12** resolves `intrastate` and lints `models/rdr-status.toml`, the navigator's
+routing. A missing binary is a **FAIL** — it is a dependency (rdr-common
+§intrastate), and without it every stage's next-step answer stops. A failing
+lint is a **WARN**: the model still answers, just without the coverage proof.
+Closed-by-escape warns too — closed is not proved.
 
 ## Review gate
 

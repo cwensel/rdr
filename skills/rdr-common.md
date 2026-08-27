@@ -127,6 +127,22 @@ unresolved — say so.
 returns `resolved:false`, a false finding a consumer chases, where omitting
 `--repo` returns the key **absent**, which honestly says nothing looked.
 
+## §intrastate — the routing binary, required
+
+`intrastate` resolves the routing models under `$RDR_HOME/models/` (§lens-row,
+`/rdr-status`). It is a **dependency, not an accelerator**: those models are the
+authority for which stage and which lens come next, and `intrastate lint` is
+what *proves* every routing cell is claimed exactly once. A skill that cannot
+reach it has no routing answer — so it **stops** rather than inferring one.
+
+```sh
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
+[ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+```
+
+Resolution order is `$RDR_INTRASTATE` (marker var, for a binary off PATH), else
+PATH. `/rdr-init` installs it and `/rdr-doctor` check 12 FAILs without it.
+
 ## §rdr-resolve — RDR number → file path
 
 Every stage skill except `/rdr-seed` takes a 4-digit number `NNNN`. Resolve it
@@ -441,9 +457,9 @@ leading with cove because cove subsumes grounding's sweep), the
 first-missing-lens rule, and the additive-never-shrinks rule are all encoded
 there — do not restate or re-derive them here.
 
-**Unavailable `intrastate` is the only reason to walk the row by hand**, from
-the `$RDR_HOME/stages/README.md` matrix (the human-facing authority). Say that
-the model was not consulted rather than inferring silently.
+`intrastate` is **required** (§intrastate). Unresolved, this is
+`stopped:no-intrastate` — never a hand-walked row: an inferred lens that reads
+like a resolved one is the failure this flow guards against everywhere else.
 
 **The one judgment the table does not make** is the Stage 5 Determinacy trigger
 (`$RDR_HOME/stages/05-prelock.md`): on a `mid`/`large` algorithmic contract it

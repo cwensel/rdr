@@ -32,10 +32,10 @@ roots. Then derive position as below. Do **not** edit any file.
 ## One call
 
 ```sh
-IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH, else skip
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
 M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
-if [ -x "$IS" ]; then "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
-else echo "note: routing model not consulted (intrastate unresolved)"; fi
+[ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+"$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
 ```
 
 Test the binary, never the exit code: a refusal exits 2, and `&& … ||` would

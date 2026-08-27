@@ -176,9 +176,8 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      `RDR_USAGE_LOG="true"` there when the log was asked for; leave it commented
      otherwise. `RDR_USAGE_LOG` is in the marker's `export` line either way.
      `RDR_INTRASTATE` is the same shape and stays commented: it names the
-     `intrastate` binary that lints the navigator's routing model, and unset means
-     "look on PATH, else skip" — set it only when a built binary was never
-     installed. Nothing here builds it; it is an accelerator in another repo,
+     `intrastate` binary, and unset means "look on PATH". Set it only for a
+     binary installed off PATH — the install step below is the normal path,
    - scaffolds the RDR home: `mkdir -p "$RDR_RECORDS"` and, if no index yet, copies
      [`RDR-HOME-README.template.md`](RDR-HOME-README.template.md) →
      `$RDR_RECORDS/README.md` (the only engine file vendored in),
@@ -186,6 +185,16 @@ engine repo, or inside the installed plugin dir. Not a worktree; the project roo
      `$RDR_HOME/bin/rdr` (gitignored), stamped with the engine revision so
      `/rdr-doctor` can spot a stale binary. Required: no `go` on PATH is a
      `stopped:no-go-toolchain`, since the skills read records through it,
+   - **installs `intrastate`** when it is not already resolvable
+     (`$RDR_INTRASTATE`, else PATH) — it is a dependency (rdr-common
+     §intrastate), so a consumer without it has no routing answer. Ask first,
+     then `go install github.com/cwensel/intrastate/cmd/intrastate@latest`
+     (`GOBIN="$RDR_HOME/bin"` to keep it beside `rdr` instead of on PATH — then
+     write `RDR_INTRASTATE` into the marker). Verify with `intrastate lint
+     --model "$RDR_HOME/models/rdr-status.toml"` — exit 0 is the acceptance
+     test, since linting the shipped model is why the binary is wanted. Already
+     resolvable: say so, install nothing. Declined or failed: finish the init
+     and name what is degraded (`/rdr-doctor` 12 will FAIL until it is there),
    - **offers** (never auto-installs) the SessionStart seam hook
      [`rdr-seam-context.sh.template`](rdr-seam-context.sh.template) — on yes:
      Claude Code uses `.claude/hooks/rdr-seam-context.sh` + `.claude/settings.json`;
