@@ -11,12 +11,12 @@ import (
 
 // The resilience contract, as tests (README §The resilience contract).
 //
-// Every fixture under testdata/ — the four epochs and the variants, one
+// Every fixture under testdata/ — the four record shapes and the variants, one
 // per known parser failure — is held to the zero-silent-drop property,
 // and each variant fixture pins a hand tally of what the scanner must
 // read out of it.
 
-// allFixtures lists every synthetic fixture, epochs and variants.
+// allFixtures lists every synthetic fixture, whole records and variants.
 func allFixtures(t *testing.T) []string {
 	t.Helper()
 	var out []string
@@ -136,12 +136,13 @@ func TestZeroSilentDrop(t *testing.T) {
 	}
 }
 
-// TestConformantFixturesHaveFullCoverage: a record that conforms to its
-// epoch has no warnings and an unclassified rate of exactly zero. A
+// TestConformantFixturesHaveFullCoverage: a record that conforms to the
+// template of its day has no warnings and an unclassified rate of exactly
+// zero. A
 // warning on such a record is a projector bug to fix with a fixture,
 // never a reason to edit the record.
 func TestConformantFixturesHaveFullCoverage(t *testing.T) {
-	for _, f := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md",
+	for _, f := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md",
 		"variants/heading-level.md", "variants/label-variants.md", "variants/status-parenthetical.md",
 		"variants/addressable-text.md"} {
 		doc := Bytes(fixture(t, f), Options{})

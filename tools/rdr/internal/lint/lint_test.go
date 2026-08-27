@@ -221,7 +221,8 @@ func TestParseWarningsAlwaysSurface(t *testing.T) {
 	}
 }
 
-// TestGatePointerSubsectionsAreNotMissing: from epoch C on, lock replaces
+// TestGatePointerSubsectionsAreNotMissing: once the gate moved to a
+// pointer, lock replaces
 // the Finalization Gate body with a pointer to gate.md. Advising a record
 // to restore the five gate subsections would be advising it to undo the
 // current process.

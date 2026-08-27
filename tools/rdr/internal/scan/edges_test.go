@@ -42,7 +42,7 @@ func hasEdge(d *Document, kind edge.Kind, from, to string) bool {
 // fixtures carry one of each, so the assertions read off real
 // projections rather than hand-built strings.
 func TestEveryEdgeSyntaxMaps(t *testing.T) {
-	d := Bytes(fixture(t, "epoch-d.md"), Options{})
+	d := Bytes(fixture(t, "current-shape.md"), Options{})
 
 	// Metadata list fields.
 	if !hasEdge(d, edge.Predecessor, "0004", "0001") || !hasEdge(d, edge.Predecessor, "0004", "0003") {
@@ -82,7 +82,7 @@ func TestEveryEdgeSyntaxMaps(t *testing.T) {
 	}
 
 	// Epoch C carries the two remaining metadata-side syntaxes.
-	c := Bytes(fixture(t, "epoch-c.md"), Options{})
+	c := Bytes(fixture(t, "gate-inline.md"), Options{})
 	if !hasEdge(c, edge.MovedTo, "0003", "0004") {
 		t.Errorf("Demoted target: %v", edgesOf(c, edge.MovedTo))
 	}

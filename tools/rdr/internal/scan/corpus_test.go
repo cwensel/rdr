@@ -5,7 +5,8 @@ import (
 	"testing"
 )
 
-// head is a synthetic epoch-B-or-later record head with the given status.
+// head is a synthetic record head with the given status, in the shape that
+// carries labelled contracts.
 func head(num, title, status string) string {
 	return "# Recommendation " + num + ": " + title +
 		"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status +

@@ -65,13 +65,17 @@ func patchesOf(r Report) []*Patch {
 	return out
 }
 
-// fixtures are the epoch fixtures plus the shape variants: between them
+// fixtures are the whole-record shapes plus the variants: between them
 // they carry every element grammar the corpus writes.
 func fixtures(t *testing.T) []string {
 	t.Helper()
 	var out []string
 	for _, g := range []string{
-		filepath.Join("..", "..", "testdata", "epoch-*.md"),
+		// The whole-record fixtures live directly in testdata/. They are
+		// named for the SHAPE each one exercises, not for a generation, so
+		// there is no shared prefix to glob — README.md is the only
+		// non-record .md in the directory.
+		filepath.Join("..", "..", "testdata", "*.md"),
 		filepath.Join("..", "..", "testdata", "variants", "*.md"),
 		filepath.Join("..", "..", "testdata", "lint", "*.md"),
 	} {
@@ -79,7 +83,12 @@ func fixtures(t *testing.T) []string {
 		if err != nil || len(paths) == 0 {
 			t.Fatalf("no fixtures for %s: %v", g, err)
 		}
-		out = append(out, paths...)
+		for _, p := range paths {
+			if filepath.Base(p) == "README.md" {
+				continue // the directory's own doc, not a record
+			}
+			out = append(out, p)
+		}
 	}
 	return out
 }
@@ -244,7 +253,7 @@ func TestStrictPatchesAreIdempotent(t *testing.T) {
 // records nobody is permitted to rewrite, so it is pinned directly:
 // findings present, verdict unmoved, and nothing marked blocking.
 func TestConformanceAdvisesAndNeverBlocks(t *testing.T) {
-	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md"} {
+	for _, name := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md"} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", name))
 		if err != nil {
 			t.Fatal(err)
@@ -319,7 +328,7 @@ func TestJudgmentFindingsCarryNoPatch(t *testing.T) {
 // in either corpus ever carried two aliases of one canonical section, so
 // that test asserted a hazard nothing exhibited.
 func TestLegacyNameNeverPatches(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "epoch-a.md"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "legacy-shape.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -338,14 +347,14 @@ func TestLegacyNameNeverPatches(t *testing.T) {
 		}
 	}
 	if n == 0 {
-		t.Fatal("epoch-a should carry a legacy heading name")
+		t.Fatal("legacy-shape should carry a legacy heading name")
 	}
 }
 
 // TestLabelPatchWritesTheDerivedID: the safety property of the label
 // rule, checked directly rather than through the graph.
 func TestLabelPatchWritesTheDerivedID(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "epoch-a.md"))
+	raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", "legacy-shape.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -507,7 +516,7 @@ func TestOneCitationPatchPerLine(t *testing.T) {
 // TestRenameCarriesNoPatch: a legacy heading is reported and never
 // patched. The rename moves the section's id and, because the canonical
 // name carries a canonical LEVEL, can re-parent the content below it —
-// on the epoch A fixture, promoting `#### API Verification` to `##
+// on the legacy-shape fixture, promoting `#### Dependency Source Verification` to `##
 // Critical Assumptions` swallows the Normative Contracts that follow and
 // reads their bullets as assumptions. Renames are a hand pass with lint
 // as the checker.
@@ -700,9 +709,9 @@ func TestSectionCitationsAreNotRewritten(t *testing.T) {
 	}
 }
 
-// TestGateInlineFiresOnInlinedGate: the rule exists to find the epoch A
+// TestGateInlineFiresOnInlinedGate: the rule exists to find the legacy
 // and B records whose gate responses are still written into the record,
-// and to stay quiet on the epoch C and D records where lock has already
+// and to stay quiet on the gate-pointer records where lock has already
 // moved them to artifacts/gate.md and left the one-line pointer.
 //
 // It is a regression test for a rule that reported NOTHING, on any
@@ -716,10 +725,10 @@ func TestGateInlineFiresOnInlinedGate(t *testing.T) {
 		name string
 		want bool
 	}{
-		{"epoch-a.md", true},  // five inline gate subsections
-		{"epoch-b.md", true},  // five inline gate subsections
-		{"epoch-c.md", false}, // `See gate.md ...` pointer
-		{"epoch-d.md", false}, // `See gate.md ...` pointer
+		{"legacy-shape.md", true},       // five inline gate subsections
+		{"assumptions-nested.md", true}, // five inline gate subsections
+		{"gate-inline.md", false},       // `See gate.md ...` pointer
+		{"current-shape.md", false},     // `See gate.md ...` pointer
 	} {
 		raw, err := os.ReadFile(filepath.Join("..", "..", "testdata", tc.name))
 		if err != nil {

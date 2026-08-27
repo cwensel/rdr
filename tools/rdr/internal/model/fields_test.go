@@ -46,7 +46,7 @@ func TestSectionFieldsMatchTemplate(t *testing.T) {
 		"and add a synthetic fixture exercising the label."
 	for _, fs := range SectionFields {
 		if _, ok := Template.SectionByName(fs.Section); !ok {
-			t.Errorf("FieldSet %q names no epoch D section", fs.Section)
+			t.Errorf("FieldSet %q names no current-template section", fs.Section)
 		}
 		got := want[fs.Section]
 		if strings.Join(got, "|") != strings.Join(fs.Canonical, "|") {

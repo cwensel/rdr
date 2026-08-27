@@ -25,11 +25,11 @@ func runCapture(t *testing.T, args ...string) (int, string, string) {
 // TestSelectRoundTripsToBytes: --select <id> prints exactly the record's
 // lines for that element.
 func TestSelectRoundTripsToBytes(t *testing.T) {
-	code, out, errb := runCapture(t, "inspect", "--select", "0004:A2", fixturePath("epoch-d.md"))
+	code, out, errb := runCapture(t, "inspect", "--select", "0004:A2", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
-	raw, _ := os.ReadFile(fixturePath("epoch-d.md"))
+	raw, _ := os.ReadFile(fixturePath("current-shape.md"))
 	lines := strings.Split(string(raw), "\n")
 	want := strings.Join(lines[43:50], "\n") + "\n" // A2 is lines 44-50
 	if out != want {
@@ -39,7 +39,7 @@ func TestSelectRoundTripsToBytes(t *testing.T) {
 		t.Errorf("selection does not start on the assumption bullet")
 	}
 
-	code, _, errb = runCapture(t, "inspect", "--select", "0004:C9", fixturePath("epoch-d.md"))
+	code, _, errb = runCapture(t, "inspect", "--select", "0004:C9", fixturePath("current-shape.md"))
 	if code != 2 || !strings.Contains(errb, "stopped:no-such-element") {
 		t.Errorf("missing element: exit %d, stderr %q", code, errb)
 	}
@@ -48,8 +48,8 @@ func TestSelectRoundTripsToBytes(t *testing.T) {
 // TestJSONIsDeterministic: two runs produce identical bytes, and the
 // envelope carries the schema version and the project prefix.
 func TestJSONIsDeterministic(t *testing.T) {
-	_, a, _ := runCapture(t, "inspect", "--json", "--project", "cli", fixturePath("epoch-b.md"))
-	_, b, _ := runCapture(t, "inspect", "--json", "--project", "cli", fixturePath("epoch-b.md"))
+	_, a, _ := runCapture(t, "inspect", "--json", "--project", "cli", fixturePath("assumptions-nested.md"))
+	_, b, _ := runCapture(t, "inspect", "--json", "--project", "cli", fixturePath("assumptions-nested.md"))
 	if a != b {
 		t.Fatal("inspect --json is not byte-deterministic")
 	}
@@ -77,7 +77,7 @@ func TestJSONIsDeterministic(t *testing.T) {
 // counts records only.
 func TestResolveSkipsPostmortem(t *testing.T) {
 	dir := t.TempDir()
-	raw, _ := os.ReadFile(fixturePath("epoch-d.md"))
+	raw, _ := os.ReadFile(fixturePath("current-shape.md"))
 	if err := os.WriteFile(filepath.Join(dir, "0004-checksum.md"), raw, 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +120,7 @@ func TestFailuresStop(t *testing.T) {
 // records — and nothing that appears in fewer than recurThreshold.
 func TestIndexCoverage(t *testing.T) {
 	dir := t.TempDir()
-	clean, _ := os.ReadFile(fixturePath("epoch-d.md"))
+	clean, _ := os.ReadFile(fixturePath("current-shape.md"))
 	author, _ := os.ReadFile(filepath.Join("testdata", "variants", "author-structure.md"))
 	if err := os.WriteFile(filepath.Join(dir, "0004-checksum.md"), clean, 0o644); err != nil {
 		t.Fatal(err)
@@ -196,7 +196,7 @@ func TestIndexCoverage(t *testing.T) {
 // TestInspectEdgesFacet: `--select edges` projects the typed relations,
 // and the envelope carries them under schema 2.
 func TestInspectEdgesFacet(t *testing.T) {
-	code, out, errb := runCapture(t, "inspect", "--json", "--select", "edges", fixturePath("epoch-d.md"))
+	code, out, errb := runCapture(t, "inspect", "--json", "--select", "edges", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
@@ -221,7 +221,7 @@ func TestInspectEdgesFacet(t *testing.T) {
 	}
 
 	// The envelope carries edges too, at the schema that added them.
-	_, full, _ := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	_, full, _ := runCapture(t, "inspect", "--json", fixturePath("current-shape.md"))
 	var env struct {
 		Schema string `json:"schema"`
 		Edges  []struct {
@@ -242,8 +242,8 @@ func TestInspectEdgesFacet(t *testing.T) {
 // TestEdgesAreDeterministic: two projections of the same record produce
 // identical edge bytes, so a diff means the record changed.
 func TestEdgesAreDeterministic(t *testing.T) {
-	_, a, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("epoch-c.md"))
-	_, b, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("epoch-c.md"))
+	_, a, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("gate-inline.md"))
+	_, b, _ := runCapture(t, "inspect", "--json", "--select", "edges", "--project", "proj", fixturePath("gate-inline.md"))
 	if a != b {
 		t.Error("edge projection is not byte-deterministic")
 	}
@@ -258,9 +258,10 @@ func TestIndexUnresolvedFacet(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Profile makes these epoch B or later, which is what a record
-	// carrying Predecessors or Cluster actually is: those fields do not
-	// exist in epoch A, and the model is right to call them foreign there.
+	// Profile marks these as carrying the later apparatus, which is what a
+	// record carrying Predecessors or Cluster actually is: those fields do
+	// not exist in the oldest shape, and the model is right to call them
+	// foreign there.
 	head := func(num, title string) string {
 		return "# Recommendation " + num + ": " + title +
 			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
@@ -577,7 +578,7 @@ func TestSourceAnchorsResolveWithoutRecordsDir(t *testing.T) {
 func TestUsageLogIsOffByDefault(t *testing.T) {
 	t.Setenv(usageEnvVar, "")
 	dir := t.TempDir()
-	code, _, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	code, _, errb := runCapture(t, "inspect", "--json", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
@@ -598,12 +599,12 @@ func TestUsageLogRecordsInvocations(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "nested", "usage.jsonl")
 	t.Setenv(usageEnvVar, log)
 
-	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
 	emitted := len(out)
-	if code, _, _ = runCapture(t, "inspect", "--select", "outline", fixturePath("epoch-d.md")); code != 0 {
+	if code, _, _ = runCapture(t, "inspect", "--select", "outline", fixturePath("current-shape.md")); code != 0 {
 		t.Fatalf("second invocation exit %d", code)
 	}
 
@@ -660,7 +661,7 @@ func TestUsageLogSurvivesAFailedRun(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "usage.jsonl")
 	t.Setenv(usageEnvVar, log)
 
-	code, _, _ := runCapture(t, "inspect", "--select", "0004:C9", fixturePath("epoch-d.md"))
+	code, _, _ := runCapture(t, "inspect", "--select", "0004:C9", fixturePath("current-shape.md"))
 	if code != 2 {
 		t.Fatalf("want exit 2 from an absent element, got %d", code)
 	}
@@ -680,8 +681,8 @@ func TestUsageLogSurvivesAFailedRun(t *testing.T) {
 // TestUsageLogFailureNeverBreaksAProjection: measurement is subordinate.
 // An unwritable log path must not change the answer or the exit code.
 func TestUsageLogFailureNeverBreaksAProjection(t *testing.T) {
-	t.Setenv(usageEnvVar, filepath.Join(fixturePath("epoch-d.md"), "cannot", "log.jsonl"))
-	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+	t.Setenv(usageEnvVar, filepath.Join(fixturePath("current-shape.md"), "cannot", "log.jsonl"))
+	code, out, errb := runCapture(t, "inspect", "--json", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("a broken log path changed the exit code: %d (%s)", code, errb)
 	}
@@ -842,7 +843,7 @@ func TestAbsoluteRecordsDirIsObeyedVerbatim(t *testing.T) {
 // than the bytes it saves.
 func TestFilterProjectsOnlyTheNamedKeys(t *testing.T) {
 	code, out, errb := runCapture(t, "inspect", "--json",
-		"--filter", "metadata,counts", fixturePath("epoch-d.md"))
+		"--filter", "metadata,counts", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
@@ -865,7 +866,7 @@ func TestFilterProjectsOnlyTheNamedKeys(t *testing.T) {
 	}
 
 	full := func() int {
-		_, o, _ := runCapture(t, "inspect", "--json", fixturePath("epoch-d.md"))
+		_, o, _ := runCapture(t, "inspect", "--json", fixturePath("current-shape.md"))
 		return len(o)
 	}()
 	if len(out) >= full {
@@ -879,7 +880,7 @@ func TestFilterProjectsOnlyTheNamedKeys(t *testing.T) {
 // passed one, which is the failure this flow exists to prevent.
 func TestFilterRejectsAnUnknownFacet(t *testing.T) {
 	code, out, errb := runCapture(t, "inspect", "--json",
-		"--filter", "elments", fixturePath("epoch-d.md"))
+		"--filter", "elments", fixturePath("current-shape.md"))
 	if code != 2 {
 		t.Errorf("exit %d, want 2", code)
 	}
@@ -902,7 +903,7 @@ func TestFilterRejectsAnUnknownFacet(t *testing.T) {
 // `stopped:no-such-element` and spent a turn finding out why.
 func TestSelectReachesEveryDocumentedFacet(t *testing.T) {
 	for _, facet := range []string{"outline", "elements", "edges", "warnings", "metadata", "fields"} {
-		code, out, errb := runCapture(t, "inspect", "--json", "--select", facet, fixturePath("epoch-d.md"))
+		code, out, errb := runCapture(t, "inspect", "--json", "--select", facet, fixturePath("current-shape.md"))
 		if code != 0 {
 			t.Errorf("--select %s: exit %d: %s", facet, code, errb)
 			continue
@@ -1077,7 +1078,7 @@ func TestInspectResolvesOnlyWhenEdgesShow(t *testing.T) {
 func TestUsageLogFacetCarriesTheFilter(t *testing.T) {
 	log := filepath.Join(t.TempDir(), "usage.jsonl")
 	t.Setenv(usageEnvVar, log)
-	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "metadata, counts", fixturePath("epoch-d.md")); code != 0 {
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "metadata, counts", fixturePath("current-shape.md")); code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
 	raw, err := os.ReadFile(log)
@@ -1254,7 +1255,7 @@ func TestIndexCyclesFacet(t *testing.T) {
 // TestSummaryListsSections: the text summary is the read plan for a large
 // record, so it carries the outline's line ranges as well as the elements.
 func TestSummaryListsSections(t *testing.T) {
-	code, out, errb := runCapture(t, "inspect", fixturePath("epoch-d.md"))
+	code, out, errb := runCapture(t, "inspect", fixturePath("current-shape.md"))
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}

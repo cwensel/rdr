@@ -177,7 +177,7 @@ func parseTemplate(t *testing.T, path string) []observedSection {
 }
 
 // TestTemplateMatchesTemplateFile is the anti-drift test. TEMPLATE.md and
-// the epoch-D table cannot disagree without this failing.
+// the current template table cannot disagree without this failing.
 //
 // It compares, position by position, the section names, levels and
 // classes that TEMPLATE.md actually declares against Template. It fails

@@ -11,19 +11,21 @@ record's content — its paths, its identifiers, its design — through the
 back door of a test file. So the fixtures reproduce the template's SHAPE,
 which is what the model reads, and invent the content that fills it.
 
-Four fixtures spanning the shapes the corpus contains. The names are
-historical — they were one per template epoch, back when the reader
-carried four template tables — and are kept because the tests refer to
-them. All four are now read against the ONE current template, which is
-the point: an old shape must still classify clean through level-variance,
-the alias table and the scaffold patterns.
+Four fixtures spanning the shapes the corpus contains. Each is named for
+the SHAPE it exercises. They were once `epoch-a` … `epoch-d`, one per
+template epoch, back when the reader carried four template tables; the
+epochs are gone and the names went with them, because a fixture named for
+a generation says nothing about what it tests. All four are read against
+the ONE current template, which is the point: an old shape must still
+classify clean through level-variance, the alias table and the scaffold
+patterns.
 
 | file | shape | exercises |
 | --- | --- | --- |
-| `epoch-a.md` | oldest | no Profile or Seam Lineage, no Evidence Records, gate responses inlined; the legacy `#### API Verification` and `#### Dependency Source Verification` headings |
-| `epoch-b.md` | + apparatus | Profile, Seam Lineage, Load-Bearing Decisions; Evidence Records; gate still inlined; a compound Method and the legacy `**Related**` field |
-| `epoch-c.md` | + gate pointer | the gate.md pointer replacing the inlined body; a `Transient` contract marker and a `normative` fence; the legacy `### Premortem` heading |
-| `epoch-d.md` | current | Critical Assumptions at `##`; a joint-decision status qualifier; a wrapped metadata value; a filled-in `Alternative 2` scaffold |
+| `legacy-shape.md` | oldest | no Profile or Seam Lineage, no Evidence Records, gate responses inlined; the legacy `#### Dependency Source Verification` heading |
+| `assumptions-nested.md` | + apparatus | Profile, Seam Lineage, Load-Bearing Decisions; Evidence Records; gate still inlined; a compound Method and the legacy `**Related**` field |
+| `gate-inline.md` | + gate pointer | the gate.md pointer replacing the inlined body; a `Transient` contract marker and a `normative` fence; the recognised-but-unmapped `### Premortem` heading |
+| `current-shape.md` | current | Critical Assumptions at `##`; a joint-decision status qualifier; a wrapped metadata value; a filled-in `Alternative 2` scaffold |
 
 Each fixture carries at least one alias or qualifier form, so the
 tolerant-reading paths are exercised rather than only the happy path.
@@ -42,7 +44,7 @@ conformant record whose tally the scanner tests pin by hand.
 | `status-parenthetical.md` | `Implemented (\`main\` sha)`; Evidence Record statuses as `**Verified**`, `REFUTED (…)`, `Verified as narrowed — …`, `Resolved — …`, and the template legend left unfilled |
 | `wrapped-metadata.md` | the em-dash `Deferred — …` Status paragraph with a guidance comment under it; Predecessors, Overrides and Seam Lineage wrapped, with a nested labelled bullet; the legacy `Related`, the recognised `Release scope`, and an unknown `Referenced by` |
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
-| `addressable-text.md` | bold paragraph leads a `§` citation can name, and mid-paragraph emphasis that is not one; a `### Decisions` heading with author-numbered `**D1**` / `**D6**` bullets |
+| `addressable-text.md` | bold paragraph leads a `§` citation can name, and mid-paragraph emphasis that is not one; a `### Load-Bearing Decisions` heading with author-numbered `**D1**` / `**D6**` bullets |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it

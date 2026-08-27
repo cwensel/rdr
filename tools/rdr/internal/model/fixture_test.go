@@ -124,34 +124,34 @@ func joinFixtureValue(lines []string, i int, first string) string {
 // set to one shape fails here, before it can silently weaken the
 // tolerance tests below.
 func TestFixturesKeepTheirShapeSignals(t *testing.T) {
-	a := readFixture(t, "epoch-a.md")
-	b := readFixture(t, "epoch-b.md")
-	c := readFixture(t, "epoch-c.md")
-	d := readFixture(t, "epoch-d.md")
+	a := readFixture(t, "legacy-shape.md")
+	b := readFixture(t, "assumptions-nested.md")
+	c := readFixture(t, "gate-inline.md")
+	d := readFixture(t, "current-shape.md")
 
 	if a.signals.HasProfile || a.signals.HasSeamLineage || a.signals.HasMethodField {
-		t.Error("epoch-a.md must carry no Profile, Seam Lineage or Method field")
+		t.Error("legacy-shape.md must carry no Profile, Seam Lineage or Method field")
 	}
 	if a.signals.HasGatePointer {
-		t.Error("epoch-a.md must inline its gate responses, not point at gate.md")
+		t.Error("legacy-shape.md must inline its gate responses, not point at gate.md")
 	}
 	if !b.signals.HasProfile || !b.signals.HasSeamLineage || !b.signals.HasLoadBearingDecisions {
-		t.Error("epoch-b.md must carry Profile, Seam Lineage and Load-Bearing Decisions")
+		t.Error("assumptions-nested.md must carry Profile, Seam Lineage and Load-Bearing Decisions")
 	}
 	if b.signals.HasGatePointer {
-		t.Error("epoch-b.md must inline its gate responses, not point at gate.md")
+		t.Error("assumptions-nested.md must inline its gate responses, not point at gate.md")
 	}
 	if !c.signals.HasGatePointer {
-		t.Error("epoch-c.md must point at gate.md")
+		t.Error("gate-inline.md must point at gate.md")
 	}
 	if c.signals.CriticalAssumptionsLevel != 3 {
-		t.Errorf("epoch-c.md Critical Assumptions at level %d, want 3", c.signals.CriticalAssumptionsLevel)
+		t.Errorf("gate-inline.md Critical Assumptions at level %d, want 3", c.signals.CriticalAssumptionsLevel)
 	}
 	if d.signals.CriticalAssumptionsLevel != 2 {
-		t.Errorf("epoch-d.md Critical Assumptions at level %d, want 2", d.signals.CriticalAssumptionsLevel)
+		t.Errorf("current-shape.md Critical Assumptions at level %d, want 2", d.signals.CriticalAssumptionsLevel)
 	}
 	if !d.signals.HasJointDecisionQualifier {
-		t.Error("epoch-d.md must carry a joint-decision status qualifier")
+		t.Error("current-shape.md must carry a joint-decision status qualifier")
 	}
 	for _, f := range []fixture{a, b, c, d} {
 		if !f.signals.HasMetadataBlock {
@@ -167,7 +167,7 @@ func TestFixturesKeepTheirShapeSignals(t *testing.T) {
 // shapes must still classify through level-variance, case-variance,
 // scaffold patterns and the alias table.
 func TestFixturesClassifyClean(t *testing.T) {
-	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md"} {
+	for _, name := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md"} {
 		t.Run(name, func(t *testing.T) {
 			f := readFixture(t, name)
 			te := Template
@@ -215,7 +215,7 @@ func TestFixturesExerciseTolerancePaths(t *testing.T) {
 	forms := map[QualifierForm]bool{}
 	sawCompound, sawWrappedValue := false, false
 
-	for _, name := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md"} {
+	for _, name := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md"} {
 		f := readFixture(t, name)
 		te := Template
 

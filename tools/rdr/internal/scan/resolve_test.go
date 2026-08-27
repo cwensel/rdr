@@ -126,7 +126,7 @@ func TestStaleSlugIsUnresolved(t *testing.T) {
 // says so. It must never read as broken (a finding a consumer chases) nor
 // as sound (a skipped check reading as a pass).
 func TestUncheckedIsNotUnresolved(t *testing.T) {
-	d := Bytes(fixture(t, "epoch-d.md"), Options{})
+	d := Bytes(fixture(t, "current-shape.md"), Options{})
 	for _, e := range d.Edges {
 		if e.Resolved != nil {
 			t.Errorf("%s -> %s: resolved = %v with no resolver run", e.Kind, e.To, *e.Resolved)
@@ -599,7 +599,7 @@ func TestBoldLeadResolvesExactlyOnly(t *testing.T) {
 
 // TestNumberedDecisionsAreAddressable: a cohort of records numbered their
 // decisions instead of keying them by the template's classes, under a
-// `### Decisions` heading their epoch's template did not name.
+// heading the template of their day did not name.
 //
 // Numbering is a label like any other — the author named the element — so
 // the key is as-written, and it is the spelling the citation grammar

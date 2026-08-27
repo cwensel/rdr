@@ -66,7 +66,7 @@ func ids(doc *Document) []string {
 	return out
 }
 
-// TestFixtureTallies pins hand-counted element sets per epoch fixture:
+// TestFixtureTallies pins hand-counted element sets per whole-record fixture:
 // which kinds appear, how many, and how many are derived.
 func TestFixtureTallies(t *testing.T) {
 	cases := []struct {
@@ -75,16 +75,16 @@ func TestFixtureTallies(t *testing.T) {
 		want   map[ident.Kind]string // kind → "count/derived"
 		ids    []string              // a few IDs that must exist
 	}{
-		{"epoch-a.md", "0001",
+		{"legacy-shape.md", "0001",
 			map[ident.Kind]string{"ALT": "1/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0001:G-contradiction", "0001:G-proportionality", "0001:ALT1"}},
-		{"epoch-b.md", "0002",
+		{"assumptions-nested.md", "0002",
 			map[ident.Kind]string{"A": "2/0", "D": "2/0", "ALT": "1/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0", "G": "5/0"},
 			[]string{"0002:A1", "0002:A2", "0002:D-identity", "0002:D-selection-predicate"}},
-		{"epoch-c.md", "0003",
+		{"gate-inline.md", "0003",
 			map[ident.Kind]string{"A": "2/0", "C": "1/1", "BR": "1/0+1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0003:C1", "0003:BR1"}},
-		{"epoch-d.md", "0004",
+		{"current-shape.md", "0004",
 			map[ident.Kind]string{"A": "3/0", "C": "1/1", "D": "2/0", "ALT": "2/0", "BR": "1/0+1", "S": "1/0", "MVV": "1/0"},
 			[]string{"0004:A1", "0004:A3", "0004:C1", "0004:D-wire-byte-format", "0004:D-naming", "0004:ALT2", "0004:MVV", "0004:S1"}},
 	}
@@ -116,18 +116,18 @@ func TestFixtureTallies(t *testing.T) {
 // TestGateElementsOnlyWhenInlined: a gate.md pointer means the responses
 // live outside the record, so there is nothing to address.
 func TestGateElementsOnlyWhenInlined(t *testing.T) {
-	if n := Bytes(fixture(t, "epoch-c.md"), Options{}).Counts.Elements[ident.Gate]; n != 0 {
-		t.Errorf("epoch C (gate pointer) has %d G elements, want 0", n)
+	if n := Bytes(fixture(t, "gate-inline.md"), Options{}).Counts.Elements[ident.Gate]; n != 0 {
+		t.Errorf("gate-inline (gate pointer) has %d G elements, want 0", n)
 	}
-	if n := Bytes(fixture(t, "epoch-a.md"), Options{}).Counts.Elements[ident.Gate]; n != 5 {
-		t.Errorf("epoch A (inlined gate) has %d G elements, want 5", n)
+	if n := Bytes(fixture(t, "legacy-shape.md"), Options{}).Counts.Elements[ident.Gate]; n != 5 {
+		t.Errorf("legacy-shape (inlined gate) has %d G elements, want 5", n)
 	}
 }
 
 // TestLineRangesRoundTrip: every element's ID selects the bytes it names,
 // and those bytes start where the element's grammar says they start.
 func TestLineRangesRoundTrip(t *testing.T) {
-	for _, f := range []string{"epoch-a.md", "epoch-b.md", "epoch-c.md", "epoch-d.md"} {
+	for _, f := range []string{"legacy-shape.md", "assumptions-nested.md", "gate-inline.md", "current-shape.md"} {
 		doc := Bytes(fixture(t, f), Options{Project: "cli"})
 		for _, e := range doc.Elements {
 			start, end, ok := doc.Select(e.ID)
@@ -179,7 +179,7 @@ func TestLineRangesRoundTrip(t *testing.T) {
 // not overlap, and every non-blank line is inside the deepest node that
 // claims it — no line of a record is outside the outline.
 func TestOutlineNestsAndCovers(t *testing.T) {
-	for _, f := range []string{"epoch-a.md", "epoch-d.md"} {
+	for _, f := range []string{"legacy-shape.md", "current-shape.md"} {
 		doc := Bytes(fixture(t, f), Options{})
 		byID := map[string]Node{}
 		for _, n := range doc.Outline {
@@ -241,7 +241,7 @@ func section(t *testing.T, lines []string, heading string) (int, int) {
 // TestStabilityUnderProseEdits: editing prose elsewhere changes no element
 // ID and no element hash; only the edited section's own node hash moves.
 func TestStabilityUnderProseEdits(t *testing.T) {
-	raw := fixture(t, "epoch-d.md")
+	raw := fixture(t, "current-shape.md")
 	before := Bytes(raw, Options{})
 	edited := mutate(raw, func(lines []string) []string {
 		s, e := section(t, lines, "Problem Statement")
@@ -280,7 +280,7 @@ func TestStabilityUnderProseEdits(t *testing.T) {
 // TestStabilityUnderReorder: swapping two unrelated top-level sections
 // changes no element ID and no element hash.
 func TestStabilityUnderReorder(t *testing.T) {
-	raw := fixture(t, "epoch-d.md")
+	raw := fixture(t, "current-shape.md")
 	before := Bytes(raw, Options{})
 	swapped := mutate(raw, func(lines []string) []string {
 		cs, ce := section(t, lines, "Context")
@@ -324,7 +324,7 @@ func TestStabilityUnderReorder(t *testing.T) {
 // TestDerivedIDChangesOnlyWithOwnContent: editing a contract's body keeps
 // its derived ID and moves only its hash.
 func TestDerivedIDChangesOnlyWithOwnContent(t *testing.T) {
-	raw := fixture(t, "epoch-d.md")
+	raw := fixture(t, "current-shape.md")
 	before := Bytes(raw, Options{})
 	c1 := element(t, before, "0004:C1")
 	if !c1.Derived {
@@ -353,7 +353,7 @@ func TestDerivedIDChangesOnlyWithOwnContent(t *testing.T) {
 // honoured, the label line joins the element's range, and a derived
 // ordinal that a label already claims yields with a warning.
 func TestLabelledContractIsAsWritten(t *testing.T) {
-	raw := fixture(t, "epoch-d.md")
+	raw := fixture(t, "current-shape.md")
 	fenceLine := element(t, Bytes(raw, Options{}), "0004:C1").LineStart
 
 	labelled := mutate(raw, func(lines []string) []string {
@@ -538,7 +538,7 @@ Negative cases:
 // those elements. Counting them apart is what makes the queue's zero mean
 // what it says.
 func TestStructuralIdsAreNotBacklog(t *testing.T) {
-	doc := Bytes(fixture(t, "epoch-d.md"), Options{})
+	doc := Bytes(fixture(t, "current-shape.md"), Options{})
 	for _, k := range []ident.Kind{ident.Rejected, ident.Failure, ident.MVV} {
 		if model.KindKeys(string(k)) {
 			t.Errorf("%s: the template keys none of these kinds", k)
@@ -722,7 +722,7 @@ func TestRecordFromFilename(t *testing.T) {
 
 // TestDeterministic: the same bytes project to the same JSON.
 func TestDeterministic(t *testing.T) {
-	raw := fixture(t, "epoch-d.md")
+	raw := fixture(t, "current-shape.md")
 	a, _ := json.Marshal(Bytes(raw, Options{Project: "cli"}))
 	b, _ := json.Marshal(Bytes(raw, Options{Project: "cli"}))
 	if string(a) != string(b) {
