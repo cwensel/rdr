@@ -1,1 +1,1 @@
-Model: synthetic-model-a
+Model: synthetic-model-a[1m]

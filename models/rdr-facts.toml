@@ -506,12 +506,26 @@ description = "repeatability's runs were diffed — owed by both variants."
 # one, and a routing table needs a domain it can enumerate. What the
 # flow actually asks is whether the two passes were DIFFERENT models,
 # which is a closed question over any pair of ids.
+#
+# PROSE, for the reason the open vocabulary above already implies: a
+# model id is not a shell word. `claude-opus-5[1m]` carries brackets, and
+# `[1m]` is a glob — an unquoted `$(rdr status --tags …)` would glob it
+# away or split it. The tag renderer is right to refuse such a value, but
+# it refuses the WHOLE call, so an undeclared id here took the navigator
+# down on every record whose critique ran under a bracketed model:
+# measured 2026-08-28, 27 of 157 records exited 2 with no output, and
+# they were the recent in-flight ones the navigator is actually called
+# on. Nothing lost by declaring it: `critique_models` below carries the
+# routing half, these two are the caveat line beside it, and `--json`
+# still publishes both ids for §model-stamp's reader. Same treatment and
+# the same reason as `profile_raw` and `cluster_key`.
 [fact.critique_model_a]
 kind        = "scalar"
 source      = "header-field"
 root        = "evidence"
 path        = "critique/critique.md"
 label       = "model:"
+prose       = true
 description = "The base model that wrote critique.md, from its §model-stamp."
 
 [fact.critique_model_b]
@@ -520,6 +534,7 @@ source      = "header-field"
 root        = "evidence"
 path        = "critique/critique-modelB.md"
 label       = "model:"
+prose       = true
 description = "The base model that wrote critique-modelB.md."
 
 # The dual-model question as a routing dimension.

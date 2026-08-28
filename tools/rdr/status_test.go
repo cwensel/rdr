@@ -390,3 +390,82 @@ func TestStatusNamesItselfInTheUsageLog(t *testing.T) {
 		}
 	}
 }
+
+// TestShippedTableRendersEveryRecordAsTags is the guarantee the unit rule
+// above cannot make on its own: `unsafeTagWord` decides one value, but
+// `--tags` refuses the WHOLE call when any fact fails it, so one
+// undeclared scalar takes the navigator down on every record that
+// carries it.
+//
+// That is not hypothetical. `critique_model_a` was a bare `scalar`, and a
+// model id is an open vocabulary — `claude-opus-5[1m]` is a real stamp,
+// and `[1m]` is a glob. Measured 2026-08-28 before the fix: 27 of 157
+// records on the reference corpus exited 2 with no output, concentrated
+// in the recent in-flight range, which is exactly the set the navigator
+// is called on. The golden missed it because every fixture stamp was a
+// bracket-free synthetic id; 0021's now carries brackets, like the corpus.
+//
+// So this asserts over the SHIPPED table rather than a hand-built one: a
+// new fact whose value cannot survive argv must be declared prose when it
+// is declared, not after a consumer's navigator stops answering.
+func TestShippedTableRendersEveryRecordAsTags(t *testing.T) {
+	recs, ev, _ := statusFixture(t)
+	t.Setenv("RDR_RECORDS", recs)
+	t.Setenv("RDR_EVIDENCE", ev)
+	t.Setenv("RDR_SOURCE_REPO", "")
+
+	shipped := filepath.Join("..", "..", "models", "rdr-facts.toml")
+	if _, err := os.Stat(shipped); err != nil {
+		t.Skipf("shipped table not beside the tool: %v", err)
+	}
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0026"} {
+		code, out, errb := runCapture(t, "status", "--tags", "--facts", shipped, n)
+		if code != 0 {
+			t.Errorf("%s: --tags exit %d (%s) — a fact the shipped table declares "+
+				"cannot be rendered as argv; declare it prose", n, code, strings.TrimSpace(errb))
+			continue
+		}
+		// A refusal is the loud failure; a silently empty rendering would
+		// be the quiet one, and the navigator cannot tell it from a
+		// record with no signals.
+		if strings.TrimSpace(out) == "" {
+			t.Errorf("%s: --tags exited 0 with no tags at all", n)
+		}
+	}
+}
+
+// TestTagsSurviveABracketedModelID pins the specific value that broke,
+// end to end: the id reaches `--json` (so §model-stamp's reader keeps
+// it) and is absent from `--tags` (so no caller globs it).
+func TestTagsSurviveABracketedModelID(t *testing.T) {
+	_, table := bindStatusFixture(t)
+
+	code, tags, errb := runCapture(t, "status", "--tags", "--facts", table, "0021")
+	if code != 0 {
+		t.Fatalf("a bracketed model id still refuses the call: exit %d: %s", code, errb)
+	}
+	if strings.Contains(tags, "critique_model_a") {
+		t.Errorf("the model id was rendered as a tag, where [1m] is a glob:\n%s", tags)
+	}
+
+	code, out, _ := runCapture(t, "status", "--json", "--facts", table, "0021")
+	if code != 0 {
+		t.Fatal(out)
+	}
+	var env struct {
+		Facts []Fact `json:"facts"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatal(err)
+	}
+	var id string
+	for _, f := range env.Facts {
+		if f.Name == "critique_model_a" {
+			id = f.Value
+		}
+	}
+	if !strings.Contains(id, "[1m]") {
+		t.Errorf("--json dropped the model id too; then declaring it prose lost the "+
+			"fact rather than relocating it: %q", id)
+	}
+}

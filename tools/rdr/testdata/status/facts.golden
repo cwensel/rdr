@@ -82,7 +82,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
-critique_model_a             scalar  synthetic-model-a
+critique_model_a             scalar  synthetic-model-a[1m]
 critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
