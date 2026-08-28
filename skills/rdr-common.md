@@ -43,53 +43,54 @@ doesn't blind §commit's gate — if the block omits it, treat `RDR_AUTOCOMMIT` 
 (autocommit off). Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
 
-**Run the block below verbatim — do not abbreviate, paraphrase, or source the
-marker file directly.** The marker guards against direct sourcing: it exits 1 if
-`$WS` is unset, and `$WS` is only produced by the `git rev-parse` lines that come
-before the source call. Skipping those lines is the failure mode.
+**Run the block below verbatim — do not abbreviate or paraphrase, and never
+source a marker file directly.** `rdr env` is the resolver, keying off git
+topology, so it binds the same seam from a consumer cwd, a worktree, or the flow
+repo. **Nearest marker wins**: a repo-local `$PROJECT/.rdr/workspace` (this
+repo's own RDR env, inside its gitignored `.rdr/` — the default) beats the shared
+`$WS/.rdr-workspace` (a workspace seam siblings opt into via `--workspace`) —
+like `.git` or `.editorconfig`, the closest governs. `$PROJECT` is `dirname` of
+the git-common-dir, so a worktree resolves its main repo's local marker;
+`$RDR_MARKER` records which one won.
 
-Run this first. It keys off git topology, so it resolves the same from a consumer
-cwd, a consumer worktree, or the flow repo. **Nearest marker wins**: a repo-local
-`$PROJECT/.rdr/workspace` (this repo's own RDR env, inside its gitignored `.rdr/` — the
-default) takes precedence over the shared `$WS/.rdr-workspace` (a workspace seam siblings
-opt into via `--workspace`) — like `.git` or `.editorconfig`, the closest one governs. `$PROJECT`
-is `dirname` of the git-common-dir, so a worktree still resolves its main repo's local marker.
-Source the marker **only** via this block; `$RDR_MARKER` records which one resolved.
+```sh
+# §seam-bind — copy/run verbatim. Binds every seam var the marker exports.
+GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
+PROJECT=$(dirname "$(cd "$GC" && pwd -P)"); WS=$(dirname "$PROJECT"); export PROJECT WS
+eval "$("$RDR_HOME/bin/rdr" env)" || exit 1        # stops itself: no-marker / not-in-a-project
+[ "$RDR_PROJECT" = "$PROJECT" ] || { echo "stopped:foreign-seam:$RDR_MARKER (binds $RDR_PROJECT, not $PROJECT)" >&2; exit 1; }
+```
+
+**Two properties of that block are load-bearing — never trade them away.**
+`rdr env` answers from the **marker**, ignoring an inherited `RDR_*`, so `eval`
+*overwrites* a stale var instead of re-exporting it (sourcing had this for
+free). A `--records`/`--repo` flag keeps the opposite rule — one dir named for
+one call is a decision. And the guard catches a **foreign seam**: siblings under
+one workspace can bind *disjoint* seams, and records read from one project while
+`$RDR_EVIDENCE` resolves from another make every lens read as never-run — a
+finished record looks unlensed and the flow re-runs lenses over the evidence
+already on disk. Silent without the guard.
 
 **Shell state dies between Bash tool calls**, so anything you still need from the
 marker must be bound in the *same* call that uses it. Bind once per call, at the
 top — never carry an `export RDR_…=…` prefix from one call to the next, and never
 re-run this block just to reach `rdr`.
 
-**`rdr` never needs it.** The binary finds the marker itself, by the same
-nearest-wins rule, and reads `$RDR_RECORDS`, `$RDR_SOURCE_REPO`, `$RDR_EVIDENCE`
-and `$RDR_HOME` from it — so a bare `"$RDR_HOME/bin/rdr" inspect …` works from any
-directory in the project with no seam bound at all. (`$RDR_EVIDENCE` roots the
-fact table's exact-path probes and `$RDR_HOME` is where that table lives —
-tools/rdr/README.md §Facts.) An exported var still wins over the marker, and a
-flag over both. Run §seam-bind for what the tool does *not* read: `$RDR_ENV`,
-`$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+**`rdr` itself never needs the block** — it finds the marker on its own, so a
+bare `"$RDR_HOME/bin/rdr" inspect …` works with no seam bound. Run §seam-bind
+when the *shell* needs the vars: `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`
+(the three the projector never opens), or a path for a later command.
 
-```sh
-# §seam-bind — copy/run verbatim; do NOT source the marker file directly (exits 1 without $WS).
-# $WS must be derived from git topology first — the three lines below do that.
-GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
-GIT_COMMON=$(cd "$GC" && pwd -P)
-PROJECT=$(dirname "$GIT_COMMON")                  # this repo's root (worktree-invariant: git-common-dir is the main .git)
-WS=$(dirname "$PROJECT")                            # workspace root — required by the marker; set here, not by sourcing it
-export PROJECT WS                                   # both exported so a marker can anchor on either ($PROJECT repo-local, $WS workspace)
-# Nearest marker wins: a repo-local marker overrides / replaces the shared workspace one.
-# Repo-local lives INSIDE .rdr/ (already gitignored — no project-level .gitignore edit).
-if   [ -f "$PROJECT/.rdr/workspace" ]; then RDR_MARKER="$PROJECT/.rdr/workspace"  # repo-local scope (default)
-elif [ -f "$WS/.rdr-workspace" ];      then RDR_MARKER="$WS/.rdr-workspace"       # workspace scope (shared, --workspace)
-else echo "stopped:no-marker — run /rdr-init in this repo (looked in $PROJECT/.rdr and $WS)" >&2; exit 1; fi
-. "$RDR_MARKER"                                     # source ONLY via this path (never directly)
-[ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || { echo "stopped:no-rdr-env:$RDR_ENV" >&2; exit 1; }
-[ -n "$RDR_HOME" ] || { echo "stopped:no-rdr-home — run /rdr-init to write the marker" >&2; exit 1; }
-# $RDR_RECORDS is required for every stage except /rdr-seed-into-a-fresh-dir; resolve/claim assert it themselves.
-```
+**What bootstraps what.** `$RDR_HOME` must be bound *before* this block — it is
+how the block reaches the binary — by the harness (plugin root, or the fast-path
+block above) or an earlier resolve. Everything else comes from the marker, which
+the binary finds itself: no cycle, one precondition. `/rdr-init` *creates* the
+marker so it cannot call this (its inverse-seam-bind step), and `/rdr-doctor`
+resolves independently on purpose, so a broken seam cannot hide from the check
+looking for it.
 
-The marker exports the **five-var engine contract** every skill may read:
+The marker exports the **five-var engine contract** every skill may read — all
+five required, and `/rdr-doctor` check 3 fails without them:
 - `$RDR_HOME` — the RDR engine repo (`stages/`, `prompts/`, `skills/`, `TEMPLATE.md`).
 - `$RDR_RECORDS` — **this consumer's RDR-instances directory** (absolute path; the
   parent of `{ARTIFACT_DIR}`). The one place the "where do my RDRs live" decision
@@ -119,6 +120,10 @@ never derive it. It is **not** `$PROJECT` — under a workspace-scope marker
 both valid cwds), so it names the wrong tree. `$RDR_ENV` cannot supply it either:
 that file lists *modules* (`internal/…/x.go`) anchored at this root, never the
 root itself.
+
+Three more are optional and bound the same way: `$RDR_SOURCE_REPO` (below),
+`$RDR_AUTOCOMMIT` (§commit's gate) and `$RDR_USAGE_LOG`. `rdr env` prints
+whichever of the eight the marker set, plus `$RDR_MARKER` and `$RDR_PROJECT`.
 
 `--repo` defaults to it, so no call spells it out. Unset, or an anchor naming a
 foreign codebase (a third-party library cited for contrast), leaves those edges

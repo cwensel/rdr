@@ -9,6 +9,7 @@
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
+//	rdr env [--json]
 //	rdr version
 //
 // Exit codes:
@@ -60,6 +61,7 @@ usage:
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
+  rdr env [--json]
   rdr version
 
 index with no facet is the corpus graph: every record, element and edge,
@@ -114,6 +116,14 @@ last write (README §receipt): exit 0 and the lint's log line; 1 and
 stopped:no-lint-receipt; 2 when no log is bound. §commit refuses a record
 commit on 1 — the check that catches a gate closed without lint.
 
+env prints the seam this cwd binds — every marker var, plus
+RDR_MARKER and RDR_PROJECT, one quoted k=v per line for eval, or --json.
+It answers from the MARKER, not the environment: every other seam read
+here lets an exported var win, because --records names one dir for one
+call, but re-publishing an inherited RDR_* would let a leak outlive the
+turn that made it. Compare RDR_PROJECT against the repo you stand in
+before trusting the rest (rdr-common §seam-bind). No marker: exit 1.
+
 exit codes:
   0  success, findings or not
   1  lint: a finding blocks a lock; receipt: no lint since the last write
@@ -135,7 +145,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint", "receipt", "status":
+	case "inspect", "index", "lint", "receipt", "status", "env":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -146,7 +156,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		// `receipt` is exempt: it reads only the usage log, and §commit
 		// refuses a commit without it, so a missing template must not
 		// break the commit path over a file receipt never opens.
-		if args[0] != "receipt" {
+		// `env` is exempt for the stricter reason: it is what a skill runs
+		// to LEARN where the engine is, so requiring the template first
+		// would be a cycle — and it opens no record to read against one.
+		if args[0] != "receipt" && args[0] != "env" {
 			if err := bindSchema(f); err != nil {
 				fmt.Fprintln(stderr, err)
 				return 2
@@ -231,6 +244,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return receipt(fs.Args(), f, stdout, stderr)
 	case "status":
 		return statusCmd(fs.Args(), f, stdout, stderr)
+	case "env":
+		return envCmd(f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -291,6 +306,8 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")
 	case "receipt":
 		f.since = fs.String("since", "", "RFC3339 instant the lint must postdate (default: the record's mtime)")
+	case "env":
+		f.json = fs.Bool("json", false, "emit the bound seam as a JSON map")
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")

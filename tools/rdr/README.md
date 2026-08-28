@@ -936,8 +936,19 @@ so an exported var cannot mask a broken bind.
 `$RDR_EVIDENCE` and `$RDR_HOME` joined that list when the fact table
 landed (§Facts). Neither is a records path: the first roots the exact-path
 probes a fact declares, the second is where the fact table itself lives.
-`§seam-bind` remains the authority for what this tool still does *not*
-read — `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`.
+`rdr env` publishes every seam var the marker set, including the three this
+tool never opens — `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT` — which
+were the only reason `§seam-bind` still carried a shell resolver.
+
+It is the one seam read that does **not** let the environment win. A flag
+names one directory for one call, so `--records` outranks everything; but
+re-publishing an inherited `RDR_*` would let a leak survive the `eval` and
+outlive the turn that made it, where sourcing the marker overwrote it. In a
+workspace whose repos bind disjoint seams — one repo-local marker beside a
+shared one — that leak reads records from one project against another's
+evidence, and every lens fact comes back false with nothing to show it. So
+`env` answers from the marker, and reports `$RDR_MARKER` / `$RDR_PROJECT`
+for the caller's own guard.
 
 ## Facts
 
@@ -1317,6 +1328,7 @@ could break an answer would be worse than no log.
       main.go              subcommand dispatch, flags, inspect, the per-record index facets
       usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
       seam.go              marker discovery: the records dir and source root, bound without a shell
+      env.go               `rdr env`: publishes the bound seam, marker-authoritative
       status.go            the navigator's read: facts evaluated, rendered three ways
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash

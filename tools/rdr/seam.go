@@ -46,7 +46,15 @@ import (
 // not" — the projector read records and nothing else. A fact about
 // whether a lens ran is a fact about a directory, so the tool that
 // answers it has to know where that directory is.
-var seamVars = []string{"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME"}
+// RDR_ENV, RDR_RESOURCES and RDR_AUTOCOMMIT joined last, and none of them
+// is read by this tool at all. They are here because `rdr env` publishes
+// the seam CONTRACT rather than this binary's own appetite — the three
+// vars a skill still needed a shell resolver for were exactly the three
+// the projector never opened, so the resolver survived for them alone.
+var seamVars = []string{
+	"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME",
+	"RDR_ENV", "RDR_RESOURCES", "RDR_AUTOCOMMIT",
+}
 
 // seam resolves once per working directory. A projection may consult it
 // several times and the marker cannot change mid-run, so the common case

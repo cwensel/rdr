@@ -195,13 +195,13 @@ RUN: <1–3, repeatability only — omit otherwise>
 ```text
 From the arg header above, bind for this session and the lens body below:
   - {RDR_PATH} = RDR:; <rdr-slug> = its filename stem; <lens> = LENS:; <N> = RUN:.
-  - {RDR_ENV} = the seam path map; it defines the lens-output base. Resolve its
-    location via the workspace marker (see the flow README *Where the seam
-    lives*): `WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)"
-    && pwd -P)")")` then `. "$WS/.rdr-workspace"` → `$RDR_ENV`. The base for this
-    run is whatever {RDR_ENV}'s {EVIDENCE_DIR} row resolves to for this
-    <rdr-slug>/<lens> (per-RDR-first: `<rdr-slug>/evidence/<lens>/`). Only if no
-    marker and no {RDR_ENV} exist does the generic default apply.
+  - {RDR_ENV} = the seam path map; it defines the lens-output base. Bind it with
+    `eval "$("$RDR_HOME/bin/rdr" env)"` → `$RDR_ENV`. It applies nearest-wins (a
+    repo-local `.rdr/workspace` beats the shared `$WS/.rdr-workspace`), so
+    **never** source `$WS/.rdr-workspace` directly — under a repo-local marker
+    that binds another project's seam. The base for this run is whatever
+    {RDR_ENV}'s {EVIDENCE_DIR} row resolves to for this <rdr-slug>/<lens>
+    (per-RDR-first: `<rdr-slug>/evidence/<lens>/`).
   - {EVIDENCE_DIR} from the RDR's `**Status**:` line, under that resolved base: a
     re-entry qualifier (`Draft [revised from Final <date>; re-verify <IDs> —
     <reason>]`) → the `<rdr-slug>/evidence/<lens>/iter-N/` subfolder, N = 1 + the

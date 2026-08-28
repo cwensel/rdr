@@ -328,6 +328,12 @@ elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"        # work
 else echo "no marker in $PROJECT/.rdr or $WS — run /rdr-init" >&2; fi
 ```
 
+At runtime a skill does not hand-write that block: `rdr env` applies the same
+rule and prints the bound seam (plus `$RDR_MARKER` / `$RDR_PROJECT`), answering
+from the marker so an inherited `RDR_*` cannot leak one project's seam into
+another — see `skills/rdr-common.md` §seam-bind. The shell form above is the
+explanation, and the bootstrap for anything that runs before the binary exists.
+
 `git rev-parse --git-common-dir` resolves to the **main** repo's `.git` even
 from inside a worktree (a gitignored file at a repo root is *not* checked out
 into its worktrees — verified — so the marker must live *above* the repos and be

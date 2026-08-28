@@ -7,13 +7,13 @@ Paste 2 — resolver + fix body (verbatim):
 
 From the arg header above, bind for this session:
   - {RDR_PATH} = RDR:; <rdr-slug> = its filename stem; <lens> = LENS:.
-  - {RDR_ENV} / {RDR_RESOURCES} = the seam files. Resolve their location via the
-    workspace marker (see the flow README *Where the seam lives*):
-    `WS=$(dirname "$(dirname "$(cd "$(git rev-parse --git-common-dir)" && pwd
-    -P)")")` then `. "$WS/.rdr-workspace"` → `$RDR_ENV` / `$RDR_RESOURCES`. Keep
-    this in the same shell as any command reading `$RDR_ENV`/`$EVIDENCE_DIR` (state
-    dies between calls — re-run, don't carry); a direct source exits 1 without
-    `$WS`. Only if no marker and no {RDR_ENV} exist does `.rdr/` apply.
+  - {RDR_ENV} / {RDR_RESOURCES} = the seam files. Bind them with
+    `eval "$("$RDR_HOME/bin/rdr" env)"` → `$RDR_ENV` / `$RDR_RESOURCES`. It
+    applies nearest-wins (a repo-local `.rdr/workspace` beats the shared
+    `$WS/.rdr-workspace`), so **never** source `$WS/.rdr-workspace` directly —
+    under a repo-local marker that binds another project's seam. Keep it in the
+    same shell as any command reading `$RDR_ENV`/`$EVIDENCE_DIR` (state dies
+    between calls — re-run, don't carry).
   - {EVIDENCE_DIR} = the lens-output dir {RDR_ENV} resolves to for this RDR's
     <rdr-slug>/evidence/<lens>/ (highest iter-N if it has iter-* subfolders).
 

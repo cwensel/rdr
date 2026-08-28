@@ -262,6 +262,15 @@ func usageFacet(cmd string, f *flags, target string) string {
 			return which + ":json"
 		}
 		return which
+	case "env":
+		// Named for the same reason every index facet is (the test below
+		// pins it): a facet the log cannot name reads as never called, and
+		// this one is called on every skill run — the count is how the
+		// seam-bind retirement gets audited at all.
+		if f.json != nil && *f.json {
+			return "json"
+		}
+		return "text"
 	case "lint":
 		// Two facets, because two things call lint: a gate, which needs
 		// the verdict, and a stage reading mid-flow, which needs the
