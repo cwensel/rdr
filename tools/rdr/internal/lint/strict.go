@@ -735,9 +735,22 @@ func canonicalFor(v model.Vocabulary, observed string) string {
 // stage owed that section authored is the stage's call, so the finding
 // reports the text and the range and stops there.
 //
-// NO PATCH. Deleting the block is mechanical, but a block sitting above
-// authored content and one standing in for missing content need
-// different repairs, and telling them apart is judgment.
+// NO PATCH, and the reason is sharper than it looks. A block sitting
+// above authored content and one standing in for missing content need
+// different repairs, and telling them apart is judgment — but there is
+// also a third shape that makes a bulk deletion actively destructive:
+// the block whose body the author EDITED IN PLACE, keeping the
+// template's bracket and replacing its sentences with their own. cli/0073
+// carried its entire contract scope that way, inside a
+// `[Load-bearing — …]` that never closed until after the authored prose.
+//
+// Deleting this finding's range wholesale removed it, and the usual
+// acceptance oracle did not notice: prose inside a guidance block
+// projects no element, so the graph, the backlinks and every element
+// count were byte-identical across the loss. The check that DOES catch
+// it is textual — squash a candidate block to its characters and require
+// that it appear in TEMPLATE.md — and it belongs to whoever writes a
+// repair pass, not to this reporter.
 func placeholderFindings(d *scan.Document) []Finding {
 	var out []Finding
 	for _, n := range d.Outline {
