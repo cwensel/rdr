@@ -19,11 +19,12 @@ questions are the silence/contradiction half.
 ```text
 Step 0 (GROUNDING — do this first): run the codebase claim sweep from
 0-grounding.md against {RDR_PATH}, including its scoping — one
-`"$RDR_HOME/bin/rdr" inspect --json --filter edges,fields {RDR_PATH}`
+`"$RDR_HOME/bin/rdr" inspect --json --filter edges,elements {RDR_PATH}`
 gives `edges[]` kind `source-anchor`
 (each with `to`, `line`, `line_end` and a three-valued `resolved`: true =
 CONFIRMED, false = NOT-FOUND,
-ABSENT = unchecked) and the `Evidence` element `fields[]` spans. Verify every
+ABSENT = unchecked) and the `Evidence` spans off each element's own `fields[]`
+(not the top-level `fields[]`, which carries none). Verify every
 cited `path::Symbol` and every "no existing X" / "a sibling path already does Z"
 against actual source (CONFIRMED / REFUTED / NOT-FOUND), and check the inverse:
 if this RDR adds a new discriminator/heuristic/switch/identity rule, grep whether

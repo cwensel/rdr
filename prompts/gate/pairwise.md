@@ -35,10 +35,12 @@ SELECT THE PAIRS by query, not by reading the cluster:
   (the citing peer), `from`, `to` and `line`/`line_end`.
 
 SCOPE THE READ. A pair already related by `peer-evidence` need not be handed
-both whole records: pass those backlinks' `line`/`line_end` ranges, plus each
-record's contract and scenario ranges (`inspect --json --filter elements`,
-`elements[]` `kind=="C"` / `kind=="S"`, `line_start`/`line_end`) — `sed -n` those.
-An uncited `--anchor-intersect` pair has no such spine: read both records.
+both whole records: pass each record's contracts and scenarios by id
+(`inspect --json --filter elements`, `elements[]` `kind=="C"` / `kind=="S"`,
+then `inspect --select <id> <NNNN>` per element), plus the backlinks'
+`line`/`line_end` ranges — those cite a passage, not an element, so they are the
+one read here with no id to name. An uncited `--anchor-intersect` pair has no
+such spine: read both records.
 
 ```text
 Here are two RDRs, {RDR_A_PATH} and {RDR_B_PATH}. Report every place they

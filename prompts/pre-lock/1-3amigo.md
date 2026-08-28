@@ -28,10 +28,10 @@ Where to start reading. Run once:
 
   "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
 
-Your persona names which `elements[]`/`outline[]` entries it owns; each carries
-`id`, `line_start`, `line_end`. Read those spans with `sed -n` and anchor every
-finding to the `id` (`NNNN:C4`, `NNNN:S2`) rather than a quoted phrase — an id
-survives a reword, a quote does not.
+Your persona names which `elements[]`/`outline[]` entries it owns. Read each by
+id — `inspect --select <id> {RDR_PATH}` prints exactly that element's bytes —
+and anchor every finding to the `id` (`NNNN:C4`, `NNNN:S2`) rather than a quoted
+phrase: an id survives a reword and a line number does not.
 If your persona's set comes back empty — an older record labels no contracts or
 scenarios — read the record whole; an empty set is a record that named nothing,
 never a record with nothing to find.

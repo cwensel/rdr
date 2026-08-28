@@ -82,8 +82,8 @@ Start from the contracts, not the whole file. Run once:
 
   "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
 
-and read the spans of `elements[]` where `kind` is `C` (normative contracts),
-`MVV`, or `S` — each carries `line_start`/`line_end`; `sed -n` those. Those are
+and read `elements[]` where `kind` is `C` (normative contracts), `MVV`, or `S` —
+each by id, `inspect --select <id> {RDR_PATH}`. Those are
 the clauses a reconstruction must reproduce exactly. If that set is empty, read
 the record whole — a record whose contracts are written as prose addresses none,
 and reconstructing from an empty selection would invent the API rather than

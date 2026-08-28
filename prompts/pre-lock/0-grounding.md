@@ -28,10 +28,12 @@ STARTING SET and your primary read:
     true = the symbol exists (CONFIRMED — cite it and move on), false =
     NOT-FOUND (a finding), ABSENT = nothing looked (no `--repo`; sweep it
     yourself, never read absent as either).
-  - element `fields[]` where `label=="Evidence"`, each with `element`,
-    `line_start`/`line_end`. Read those spans with `sed -n`, not the whole
-    record; the assumptions that owe source are the ones whose `Method` field
-    has `Source Search` in `method.members`.
+  - `elements[]`, each element's own `fields[]` where `label=="Evidence"` (not
+    the top-level `fields[]`, which carries no Evidence), with `element` and
+    `line_start`/`line_end`. Read those LINE spans — the one read here with no
+    id, since the span is the Evidence field alone and `--select <element>`
+    would return the whole assumption. The assumptions that owe source are the
+    ones whose `Method` field has `Source Search` in `method.members`.
 
 An EMPTY starting set is not a clean record. Older records state their evidence
 as prose and label nothing, so they project no `Evidence` field and no

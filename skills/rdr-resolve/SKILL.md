@@ -31,10 +31,11 @@ Claude: /rdr-resolve <NNNN>
      own sub-agent (it needs the live target). Don't spawn one agent per source-search
      claim — they share the same corpus/source reads. Hold only the verdicts in the
      main context; author the `Status: Verified` edits here, not in the sub-agent.
-3. **Self-detected re-entry (no flag).** The prompt reads the RDR `Status:` line: a
-   `Draft [revised from Final …; re-verify <IDs>]` qualifier scopes the run to the
-   listed assumption IDs (+ anchors the demotion touched), carrying the rest forward
-   as Verified; a bare `Draft` verifies every assumption cold. Do not pass a resume
+3. **Self-detected re-entry (no flag).** The prompt asks the projector, not the
+   `Status:` string: `inspect --json --filter metadata,edges <NNNN>` →
+   `.status.form == "revised-from"` scopes the run to the `edges[]`
+   `kind=="reverify"` targets (+ anchors the demotion touched), carrying the rest
+   forward as Verified; any other form is the cold path. Do not pass a resume
    flag — the RDR's state drives it.
 
 ## Review gate (what the human checks — Stage `04-resolve-assumptions.md`)
