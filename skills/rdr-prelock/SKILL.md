@@ -97,14 +97,20 @@ barrier clears, then the diff as usual.
 
 **The intended variant lives on disk, not in session memory** — pre-lock clears
 context and switches models between runs, so nothing you hold survives. `run-1.md`'s
-`variant:` header line (written at generation, beside `model:`) is the durable record;
-if `run-1.md` doesn't exist yet, resolve from the RDR's `Profile` (`foundational` =
-**full** `run-1/2/3`; `mid`/`large` = **lite** `run-1` only) and stamp it into that line.
-Never infer the variant from how many `run-*.md` files exist — that is what silently
-promotes a `large` RDR to full ×3. A `run-2`/`run-3` request against a `variant: lite`
-header stops with `stopped:repeatability-lite-no-run-2:<NNNN>` — escalate to full only
-by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.md`
-*Escalate*), else `diff` on `run-1`.
+`variant:` header line (written at generation, beside `model:`) is the durable record.
+**Ask the model for the variant and the next run** — `--outcome repeatability`
+(§lens-row's call, that outcome) reads the header and answers with the run to write
+or the diff; it never infers the variant from how many `run-*.md` files exist, which
+is what silently promotes a `large` RDR to full ×3. When no `run-1.md` exists yet the
+row names the variant to stamp into that line.
+
+Two things the row hands back rather than decides. A `run-2`/`run-3` request against a
+`variant: lite` header stops with `stopped:repeatability-lite-no-run-2:<NNNN>` —
+escalate to full only by rewriting that line to `full (escalated: <reason>)` first
+(`3-repeatability.md` *Escalate*), else `diff` on `run-1`. And on `mid`/`large` the
+lens is owed only if the Stage-5 **Determinacy trigger** fires, which is a judgement
+over Normative Contracts, not a fact: the row stops with
+`stopped:determinacy-trigger-unjudged` and names the section to read.
 
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
@@ -118,10 +124,9 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   the next run, relaunched on the alt model for the cross-model draw. **Lite stops
   after `run-1`** with next `Next: /rdr-prelock NNNN repeatability diff` (never a
   `run-2` pointer); do not continue to reconcile.
-- **Diff only when complete + clean** — completeness is judged against the
-  profile's variant (§repeatability-variant), not the file count: lite needs `run-1`,
-  full needs `run-1/2/3`. The diffing context wrote none — this session manually, or
-  a fresh post-barrier sub-agent under `--auto` (§auto-fanout); else
+- **Diff only when complete + clean** — the `repeatability` row answers completeness
+  from the header, never the file count. The diffing context wrote none — this session
+  manually, or a fresh post-barrier sub-agent under `--auto` (§auto-fanout); else
   `stopped:repeatability-incomplete:<missing>`. ≥1 run on a different model.
 - **Resolve once `diff.md` lands** — this same skill runs the resolve prompt on
   `diff.md`; its REPEATABILITY DIFF clause governs each divergence. If autocommit is on,
@@ -152,15 +157,13 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   evidence has landed) — it re-reads the current
   `Profile` and subtracts the completed evidence itself, so nothing here
   recomputes a row by hand; mandatory after a reset, demotion, or escalation,
-  which are exactly the cases a remembered row gets wrong. Two completion
-  nuances stay this skill's, because the folder facts cannot see them: a
-  completed `critique` is **not** the end of Stage 5 unless `repeatability` is
-  also complete, and **`critique` isn't complete from a folder alone** — read
-  the evidence's `Model:` stamp (§model-stamp): a `foundational` RDR needs the
-  dual-model diff (or recorded single-model fallback), and a re-entry under a
-  *different* model is the second pass to run, not a no-op. Judge those first;
-  where they say the lens is unfinished, `Next:` is this lens again, whatever
-  the model's folder-level answer.
+  which are exactly the cases a remembered row gets wrong. **Completion is the
+  model's too**, and is a second call rather than a judgement here: for the
+  lens just run, `--outcome critique` or `--outcome repeatability` reads the
+  `Model:` stamps and the `variant:` header (§model-stamp) and answers `none`
+  when the lens is finished, or names it again when it is not. Where it names
+  the lens again, `Next:` is this lens — that answer outranks the row's
+  folder-level one, which is what it is for.
 - **3amigo | critique | cove** converged → `emit.next` names the next lens:
   `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
   second pass keeps `critique` the first missing item — `Next:` is
@@ -168,11 +171,9 @@ by rewriting that line to `full (escalated: <reason>)` first (`3-repeatability.m
   (§auto-fanout), else "relaunch the CLI on a second base model, then
   `/rdr-prelock NNNN critique`"; never a later lens (§next-step: one action;
   other open obligations go in `Continue check:`).
-- **repeatability** — pick the variant from `Profile` (§repeatability-variant), never
-  from files present. Lite (`mid`/`large`): missing `run-1` → `repeatability 1`, then
-  `diff` — never point at `run-2`. Full (`foundational`/escalation): missing run →
-  `Next: /rdr-prelock NNNN repeatability <N+1>` until `run-1/2/3`, then `diff`. Diff
-  runs in a fresh session; it also resolves `diff.md`.
+- **repeatability** — `--outcome repeatability` names the next run or the diff from
+  run-1's own header (§repeatability-variant), never from the files present. Diff runs
+  in a fresh session; it also resolves `diff.md`.
 - **All profile lenses done** → the model answers `/rdr-reconcile` (row
   complete): `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
   A Determinacy obligation the table cannot see (§lens-row's one judgement) is

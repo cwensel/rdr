@@ -1009,6 +1009,16 @@ func (d *Document) contracts() {
 		if end < len(d.lines) {
 			end++ // include the closing delimiter
 		}
+		// The template's own example is not the author's contract.
+		// A seeded record carries it verbatim until the section is
+		// authored, and counting it mints a C1 the author never wrote —
+		// which is the same class as a surviving guidance block, and is
+		// reported as one rather than projected as an element.
+		if body := fenceBody(d.lines, i, end); model.TemplateNormativeBodies()[body] {
+			d.warn("contract:template-example", i, end,
+				"this ```normative fence is TEMPLATE.md's own example, not an authored contract")
+			continue
+		}
 		it := keyed{section: d.sectionAt(i), start: i, end: end}
 		for k := i - 1; k >= 1; k-- {
 			if strings.TrimSpace(d.lines[k-1]) == "" {
@@ -1041,6 +1051,16 @@ func (d *Document) contracts() {
 		items = append(items, it)
 	}
 	d.assign(ident.Contract, items)
+}
+
+// fenceBody is the text inside a fence, trimmed, for comparison against
+// the template's own examples. The delimiters are excluded: `i` is the
+// opening line and `end` the line after the closing one.
+func fenceBody(lines []string, i, end int) string {
+	if i >= end-1 {
+		return ""
+	}
+	return strings.TrimSpace(strings.Join(lines[i:end-1], "\n"))
 }
 
 // anchorLead matches a bold run opening a paragraph at column zero:

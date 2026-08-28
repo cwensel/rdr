@@ -486,6 +486,92 @@ root = "evidence"
 path = "repeatability/diff.md"
 description = "repeatability's runs were diffed — owed by both variants."
 
+# --- what the lens files SAY, as opposed to that they exist ---------------
+#
+# The four probes above answer whether critique's and repeatability's
+# files are on disk. They cannot answer WHICH MODEL wrote them or WHICH
+# VARIANT was owed, and for these two lenses that identity is the whole
+# signal — this table's own header said so, and four skills were
+# overriding the routing with prose because of it.
+#
+# Both stamps are written at generation to a fixed form, so they are read
+# with a strict label rather than a search. Absent when the file or the
+# stamp is missing: §model-stamp's rule is that no stamp means
+# model-unknown, and a `false` there would assert a match that was never
+# observed.
+
+# The critique lens's first pass, and its second. Compared rather than
+# exported: the raw ids are an OPEN vocabulary — `claude-opus-5[1m]`,
+# `glm-5.2:cloud`, `Claude Sonnet 5` all appear — so no enum can carry
+# one, and a routing table needs a domain it can enumerate. What the
+# flow actually asks is whether the two passes were DIFFERENT models,
+# which is a closed question over any pair of ids.
+[fact.critique_model_a]
+kind        = "scalar"
+source      = "header-field"
+root        = "evidence"
+path        = "critique/critique.md"
+label       = "model:"
+description = "The base model that wrote critique.md, from its §model-stamp."
+
+[fact.critique_model_b]
+kind        = "scalar"
+source      = "header-field"
+root        = "evidence"
+path        = "critique/critique-modelB.md"
+label       = "model:"
+description = "The base model that wrote critique-modelB.md."
+
+# The dual-model question as a routing dimension.
+#
+# `differ` is the pass §model-stamp wants: two base models, so the diff
+# is a cross-model draw. `same` is the recorded single-model fallback —
+# legitimate, and the flow says to say so rather than skip the step —
+# and it is NOT a failure, only a different completion story. `unknown`
+# is a pass with no stamp on one side, which §model-stamp is explicit
+# about: don't assume a match, offer the second pass. `absent` is no
+# second pass at all.
+#
+# Measured over the corpus: 24 differ, 8 same, 10 unknown. Every case is
+# real, which is why all four are declared members rather than a
+# boolean with a default.
+[fact.critique_models]
+kind        = "enum"
+source      = "model-compare"
+root        = "evidence"
+paths       = ["critique/critique.md", "critique/critique-modelB.md"]
+label       = "model:"
+domain      = ["differ", "same", "unknown", "absent"]
+absent      = "absent"
+description = "Whether critique's two passes were written by different base models."
+
+# The repeatability variant, from run-1's own header.
+#
+# §repeatability-variant: "the intended variant lives on disk, not in
+# session memory" — pre-lock clears context and switches models between
+# runs, so the header is the durable record BY DESIGN. It is declared
+# here so the routing stops inferring the variant from how many run
+# files exist, which is what silently promotes a `large` RDR to full x3.
+#
+# On today's corpus the header always AGREES with Profile, including the
+# one escalation (cli/0106, whose Profile was updated to foundational
+# with it). So this adds no routing power it does not already have — its
+# job is to catch the DIVERGENCE that Profile cannot see: a `run-2`
+# beside a `variant: lite` header is a variant mismatch the reconcile
+# preflight already treats as a caveat, and only the header can say so.
+#
+# `none` is the absent sentinel: no run-1, or a run-1 with no variant
+# line (27 such files, all terminal and all pre-dating the header).
+[fact.repeatability_variant]
+kind        = "enum"
+source      = "header-field"
+root        = "evidence"
+path        = "repeatability/run-1.md"
+label       = "variant:"
+domain      = ["lite", "full", "none"]
+absent      = "none"
+description = "The variant run-1's header declares — the durable record, never the file count."
+
 # --- the non-lens siblings -------------------------------------------------
 
 # Stage 2's hardened-critic output. A sibling, never a Stage-5 lens
@@ -740,3 +826,27 @@ description = "The Stage 7.1 directory that reconciled this record's set; its na
 # gate answered in the record projects `G-<item>` elements whether it is
 # written as sub-headings or as a labelled list, so a legacy record's
 # five responses are citable. Only the EXTERNALIZED file is unread.
+
+# Whether Normative Contracts carries text the AUTHOR wrote, as distinct
+# from `contracts`, which counts LABELLED ones.
+#
+# A zero `contracts` has two meanings and they route differently: the
+# section is empty, or it holds contracts written as PROSE — real,
+# load-bearing, and unaddressable. The Stage-5 Determinacy trigger fires
+# on either, which is why the skills were told to stop and read the
+# section (rdr-common §lens-row, rdr-status §How it decides). This fact
+# is that read, so the trigger's input is a fact rather than an
+# instruction to go looking.
+#
+# Template guidance and draft placeholders are NOT content: a section
+# holding only `[Load-bearing — …]` and `_Draft placeholder._` is empty
+# however many lines it spans. That is the difference between cli/0069
+# (52 lines, entirely the template's) and cli/0053 (27 lines of real
+# prose contracts), and getting it wrong in either direction would make
+# the trigger fire on a seed or miss an authored contract.
+[fact.contracts_prose]
+kind        = "bool"
+source      = "section-prose"
+path        = "Normative Contracts"
+absent      = "false"
+description = "Normative Contracts carries authored text, labelled or not."

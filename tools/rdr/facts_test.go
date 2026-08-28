@@ -782,6 +782,10 @@ var stageFacts = map[string][]string{
 		"lens_critique_single", "lens_critique_modelb", "lens_critique_diff",
 		"lens_repeatability_run1", "lens_repeatability_run2", "lens_repeatability_run3",
 		"lens_repeatability_diff", "iter_2", "reconcile",
+		// Completion, as opposed to "the lens ran": which models wrote
+		// critique's two passes, and which variant run-1 declares. The
+		// `critique` and `repeatability` outcome groups route on these.
+		"critique_models", "repeatability_variant",
 	},
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
 	"7 Finalize":  {"status", "gate_written"},
@@ -820,6 +824,9 @@ var routingFacts = map[string]string{
 	"ca_placeholder":        "an unfilled legend is not a Pending assumption",
 	"ca_off_vocabulary":     "a Status in no vocabulary certifies nothing",
 	"legacy_evidence_shape": "pre-migration evidence must never read as lens un-run",
+	"critique_model_a":      "the stamp the critique dual-model comparison reads",
+	"critique_model_b":      "the stamp the critique dual-model comparison reads",
+	"contracts_prose":       "the Determinacy trigger's input: contracts written as prose, which a zero C count cannot see",
 }
 
 // TestEveryStageRowIsExpressedAsFacts is the issue's acceptance criterion,
@@ -1069,5 +1076,171 @@ func TestClusterMemberSegmentsTheEpochs(t *testing.T) {
 	got, ok := e.clusterMember(decl)
 	if !ok || got.Value != "false" {
 		t.Errorf("a bound root with no tree = %+v/%v, want false", got, ok)
+	}
+}
+
+// writeEvidence puts exact bytes at a path under the evidence tree, for
+// the header-reading facts: what these read is the CONTENT of a file, so
+// the shared helper's placeholder body cannot drive them.
+func writeEvidence(t *testing.T, evidence, slug, rel, body string) {
+	t.Helper()
+	full := filepath.Join(evidence, slug, "evidence", filepath.FromSlash(rel))
+	if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(full, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// TestCritiqueModelsComparesTheStamps covers the four states the corpus
+// actually holds, because each routes differently: `differ` is the
+// dual-model pass §model-stamp wants, `same` is the sanctioned
+// single-model fallback, `unknown` is a pass with no stamp (which the
+// rule says never to read as a match), and `absent` is no second pass.
+func TestCritiqueModelsComparesTheStamps(t *testing.T) {
+	for _, c := range []struct {
+		name       string
+		passA      string
+		passB      string
+		wantModels string
+	}{
+		{"two models", "model: claude-opus-5\n", "model: claude-sonnet-5\n", "differ"},
+		{"one model, fresh contexts", "model: claude-opus-5\n", "model: claude-opus-5\n", "same"},
+		{"second pass unstamped", "model: claude-opus-5\n", "# no stamp here\n", "unknown"},
+		{"first pass unstamped", "# no stamp here\n", "model: claude-opus-5\n", "unknown"},
+		// A trailing note is prose for a human, never part of the id:
+		// the same model must not read as two.
+		{"trailing prose ignored",
+			"model: claude-opus-5[1m]   (fresh-context run A; single-model fallback)\n",
+			"model: claude-opus-5[1m]   (fresh-context run B)\n", "same"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			slug := "0010-frame-header"
+			evidence, records := newEvidenceTree(t, slug, nil, nil)
+			writeEvidence(t, evidence, slug, "critique/critique.md", c.passA)
+			writeEvidence(t, evidence, slug, "critique/critique-modelB.md", c.passB)
+
+			tbl := loadRealTable(t)
+			facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, records))
+			if got, _ := factValue(facts, "critique_models"); got != c.wantModels {
+				t.Errorf("critique_models = %q, want %q", got, c.wantModels)
+			}
+		})
+	}
+}
+
+// TestCritiqueModelsAbsentWithNoSecondPass separates "no second pass" from
+// "a second pass with no stamp". Both leave the stamp unreadable and they
+// are different states: one owes a pass, the other owes nothing.
+func TestCritiqueModelsAbsentWithNoSecondPass(t *testing.T) {
+	slug := "0010-frame-header"
+	evidence, records := newEvidenceTree(t, slug, nil, nil)
+	writeEvidence(t, evidence, slug, "critique/critique.md", "model: claude-opus-5\n")
+
+	tbl := loadRealTable(t)
+	facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, records))
+	if got, _ := factValue(facts, "critique_models"); got != "absent" {
+		t.Errorf("critique_models = %q with no critique-modelB.md, want absent", got)
+	}
+}
+
+// TestRepeatabilityVariantReadsTheHeader is §repeatability-variant's own
+// rule: the intended variant lives on disk, and the file COUNT must never
+// stand in for it — that is what silently promotes a large RDR to full x3.
+func TestRepeatabilityVariantReadsTheHeader(t *testing.T) {
+	for _, c := range []struct {
+		name, run1, want string
+	}{
+		{"lite", "model: m\nvariant: lite (profile: large)\n", "lite"},
+		{"full", "model: m\nvariant: full (profile: foundational)\n", "full"},
+		// The escalation form is still the full variant; the reason in
+		// parentheses is a note, not part of the value.
+		{"escalated", "model: m\nvariant: full (escalated: accretion floor)\n", "full"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			slug := "0010-frame-header"
+			evidence, records := newEvidenceTree(t, slug, nil, nil)
+			writeEvidence(t, evidence, slug, "repeatability/run-1.md", c.run1)
+
+			tbl := loadRealTable(t)
+			facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, records))
+			if got, _ := factValue(facts, "repeatability_variant"); got != c.want {
+				t.Errorf("repeatability_variant = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestRepeatabilityVariantAbsentWithoutAHeader is the case 27 run-1 files
+// in the corpus are in: written before the header existed. The variant is
+// genuinely unknown, and the routing must stop rather than infer one from
+// how many run files are present.
+func TestRepeatabilityVariantAbsentWithoutAHeader(t *testing.T) {
+	slug := "0010-frame-header"
+	evidence, records := newEvidenceTree(t, slug, nil, nil)
+	writeEvidence(t, evidence, slug, "repeatability/run-1.md", "# Repeatability run 1\n\nNo header.\n")
+	writeEvidence(t, evidence, slug, "repeatability/run-2.md", "# run 2\n")
+
+	tbl := loadRealTable(t)
+	facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, records))
+	if got, ok := factValue(facts, "repeatability_variant"); ok && got != "" {
+		t.Errorf("repeatability_variant = %q; an unstamped run-1 must not report a variant, "+
+			"and two run files must never be read as `full`", got)
+	}
+}
+
+// TestHeaderFieldRefusesAnOffDomainValue keeps an evaluator inside the
+// domain its own table declares: a stamp naming something else is not a
+// new member to export, it is absent.
+func TestHeaderFieldRefusesAnOffDomainValue(t *testing.T) {
+	slug := "0010-frame-header"
+	evidence, records := newEvidenceTree(t, slug, nil, nil)
+	writeEvidence(t, evidence, slug, "repeatability/run-1.md", "variant: exhaustive\n")
+
+	tbl := loadRealTable(t)
+	facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, records))
+	if got, ok := factValue(facts, "repeatability_variant"); ok && got != "" {
+		t.Errorf("repeatability_variant = %q; `exhaustive` is not in the declared domain", got)
+	}
+}
+
+// TestContractsProseSeparatesTemplateFromAuthored is the distinction the
+// fact exists for, and it is the one a zero `contracts` count cannot make.
+//
+// A section holding only the template's guidance and a draft placeholder
+// is EMPTY however many lines it spans — measured on the corpus, that is
+// cli/0069's 52 lines. A section of prose contracts is NOT empty even
+// though nothing in it is labelled — cli/0053's 27 lines. Reading the
+// count alone conflates them, which is why four skills were told to stop
+// and read the section by hand.
+func TestContractsProseSeparatesTemplateFromAuthored(t *testing.T) {
+	for _, c := range []struct {
+		name, body string
+		want       string
+	}{
+		{"draft placeholder only", "_Draft placeholder — /rdr-propose._\n", "false"},
+		{"wrapped draft placeholder",
+			"_Draft placeholder — /rdr-propose. Single load-bearing contract\nexpected; watch the split signal._\n", "false"},
+		{"prose contract, unlabelled",
+			"Composite fields are author-ordered in the wire, and the resolver\nmints one name per relation for the life of the corpus.\n", "true"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "0010-frame-header.md")
+			doc := "# Recommendation 0010: Frame header\n\n## Normative Contracts\n\n" + c.body
+			if err := os.WriteFile(path, []byte(doc), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			d, err := scan.File(path, scan.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tbl := loadRealTable(t)
+			env := NewFactEnv(tbl, d, "0010-frame-header")
+			if got, _ := factValue(tbl.Evaluate(env), "contracts_prose"); got != c.want {
+				t.Errorf("contracts_prose = %q, want %q, for:\n%s", got, c.want, c.body)
+			}
+		})
 	}
 }

@@ -34,14 +34,17 @@ step entirely.
 
 ## Re-entry — new model, or repeat?
 
-Never conclude "already complete" from an existing `critique.md` alone. Read its
-model stamp (rdr-common §model-stamp) and compare to this session's base model:
+Never conclude "already complete" from an existing `critique.md` alone. **Ask
+`--outcome critique`** (rdr-common §lens-row's call, that outcome): it reads both
+passes' `Model:` stamps (§model-stamp) and answers `none` when the lens is
+finished, or `/rdr-prelock critique` with the reason — no second pass, or two
+passes never diffed. Its `surface` line is the caveat to carry: a single-model
+fallback, or a pass with no stamp, where the cross-model claim is unproven.
 
-- **Different model / no stamp** → the dual-model second pass. Write
-  `critique-modelB.md` (stamped this session) and diff the two; the disagreement
-  is the signal to resolve. (No stamp = unknown, so don't assume a match.)
-- **Same model** → redundant repeat; short-circuit is fine, but say so ("prior run
-  was the same base model `<id>`") and point at the alt-model roster.
+What stays this prompt's: when a second pass IS owed, write `critique-modelB.md`
+stamped with this session's model and diff the two — the disagreement is the
+signal to resolve. Where the prior run was the same base model, say so ("prior
+run was the same base model `<id>`") and point at the alt-model roster.
 
 **This lens reads the record whole, by design.** The other pre-lock lenses take
 line ranges from the projector and read spans; critique cannot. "The one section

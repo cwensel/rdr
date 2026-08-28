@@ -29,12 +29,14 @@ Claude: /rdr-reconcile <NNNN>
      Anything but `/rdr-reconcile` means Stage 5 is not done: stop with
      `NOT RECONCILED — return to Stage 5` and `emit.next` as the exact command
      (`stopped:no-profile` is the same stop — the latch was never written).
-     Two things the folder facts cannot see stay yours, and both are read from
-     **Normative Contracts**: `mid`/`large` Determinacy firing without
-     `evidence/repeatability/run-1.md` + `diff.md` or `determinacy: n/a - <reason>`
-     is the same stop; and `run-2`/`run-3` beside a `run-1.md` whose `variant:`
-     header reads `lite` (not `full (escalated: …)`) is a variant mismatch (full ran
-     where lite was owed) — flag it (Caveats), don't silently pass it as done.
+     Then ask **`--outcome critique`** and **`--outcome repeatability`** for the two
+     lenses whose completion a folder cannot show: each answers `none` when finished,
+     names the lens again when not (the same stop), and carries the caveat to copy
+     into Caveats — a single-model fallback, an unstamped pass, or a variant mismatch
+     (full ran where lite was owed). The `mid`/`large` **Determinacy** judgement stays
+     yours: those rows stop with `stopped:determinacy-trigger-unjudged` and name
+     **Normative Contracts** to read, and firing without `run-1.md` + `diff.md` or a
+     written `determinacy: n/a - <reason>` is the same stop.
 2. **Run the prompt** [`06-reconcile.prompt.md`](06-reconcile.prompt.md);
    paste the Pre-Lock list(s) where its `<paste the list(s)>` marker is. It builds the
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-

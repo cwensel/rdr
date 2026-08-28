@@ -32,6 +32,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    false
@@ -43,6 +44,7 @@ legacy_evidence_shape        bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
+contracts_prose              bool    false
 
 # 0021
 status                       enum    Final
@@ -80,6 +82,8 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_model_a             scalar  synthetic-model-a
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    false
@@ -92,6 +96,7 @@ gate_written                 bool    true
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
 cluster_key                  scalar  0021-0022-0023
+contracts_prose              bool    true
 
 # 0022
 status                       enum    Draft
@@ -127,6 +132,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    true
@@ -140,6 +146,7 @@ impl_capsule                 bool    true
 impl_state                   enum    IN-PROGRESS
 cluster_reconciled           bool    true
 cluster_key                  scalar  0021-0022-0023
+contracts_prose              bool    false
 
 # 0023
 status                       enum    Implemented
@@ -175,6 +182,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    false
@@ -187,6 +195,7 @@ gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
 cluster_key                  scalar  0021-0022-0023
+contracts_prose              bool    false
 
 # 0024
 status                       enum    Deferred
@@ -222,6 +231,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    false
@@ -233,6 +243,7 @@ legacy_evidence_shape        bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
+contracts_prose              bool    false
 
 # 0025
 status                       enum    Draft
@@ -266,6 +277,7 @@ lens_repeatability_run1      bool    false
 lens_repeatability_run2      bool    false
 lens_repeatability_run3      bool    false
 lens_repeatability_diff      bool    false
+critique_models              enum    absent
 propose_premortem            bool    false
 spikes                       bool    false
 reconcile                    bool    false
@@ -277,4 +289,5 @@ legacy_evidence_shape        bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
+contracts_prose              bool    false
 

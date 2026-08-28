@@ -49,7 +49,7 @@
 # sentinel is an ordinary declared member whose cell a row claims. See
 # `[fact.cluster]`'s `absent` note in rdr-facts.toml.
 #
-# TWO OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Dimensions
+# FOUR OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Dimensions
 # accumulate over a whole group and the bound is 2048 assignments;
 # `status × profile × ca` alone is 180, leaving room for three booleans
 # against the five lens flags and their completion probes. Splitting the
@@ -77,7 +77,7 @@
 # missing, exactly as §stop-packet requires — a skipped check must never
 # read as a passed one.
 
-outcomes = ["locate", "lens"]
+outcomes = ["locate", "lens", "critique", "repeatability"]
 
 [model]
 id          = "rdr-status"
@@ -99,7 +99,7 @@ facts  = "models/rdr-facts.toml"
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["locate", "lens"]
+domain        = ["locate", "lens", "critique", "repeatability"]
 single_valued = true
 required      = true
 
@@ -215,6 +215,69 @@ required      = true
 # resolution, which is why the lens group reads it as the row-complete
 # signal rather than probing every lens's findings file.
 [tags.reconcile]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# --- the completion dimensions --------------------------------------------
+#
+# These answer whether a lens that RAN is FINISHED. The `lens` group
+# deliberately does not read them (its own comment says completion is
+# per-lens and defers it), and they are guarded only by the `critique`
+# and `repeatability` groups below.
+
+# Whether critique's two passes were written by DIFFERENT base models.
+# `same` is the sanctioned single-model fallback, not a defect; `unknown`
+# is a pass with no stamp, which §model-stamp says never to read as a
+# match; `absent` is no second pass at all.
+[tags.critique_models]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["differ", "same", "unknown", "absent"]
+single_valued = true
+required      = true
+
+[tags.lens_critique_modelb]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_critique_diff]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# The variant run-1's own header declares. `none` is the absent sentinel
+# — no run-1, or a run-1 predating the header.
+[tags.repeatability_variant]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["lite", "full", "none"]
+single_valued = true
+required      = true
+
+[tags.lens_repeatability_run1]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_repeatability_run2]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_repeatability_run3]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+[tags.lens_repeatability_diff]
 provenance    = "observed"
 kind          = "bool"
 single_valued = true
@@ -786,3 +849,543 @@ why  = "Profile foundational — the cove -> 3amigo -> critique -> repeatability
 # profile's rows guard only its own row's lenses, which is exactly what
 # makes them span those cells already. Coverage is therefore proved here
 # too, and an "otherwise" row would have been unreachable.
+
+# ===========================================================================
+# `critique` — is the critique lens FINISHED? (rdr-common.md §model-stamp)
+# ===========================================================================
+#
+# Dimensions: profile × critique_models × lens_critique_modelb ×
+# lens_critique_diff = 5 × 4 × 2 × 2 = 80.
+#
+# This group exists because a FOLDER cannot answer the question. The
+# `lens` group reads `lens_critique` — critique.md is on disk — and
+# §lens-row is explicit that a bare folder is not completion. For
+# critique on a foundational RDR the completion rule is the DUAL-MODEL
+# diff, and the identity of the model that wrote each pass is the whole
+# signal. Four skills carried that rule as prose and overrode the
+# routing with it; the facts now say it, so the rows can.
+#
+# THE DEFECT THIS CLOSES, measured on the live corpus: cli/0142 is a
+# foundational Final carrying critique.md AND critique-modelB.md and NO
+# diff.md. The `lens` group answers `/rdr-reconcile` — "the row is
+# complete" — because both folders exist. It is not complete: the two
+# passes were never diffed. Only a rule that reads the diff can say so.
+#
+# THE ROW ORDER IS THE COMPLETION ORDER: a second pass, then the diff of
+# the two. Each row's `unless` on the earlier step is what makes it claim
+# exactly the cells where that step is the first missing one.
+
+# --- not a critique-owing profile -----------------------------------------
+#
+# `small` skips Stage 5 entirely and `mid` has no critique in its row, so
+# there is nothing here to finish. `none` is the absent-Profile sentinel:
+# §lens-row makes that a stop-packet rather than a default, and this group
+# gives the same answer the `lens` group does rather than a second one.
+[[rule]]
+id = "critique-no-profile"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "none"
+[rule.emit]
+next    = "stopped:no-profile"
+why     = "The Profile field is absent — §lens-row makes that a stop-packet, never a default."
+surface = "that no Profile is written; infer the row only with the basis flagged"
+
+[[rule]]
+id = "critique-off-row"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+in = ["small", "mid"]
+[rule.emit]
+next = "none"
+why  = "Profile small/mid — critique is not on this row, so there is no completion to judge."
+
+# --- large: one pass is the whole obligation ------------------------------
+#
+# §lens-row's large row ends at critique, and the DUAL-MODEL rule is
+# foundational's. A large RDR's critique is finished when critique.md is
+# written — the second pass is available and often taken, but it is not
+# owed, so a large record with one pass is complete rather than pending.
+[[rule]]
+id = "critique-large-unrun"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.critique_models]
+eq = "absent"
+[rule.guard.all.lens_critique_modelb]
+eq = "false"
+[rule.emit]
+next = "none"
+why  = "Profile large — critique owes one pass; the dual-model diff is foundational's rule."
+
+[[rule]]
+id = "critique-large-second-pass-undiffed"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "A second critique pass was written and never diffed — the disagreement is the signal, and it is unread."
+surface = "that the diff is what is missing, not another pass"
+
+[[rule]]
+id = "critique-large-complete"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.unless.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.critique_models]
+in = ["differ", "same", "unknown"]
+[rule.emit]
+next = "none"
+why  = "Profile large — critique's pass is written; large does not owe the dual-model diff."
+
+[[rule]]
+id = "critique-large-diffed"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "true"
+[rule.emit]
+next = "none"
+why  = "Profile large — a second pass was taken and diffed; nothing is owed."
+
+# --- foundational: the dual-model diff is the completion rule -------------
+
+[[rule]]
+id = "critique-foundational-no-second-pass"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_critique_modelb]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Profile foundational — critique owes the DUAL-MODEL diff and no second pass exists."
+surface = "run the second pass on a DIFFERENT base model (§model-stamp); a recorded single-model fallback is the sanctioned alternative"
+
+[[rule]]
+id = "critique-foundational-undiffed"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Both critique passes are written and never diffed — the disagreement between them is the whole signal."
+surface = "that the diff is what is missing, not another pass"
+
+# Both passes, diffed, on two DIFFERENT models: the rule as written.
+[[rule]]
+id = "critique-foundational-complete"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "true"
+[rule.guard.all.critique_models]
+eq = "differ"
+[rule.emit]
+next = "none"
+why  = "Profile foundational — two base models, diffed; the dual-model obligation is discharged."
+
+# Diffed, but both passes came from the SAME model. The critique lens
+# sanctions this explicitly as the single-model fallback — "do not let
+# the absence of one skip the anti-sycophancy step" — so it completes,
+# and the caveat is surfaced rather than the stage re-run.
+[[rule]]
+id = "critique-foundational-single-model-fallback"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "true"
+[rule.guard.all.critique_models]
+eq = "same"
+[rule.emit]
+next    = "none"
+why     = "Profile foundational — diffed, but both passes are the same base model: the recorded single-model fallback."
+surface = "that this was a SINGLE-MODEL fallback; the diff weights agreement lower than a true cross-model draw"
+
+# Diffed, but a stamp is missing on one side. §model-stamp: no stamp is
+# model-unknown, and the rule is never to assume a match — so this
+# completes the lens while saying the cross-model claim is unproven.
+[[rule]]
+id = "critique-foundational-unstamped"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_critique_modelb]
+eq = "true"
+[rule.guard.all.lens_critique_diff]
+eq = "true"
+[rule.guard.all.critique_models]
+in = ["unknown", "absent"]
+[rule.emit]
+next    = "none"
+why     = "Profile foundational — diffed, but a pass carries no Model: stamp, so the cross-model draw is unproven."
+surface = "the missing §model-stamp: model-unknown is never read as a match"
+
+# ===========================================================================
+# `repeatability` — is the repeatability lens FINISHED?
+#   (rdr-prelock §repeatability-variant)
+# ===========================================================================
+#
+# Dimensions: profile × repeatability_variant × the three run probes ×
+# the diff = 5 × 3 × 2 × 2 × 2 × 2 = 240.
+#
+# `rdr-prelock:96-125` was this table written as prose: a (profile ×
+# variant × requested-run) product a model re-derived every run. The
+# variant is the latch — lite owes `run-1` then the diff, full owes
+# `run-1/2/3` then the diff — and the rule that matters most is the one
+# the prose states twice: NEVER INFER THE VARIANT FROM THE FILE COUNT.
+# That is what silently promotes a `large` RDR to full ×3. The variant
+# comes from run-1's own header, which is why it is a fact.
+#
+# THE VARIANT IS READ, NOT DERIVED FROM PROFILE, and the rows below guard
+# on it rather than on profile alone. On today's corpus the two always
+# agree, so this changes no answer — its job is the DIVERGENCE: a
+# `run-2` beside a `variant: lite` header is a variant mismatch that
+# rdr-reconcile's preflight already treats as a caveat, and only the
+# header can see it. A row that re-derived the variant from Profile
+# would be structurally unable to report the case it exists for.
+#
+# `none` is the variant sentinel: no run-1 on disk, or a run-1 that
+# predates the header (27 such files, all terminal). With no run-1 the
+# variant is genuinely unwritten, so the next step is run 1 — under the
+# variant Profile implies, which is the ONE place deriving it is right,
+# because there is no header yet to read.
+
+[[rule]]
+id = "repeatability-no-profile"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.all.profile]
+eq = "none"
+[rule.emit]
+next    = "stopped:no-profile"
+why     = "The Profile field is absent — §lens-row makes that a stop-packet, never a default."
+surface = "that no Profile is written; infer the variant only with the basis flagged"
+
+# --- no run-1: the variant has no header to be read from ------------------
+#
+# The one case where Profile decides the variant, because nothing has
+# been written yet to disagree with it. `small` has no Stage 5 at all.
+[[rule]]
+id = "repeatability-small"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.all.profile]
+eq = "small"
+[rule.emit]
+next = "none"
+why  = "Profile small — §lens-row skips Stage 5, so repeatability is not owed."
+
+# Foundational: repeatability is ON THE ROW, so an unrun lens is simply
+# the next run, and the variant to stamp is full.
+[[rule]]
+id = "repeatability-unrun-foundational"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.repeatability_variant]
+eq = "none"
+[rule.guard.all.lens_repeatability_run1]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability 1"
+why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL."
+surface = "stamp `variant: full (profile: foundational)` into run-1's header at generation"
+
+# mid/large: repeatability is NOT on the row. It is an ADD-ON owed only
+# when the Stage-5 Determinacy trigger fires, and that trigger is a
+# judgement over the Normative Contracts section — is a locked contract
+# algorithmic? — which no fact decides. `contracts_prose` says whether
+# there is anything to read; it cannot say what the contract IS.
+#
+# So this row does NOT name a stage. Answering `/rdr-prelock
+# repeatability 1` here would assert an obligation the model cannot
+# know, and answering `none` would hide one that may be real — the
+# §stop-packet rule is that a skipped check must never read as a passed
+# one. It stops, names the judgement, and hands over the section.
+[[rule]]
+id = "repeatability-unrun-determinacy-unjudged"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.all.profile]
+in = ["mid", "large"]
+[rule.guard.all.repeatability_variant]
+eq = "none"
+[rule.guard.all.lens_repeatability_run1]
+eq = "false"
+[rule.emit]
+next    = "stopped:determinacy-trigger-unjudged"
+why     = "Profile mid/large — repeatability is owed only if the Stage-5 Determinacy trigger fires, which is a judgement over Normative Contracts, not a fact."
+surface = "the Normative Contracts section: if a locked contract is algorithmic (ordering-dependent, or parse/deparse, import/export, compose/decompose, hashing, identity, migration), repeatability-lite is owed; otherwise the lens is not on this row"
+
+# A run-1 exists but carries no variant header. Pre-dates
+# §repeatability-variant; the header is the durable record and this one
+# has none, so the variant cannot be read and must not be guessed from
+# the file count — which is exactly the promotion the rule forbids.
+[[rule]]
+id = "repeatability-unstamped"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "none"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.emit]
+next    = "stopped:repeatability-variant-unstamped"
+why     = "run-1 exists with no `variant:` header — the durable record is missing and the file count must never stand in for it."
+surface = "run-1.md's header line, to be written from Profile before any further run"
+
+# --- lite: run-1, then the diff -------------------------------------------
+
+[[rule]]
+id = "repeatability-lite-diff"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability diff"
+why     = "Variant lite — run-1 is written and the RDR-vs-run diff is what remains. Never point at run-2."
+surface = "that lite stops after run-1: a run-2 request against this header is stopped:repeatability-lite-no-run-2"
+
+[[rule]]
+id = "repeatability-lite-run1-missing"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock repeatability 1"
+why  = "Variant lite — run-1 is the only run owed and it is missing."
+
+# Lite, run-1 and the diff present. Extra runs beside a `lite` header are
+# the VARIANT MISMATCH the reconcile preflight flags: full ran where lite
+# was owed. It completes — the work is done and more of it than required
+# — but the caveat is surfaced rather than swallowed.
+[[rule]]
+id = "repeatability-lite-complete"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "false"
+[rule.guard.all.lens_repeatability_run3]
+eq = "false"
+[rule.emit]
+next = "none"
+why  = "Variant lite — run-1 and the diff are written; the lens is complete."
+
+[[rule]]
+id = "repeatability-lite-variant-mismatch"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "true"
+[rule.guard.all.lens_repeatability_run3]
+eq = "false"
+[rule.emit]
+next    = "none"
+why     = "Variant lite with a run-2 present — full ran where lite was owed."
+surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and a run-2 exists; do not silently pass it as done"
+
+# Lite with BOTH extra runs: the full variant ran end to end where lite
+# was owed. Same caveat, named once rather than split across the two.
+[[rule]]
+id = "repeatability-lite-mismatch-both"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "true"
+[rule.guard.all.lens_repeatability_run3]
+eq = "true"
+[rule.emit]
+next    = "none"
+why     = "Variant lite with run-2 and run-3 present — the full variant ran where lite was owed."
+surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and all three runs exist; do not silently pass it as done"
+
+[[rule]]
+id = "repeatability-lite-mismatch-run3"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "lite"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "false"
+[rule.guard.all.lens_repeatability_run3]
+eq = "true"
+[rule.emit]
+next    = "none"
+why     = "Variant lite with a run-3 present — full ran where lite was owed."
+surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and a run-3 exists; do not silently pass it as done"
+
+# --- full: run-1/2/3, then the diff ---------------------------------------
+#
+# Each row points at the FIRST missing run, so a fresh session is told
+# exactly which one it is writing (the runs are one-per-session by
+# design: independence comes from each run being authored by a context
+# that wrote no other).
+
+[[rule]]
+id = "repeatability-full-run1"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "full"
+[rule.guard.all.lens_repeatability_run1]
+eq = "false"
+[rule.emit]
+next = "/rdr-prelock repeatability 1"
+why  = "Variant full — run-1 is the first of three and is missing."
+
+[[rule]]
+id = "repeatability-full-run2"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "full"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability 2"
+why     = "Variant full — run-2 is the next run owed."
+surface = "that the next run needs a FRESH session on the alt model — the cross-model draw is the point"
+
+[[rule]]
+id = "repeatability-full-run3"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "full"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "true"
+[rule.guard.all.lens_repeatability_run3]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability 3"
+why     = "Variant full — run-3 is the last run owed."
+surface = "that the next run needs a FRESH session on the alt model — the cross-model draw is the point"
+
+[[rule]]
+id = "repeatability-full-diff"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "full"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "true"
+[rule.guard.all.lens_repeatability_run3]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "false"
+[rule.emit]
+next    = "/rdr-prelock repeatability diff"
+why     = "Variant full — all three runs are written and the diff is what remains."
+surface = "that the diffing context must have written none of the runs"
+
+[[rule]]
+id = "repeatability-full-complete"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.unless.profile]
+in = ["small", "none"]
+[rule.guard.all.repeatability_variant]
+eq = "full"
+[rule.guard.all.lens_repeatability_run1]
+eq = "true"
+[rule.guard.all.lens_repeatability_run2]
+eq = "true"
+[rule.guard.all.lens_repeatability_run3]
+eq = "true"
+[rule.guard.all.lens_repeatability_diff]
+eq = "true"
+[rule.emit]
+next = "none"
+why  = "Variant full — run-1/2/3 and the diff are written; the lens is complete."

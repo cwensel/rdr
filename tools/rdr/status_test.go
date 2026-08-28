@@ -111,6 +111,20 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 			"the topical-epoch guard: final-cluster-2026-06-22/ exists in the fixture " +
 				"tree and carries the four-digit run 2026, but no record matches it — a " +
 				"rule that read numbers OUT of a name would mint a claim for record 2026"},
+		// The completion fixture: critique ran on TWO base models and was
+		// diffed, and run-1 declares its variant. These are the signals a
+		// FOLDER cannot carry, and the ones four skills overrode the
+		// routing with before the facts existed. Its Normative Contracts
+		// are PROSE — unlabelled, so `contracts` is 0 while
+		// `contracts_prose` is true, which is the pair that stops a zero
+		// count from reading as an empty section.
+		{"0026", map[string]string{"status": "Draft", "profile": "foundational",
+			"critique_models": "differ", "critique_model_a": "synthetic-model-a",
+			"critique_model_b": "synthetic-model-b", "lens_critique_diff": "true",
+			"repeatability_variant": "full", "contracts": "0", "contracts_prose": "true"},
+			"the dual-model diff and the stamped variant: completion signals the folder " +
+				"probes cannot see, and a prose contract section a zero count cannot tell " +
+				"from an empty one"},
 		{"0025", map[string]string{"status": "Draft", "ca": "unknown-plan",
 			"ca_placeholder": "1"},
 			"the sparse Draft: no Profile, no Cluster, no Joint-check:, and a CA still " +
@@ -181,7 +195,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 	}
 	for _, want := range []string{"0020-cache-eviction-policy", "0021-cache-warmup-order",
 		"0022-cache-metrics-surface", "0025-cache-key-encoding",
-		"total 4 in flight over 6 records"} {
+		"0026-cache-hash-identity",
+		"total 5 in flight over 7 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}

@@ -167,7 +167,8 @@ var factTransforms = map[string]bool{
 var factSources = map[string]bool{
 	"field": true, "probe": true, "probe-any": true, "ca-tally": true,
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
-	"cluster-member": true, "cluster-key": true,
+	"cluster-member": true, "cluster-key": true, "header-field": true,
+	"model-compare": true, "section-prose": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -177,7 +178,7 @@ var factSources = map[string]bool{
 // reason it applies to a probe.
 var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
-	"cluster-key": true,
+	"cluster-key": true, "header-field": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -326,6 +327,18 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Root == "" || d.Path == "" {
 			return d, fmt.Errorf("fact %q: a %s names a root and a path", name, d.Source)
 		}
+	case "header-field":
+		if d.Root == "" || d.Path == "" || d.Label == "" {
+			return d, fmt.Errorf("fact %q: a header-field names a root, a path and a label", name)
+		}
+	case "model-compare":
+		if d.Root == "" || len(d.Paths) != 2 || d.Label == "" {
+			return d, fmt.Errorf("fact %q: a model-compare names a root, a label and exactly two paths", name)
+		}
+	case "section-prose":
+		if d.Path == "" {
+			return d, fmt.Errorf("fact %q: a section-prose names the section it reads", name)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
 		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
@@ -471,6 +484,12 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.clusterMember(d)
 	case "cluster-key":
 		return e.clusterKey(d)
+	case "header-field":
+		return e.headerField(d)
+	case "model-compare":
+		return e.modelCompare(d)
+	case "section-prose":
+		return e.sectionProse(d)
 	}
 	return Fact{}, false
 }
@@ -751,6 +770,257 @@ func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
 	}
 	return Fact{}, false
 }
+
+// headerField reads a labelled header line from a file under a root.
+//
+// The lens evidence files open with a small stamp block — `model:` on
+// every lens element file (rdr-common §model-stamp), `variant:` on a
+// repeatability run (§repeatability-variant) — written at generation
+// precisely so the answer survives the session that produced it. The
+// projector does not read these files: they are evidence, not records,
+// so a fact is the only way the routing can see them.
+//
+// It is a STRICT LABEL, unlike capsuleState's loose scan, and the
+// difference is the corpus rather than taste. A capsule states its word
+// three ways (a bare `COMPLETE`, `# Status - COMPLETE`, and a labelled
+// `state:` inside a pipe-delimited line), so that reader must search.
+// These stamps are written by a prompt to a fixed form, so this one
+// matches `<label> <value>` at the head of a line and takes the LEADING
+// WORD of what follows — which is what makes `full (escalated: …)` and
+// `claude-opus-5[1m]   (fresh-context run A; …)` answer `full` and
+// `claude-opus-5[1m]` rather than carrying a sentence into a tag.
+//
+// ABSENT, never false, when the file is missing or carries no such
+// label. A missing stamp is `model-unknown` by §model-stamp's own rule —
+// "no stamp = unknown, so don't assume a match" — and false would say
+// the opposite. The completion PROBES already answer whether the file
+// exists; this answers only what it says.
+//
+// The read is bounded by headerLines for capsuleState's reason: a word
+// appearing in a later narrative paragraph must not answer for a header
+// the author wrote at the top.
+func (e *FactEnv) headerField(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	if err != nil {
+		return Fact{}, false
+	}
+	lines := strings.Split(string(raw), "\n")
+	if len(lines) > headerLines {
+		lines = lines[:headerLines]
+	}
+	for _, ln := range lines {
+		bare := strings.TrimSpace(strings.NewReplacer("**", "", "*", "", "_", "", "`", "", "- ", "").Replace(ln))
+		if len(bare) < len(d.Label) || !strings.EqualFold(bare[:len(d.Label)], d.Label) {
+			continue
+		}
+		v := headerValue(strings.TrimSpace(bare[len(d.Label):]))
+		if v == "" {
+			return Fact{}, false
+		}
+		// An enum answers only inside its declared domain. A stamp the
+		// domain does not name is not a new member to be exported — the
+		// table's own rule is that an evaluator producing a value off
+		// its domain is a bug — so it reads as absent, which is the
+		// same answer a missing stamp gives and the honest one.
+		if d.Kind == "enum" && len(d.Domain) > 0 && !slices.Contains(d.Domain, v) {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	}
+	return Fact{}, false
+}
+
+// modelCompare answers whether critique's two passes were written by
+// different base models.
+//
+// It reads the two stamps rather than exporting them, because the ids
+// are an OPEN vocabulary — `claude-opus-5[1m]`, `glm-5.2:cloud`,
+// `Claude Sonnet 5` are all in the corpus — and an enum cannot declare a
+// domain it does not know. The QUESTION the flow asks is closed over any
+// pair of ids, so that is what is published: a routing table can
+// enumerate four outcomes, and could never enumerate the model roster.
+//
+// The four are all real states, measured (24 differ, 8 same, 10
+// unknown). `same` is the recorded single-model fallback, which the
+// critique lens explicitly sanctions — "do not let the absence of one
+// skip the anti-sycophancy step" — so it is a completion story, not a
+// defect. `unknown` is §model-stamp's own rule turned into a value: a
+// missing stamp must not read as a match.
+//
+// Comparison is on the LEADING WORD of each stamp, which headerField
+// already took, so a trailing note like `(pass A — single-model
+// fallback, fresh context)` does not make two identical models differ.
+func (e *FactEnv) modelCompare(d FactDecl) (Fact, bool) {
+	if _, ok := e.Roots[d.Root]; !ok {
+		return Fact{}, false
+	}
+	read := func(path string) (string, bool) {
+		f, ok := e.headerField(FactDecl{
+			Kind: "scalar", Source: "header-field",
+			Root: d.Root, Path: path, Label: d.Label})
+		return f.Value, ok
+	}
+	a, aok := read(d.Paths[0])
+	b, bok := read(d.Paths[1])
+	switch {
+	case !bok && !e.exists(d.Root, d.Paths[1]):
+		// No second pass on disk at all. Distinct from a second pass
+		// that ran and left no stamp, which is `unknown`.
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "absent"}, true
+	case !aok || !bok:
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "unknown"}, true
+	case strings.EqualFold(a, b):
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "same"}, true
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "differ"}, true
+}
+
+// exists reports whether a path under a bound root is on disk, for the
+// one case that must tell "no second pass" from "a second pass with no
+// stamp": both leave headerField absent, and they are different states.
+func (e *FactEnv) exists(root, path string) bool {
+	base, ok := e.Roots[root]
+	if !ok {
+		return false
+	}
+	_, err := e.statPath(filepath.Join(base, filepath.FromSlash(path)))
+	return err == nil
+}
+
+// sectionProse reports whether a section carries text the AUTHOR wrote.
+//
+// It exists for the Normative Contracts zero. `counts.elements.C` counts
+// LABELLED contracts, and a zero there has two very different meanings:
+// the section is empty, or it holds contracts written as prose, which are
+// unaddressable but real. The Stage-5 Determinacy trigger reads the
+// section either way, so the skills were told to go and read it — the
+// override this fact retires.
+//
+// Authored means: a non-blank line that is not a heading, not the
+// template's own guidance block, and not a draft placeholder. Those three
+// exclusions are what makes the answer honest — a section holding only
+// `[Load-bearing — implementers must match exactly. …]` and a
+// `_Draft placeholder._` is EMPTY, however many lines it spans. Measured
+// on the corpus: that is the difference between cli/0069 (52 lines, all
+// template) and cli/0053 (27 lines, real prose contracts).
+//
+// The guidance block is recognised by the same AuthoringMarker the lint's
+// placeholder rule uses, so the two agree by construction rather than by
+// two lists kept in step.
+func (e *FactEnv) sectionProse(d FactDecl) (Fact, bool) {
+	if e.Doc == nil || e.Doc.Path == "" {
+		return Fact{}, false
+	}
+	var start, end int
+	for _, n := range e.Doc.Outline {
+		if n.Canonical == d.Path {
+			start, end = n.LineStart, n.LineEnd
+			break
+		}
+	}
+	if start == 0 {
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+	}
+	raw, err := e.readFile(e.Doc.Path)
+	if err != nil {
+		return Fact{}, false
+	}
+	lines := strings.Split(string(raw), "\n")
+	if end > len(lines) {
+		end = len(lines)
+	}
+	inMarker, inPlaceholder := false, false
+	for i := start; i < end && i < len(lines); i++ {
+		t := strings.TrimSpace(lines[i])
+		switch {
+		case t == "":
+			continue
+		case inMarker:
+			if strings.Contains(t, "]") {
+				inMarker = false
+			}
+			continue
+		case inPlaceholder:
+			// The stand-in is one italic run; it ends where the emphasis
+			// closes, however many lines the author wrapped it over.
+			if strings.HasSuffix(t, "_") {
+				inPlaceholder = false
+			}
+			continue
+		case model.AuthoringMarker.MatchString(t):
+			// A guidance block runs to its closing bracket, over as many
+			// lines as the template wraps it across.
+			inMarker = !strings.Contains(t, "]")
+			continue
+		case model.FenceDelimiter.MatchString(t):
+			// A fence's delimiter is structure. Its CONTENTS are content
+			// and are judged on their own lines; the ``` itself says
+			// nothing about who wrote them.
+			continue
+		case len(t) < proseFloor:
+			// A bare `**C1**` label, an `e.g.:`. Too short to carry a
+			// claim, and each appears in the template and in authored
+			// sections alike — so neither this nor TemplateLine can say
+			// who wrote it, and a section made only of these has no
+			// content either way.
+			continue
+		case strings.HasPrefix(t, "#"):
+			continue
+		case model.TemplateLine(t):
+			// The template writes this line itself, so a record carrying
+			// it has copied rather than authored — the same reading the
+			// guidance-block rule applies, generalised past the bracket.
+			continue
+		case isDraftPlaceholder(t):
+			inPlaceholder = !strings.HasSuffix(t, "_")
+			continue
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
+
+// proseFloor is the shortest line that can carry an authored claim. It
+// matches the template comparison's own floor for the same reason: below
+// it a line is punctuation, a fence or a label, and it is written
+// identically whether or not the section was authored.
+const proseFloor = 12
+
+// isDraftPlaceholder recognises the seeded stand-in a stage writes before
+// a section is authored — `_Draft placeholder._`, and the longer forms
+// that name the stage owing it.
+func isDraftPlaceholder(t string) bool {
+	l := strings.ToLower(strings.Trim(t, "_*> "))
+	return strings.HasPrefix(l, "draft placeholder")
+}
+
+// headerValue takes a stamp's value: everything up to the first
+// whitespace.
+//
+// It is NOT leadingWord, and the difference is the point. leadingWord
+// breaks on `-` and `:` too, which is right for the qualifier grammars
+// it serves and wrong for every id written here: `claude-opus-5` would
+// become `claude` and `glm-5.2:cloud` would become `glm-5.2`, so two
+// different models would compare equal. A stamp's value is one
+// whitespace-delimited token — `full`, `lite`, `claude-opus-5[1m]` —
+// and the prose that may follow it (`(escalated: …)`, `(pass A —
+// single-model fallback)`) is a note to a human, never part of the id.
+func headerValue(s string) string {
+	if f := strings.Fields(s); len(f) > 0 {
+		return f[0]
+	}
+	return ""
+}
+
+// headerLines bounds a header-field read, for capsuleHeaderLines'
+// reason. The stamps sit in the first lines of an evidence file: a
+// `model:`/`variant:` pair, sometimes under a title or a comment, and
+// the corpus's deepest is line 3.
+const headerLines = 12
 
 // capsuleHeaderLines bounds the capsule read. The header is a fixed
 // block at the top of status.md (phase/next/blocker/state in one pass);

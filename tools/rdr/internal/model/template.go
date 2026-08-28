@@ -191,20 +191,123 @@ var FenceDelimiter = regexp.MustCompile("^\\s*(```|~~~)")
 var GatePointer = regexp.MustCompile(`gate\.md`)
 
 // AuthoringMarker matches TEMPLATE.md's own guidance blocks — the
-// `[Required — …]` / `[Conditional — …]` clauses that tell an author what
-// a section owes. They declare the section's class while the template is
-// being read (parse.go), and in a RECORD they are text the author was
-// meant to delete: the template's words standing where the author's
-// should be.
+// bracketed clauses that tell an author what a section owes. They declare
+// the section's class while the template is being read (parse.go), and in
+// a RECORD they are text the author was meant to delete: the template's
+// words standing where the author's should be.
+//
+// It used to be `^\[(Required|Conditional)\b`, a literal that named two
+// of the template's lead words. TEMPLATE.md writes about forty bracketed
+// leads and only three begin that way, so the rule saw a fraction of its
+// own subject: `[Instructions]`, `[Architecture, component relationships,
+// …`, `[Shape only — …`, `[What was analyzed? …` and the rest were
+// invisible, and 24 records in the reference corpus carry one that lint
+// never reported. The fix is the one the template already affords —
+// ASK THE TEMPLATE — so a lead the template stops writing stops being a
+// marker, and one it starts writing is matched without a code change.
 //
 // It is deliberately NOT every bracketed lead. `[Gate key: …]` and
 // `[Retained at lock — …]` are SCHEMA markers the reader parses as data
-// and a record legitimately carries none of them — matching those would
-// report the template's own grammar as a defect, which is the false
-// finding the never-guess rule exists to prevent. Anchored at column zero
-// because a guidance block opens its own line; an indented bracket is a
-// field's placeholder and has an owner.
-var AuthoringMarker = regexp.MustCompile(`^\[(Required|Conditional)\b`)
+// and a record legitimately carries them — matching those would report
+// the template's own grammar as a defect, which is the false finding the
+// never-guess rule exists to prevent. They are excluded by name because
+// the template gives no other signal that they differ in kind.
+//
+// Anchored at column zero because a guidance block opens its own line; an
+// indented bracket is a field's placeholder and has an owner.
+var AuthoringMarker = authoringMarker{}
+
+// schemaMarkers are the bracketed leads the reader consumes as DATA
+// rather than as guidance an author should have deleted.
+var schemaMarkers = []string{"Gate key", "Retained at lock"}
+
+// authoringMarker answers whether a line opens one of the template's
+// guidance blocks. It carries no state: the set is read from the bound
+// schema on each call, so a test that rebinds a different template sees
+// that template's markers.
+type authoringMarker struct{}
+
+// MatchString reports whether the line opens a guidance block.
+//
+// A record's copy is matched by its LEAD — the words up to the first
+// sentence break — rather than by the whole block, because records
+// wrapped and trimmed these blocks as they were pasted. The most common
+// divergence is a dropped `[Required — never omit.` prefix, which leaves
+// `[Load-bearing — implementers must match exactly.` standing on its own
+// in thirteen records; matching the whole clause would miss every one.
+func (authoringMarker) MatchString(line string) bool {
+	if !strings.HasPrefix(line, "[") {
+		return false
+	}
+	lead := markerLead(line)
+	if lead == "" {
+		return false
+	}
+	for _, m := range TemplateMarkerLeads() {
+		if strings.HasPrefix(lead, m) || strings.HasPrefix(m, lead) {
+			return true
+		}
+	}
+	return false
+}
+
+// markerLead reduces a bracketed opening to the words a template lead and
+// a record's copy of it have in common: the text up to the first sentence
+// break, lower-cased.
+func markerLead(line string) string {
+	t := strings.TrimPrefix(strings.TrimSpace(line), "[")
+	return sentenceLead(t)
+}
+
+// sentenceLead is the first sentence of a clause, lower-cased. Below four
+// characters there is nothing left to compare and the answer is empty.
+func sentenceLead(t string) string {
+	for _, cut := range []string{".", "?", "]", ":"} {
+		if i := strings.Index(t, cut); i >= 0 {
+			t = t[:i]
+		}
+	}
+	t = strings.TrimSpace(strings.ToLower(t))
+	if len(t) < 4 {
+		return ""
+	}
+	return t
+}
+
+// TemplateMarkerLeads are the guidance-block leads TEMPLATE.md writes,
+// schema markers excluded. Derived on each call from the bound schema.
+func TemplateMarkerLeads() []string {
+	var out []string
+	for _, line := range strings.Split(current().TemplateSource, "\n") {
+		if !strings.HasPrefix(line, "[") {
+			continue
+		}
+		// Every sentence of the opening line is a candidate lead, not
+		// just the first. Records trimmed these blocks as they pasted
+		// them, and the commonest trim drops a leading
+		// `[Required — never omit.` — which leaves the SECOND sentence
+		// standing as the record's own opening. Indexing only the first
+		// would miss every such copy.
+		body := strings.TrimPrefix(strings.TrimSpace(line), "[")
+		for _, part := range strings.Split(body, ".") {
+			lead := sentenceLead(part)
+			if lead == "" {
+				continue
+			}
+			skip := false
+			for _, sm := range schemaMarkers {
+				if strings.HasPrefix(lead, strings.ToLower(sm)) {
+					skip = true
+				}
+			}
+			if !skip {
+				out = append(out, lead)
+			}
+		}
+		continue
+	}
+	return out
+}
 
 // --- Heading -------------------------------------------------------
 

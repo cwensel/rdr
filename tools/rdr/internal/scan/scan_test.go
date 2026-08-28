@@ -997,3 +997,59 @@ func TestBulletGateKeysAreNotGuessed(t *testing.T) {
 		}
 	}
 }
+
+// TestTemplateExampleIsNotAContract is the rule that a fence whose body
+// is TEMPLATE.md's OWN example is the template's words, not the author's.
+//
+// The projector reads every ```normative fence document-wide, which is
+// right — a fence is a contract wherever it sits. But a seeded record
+// carries the template's example verbatim until the section is authored,
+// and counting it mints a C1 nobody wrote. Measured on the reference
+// corpus before this rule: 13 records projected it, 11 of them in-flight
+// Drafts whose `contracts` count therefore read 1 with a true count of 0.
+//
+// The exclusion is DERIVED from TEMPLATE.md, never listed here: change
+// the template's example and this test's fixture must change with it,
+// which is the coupling that keeps the rule from going stale.
+func TestTemplateExampleIsNotAContract(t *testing.T) {
+	example := ""
+	for body := range model.TemplateNormativeBodies() {
+		example = body
+		break
+	}
+	if example == "" {
+		t.Fatal("TEMPLATE.md declares no normative example; this rule has no subject")
+	}
+
+	d := Bytes([]byte("# Recommendation 0010: Frame header\n\n"+
+		"## Normative Contracts\n\n"+
+		"**C1**\n\n```normative\n"+example+"\n```\n"), Options{})
+	if n := d.Counts.Elements["C"]; n != 0 {
+		t.Errorf("the template's own example projected %d contract(s); it is the template's words, not the author's", n)
+	}
+
+	// The warning is the finding: silence would be the same defect one
+	// layer down, and a bullet the projector cannot place is a warning
+	// rather than a drop.
+	var warned bool
+	for _, w := range d.Warnings {
+		if w.Code == "contract:template-example" {
+			warned = true
+		}
+	}
+	if !warned {
+		t.Error("the skipped fence produced no warning; a dropped element must never be silent")
+	}
+}
+
+// TestAuthoredContractStillProjects is the other half: the rule must not
+// swallow a real contract. A fence the author wrote is a contract however
+// much it resembles the template's shape.
+func TestAuthoredContractStillProjects(t *testing.T) {
+	d := Bytes([]byte("# Recommendation 0010: Frame header\n\n"+
+		"## Normative Contracts\n\n"+
+		"**C1**\n\n```normative\nfunc Resolve(name string) (Relation, error)\n```\n"), Options{})
+	if n := d.Counts.Elements["C"]; n != 1 {
+		t.Errorf("an authored contract projected %d elements, want 1", n)
+	}
+}

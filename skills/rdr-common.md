@@ -273,12 +273,11 @@ base model** (a sub-agent stamps the session's model it inherits):
 Model: <base-model-id>   (e.g. claude-opus-4-8, kimi-k2.6:cloud)
 ```
 
-A re-entering session compares this stamp to its own base model: a **different**
-model is a legitimate second pass (never "already complete"); the **same** model may
-short-circuit; **no stamp** = model-unknown, so don't assume a match — offer the
-second-model pass. `/rdr-status` and the Stage 5 gate read this stamp; the
-convergence rule that depends on it lives in [`05-prelock.md`](../stages/05-prelock.md)
-and the critique lens.
+A **different** model is a legitimate second pass (never "already complete"); the
+**same** model is the recorded single-model fallback; **no stamp** = model-unknown,
+so a match is never assumed. §lens-row's completion outcomes read these stamps and
+apply that rule, so nothing compares them by hand; the convergence rule lives in
+[`05-prelock.md`](../stages/05-prelock.md) and the critique lens.
 
 ## §run-prompt — run the stage's prompt file
 
@@ -472,15 +471,24 @@ there — do not restate or re-derive them here.
 `stopped:no-intrastate` — never a hand-walked row: an inferred lens that reads
 like a resolved one is the failure this flow guards against everywhere else.
 
+**`--outcome lens` says a lens RAN; two more say whether it FINISHED** — a folder
+cannot, and for the cross-model lenses the model that wrote each pass is the whole
+signal (§model-stamp). Same call, different outcome: **`critique`** compares the two
+passes' stamps, **`repeatability`** reads `run-1.md`'s `variant:` header (the durable
+record, never the file count). Each answers `none` when finished or names the lens
+again, with the caveat on `surface` — single-model fallback, unstamped pass, variant
+mismatch. Ask at a lens close-out and at Stage 5's preflight; their answer outranks
+the row's folder-level one.
+
 **The one judgment the table does not make** is the Stage 5 Determinacy trigger
 (`$RDR_HOME/stages/05-prelock.md`): on a `mid`/`large` algorithmic contract it
 appends `repeatability` (lite) as a *row entry*, discharged only by
 `evidence/repeatability/` files or a written `determinacy: n/a — <reason>`.
-A fact cannot decide it, because **a zero `counts.elements.C` means
-*unlabelled*, not *absent*** — read the `Normative Contracts` lines
-(`outline[]` bounds them) and judge the trigger on what they say. The
-`row-complete` rules surface this obligation rather than silently routing past
-it.
+A fact cannot decide it — `contracts_prose` says the section holds authored text
+(a zero `counts.elements.C` means *unlabelled* as often as *absent*), but whether a
+contract is ALGORITHMIC is a reading. So the `mid`/`large` `repeatability` rows stop
+with `stopped:determinacy-trigger-unjudged` and name the section: read those lines
+(`outline[]` bounds them) and judge the trigger on what they say.
 
 ## §mechanical-gate — 30-second template/anchor grep at stage exit
 
