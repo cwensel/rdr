@@ -45,7 +45,8 @@ Claude: /rdr-reconcile <NNNN>
    - **Absorption-audit delegation (mined — recurs verbatim).** To build source 3 +
      confirm the rounds were folded in, spawn one `Task` sub-agent over the lens
      output dirs that exist for this slug
-     (`{EVIDENCE_DIR}/{3amigo,critique,repeatability,cove}/<RDR_SLUG>/`): "report, per
+     (`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/{3amigo,critique,repeatability,cove}/`,
+     rdr-common §evidence — the lens is the LAST segment): "report, per
      round, whether every finding was absorbed into the current RDR or survives as
      residue; list each unabsorbed finding + the spike/assumption it implies." It
      returns the residue list, not the round files. The main agent writes the
