@@ -67,8 +67,10 @@ facts are not rendered — but zsh does not word-split an unquoted *variable*, s
 
 Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and
 `emit.surface` (print verbatim); append `NNNN` yourself — emit interpolates
-nothing. A `flow-guard-unevaluable` refusal means a fact went **absent**, not
-false: a root is unbound or names no directory. Say so; never fill the gap.
+nothing. Except where `emit.next_arg` says otherwise: `cluster` marks the one
+route whose argument is a SET, not this record (step 3 below). A
+`flow-guard-unevaluable` refusal means a fact went **absent**, not false: a root
+is unbound or names no directory. Say so; never fill the gap.
 
 Only one signal needs a second `rdr` call, and only when `status_form` is not
 `none` — the Status qualifier's prose is deliberately not a fact:
@@ -112,7 +114,7 @@ the guarantee prose cannot give, and where a gap becomes a test failure.
 | 5+6 Pre-Lock (review+resolve) | `profile`, `contracts`, `lens_grounding`, `lens_3amigo`, `lens_critique`, `lens_cove`, `lens_repeatability` (ran); `lens_grounding_findings`, `lens_cove_findings`, `lens_3amigo_consolidation`, `lens_critique_single`, `lens_critique_modelb`, `lens_critique_diff`, `lens_repeatability_run1`/`run2`/`run3`, `lens_repeatability_diff` (finished); `reconcile`, `iter_2` | Review + resolve are one cycle. Resolution is human-judged: a lens converged if the next lens's folder exists, or `reconcile`. `critique` on a `foundational` RDR owes the dual-model diff — a lone `lens_critique_single` is in-progress, not done. |
 | 6 Reconcile | `reconcile`, `reconcile_report{,_alt,_alt2}` | A bare folder with no report is a real state: the stage started and left nothing. |
 | 7 Finalize | `status`, `gate_written` | Legacy records carry all five gate responses inline — either satisfies. The README index row is not a fact; do not claim it. |
-| 7.1 Cluster | `cluster` (declared), `clustered`, `cluster_reconciled` | Read both booleans, or a solo Final routes to a stage with nothing to reconcile. `cluster` is a Propose-time claim, **not the membership** — print it as what the record declares, never as the cluster; Stage 7.1 builds its own set. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
+| 7.1 Cluster | `cluster` (declared), `clustered`, `cluster_reconciled`, `cluster_key` | Read both booleans, or a solo Final routes to a stage with nothing to reconcile. `cluster` is a Propose-time claim, **not the membership** — print it as what the record declares, never as the cluster; Stage 7.1 builds its own set. `cluster_key` is the membership a run actually resolved (absent until one has); it is the directory's own name, so it needs no re-derivation. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
 | 8 Implement | `impl_capsule`, `impl_state` | `impl_state` is the capsule header's own state word. Open req-list/coverage/verification.md **only** if it is absent or contradicts the tree. |
 
 `propose_premortem` is Stage 2's critic output, a non-lens sibling — never count it
@@ -171,6 +173,18 @@ fetched for it.
    `Next: /rdr-prelock 0046 critique`. `none` → say terminal and name the
    disposition. `stopped:…` → print `emit.why` and stop there; a stop is an answer,
    never a stage to guess past.
+
+   `emit.next_arg: cluster` is the exception: 7.1 runs per CLUSTER, and handed
+   one record it answers "no cluster — go implement", inverting the routing.
+   - `cluster_key` present → the members it names, space-separated:
+     `Next: /rdr-cluster-reconcile 0122 0123 0130 0131 0132`. Numbers, never the
+     dash-joined key — that is the `<cluster-name>` arm, which reads as the
+     pre-2026-06-29 topical shape.
+   - `cluster_key` absent → the verb **bare**; `emit.surface` names the declared
+     members as candidates. Resolving them is 7.1 step 1's call: `--cluster-of`
+     is one hop, not a closure (four seeds of one live set answered 9/10/11/13),
+     needs a Final-and-unimplemented filter, and costs ~1.9s to this skill's
+     ~56ms. **Never run it here.**
 4. **Caveats** — `emit.surface` verbatim, plus only genuinely-open items: a `~`
    gate whose downstream signal is **absent** (a `~` already certified downstream
    stays in the checklist, never here — don't nudge a re-run of a done stage); an

@@ -798,7 +798,12 @@ var stageFacts = map[string][]string{
 	// reads `cluster_reconciled=false` correctly — no run covers it —
 	// and reading that flag alone would route every solo Final to a
 	// stage with nothing to reconcile.
-	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled"},
+	//
+	// `cluster_key` is the fourth: WHICH set a run reconciled, absent
+	// when none did. It is what the row prints beside a `true`, and the
+	// argument a re-entering 7.1 run is invoked with — the membership
+	// read back from the tree rather than re-derived from a claim.
+	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
 	"8 Implement": {"impl_capsule", "impl_state"},
 }
 

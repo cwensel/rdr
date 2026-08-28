@@ -91,6 +91,7 @@ legacy_evidence_shape        bool    false
 gate_written                 bool    true
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
+cluster_key                  scalar  0021-0022-0023
 
 # 0022
 status                       enum    Draft
@@ -138,6 +139,7 @@ gate_written                 bool    false
 impl_capsule                 bool    true
 impl_state                   enum    IN-PROGRESS
 cluster_reconciled           bool    true
+cluster_key                  scalar  0021-0022-0023
 
 # 0023
 status                       enum    Implemented
@@ -184,6 +186,7 @@ legacy_evidence_shape        bool    true
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
+cluster_key                  scalar  0021-0022-0023
 
 # 0024
 status                       enum    Deferred

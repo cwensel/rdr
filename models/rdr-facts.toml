@@ -647,6 +647,35 @@ root        = "evidence-root"
 path        = "cluster-reconcile"
 description = "Stage 7.1 reconciled a cluster containing this record."
 
+# WHICH set that run reconciled, when one did — the directory's own name.
+#
+# The key IS the membership (see above), so this is the only place a
+# reconciled cluster's members are readable without re-deriving them, and
+# re-deriving is exactly what cannot be done cheaply: `index --cluster-of`
+# is one hop rather than a closure, so it answers differently from every
+# seed (9, 10, 11 and 13 members from four members of one live set), and
+# it costs ~1.9s against `status`'s ~56ms. The run that wrote the
+# directory already made that judgement, dropped candidates and all.
+#
+# PROSE, so nothing routes on it. `cluster_reconciled` remains the
+# routing fact; this is the caveat line beside it and the argument a
+# re-entering 7.1 run is invoked with. Prose also keeps it out of
+# `--tags`, where a resolver's argv has no use for a membership and where
+# a dash-joined key would be one more word to make safe.
+#
+# ABSENT rather than empty when no run covers this record: absence is
+# honest in `--json`, a caller cannot spell "no key" as a value, and the
+# navigator's answer in that case is the bare verb — there is nothing to
+# name. No sentinel, because nothing routes on it (see the sentinel note
+# under `[fact.cluster]`).
+[fact.cluster_key]
+kind        = "scalar"
+source      = "cluster-key"
+root        = "evidence-root"
+path        = "cluster-reconcile"
+prose       = true
+description = "The Stage 7.1 directory that reconciled this record's set; its name is the membership."
+
 # ===========================================================================
 # Not declared here, and why
 # ===========================================================================

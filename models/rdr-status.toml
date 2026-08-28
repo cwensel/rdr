@@ -67,6 +67,10 @@
 #   why      one line the skill can print as the reason
 #   surface  what the skill must show verbatim beside the answer (a
 #            qualifier, a home, a caveat) — absent when there is none
+#   next_arg what `next` takes, when it is NOT this record's number.
+#            Absent on every per-RDR route, which is all but one: the
+#            caller appends `NNNN` and that is right for them. `cluster`
+#            marks Stage 7.1, whose argument is a SET — see the row.
 #
 # `next` is never a guess. Where the flow's own answer is a judgement a
 # fact cannot make, the row emits a `stopped:` token naming what is
@@ -347,6 +351,16 @@ surface = "the home anchor AND the open question, so the human sees what is unan
 # /rdr-cluster-reconcile first. `cluster_reconciled` is false when no 7.1
 # run wrote a directory covering this record; the directory's key IS its
 # membership, so this is read from the tree rather than predicted.
+#
+# THE ONE ROW CARRYING `next_arg`, because it is the one route whose
+# argument is not this record. 7.1 runs per CLUSTER — its own skill
+# refuses a single RDR — so the caller's blanket "append NNNN" produces a
+# command that is not merely malformed but inverted: handed one record the
+# stage answers "no cluster, go implement", and a run that proceeded would
+# key its directory `NNNN`, marking one record reconciled while its peers
+# went unchecked. The set to name is `cluster_key` when a prior run
+# resolved one, and otherwise nothing — the declared field is a claim, and
+# resolving it is 7.1 step 1's judgement, not a routing table's.
 [[rule]]
 id = "locate-final-cluster-unreconciled"
 [rule.match.recognized]
@@ -360,9 +374,10 @@ eq = "true"
 [rule.guard.all.cluster_reconciled]
 eq = "false"
 [rule.emit]
-next    = "/rdr-cluster-reconcile"
-why     = "Final and clustered, and no Stage 7.1 run has reconciled a cluster containing this record."
-surface = "the declared Cluster members"
+next     = "/rdr-cluster-reconcile"
+next_arg = "cluster"
+why      = "Final and clustered, and no Stage 7.1 run has reconciled a cluster containing this record."
+surface  = "the declared Cluster members, as a Propose-time claim and not the membership — Stage 7.1 resolves the set"
 
 # `Final` and reconciled → `/rdr-implement`. `true` means 7.1 already ran
 # over a set containing this RDR.

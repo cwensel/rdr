@@ -167,7 +167,7 @@ var factTransforms = map[string]bool{
 var factSources = map[string]bool{
 	"field": true, "probe": true, "probe-any": true, "ca-tally": true,
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
-	"cluster-member": true,
+	"cluster-member": true, "cluster-key": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -177,6 +177,7 @@ var factSources = map[string]bool{
 // reason it applies to a probe.
 var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
+	"cluster-key": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -321,9 +322,9 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Label == "" {
 			return d, fmt.Errorf("fact %q: a verdict-line names a label", name)
 		}
-	case "cluster-member":
+	case "cluster-member", "cluster-key":
 		if d.Root == "" || d.Path == "" {
-			return d, fmt.Errorf("fact %q: a cluster-member names a root and a path", name)
+			return d, fmt.Errorf("fact %q: a %s names a root and a path", name, d.Source)
 		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
@@ -468,6 +469,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.capsuleState(d)
 	case "cluster-member":
 		return e.clusterMember(d)
+	case "cluster-key":
+		return e.clusterKey(d)
 	}
 	return Fact{}, false
 }
@@ -817,6 +820,68 @@ func (e *FactEnv) clusterMember(d FactDecl) (Fact, bool) {
 		}
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
+
+// clusterKey names the Stage-7.1 directory that reconciled a set
+// containing this record — the companion to `cluster-member`, which
+// answers only WHETHER one did.
+//
+// The key IS the membership, so this is the one place a reconciled
+// cluster's members can be read back without re-deriving them: the run
+// that wrote the directory named it for the set it resolved, dropped
+// candidates already excluded. `cluster-member` walked these same
+// entries and discarded which one matched; this returns it, under the
+// identical shape rule (`numericClusterKey`), so the two can never
+// disagree about whether a record is covered.
+//
+// LONGEST MATCH, because a widened re-run leaves both directories
+// standing. `0109-0120-0133` is iteration 1 and
+// `0109-0120-0133-0134-0135` is iterations 2-3 over a set that grew; the
+// longer key is the current membership and the shorter one is history.
+// Overlaps on the reference corpus are all nested, so longest-match is
+// total there; ties break on the name so the answer is deterministic
+// rather than dependent on directory order.
+//
+// PROSE, and necessarily so: the value is a caveat line for a human and
+// a set for a stage to re-enter on, and nothing routes on it —
+// `cluster_reconciled` carries the routing half. Declaring it prose also
+// keeps it out of `--tags`, where a resolver's argv has no use for it.
+func (e *FactEnv) clusterKey(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	number := ident.RecordOf(e.Slug)
+	if number == "" || e.readDir == nil {
+		return Fact{}, false
+	}
+	entries, err := e.readDir(filepath.Join(base, filepath.FromSlash(d.Path)))
+	if err != nil {
+		// No cluster-reconcile tree at all. `cluster-member` calls that
+		// false; here there is simply no key to name, and an absent fact
+		// is how "nothing to say" is spelled.
+		return Fact{}, false
+	}
+	best := ""
+	for _, ent := range entries {
+		name := ent.Name()
+		if !ent.IsDir() || !numericClusterKey.MatchString(name) {
+			continue
+		}
+		for _, member := range strings.Split(name, "-") {
+			if member != number {
+				continue
+			}
+			if len(name) > len(best) || (len(name) == len(best) && name < best) {
+				best = name
+			}
+			break
+		}
+	}
+	if best == "" {
+		return Fact{}, false
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: best}, true
 }
 
 func boolLiteral(b bool) string {
