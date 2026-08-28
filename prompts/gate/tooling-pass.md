@@ -41,17 +41,19 @@ sections omitted by design; a subsection under an absent parent; a gate
 subsection under a `gate.md` pointer). They are `conformance` tier — advice for
 the stage holding the file open, never blocking on their own. Judge whether one
 is a genuine spine hole: that is a BLOCK.
-HOLLOW stays prose: walk `outline[]` (`canonical`, `class`, `line_start`,
-`line_end`) and read the ranges. Hollow = TBD, "see above," single-sentence
-placeholder (`_Draft placeholder._`), or copy-paste of template instructional
-text, from any template version. A surviving `this is a seed skeleton` header is
-an automatic Present-hollow on the Finalization Gate section — name it. (At/after
-lock that section holds the pointer line to gate.md plus `### Cross-Cutting
-Concerns`, which stays in the record because peers cite it — that is the
-record, not a hollow section.) A surviving verbatim template bracket — `[Conditional —
-…]`, `[Resource]`, `[Capability]`, any bracketed template instruction — in a
-non-Draft (non-locking) RDR is a BLOCK. List every hollow and missing section by
-name.
+HOLLOW is now three lint findings plus one judgment. `placeholder:survived` is a
+surviving guidance block, `scaffold:row` a table row still carrying the
+template's `[Capability]`/`[Resource]` cells, and `contract:template-example` the
+template's own ```normative example counted as a contract — all three derived
+from TEMPLATE.md, so they follow it rather than a word list here. Report them;
+a surviving template bracket in a non-Draft (non-locking) RDR is a BLOCK.
+What stays prose: walk `outline[]` and read the ranges for the classes no rule
+decides — TBD, "see above," a single-sentence stand-in. A surviving `this is a
+seed skeleton` header is an automatic Present-hollow on the Finalization Gate
+section — name it. (At/after lock that section holds the pointer line to gate.md
+plus `### Cross-Cutting Concerns`, which stays in the record because peers cite
+it — that is the record, not a hollow section.) List every hollow and missing
+section by name.
 
 CHECK 2 — Method label vocabulary
 For each element field with `label == "Method"`, read `method.off_vocabulary[]`:
@@ -71,6 +73,8 @@ self-referential stays judgment. Resolve each Evidence path — if it resolves t
 self-reference and not Verified. List offenders. NOTE: this has not fired since
 the structured Evidence Record and the Resolve stage landed — a hit means an
 evidence record was disturbed after Resolve, so treat it as a real regression.
+Read it NARROWLY — the record file itself. Paths into this RDR's own
+spike/evidence dir are where a Spike belongs, not self-reference.
 
 CHECK 4 — Docs Only on load-bearing claims
 Same shape: `method.members == ["Docs Only"]` names the candidates; whether the
@@ -103,18 +107,12 @@ single-sourced there is no second copy to disagree.) `rdr index --status` groups
 the corpus for a cross-record question.
 
 CHECK 9 — Evidence-field budget  (ADVISORY, never blocks)
-TEMPLATE.md specifies the Evidence field as a single sentence naming a stable
-anchor; the corpus median is 14 lines. Each Evidence field carries `line_start`
-and `line_end`, so its length is `line_end - line_start + 1` — arithmetic, not a
-read. List every field over **30 lines**, longest first, with its assumption ID
-and count, then one total: `N fields over budget, M lines`. This is a REPORT:
-over-budget fields alone never make the verdict BLOCK. Do NOT propose truncation
-— the mass is usually real verification content (source-verified positions,
-documented exceptions, consumer censuses), and cutting it blinds the grounding
-sweep that reads those anchors. Ask one question per hit: has the prose outgrown
-the *record* — is the load-bearing anchor still findable, and does the balance
-belong in `{ARTIFACT_DIR}` with the field keeping the anchor and a pointer? The
-author answers it per assumption at the Gate.
+This check IS `rdr lint`: report `evidence:over-budget`, never re-derive it
+(`--filter elements` is 139KB on cli/0138 to produce six lines).
+One question per hit, and it is the author's at the Gate: is the load-bearing
+anchor still findable, and does the balance belong in `{ARTIFACT_DIR}` with the
+field keeping the anchor and a pointer? Never propose truncation — the mass is
+usually real verification content the grounding sweep reads.
 
 CHECK 10 — Linking: labelled contracts and resolvable citations
 This check IS `rdr lint`. Report its findings; do not re-read for them.

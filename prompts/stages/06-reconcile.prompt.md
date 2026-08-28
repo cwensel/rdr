@@ -17,12 +17,12 @@ Build the open set from FOUR sources:
 2. Every Critical Assumption currently Status: Pending or Unverified.
 3. Every spike NAMED anywhere in the RDR (or its findings) with no captured
    run — check {SPIKE_DIR} for existing results before assuming one is unrun.
-4. An exactness-word sweep: every all/every/first/nearest/byte-identical/
-   lossless/canonical/deterministic/stable-order claim a review round touched
-   or introduced. (Stage 4 already swept every exactness word against an
-   Evidence Record; this is only the post-mutation delta — a claim with no
-   record that the rounds did NOT touch is a Stage 7 mechanical-sweep
-   regression catch, CHECK 4, not Stage 6's job.)
+4. An exactness-word sweep over what a review round touched or introduced:
+   `rdr lint`'s `prose:exactness` for the terms of art, plus the quantifiers
+   (all/every, first/nearest) read by eye. (Stage 4 already swept every
+   exactness word against an Evidence Record; this is only the post-mutation
+   delta — a claim with no record that the rounds did NOT touch is a Stage 7
+   mechanical-sweep regression catch, CHECK 4, not Stage 6's job.)
 
 For heavy work — running a spike against the live target, searching corpora,
 reading captured spike output — delegate to a sub-agent that returns verdict +

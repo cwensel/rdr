@@ -46,8 +46,12 @@ package lint
 //     the range to move and no patch.
 
 import (
+	"sort"
+	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
@@ -897,3 +901,223 @@ func hasGateElements(d *scan.Document, gate scan.Node) bool {
 	}
 	return false
 }
+
+// EvidenceBudget is the line count above which an Evidence field is
+// reported. TEMPLATE.md specifies the field as a single sentence naming a
+// stable anchor; the corpus median is 14 lines and the drift is 3.4x
+// across cohorts (9.8 lines per field on cli/0001-0060, 33.7 on
+// cli/0101-0141), so the cap is a soft one well above the median rather
+// than the spec's own one sentence.
+const EvidenceBudget = 30
+
+// evidenceBudgetFindings reports Evidence fields longer than the budget.
+//
+// ADVISORY, ALWAYS. `Blocking` is never set here and the tier is
+// conformance, so `lint --locking` still blocks only on the resolution
+// tier. The Stage-7 prompt is explicit that over-budget fields alone
+// never make the verdict BLOCK, and this must not quietly change that.
+//
+// NO PATCH, AND NO TRUNCATION PROPOSED. The mass is usually real
+// verification content — source-verified positions, documented
+// exceptions, consumer censuses — and cutting it blinds the grounding
+// sweep that reads those anchors. The question the author answers at the
+// Gate is whether the load-bearing anchor is still findable and whether
+// the balance belongs in the artifact dir with the field keeping the
+// anchor and a pointer. That is a judgement, so this reports the length
+// and stops there.
+//
+// WHY IT IS HERE RATHER THAN IN THE PROMPT. The length is
+// `line_end - line_start + 1` — arithmetic over fields the projector has
+// already published. Producing the same six lines by hand costs an
+// `inspect --json --filter elements` of the record: 139,150 bytes
+// (~35k tokens) on cli/0138, against 776 bytes for the whole lint report.
+// It is the largest context-for-answer ratio in the flow, and lint is
+// already running at that point in the stage.
+//
+// THE LABEL IS MATCHED BY PREFIX, NOT BY THE WHOLE LITERAL. The corpus
+// writes 872 plain `Evidence` labels and 36 variants across 30-odd
+// spellings — `Evidence — the two source-checkable channel reductions`,
+// `Evidence (MEASURED)`, `Evidence plan` — and keying on the exact label
+// undercounts silently. This broke a measurement pass before it was
+// caught, which is why it is stated here rather than left to the reader.
+func evidenceBudgetFindings(d *scan.Document) []Finding {
+	var out []Finding
+	for _, el := range d.Elements {
+		for _, f := range el.Fields {
+			if !isEvidenceLabel(f.Label) {
+				continue
+			}
+			n := f.LineEnd - f.LineStart + 1
+			if n <= EvidenceBudget {
+				continue
+			}
+			out = append(out, Finding{
+				Tier:      TierConformance,
+				Code:      "evidence:over-budget",
+				Element:   el.ID,
+				Message:   fmt.Sprintf("this Evidence field is %d lines; TEMPLATE.md specifies one sentence naming a stable anchor (soft cap %d)", n, EvidenceBudget),
+				LineStart: f.LineStart,
+				LineEnd:   f.LineEnd,
+				Fix:       "at the Gate, answer whether the load-bearing anchor is still findable here, and whether the balance belongs in {ARTIFACT_DIR} with this field keeping the anchor and a pointer — do NOT truncate: the mass is usually verification content the grounding sweep reads",
+			})
+		}
+	}
+	return out
+}
+
+// isEvidenceLabel matches the Evidence field by its label PREFIX.
+//
+// `Evidence`, `Evidence plan`, `Evidence (MEASURED)`, `Evidence — what is
+// missing` are all the field; a label that merely starts with the letters
+// is not, so the prefix must end at a word boundary.
+func isEvidenceLabel(label string) bool {
+	const want = "Evidence"
+	if !strings.HasPrefix(label, want) {
+		return false
+	}
+	if len(label) == len(want) {
+		return true
+	}
+	// The next rune must open a QUALIFIER rather than continue a word, so
+	// `Evidence` and `Evidence — the two reductions` both match while a
+	// hypothetical `Evidentiary` does not. Decoded as a rune because the
+	// corpus separates with an em dash, which is three bytes.
+	r, _ := utf8.DecodeRuneInString(label[len(want):])
+	return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+}
+
+// proseVocabularyFindings sweeps the closed word lists over the elements
+// whose prose is normative: contracts and critical assumptions.
+//
+// SCOPED TO THE FENCE BODY, and the scope is what makes it usable.
+// `stages/05-prelock.md` fixes it for us: a contract is read from "the
+// fenced ```normative block, NOT the surrounding prose". That is the
+// spec text an exactness word commits the design to; the paragraph
+// around it is explanation.
+//
+// The scope was measured, not chosen. Unscoped, exactness hits 13,412
+// times across the corpus; scoped to whole contract and assumption
+// ELEMENTS it is still 3,085 — a finding on every paragraph that uses
+// the word "all", which buries the checks that matter. Inside the
+// fences it is the handful of places a claim is actually made.
+//
+// DETECTION ONLY, NO PATCH. A word is never mechanically removable, and
+// whether the claim is load-bearing — whether "all" is a spec commitment
+// or ordinary prose — is the judgement the stage keeps. The finding says
+// where the word is; the stage decides what it means.
+//
+// The vocabularies are DATA (`models/rdr-template.toml`), so a new one
+// is a TOML edit rather than a Go change, and each carries its own
+// message and fix.
+func proseVocabularyFindings(d *scan.Document) []Finding {
+	vocab := model.ProseVocabularies()
+	if len(vocab) == 0 {
+		return nil
+	}
+	var out []Finding
+	for _, el := range d.Elements {
+		if el.Kind != ident.Contract && el.Kind != ident.Assumption {
+			continue
+		}
+		for i := el.LineStart; i <= el.LineEnd; i++ {
+			if !d.Fenced(i) {
+				continue
+			}
+			line := d.Line(i)
+			if line == "" || model.FenceDelimiter.MatchString(line) {
+				continue
+			}
+			lower := strings.ToLower(line)
+			for _, v := range vocab {
+				for _, w := range v.Words {
+					if !containsWord(lower, strings.ToLower(w)) {
+						continue
+					}
+					out = append(out, Finding{
+						Tier:      TierConformance,
+						Code:      "prose:" + v.Name,
+						Element:   el.ID,
+						Message:   fmt.Sprintf("%s: %q", v.Message, w),
+						LineStart: i,
+						LineEnd:   i,
+						Fix:       v.Fix,
+					})
+					break
+				}
+			}
+		}
+	}
+	return out
+}
+
+// containsWord matches a vocabulary term on WORD boundaries, so `all`
+// does not fire inside `finally` and `first` does not fire inside
+// `first-class` — the substring reading is what would make the check
+// unreadable at corpus scale. A multi-word term is matched the same way
+// on its outer edges.
+func containsWord(hay, needle string) bool {
+	for i := 0; ; {
+		j := strings.Index(hay[i:], needle)
+		if j < 0 {
+			return false
+		}
+		j += i
+		beforeOK := j == 0 || !isWordByte(hay[j-1])
+		end := j + len(needle)
+		afterOK := end == len(hay) || !isWordByte(hay[end])
+		if beforeOK && afterOK {
+			return true
+		}
+		i = j + 1
+	}
+}
+
+func isWordByte(b byte) bool {
+	return b == '-' || b == '_' || (b >= '0' && b <= '9') ||
+		(b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z')
+}
+
+// scaffoldRowFindings reports table rows that are still TEMPLATE.md's own
+// scaffold — a row whose cells read `[Capability]`, `[Resource]`,
+// `[Impact]` rather than the author's values.
+//
+// It completes the surviving-template family. `placeholder:survived`
+// covers a bracketed GUIDANCE BLOCK at column zero, which is where the
+// template writes its instructions; a scaffold row is the same defect in
+// the one place that rule cannot reach, because a table row is indented
+// by its leading pipe and its cells are re-padded as the record is
+// edited. Sixteen records in the reference corpus carry one, four of them
+// non-Draft.
+//
+// SAME CLAIM, SAME LIMIT. It says the template's words are here, never
+// that the section is unauthored — a record may have filled three rows of
+// a table and left the fourth as the scaffold. And no patch: deleting a
+// row and authoring one are different repairs, and telling them apart is
+// the judgement `placeholder:survived` withholds a patch for.
+func scaffoldRowFindings(d *scan.Document) []Finding {
+	var out []Finding
+	seen := map[int]bool{}
+	for _, n := range d.Outline {
+		for i := n.LineStart; i <= n.LineEnd; i++ {
+			// A line lies in every ancestor's range too; the innermost
+			// section owns it, so the first (deepest-last) claim wins
+			// and a row is never reported twice.
+			if seen[i] || !model.TemplateTableRow(d.Line(i)) {
+				continue
+			}
+			seen[i] = true
+			out = append(out, Finding{
+				Tier:      TierConformance,
+				Code:      "scaffold:row",
+				Element:   n.ID,
+				Message:   "this table row is TEMPLATE.md's scaffold; its cells are the template's placeholders, not the author's values",
+				LineStart: i,
+				LineEnd:   i,
+				Fix:       "fill the row's cells, or delete the row if the table has no entry for this RDR",
+			})
+		}
+	}
+	sort.Slice(out, func(a, b int) bool { return out[a].LineStart < out[b].LineStart })
+	return out
+}
+

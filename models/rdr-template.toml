@@ -115,3 +115,72 @@ values = ["Refuted", "Resolved", "Accepted", "Downgraded"]
 [lifecycle]
 terminal = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected"]
 parked = ["Deferred"]
+
+# --- closed prose vocabularies ----------------------------------------
+#
+# Word lists lint sweeps for, and the fourth thing with no home in
+# TEMPLATE.md: they are PROCESS facts — what a stage prompt asks an
+# author to look for — rather than anything the template says about a
+# document's shape.
+#
+# They were restated across five prompt sites before they were data
+# (`04-resolve` and `06-reconcile` for exactness, `03-refine` and
+# `rdr-refine` for change history), which is the drift this file exists
+# to end: five copies of one list are five chances to disagree.
+#
+# SCOPED TO NORMATIVE CONTRACTS AND CRITICAL ASSUMPTIONS, never the whole
+# record. An unscoped exactness sweep hits 13,412 times across the
+# corpus — a finding on every paragraph that uses the word "all" — which
+# is a report nobody can act on. The claims that need an Evidence Record
+# are the ones written INTO a contract or an assumption, so those are the
+# elements swept.
+#
+# DETECTION ONLY. Each finding says a word is present at a line; whether
+# the claim is load-bearing, and whether its Evidence Record covers it,
+# stays the stage's judgement. No patch: a word is never mechanically
+# removable.
+
+# The exactness words, split by whether the word is a TERM OF ART or a
+# QUANTIFIER. Both halves sit in the stage prompts' one list; only one
+# half can carry a lint check, and the boundary is not a convenience.
+#
+# Measured inside the fences, corpus-wide: `every` 467, `all` 273,
+# `first` 172 — 91% of hits, and overwhelmingly ordinary usage ("every
+# record", "all three"). The terms of art are 94, which is a list an
+# author can read.
+#
+# The literature draws the same line. Oghabi 2025 (p.3) separates
+# VAGUENESS — "specifications are so imprecise that they cannot be
+# measured clearly" — from the structural, scope and anaphoric classes,
+# and proposes a HYBRID detector precisely because a rule cannot decide
+# it: telling "all rows" the commitment from "all three of these" the
+# sentence is a reading of the claim, not a match on the word. That is
+# the typed ambiguity lint `cbne` sequences as item (4), after this one.
+#
+# So the quantifiers are NOT swept here, and the stage prompts keep
+# naming them for the human who can judge them. The words dropped are
+# named above with the count that dropped them, so this is a stated
+# boundary rather than a silent narrowing.
+[prose.exactness]
+words = [
+  "byte-identical", "lossless", "canonical", "deterministic",
+  "stable order", "idempotent", "total order",
+]
+message = "an exactness term of art in a normative claim"
+fix = "each needs an Evidence Record — prefer a named normative fixture — or coverage by the Minimum Viable Validation; for byte-stable output run the determinism checklist (hash fn+lib, pre-image byte layout, encodings, map order, whitespace, case folding, empty/null/absent, version marker)"
+
+# Change history the refine stage collapses into live text. A reader
+# should see the current design, never the path to it.
+#
+# ZERO HITS CORPUS-WIDE TODAY, and that is the point of declaring it: the
+# refine stage already removes these, so this is a REGRESSION GUARD that
+# says so mechanically rather than a backlog to work through. A check
+# with no current findings is cheap; the one it replaces was a word list
+# restated in two places and enforced by reading.
+[prose.change-history]
+words = [
+  "Rescope Note", "Refinement Context", "retained as history",
+  "this is now wrong",
+]
+message = "change-history narration surviving in the live design"
+fix = "fold whatever is still TRUE into the live text and delete the rest; a `Status: Draft [revised from Final …]` qualifier is live state, not history — leave it"

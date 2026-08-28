@@ -322,3 +322,123 @@ func TestOwnershipTransferIsByIDAndBacklink(t *testing.T) {
 		}
 	}
 }
+
+// TestEvidenceBudgetIsAdvisory is the guarantee the check is worth
+// nothing without: the Stage-7 prompt is explicit that an over-budget
+// Evidence field alone never makes the verdict BLOCK, and `lint
+// --locking` must still block only on the resolution tier.
+func TestEvidenceBudgetIsAdvisory(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("# Recommendation 0010: Frame header\n\n## Critical Assumptions\n\n")
+	b.WriteString("- **A1 [Load-bearing]**: The frame header is stable.\n")
+	b.WriteString("  - **Evidence**: the anchor, and then a great deal of verification\n")
+	for i := 0; i < 60; i++ {
+		b.WriteString("    prose that the grounding sweep reads and must not lose.\n")
+	}
+	b.WriteString("  - **Status**: Verified\n")
+
+	d := scan.Bytes([]byte(b.String()), scan.Options{})
+	r := Run(d, Options{Locking: true})
+
+	var found *Finding
+	for i := range r.Findings {
+		if r.Findings[i].Code == "evidence:over-budget" {
+			found = &r.Findings[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("a 60-line Evidence field produced no finding")
+	}
+	if found.Blocking {
+		t.Error("evidence:over-budget is BLOCKING; the prompt is explicit that field length alone never blocks a lock")
+	}
+	if found.Patch != nil {
+		t.Error("evidence:over-budget carries a patch; truncation is never proposed — the mass is usually real verification content")
+	}
+	if r.Verdict == "BLOCK" {
+		t.Errorf("verdict is BLOCK on an advisory-only record: %s", r.Verdict)
+	}
+}
+
+// TestEvidenceLabelIsMatchedByPrefix is the caveat that broke an earlier
+// measurement pass. The corpus writes 872 plain `Evidence` labels and 36
+// variants — `Evidence — the two source-checkable channel reductions`,
+// `Evidence (MEASURED)`, `Evidence plan` — and a check keyed on the exact
+// label undercounts in silence.
+func TestEvidenceLabelIsMatchedByPrefix(t *testing.T) {
+	for _, label := range []string{
+		"Evidence",
+		"Evidence plan",
+		"Evidence (MEASURED)",
+		"Evidence — the two source-checkable channel reductions",
+		"Evidence (the peer half, 2026-08-22 Reconcile)",
+	} {
+		if !isEvidenceLabel(label) {
+			t.Errorf("%q is an Evidence field and was not matched; the corpus writes it", label)
+		}
+	}
+	// A label that merely begins with the letters is a different field.
+	for _, label := range []string{"Evidential", "Evidences"} {
+		if isEvidenceLabel(label) {
+			t.Errorf("%q was matched as an Evidence field; the prefix must end at a word boundary", label)
+		}
+	}
+}
+
+// TestProseVocabularyIsScopedToFences keeps the exactness check usable.
+// `stages/05-prelock.md` reads a contract from "the fenced ```normative
+// block, not the surrounding prose", and unscoped the same sweep hits
+// 13,412 times corpus-wide — a report nobody can act on.
+func TestProseVocabularyIsScopedToFences(t *testing.T) {
+	d := scan.Bytes([]byte("# Recommendation 0010: Frame header\n\n"+
+		"## Normative Contracts\n\n"+
+		"Every reader canonical in the surrounding prose is ordinary English.\n\n"+
+		"**C1**\n\n```normative\nThe encoding is byte-identical across readers.\n```\n"), scan.Options{})
+	r := Run(d, Options{})
+
+	var inFence, outside int
+	for _, f := range r.Findings {
+		if f.Code != "prose:exactness" {
+			continue
+		}
+		if strings.Contains(f.Message, "byte-identical") {
+			inFence++
+		} else {
+			outside++
+		}
+	}
+	if inFence != 1 {
+		t.Errorf("the term of art inside the fence produced %d findings, want 1", inFence)
+	}
+	if outside != 0 {
+		t.Errorf("%d findings came from prose outside the fence; the scope is the fence body", outside)
+	}
+}
+
+// TestScaffoldRowIsReportedWithoutAPatch: a table row still carrying the
+// template's `[Capability]` cells is the surviving-template defect in the
+// one place the column-zero marker rule cannot reach.
+func TestScaffoldRowIsReportedWithoutAPatch(t *testing.T) {
+	d := scan.Bytes([]byte("# Recommendation 0010: Frame header\n\n"+
+		"## Dependencies and Integration Points\n\n"+
+		"| Capability | Source | Status | Impact |\n"+
+		"| --- | --- | --- | --- |\n"+
+		"| [Capability] | Existing / This RDR / Predecessor / Future | Available / Introduced / Deferred | [Impact] |\n"), scan.Options{})
+	r := Run(d, Options{Locking: true})
+
+	var found *Finding
+	for i := range r.Findings {
+		if r.Findings[i].Code == "scaffold:row" {
+			found = &r.Findings[i]
+		}
+	}
+	if found == nil {
+		t.Fatal("the template's own scaffold row produced no finding")
+	}
+	if found.Patch != nil {
+		t.Error("scaffold:row carries a patch; filling a row and deleting it are different repairs, and choosing is judgement")
+	}
+	if found.Blocking {
+		t.Error("scaffold:row is blocking; it is conformance advice like every other surviving-template finding")
+	}
+}

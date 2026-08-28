@@ -1,6 +1,7 @@
 package model
 
 import (
+	"sort"
 	"regexp"
 	"strings"
 )
@@ -474,4 +475,31 @@ func ParseProfile(raw string) (label string, tier Tier) {
 	}
 	label = strings.Trim(strings.TrimSpace(body), "`*_.,;: ")
 	return label, ProfileVocabulary().Classify(label)
+}
+
+// ProseVocabularies are the closed word lists lint sweeps normative prose
+// for, in sidecar declaration order.
+//
+// They are DATA rather than Go for the reason the sidecar exists: the
+// exactness words and the banned change-history tokens are process facts
+// that TEMPLATE.md cannot state, they were previously restated across
+// five prompt sites, and a list compiled into the binary is one a
+// reviewer cannot amend without a build. Adding a vocabulary is a TOML
+// edit, and it arrives with its own message and fix.
+func ProseVocabularies() []ProseVocabulary {
+	sc := current().Sidecar
+	out := make([]ProseVocabulary, 0, len(sc.Prose))
+	for _, name := range sortedKeys(sc.Prose) {
+		out = append(out, sc.Prose[name])
+	}
+	return out
+}
+
+func sortedKeys(m map[string]ProseVocabulary) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }

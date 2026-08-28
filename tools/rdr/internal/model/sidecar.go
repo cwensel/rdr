@@ -31,11 +31,27 @@ type Sidecar struct {
 	// values it accepts. An entry present with an empty list is a
 	// finding — see the file's own comment — not an omission.
 	Observed map[string][]string
+	// Prose holds the closed word lists lint sweeps normative prose for,
+	// keyed by vocabulary name. They live here rather than in Go for the
+	// reason the whole file exists: they are CORPUS/PROCESS facts that
+	// TEMPLATE.md has no way to state, and a word list compiled into the
+	// binary is one a reviewer cannot see or amend.
+	Prose    map[string]ProseVocabulary
 	Terminal []string
 	Parked   []string
 	// Source is the path it was read from, so an error names the file
 	// that disagreed.
 	Source string
+}
+
+// ProseVocabulary is one closed word list plus what a finding on it
+// says. The message and fix travel WITH the words: a vocabulary added to
+// the sidecar arrives complete, and no Go change is needed to report it.
+type ProseVocabulary struct {
+	Name    string
+	Words   []string
+	Message string
+	Fix     string
 }
 
 // ParseSidecar reads the sidecar, refusing anything outside its shape.
@@ -48,6 +64,7 @@ func ParseSidecar(src, path string) (*Sidecar, error) {
 	sc := &Sidecar{
 		ElementSections: map[string]string{},
 		Observed:        map[string][]string{},
+		Prose:           map[string]ProseVocabulary{},
 		Source:          path,
 	}
 	for _, t := range tables {
@@ -77,6 +94,19 @@ func ParseSidecar(src, path string) (*Sidecar, error) {
 				return nil, fmt.Errorf("stopped:malformed-template-sidecar (%s: [%s] declares no values; write values = [] to state the tier is empty)", path, t.Name)
 			}
 			sc.Observed[field] = t.List("values")
+		case strings.HasPrefix(t.Name, "prose."):
+			name := strings.TrimPrefix(t.Name, "prose.")
+			if _, dup := sc.Prose[name]; dup {
+				return nil, fmt.Errorf("stopped:malformed-template-sidecar (%s: two prose vocabularies named %q)", path, name)
+			}
+			if !hasKey(t, "words") {
+				return nil, fmt.Errorf("stopped:malformed-template-sidecar (%s: [%s] declares no words)", path, t.Name)
+			}
+			w := t.List("words")
+			if len(w) == 0 {
+				return nil, fmt.Errorf("stopped:malformed-template-sidecar (%s: [%s] declares an empty word list; a vocabulary that matches nothing is a check that never fires)", path, t.Name)
+			}
+			sc.Prose[name] = ProseVocabulary{Name: name, Words: w, Message: t.Str("message"), Fix: t.Str("fix")}
 		case t.Name == "lifecycle":
 			sc.Terminal, sc.Parked = t.List("terminal"), t.List("parked")
 			if len(sc.Terminal) == 0 {

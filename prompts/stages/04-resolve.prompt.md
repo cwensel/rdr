@@ -112,12 +112,14 @@ Normative/Illustrative rule gives it its lock-time semantics). Rejected → the
 assumption is genuinely open: resolve by another Method or revise the claim.
 A revised or narrowed clause runs rdr-common §amendment-sweep.
 
-Verify EXACTNESS words too (all/every, first/nearest, byte-identical,
-lossless, canonical, deterministic, stable order) — each needs an Evidence
-Record — prefer a named normative fixture from the round above — or coverage
-by the Minimum Viable Validation. For byte-stable output,
-run the determinism checklist (hash fn+lib, pre-image byte layout, encodings,
-map order, whitespace, case folding, empty/null/absent, version marker).
+Verify EXACTNESS words too — each needs an Evidence Record (prefer a named
+normative fixture from the round above) or coverage by the Minimum Viable
+Validation. `rdr lint`'s `prose:exactness` names the terms of art inside the
+normative fences; the QUANTIFIERS (all/every, first/nearest) are yours to read,
+because only you can tell "all rows" the commitment from "all three" the
+sentence. For byte-stable output, run the determinism checklist (hash fn+lib,
+pre-image byte layout, encodings, map order, whitespace, case folding,
+empty/null/absent, version marker).
 
 Once the assumptions hold, author the **evidence-body** from them (replace its
 `_Draft placeholder._`s):

@@ -157,3 +157,49 @@ func templateLines() map[string]bool {
 	}
 	return out
 }
+
+// TemplateTableRow reports whether a line is a table row TEMPLATE.md
+// writes itself — a scaffold row whose cells are still `[Capability]`,
+// `[Resource]`, `[Impact]` rather than the author's values.
+//
+// It is the same question TemplateLine asks, and it needs its own entry
+// only because a table row is normalised differently: cells are padded
+// and re-aligned as records are edited, so the comparison is on the
+// row's CELLS with their whitespace collapsed rather than on the line.
+//
+// The set is derived from the template like every other, so a scaffold
+// row the template stops writing stops being one here.
+func TemplateTableRow(s string) bool {
+	t := strings.TrimSpace(s)
+	if !strings.HasPrefix(t, "|") {
+		return false
+	}
+	return templateTableRows()[tableRowKey(t)]
+}
+
+// tableRowKey reduces a row to its cells, lower-cased and
+// whitespace-collapsed, so alignment padding is not a difference.
+func tableRowKey(s string) string {
+	cells := strings.Split(strings.Trim(strings.TrimSpace(s), "|"), "|")
+	for i, c := range cells {
+		cells[i] = strings.ToLower(strings.Join(strings.Fields(c), " "))
+	}
+	return strings.Join(cells, "|")
+}
+
+func templateTableRows() map[string]bool {
+	out := map[string]bool{}
+	for _, line := range strings.Split(current().TemplateSource, "\n") {
+		t := strings.TrimSpace(line)
+		if !strings.HasPrefix(t, "|") {
+			continue
+		}
+		k := tableRowKey(t)
+		// A separator row (`|---|---|`) and a header carry no scaffold;
+		// only rows with a bracketed cell are the template's stand-ins.
+		if strings.Contains(k, "[") {
+			out[k] = true
+		}
+	}
+	return out
+}

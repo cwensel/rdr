@@ -13,10 +13,10 @@ to fix).
 2. Find redundancy — the same claim in three sections, Problem-Statement
    recaps inside Alternatives. Collapse to one authoritative statement and
    cross-reference.
-3. **Collapse change-history into live text.** Delete every "Rescope Note",
-   "Refinement Context", "retained as history" section, "re-proposed/​
-   re-promoted" Metadata narration, and per-section "this is now wrong / read
-   against §X" annotation. Fold whatever is still TRUE into the live
+3. **Collapse change-history into live text.** `rdr lint`'s
+   `prose:change-history` names the banned tokens where they survive; also
+   delete "re-proposed/​re-promoted" Metadata narration and per-section
+   "read against §X" annotation, which no rule decides. Fold whatever is still TRUE into the live
    Problem Statement / Solution / Alternatives; delete the rest outright. A
    reader should see only the current design, never the path to it. EXCEPTION:
    a `Status: Draft [revised from Final …]` qualifier is live state (the 07.1

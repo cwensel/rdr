@@ -31,8 +31,8 @@ Claude: /rdr-refine <NNNN>
 
 ## Review gate (Stage `03-refine.md`)
 
-- All change-history gone (no Rescope Note / Refinement Context / "retained as
-  history" / "this is now wrong" annotation) — only the current design remains.
+- All change-history gone — `rdr lint`'s `prose:change-history` is the check;
+  only the current design remains.
 - Decision rationale NOT cut by mistake (rationale = *why this design*; history =
   *what it used to be* — keep the first, cut the second).
 - Contradictions actually resolved, not deleted on one (wrong) side.
