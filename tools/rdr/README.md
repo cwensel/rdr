@@ -1137,19 +1137,36 @@ spent a second invocation to avoid it. On 0142:
 | `--filter warnings,coverage` | 1,242 | −99.2% |
 
 Bytes are not the only cost. Deciding `resolved` is the one thing
-`inspect` does beyond reading the record — a scan of every record in the
-dir and a walk of `--repo` — and only `edges[]` can show the verdict. So
-resolution runs only when the projection can carry it: the whole
-envelope, `--select edges`, or a `--filter` naming `edges`. On 157
-records over a 4k-file repo that is ~1.2s against ~20ms for every other
-facet, including `--select <id>` and the text summary (`showsEdges`).
+`inspect` does beyond reading the record — reading the records its edges
+name, and a walk of `--repo` — and only `edges[]` can show the verdict.
+So resolution runs only when the projection can carry it: the whole
+envelope, `--select edges`, or a `--filter` naming `edges`. Every other
+facet, including `--select <id>` and the text summary, skips it
+(`showsEdges`) and costs ~35ms.
 
-A single record resolves through `ResolveAll`, not `Resolve`, because
-priming the symbol cache is what makes the walk a single pass. Resolving
-one record with the per-symbol path walked the tree once per distinct
-symbol it cites — 1.45s where one primed walk is 0.56s, for identical
-verdicts. The corpus path and the single-record path pay the same walk
-once each; neither pays it per citation.
+**The corpus a single record resolves against is its EDGE TARGETS, not
+the directory.** A verdict is decided by the target's own projection, so
+every record the document does not name was parsed and discarded.
+Reading the whole dir to answer a question about 15 of its 144 records
+cost 1.85s of a 2.10s call — the largest single cost in the tool, paid by
+every `lint` and every default `inspect --json`. Narrowing it is
+byte-identical by construction, `resolved` verdicts included, and takes
+`inspect --json` from 2.09s to 0.56s over the reference corpus.
+
+What remains is the repo walk (~0.22s), and it is the floor: a single
+record resolves through `ResolveAll`, not `Resolve`, because priming the
+symbol cache is what makes that walk a single pass. The per-symbol path
+walked the tree once per distinct symbol cited — 1.45s where one primed
+walk is 0.56s, for identical verdicts. The corpus path and the
+single-record path pay the same walk once each; neither pays it per
+citation.
+
+Because the narrowed set can legitimately be EMPTY — a record every one
+of whose targets is missing — the resolver is told that a records dir was
+read (`NewResolverOver`) rather than inferring it from a non-empty map.
+Absent means nothing looked; a target the dir does not hold is `false`.
+Conflating the two would turn every dangling reference into an unchecked
+one: a skipped check reading as a pass.
 | `--filter path` | 140 | what `§rdr-resolve` needs |
 
 `schema`, `record` and `path` come back unasked: ~120 bytes that answer

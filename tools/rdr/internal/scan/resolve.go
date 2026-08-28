@@ -45,6 +45,14 @@ type Resolver struct {
 	repo string
 	// symbols caches the grep verdict per symbol.
 	symbols map[string]bool
+	// consulted says a records dir WAS read, whatever it yielded. It is
+	// what separates "nothing looked" from "looked and the target is not
+	// there", and map emptiness cannot carry that distinction: a caller
+	// that loads only the records an edge NAMES gets an empty map both
+	// when it had no dir and when every named target is missing, and
+	// those two must not report the same verdict. Absent would turn a
+	// real dangling reference into a skipped check reading as unchecked.
+	consulted bool
 	// onRead counts source files the walk reads. Some costs here are only
 	// assertable as a COUNT: a facet that must not walk the tree, and a
 	// primed pass that must walk it once, both produce the same verdicts
@@ -63,12 +71,26 @@ var SourceReads atomic.Int64
 // NewResolver builds a resolver over already-scanned documents. Passing
 // the scanned corpus rather than a path keeps the resolver from
 // re-reading files an index walk has already read.
+//
+// A non-empty set is itself the evidence that a records dir was read. A
+// caller that read a dir and legitimately got nothing back — every target
+// an edge names is missing — must say so with NewResolverOver, because
+// the two cases carry different verdicts.
 func NewResolver(docs []*Document, repo string) *Resolver {
+	return NewResolverOver(docs, repo, len(docs) > 0)
+}
+
+// NewResolverOver is NewResolver with the records-dir fact stated rather
+// than inferred. consulted=true means a dir was read; every element
+// target it does not hold is then genuinely absent from the corpus and
+// resolves false, not unchecked.
+func NewResolverOver(docs []*Document, repo string, consulted bool) *Resolver {
 	r := &Resolver{
-		records: map[string]*Document{},
-		slugs:   map[string]string{},
-		repo:    repo,
-		symbols: map[string]bool{},
+		records:   map[string]*Document{},
+		slugs:     map[string]string{},
+		repo:      repo,
+		symbols:   map[string]bool{},
+		consulted: consulted,
 	}
 	for _, d := range docs {
 		if d.Record == "" {
@@ -105,8 +127,8 @@ func (r *Resolver) Resolve(d *Document) {
 // Peer-RDR record citing `0055 A9` when 0055 has A1 through A7 — the
 // finding class this issue exists to make mechanical.
 func (r *Resolver) resolveElement(e *Edge) *bool {
-	if len(r.records) == 0 {
-		return nil // nothing to resolve against
+	if !r.consulted {
+		return nil // nothing looked
 	}
 	id, err := ident.Parse(e.To)
 	if err != nil {

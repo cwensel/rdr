@@ -1427,3 +1427,148 @@ func TestClusterOfIsIndependentOfTheRepo(t *testing.T) {
 		t.Errorf("--cluster-of depends on the repo:\nwith:    %s\nwithout: %s", withRepo, without)
 	}
 }
+
+// TestResolutionReadsOnlyTheEdgeTargets: resolving one record's edges
+// reads the records its edges NAME, not the directory. The verdicts are
+// identical either way — a whole-dir scan resolves the same targets, it
+// just parses 140 other records first — so nothing in the OUTPUT can
+// catch a revert. The corpus resolveEdges builds is the witness, and it
+// is load-bearing beyond speed: it is what lint reads as opts.Corpus.
+func TestResolutionReadsOnlyTheEdgeTargets(t *testing.T) {
+	dir := t.TempDir()
+	const head = "## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 0001 names 0002 and nothing else. 0003..0006 are the bystanders a
+	// whole-dir scan would parse.
+	write("0001-alpha.md", "# Recommendation 0001: Alpha\n\n"+head+
+		"- **Predecessors**: 0002\n\n## Problem Statement\n\nSynthetic.\n")
+	for _, n := range []string{"0002", "0003", "0004", "0005", "0006"} {
+		write(n+"-peer.md", "# Recommendation "+n+": Peer\n\n"+head+
+			"\n## Problem Statement\n\nSynthetic.\n")
+	}
+
+	doc, err := scan.File(filepath.Join(dir, "0001-alpha.md"), scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Through resolveEdges, not the helper underneath it: the corpus it
+	// RETURNS is what lint reads as opts.Corpus, and calling the helper
+	// directly would still pass against a resolveEdges that scanned the
+	// whole dir.
+	empty := ""
+	f := &flags{records: &dir, project: &empty, repo: &empty}
+	got := resolveEdges(doc, f, io.Discard)
+	if len(got) != 1 || got[0].Record != "0002" {
+		var names []string
+		for _, d := range got {
+			names = append(names, d.Record)
+		}
+		t.Errorf("resolution loaded %v; want only the named target [0002]", names)
+	}
+}
+
+// TestDanglingEdgesResolveFalseNotAbsent is the guard the narrowing
+// needs and the whole-dir scan got for free.
+//
+// `resolved` is three-valued, and the distinction that matters most is
+// false (looked, not there — a finding) versus absent (nothing looked —
+// no finding). The old code inferred "nothing looked" from an EMPTY
+// records map, which was safe only because it loaded the whole dir: a
+// non-empty dir always yielded a non-empty map. Loading only the named
+// targets breaks that inference — a record whose every target is missing
+// yields an empty map from a dir that was read in full.
+//
+// Left uncorrected this turns every dangling reference on the corpus
+// into an unchecked one: a skipped check reading as a pass, which is the
+// exact failure mode this flow exists to prevent.
+func TestDanglingEdgesResolveFalseNotAbsent(t *testing.T) {
+	dir := t.TempDir()
+	const head = "## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// 0001's only typed target is 0099, which does not exist. Another
+	// record shares the dir, so the DIR is plainly readable.
+	write("0001-alpha.md", "# Recommendation 0001: Alpha\n\n"+head+
+		"- **Predecessors**: 0099\n\n## Problem Statement\n\nSynthetic.\n")
+	write("0002-beta.md", "# Recommendation 0002: Beta\n\n"+head+
+		"\n## Problem Statement\n\nSynthetic.\n")
+
+	code, out, errb := runCapture(t, "inspect", "--json", "--filter", "edges",
+		"--records", dir, "--repo", "", "0001")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var got struct {
+		Edges []struct {
+			Kind     string `json:"kind"`
+			To       string `json:"to"`
+			Resolved *bool  `json:"resolved"`
+		} `json:"edges"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	var seen bool
+	for _, e := range got.Edges {
+		if e.Kind != "predecessor" {
+			continue
+		}
+		seen = true
+		if e.Resolved == nil {
+			t.Errorf("predecessor %s reads unchecked; the dir was read and 0099 is not in it, so it is false", e.To)
+		} else if *e.Resolved {
+			t.Errorf("predecessor %s resolved true, but no such record exists", e.To)
+		}
+	}
+	if !seen {
+		t.Fatal("no predecessor edge in the projection; the fixture no longer exercises the case")
+	}
+}
+
+// TestNarrowedResolutionStillPrimesTheSymbolCache: the narrowing must
+// not cost the primed walk. ResolveAll's contract is one walk of the
+// source tree however many symbols are cited, and it is invisible in the
+// output — a per-symbol grep produces identical verdicts and only reads
+// more. The count is the only assertion that can catch a regression, so
+// it is the one made here, at the command seam where it would land.
+func TestNarrowedResolutionStillPrimesTheSymbolCache(t *testing.T) {
+	dir, repo := t.TempDir(), t.TempDir()
+	// One file, one defined symbol. The three absent ones are the case
+	// that cannot short-circuit: unprimed, each costs a full walk.
+	if err := os.WriteFile(filepath.Join(repo, "w.go"),
+		[]byte("package w\n\nfunc Present() {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	const head = "## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n"
+	body := "# Recommendation 0001: Alpha\n\n" + head +
+		"- **Predecessors**: 0002\n\n## Problem Statement\n\n" +
+		"Anchored at `w.go::Present`, `w.go::GoneOne`, `w.go::GoneTwo`, `w.go::GoneThree`.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0001-alpha.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "0002-beta.md"),
+		[]byte("# Recommendation 0002: Beta\n\n"+head+"\n## Problem Statement\n\nSynthetic.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	before := scan.SourceReads.Load()
+	code, _, errb := runCapture(t, "inspect", "--json", "--filter", "edges",
+		"--records", dir, "--repo", repo, "0001")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	// A one-file repo is read once by a primed pass, and once per
+	// distinct absent symbol without priming.
+	if got := scan.SourceReads.Load() - before; got != 1 {
+		t.Errorf("the repo was read %d times for one record; the narrowed path must still prime the symbol cache and walk once", got)
+	}
+}

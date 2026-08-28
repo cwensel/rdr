@@ -948,6 +948,12 @@ func showsEdges(f *flags) bool {
 // $RDR_RECORDS — nothing is checked, and every edge says `resolved`
 // absent rather than claiming a verdict it did not reach.
 //
+// The corpus it builds is the EDGE TARGETS, not the directory. A verdict
+// about an edge is decided by the target's own projection, so every
+// record the document does not name was parsed and thrown away: 144
+// records read to answer a question about 15 of them, which was 1.85s of
+// a 2.10s call and the single largest cost in the tool.
+//
 // It resolves through ResolveAll rather than Resolve even though the set
 // is one document, because ResolveAll is what PRIMES THE SYMBOL CACHE.
 // Unprimed, every distinct symbol the record cites greps the repo on its
@@ -974,7 +980,7 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Docume
 		scan.NewResolver(nil, *f.repo).ResolveAll([]*scan.Document{doc})
 		return nil
 	}
-	docs, _, err := scanDir(dir, *f.project)
+	docs, err := scanTargets(dir, *f.project, edgeTargets(doc))
 	if err != nil {
 		// Resolution is best-effort here: a records dir that cannot be
 		// walked leaves the *element* edges unchecked, which is the honest
@@ -985,8 +991,79 @@ func resolveEdges(doc *scan.Document, f *flags, stderr io.Writer) []*scan.Docume
 		scan.NewResolver(nil, *f.repo).ResolveAll([]*scan.Document{doc})
 		return nil
 	}
-	scan.NewResolver(docs, *f.repo).ResolveAll([]*scan.Document{doc})
+	// The dir WAS read, so a target it does not hold is missing from the
+	// corpus rather than unchecked — stated, because a document whose
+	// edges all dangle yields an empty set that must still resolve false.
+	scan.NewResolverOver(docs, *f.repo, true).ResolveAll([]*scan.Document{doc})
 	return docs
+}
+
+// edgeTargets is the set of record numbers a document's edges name — the
+// only records that can change any verdict about it.
+//
+// It reads the target the same way resolveElement does, because it is
+// answering the same question one step earlier: strip a `project/`
+// prefix, drop an `:element` suffix, keep what is four digits. A kind
+// whose target is not an element (a symbol, an artifact path, an issue)
+// names no record and contributes nothing.
+func edgeTargets(doc *scan.Document) map[string]bool {
+	want := map[string]bool{}
+	for _, e := range doc.Edges {
+		if e.Kind.Class() != edge.TargetElement {
+			continue
+		}
+		num := e.To
+		if before, _, ok := strings.Cut(num, ":"); ok {
+			num = before
+		}
+		if _, after, ok := strings.Cut(num, "/"); ok {
+			num = after
+		}
+		if ident.RecordOf(num) == num && num != "" {
+			want[num] = true
+		}
+	}
+	return want
+}
+
+// scanTargets scans only the records a document's edges name.
+//
+// Resolution asks one question of the corpus — does this target exist,
+// and does the element inside it exist — and that question is answered by
+// the TARGET's own projection. Every other record in the dir is read,
+// parsed and discarded. On the reference corpus one record's edges name
+// 15 peers out of 144 records: 2.3MB of 14.5MB, and the whole-dir scan
+// was 1.85s of a 2.10s `inspect --json`.
+//
+// It reports whether the DIR held records, not whether the wanted set
+// did. A dir with no NNNN-*.md is the unwalkable case the caller
+// announces; a dir full of records none of which the document names is a
+// successful scan that yields nothing, and its targets resolve false.
+func scanTargets(dir, project string, want map[string]bool) (docs []*scan.Document, err error) {
+	dir, tried := resolveRecordsDir(dir)
+	all, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
+	all = recordFiles(all)
+	if len(all) == 0 {
+		return nil, fmt.Errorf("%s holds no NNNN-*.md%s", absOrSelf(dir), whereItLooked(tried))
+	}
+	var paths []string
+	for _, p := range all {
+		if want[ident.RecordOf(filepath.Base(p))] {
+			paths = append(paths, p)
+		}
+	}
+	sort.Strings(paths)
+	for _, p := range paths {
+		doc, e := scan.File(p, scan.Options{Project: project})
+		if e != nil {
+			return nil, fmt.Errorf("%s: %w", p, e)
+		}
+		if !doc.IsRecord() {
+			continue
+		}
+		docs = append(docs, doc)
+	}
+	return docs, nil
 }
 
 // scanDir scans every record in a directory. It is the corpus builder
