@@ -950,6 +950,39 @@ evidence, and every lens fact comes back false with nothing to show it. So
 `env` answers from the marker, and reports `$RDR_MARKER` / `$RDR_PROJECT`
 for the caller's own guard.
 
+## Paths
+
+`rdr paths` answers the two questions six skill and prompt sites used to
+build by hand: where does this lens write, and which iteration is next.
+
+It exists because a restatement is a copy that can go stale alone, and two
+of those six did — they named `<lens>/<slug>/` after the migration moved it
+to `<slug>/evidence/<lens>/`. That failure is silent by construction: a lens
+directory that cannot exist reads exactly like a lens that never ran.
+
+So it answers from the SAME declarations the fact evaluator reads —
+`models/rdr-facts.toml`'s roots plus its `[iteration]` block — and one source
+cannot disagree with itself. The convention is data rather than a compiled-in
+regex for the reason the roots are: this binary is pointed at more than one
+seam, and the reference workspace alone binds two disjoint ones — a shared
+marker whose records and evidence sit in different repos, and a repo-local
+marker where `RDR_EVIDENCE = RDR_RECORDS` collapses them under one
+`<slug>/`. Both resolve correctly with no branch, and a third tree is a TOML
+edit.
+
+`--next-iter` LISTS the directory; it never matches a guessed name, which is
+the glob the probe rule bans. Loose files are iteration 1 (§evidence), so a
+first pass writes the base itself and no `iter-1` is ever invented. Next is
+1 + the HIGHEST segment found, never the lowest absent: the reference corpus
+really holds `iter-3` with no `iter-2`, and reusing that number would file a
+later report under an earlier one. The segments found travel with the answer,
+with a note when they are not contiguous, so a gap stays visible.
+
+An unbound root is a stated absence and exit 1, never a path rooted at `/`
+that a caller might `mkdir -p`, and an unfilled `{key}` is refused rather
+than collapsed to the parent of every cluster. It creates no directory and
+writes nothing.
+
 ## Facts
 
 `models/rdr-facts.toml` declares the signals `rdr-status` reads, and the
@@ -1329,6 +1362,7 @@ could break an answer would be worse than no log.
       usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
       seam.go              marker discovery: the records dir and source root, bound without a shell
       env.go               `rdr env`: publishes the bound seam, marker-authoritative
+      paths.go             `rdr paths`: the evidence dir and the iteration, from the same table the facts read
       status.go            the navigator's read: facts evaluated, rendered three ways
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash

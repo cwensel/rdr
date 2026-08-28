@@ -61,6 +61,7 @@ usage:
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
+  rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr env [--json]
   rdr version
 
@@ -116,6 +117,18 @@ last write (README §receipt): exit 0 and the lint's log line; 1 and
 stopped:no-lint-receipt; 2 when no log is bound. §commit refuses a record
 commit on 1 — the check that catches a gate closed without lint.
 
+paths binds the evidence directory and the iteration number the flow's
+skills used to build by hand, from the same models/rdr-facts.toml roots
+and [iteration] block the facts read — so a path and a probe cannot
+disagree about where evidence lives. With no tree flag it prints the
+bound roots; --lens/--cluster/--tree name a tree and print its dir.
+--next-iter LISTS that dir and reports the iteration the next pass owes:
+1 + the highest segment found, never the lowest absent, with the segments
+it found and a note when they are not contiguous. Loose files are
+iteration 1 (rdr-common §evidence), so a first pass writes the base
+itself. An unbound root is a stated absence and exit 1, never a
+fabricated path. It never writes, and creates no directory.
+
 env prints the seam this cwd binds — every marker var, plus
 RDR_MARKER and RDR_PROJECT, one quoted k=v per line for eval, or --json.
 It answers from the MARKER, not the environment: every other seam read
@@ -145,7 +158,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint", "receipt", "status", "env":
+	case "inspect", "index", "lint", "receipt", "status", "env", "paths":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -159,7 +172,10 @@ func run(args []string, stdout, stderr io.Writer) int {
 		// `env` is exempt for the stricter reason: it is what a skill runs
 		// to LEARN where the engine is, so requiring the template first
 		// would be a cycle — and it opens no record to read against one.
-		if args[0] != "receipt" && args[0] != "env" {
+		// `paths` is exempt on env's terms: a record's SLUG is its whole
+		// input and that comes off the filename, so it reads no body and
+		// has nothing to read against a schema.
+		if args[0] != "receipt" && args[0] != "env" && args[0] != "paths" {
 			if err := bindSchema(f); err != nil {
 				fmt.Fprintln(stderr, err)
 				return 2
@@ -246,6 +262,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return statusCmd(fs.Args(), f, stdout, stderr)
 	case "env":
 		return envCmd(f, stdout, stderr)
+	case "paths":
+		return pathsCmd(fs.Args(), f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -267,7 +285,11 @@ type flags struct {
 	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
 	tags                  *bool   // status: render the facts as a resolver's argv
-	facts                 *string // status: the fact table to evaluate
+	facts                 *string // status/paths: the fact table to evaluate
+	lens                  *string // paths: the per-lens iteration tree
+	cluster               *string // paths: Stage 7.1's cluster-keyed tree
+	tree                  *string // paths: any declared tree, as <name>[=<operand>]
+	nextIter              *bool   // paths: list the base, report the next iteration
 	template              *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
 }
 
@@ -308,6 +330,13 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.since = fs.String("since", "", "RFC3339 instant the lint must postdate (default: the record's mtime)")
 	case "env":
 		f.json = fs.Bool("json", false, "emit the bound seam as a JSON map")
+	case "paths":
+		f.json = fs.Bool("json", false, "emit the bound paths as JSON")
+		f.facts = fs.String("facts", "", "the fact table to read roots and the iteration convention from (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
+		f.lens = fs.String("lens", "", "the lens whose evidence dir to bind (grounding|3amigo|critique|repeatability|cove)")
+		f.cluster = fs.String("cluster", "", "the Stage 7.1 cluster key whose dir to bind (the members' numbers joined)")
+		f.tree = fs.String("tree", "", "any tree the table declares, as <name>[=<operand>]")
+		f.nextIter = fs.Bool("next-iter", false, "list the bound dir and report the iteration the next pass should write")
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")

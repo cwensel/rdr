@@ -55,9 +55,40 @@ type FactTable struct {
 	Description string
 	Roots       map[string]FactRoot
 	Facts       []FactDecl
+	// Iter is the re-entry convention `rdr paths` reads. Optional: a
+	// table that declares none is still a valid fact table.
+	Iter Iteration
 	// Source is the path the table was read from, for error messages
 	// that have to say which file disagreed.
 	Source string
+}
+
+// Iteration is the re-entry convention, declared rather than compiled in.
+// `rdr paths` reads it to answer where a lens writes and which pass is
+// next; nothing else does, so an absent block simply leaves `paths`
+// without trees to offer rather than breaking a fact.
+type Iteration struct {
+	// Segment is the directory a re-entry pass appends, with `{n}` the
+	// iteration number. It is the whole vocabulary: a tree spelling it
+	// otherwise is declared as its own tree, never pattern-matched.
+	Segment string
+	// First is how iteration 1 is spelled. "loose" means the files sit
+	// directly under the base and no `iter-1` exists — which is what the
+	// corpus does, and what makes "next" 2 rather than 1 on a base that
+	// already holds a first pass.
+	First string
+	// Trees are the bases that take iterations, by name (`lens`,
+	// `cluster`, …). The name is what `rdr paths` selects with.
+	Trees map[string]IterTree
+}
+
+// IterTree is one base an iteration segment hangs under: a declared root,
+// plus the path beneath it. `{lens}` / `{key}` are filled by the caller's
+// operand, `{slug}` by the record — the same substitution a probe uses.
+type IterTree struct {
+	Name  string
+	Root  string
+	Under string
 }
 
 // FactRoot is a tree a probe's path is relative to: a seam var, plus the
@@ -209,6 +240,19 @@ func LoadFactTable(path string) (*FactTable, error) {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: root %q names no var)", path, name)
 			}
 			t.Roots[name] = r
+		case tbl.Name == "iteration":
+			t.Iter.Segment = tbl.Str("segment")
+			t.Iter.First = tbl.Str("first")
+		case strings.HasPrefix(tbl.Name, "iteration.tree."):
+			name := strings.TrimPrefix(tbl.Name, "iteration.tree.")
+			tr := IterTree{Name: name, Root: tbl.Str("root"), Under: tbl.Str("under")}
+			if tr.Root == "" {
+				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: iteration tree %q names no root)", path, name)
+			}
+			if t.Iter.Trees == nil {
+				t.Iter.Trees = map[string]IterTree{}
+			}
+			t.Iter.Trees[name] = tr
 		case strings.HasPrefix(tbl.Name, "fact."):
 			d, err := factFromTable(tbl)
 			if err != nil {
@@ -236,6 +280,19 @@ func LoadFactTable(path string) (*FactTable, error) {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: fact %q names undeclared root %q)", path, f.Name, f.Root)
 			}
 		}
+	}
+	// An iteration tree is checked against the same roots, for the same
+	// reason: a tree hanging off a root nobody declared would resolve to
+	// a path under the filesystem root and report a first pass on every
+	// record. Checked at LOAD so the table is wrong here, not in a
+	// consumer's evidence dir.
+	for _, tr := range t.Iter.Trees {
+		if _, ok := t.Roots[tr.Root]; !ok {
+			return nil, fmt.Errorf("stopped:malformed-fact-table (%s: iteration tree %q names undeclared root %q)", path, tr.Name, tr.Root)
+		}
+	}
+	if len(t.Iter.Trees) > 0 && !strings.Contains(t.Iter.Segment, "{n}") {
+		return nil, fmt.Errorf("stopped:malformed-fact-table (%s: iteration declares trees but segment %q carries no {n})", path, t.Iter.Segment)
 	}
 	return t, nil
 }

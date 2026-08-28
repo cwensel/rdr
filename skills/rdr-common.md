@@ -244,22 +244,32 @@ sorted (`0117-0118`, `0122-0123-0130-0131-0132`) — so the key IS the membershi
 which is what lets `rdr status` answer 7.1 exactly instead of searching. Name a
 new run's directory that way; a topical key (`dml-purpose`) is a pre-2026-06-29
 shape that no longer reads.
-`{EVIDENCE_DIR}` is the **fully-bound per-lens dir** —
-`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/`; `{SPIKE_DIR}` is
-`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/spikes/`. A re-entry pass appends `iter-N/`
-(`…/evidence/<lens>/iter-2/`); loose files directly under `…/evidence/<lens>/` are
-iteration 1. The existence of `…/evidence/<lens>/` is the disk signal that that
-lens ran — this is what `/rdr-status` reads. **Not every stage leaves a disk
-signal:** Stage 4 Resolve writes an evidence folder only when it names spikes;
-a pure source-search resolve records its verdicts inline in the RDR (CAs flip to
+**Ask for the dir; never compose one** — `rdr paths` answers from the same
+declarations `rdr status`'s probes read, so what you write to and what the
+navigator checks cannot drift apart:
+
+```sh
+eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"
+# EVIDENCE_DIR the lens dir · ITER/ITER_DIR where this pass writes
+# ITER_FOUND/ITER_NOTE what was on disk (a gap is named, not hidden)
+```
+
+`--cluster <key>` is 7.1's tree, `--tree spikes` is `{SPIKE_DIR}`; `--json` for
+structure, omit `--next-iter` for the base alone. `--next-iter` LISTS the dir:
+loose files are iteration 1, so a first pass gets the base and a re-entry
+`iter-N/`. Unbound `$RDR_EVIDENCE` → exit 1 and a stated absence, never a
+fabricated path; it creates nothing.
+
+The existence of the lens dir is the disk signal that that lens ran — this is
+what `/rdr-status` reads. **Not every stage leaves a disk signal:** Stage 4
+Resolve writes an evidence folder only when it names spikes; a pure
+source-search resolve records its verdicts inline in the RDR (CAs flip to
 `Verified`) and creates no `<RDR_SLUG>/` dir. So a missing per-RDR folder means
 "no lens/spike artifact yet," **not** "Resolve hasn't run" — the CA verdicts in
-the RDR body are the authority for Resolve-done. Bind the concrete `{EVIDENCE_DIR}` /
-`{SPIKE_DIR}` from `$RDR_ENV`, which resolves them against `$RDR_EVIDENCE`. When
-`$RDR_EVIDENCE` defaults to `$RDR_RECORDS`, an RDR's `evidence/` and `artifacts/`
-sit as siblings under one `<RDR_SLUG>/` folder; when a consumer points
-`$RDR_EVIDENCE` at its own dir/repo, the same per-RDR shape lives there instead,
-keeping evidence isolated and self-identifying for commits.
+the RDR body are the authority for Resolve-done. A consumer either points
+`$RDR_EVIDENCE` at its own dir/repo or leaves it defaulting to `$RDR_RECORDS`
+(evidence beside artifacts under one `<RDR_SLUG>/`); `rdr paths` answers under
+both without being told which.
 
 ## §model-stamp — every lens evidence file records its producing model
 

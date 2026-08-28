@@ -27,12 +27,14 @@ say so and point at `/rdr-implement NNNN`.
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** to bind `$RDR_ENV`,
    `$RDR_RESOURCES`, and `$RDR_RECORDS` (the consumer's RDR directory, exported by the
-   marker) plus the output base `<EVIDENCE_DIR>/cluster-reconcile/<key>/`, where
-   `<key>` is the resolved members' record numbers joined in ascending order —
-   `0117-0118`, `0122-0123-0130-0131-0132`. The key is the membership, and
-   `rdr status` reads it to answer 7.1; a topical name (`dml-purpose`) is a
-   pre-2026-06-29 shape and reads as never reconciled. Use the members the stage
-   RESOLVED, not the ones proposed: a dropped candidate is not in the key.
+   marker). The output base comes from
+   `eval "$("$RDR_HOME/bin/rdr" paths --cluster <key> --next-iter <NNNN>)"` →
+   `$EVIDENCE_DIR` and `$ITER_DIR` (§evidence). `<key>` is the resolved members'
+   record numbers joined in ascending order — `0117-0118`,
+   `0122-0123-0130-0131-0132`. The key is the membership, and `rdr status` reads
+   it to answer 7.1; a topical name (`dml-purpose`) is a pre-2026-06-29 shape and
+   reads as never reconciled. Use the members the stage RESOLVED, not the ones
+   proposed: a dropped candidate is not in the key.
 2. **Build the cluster**: `"$RDR_HOME/bin/rdr" index --cluster-of NNNN` generates
    candidates (the membership rule as a query, each member carrying the relation
    that earned it). Union with the declared `Cluster` fields, run it from more
@@ -44,7 +46,7 @@ say so and point at `/rdr-implement NNNN`.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);
    it owns the iteration contract and the four dispositions, so read it rather
    than re-deriving either. Bind the contract first — it scopes step 4 — and
-   write this run's outputs to `iter-N/` when N>1.
+   write this run's outputs to step 1's `$ITER_DIR`.
 4. **Dispatch into the gate prompts** for whatever the iteration contract left in
    scope (Stage `07.1-cluster-reconcile.md` owns the cluster-membership and
    re-entry-scope calls — read it for those):

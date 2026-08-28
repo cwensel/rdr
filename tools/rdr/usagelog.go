@@ -271,6 +271,20 @@ func usageFacet(cmd string, f *flags, target string) string {
 			return "json"
 		}
 		return "text"
+	case "paths":
+		// Same lesson, and the same audit: this verb exists to retire six
+		// hand-built path constructions, and a log that cannot name it
+		// cannot show they stopped being hand-built. The ITERATION half is
+		// carried separately because it is the half that reads the disk —
+		// the bare form only joins strings the seam already bound.
+		which := "bind"
+		if f.nextIter != nil && *f.nextIter {
+			which = "next-iter"
+		}
+		if f.json != nil && *f.json {
+			return which + ":json"
+		}
+		return which
 	case "lint":
 		// Two facets, because two things call lint: a gate, which needs
 		// the verdict, and a stage reading mid-flow, which needs the

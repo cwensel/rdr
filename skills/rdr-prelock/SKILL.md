@@ -51,10 +51,11 @@ One invocation runs the full loop for one lens:
 
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**.
-   Bind `{EVIDENCE_DIR}` = `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/<lens>/` (§evidence). **Re-entry** is
-   self-detected: a `Status: Draft [revised from Final …; re-verify <IDs>]`
-   qualifier → write to `iter-N/` (N = 1 + highest existing; loose files = iter-1)
-   and delta-scope to `<IDs>`.
+   Bind the lens dir and this pass's iteration in one call (§evidence):
+   `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
+   `$EVIDENCE_DIR`, `$ITER`, `$ITER_DIR` (write to `$ITER_DIR`; at `ITER=1` it
+   *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
+   Final …; re-verify <IDs>]` qualifier delta-scopes the pass to `<IDs>`.
 2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
    `2-critique.md` · `4-cove.md`)
    → it writes element files to `{EVIDENCE_DIR}`. `3amigo` is not one prompt run:

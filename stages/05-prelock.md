@@ -146,14 +146,13 @@ RDRs stays at 7.1.) A
 small/single-file RDR runs no lens (no contract to ground, no PM/UX or
 time-shifted surface); the Stage 7 sweep is its only pre-lock check.
 
-**Output convention.** Evidence is **per-RDR-first**: each RDR owns
-`<RDR_EVIDENCE>/<rdr-slug>/evidence/`, with one folder per lens inside it.
-`{EVIDENCE_DIR}` is the fully-bound per-lens dir
-(`<RDR_EVIDENCE>/<rdr-slug>/evidence/<lens>/`); each lens writes its *element* files
-there, shape lens-specific. On a **re-entry pass** (qualified Status, above)
-`{EVIDENCE_DIR}` gains an iteration segment — `…/evidence/<lens>/iter-N/` — so a
-second pass never overwrites the first. A first pass may write the element files
-directly under `…/evidence/<lens>/` (that loose set *is* iteration 1).
+**Output convention.** Evidence is **per-RDR-first**: each RDR owns one lens
+folder per lens, and `rdr paths --lens <l> --next-iter <NNNN>` binds it plus the
+iteration this pass owes (rdr-common §evidence) — ask for it rather than
+composing one. Each lens writes its *element* files there, shape lens-specific.
+On a **re-entry pass** (qualified Status, above) the answer carries an iteration
+segment, so a second pass never overwrites the first; a first pass writes the
+element files directly under the base (that loose set *is* iteration 1).
 
 - `…/evidence/3amigo/` → `persona-1-pm.md`, `persona-2-implementer.md`,
   `persona-3-qa.md`, `consolidation.md`
@@ -195,19 +194,14 @@ RUN: <1–3, repeatability only — omit otherwise>
 ```text
 From the arg header above, bind for this session and the lens body below:
   - {RDR_PATH} = RDR:; <rdr-slug> = its filename stem; <lens> = LENS:; <N> = RUN:.
-  - {RDR_ENV} = the seam path map; it defines the lens-output base. Bind it with
-    `eval "$("$RDR_HOME/bin/rdr" env)"` → `$RDR_ENV`. It applies nearest-wins (a
-    repo-local `.rdr/workspace` beats the shared `$WS/.rdr-workspace`), so
-    **never** source `$WS/.rdr-workspace` directly — under a repo-local marker
-    that binds another project's seam. The base for this run is whatever
-    {RDR_ENV}'s {EVIDENCE_DIR} row resolves to for this <rdr-slug>/<lens>
-    (per-RDR-first: `<rdr-slug>/evidence/<lens>/`).
-  - {EVIDENCE_DIR} from the RDR's `**Status**:` line, under that resolved base: a
-    re-entry qualifier (`Draft [revised from Final <date>; re-verify <IDs> —
-    <reason>]`) → the `<rdr-slug>/evidence/<lens>/iter-N/` subfolder, N = 1 + the
-    highest existing iter-* (loose files = iteration 1; never overwrite one), and
-    scope to the `re-verify <IDs>` delta per any `## Refinement Context` note, not
-    the whole draft. Otherwise the `<rdr-slug>/evidence/<lens>/` base itself (first pass).
+  - {EVIDENCE_DIR} and this pass's iteration, in one call:
+    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
+    `$EVIDENCE_DIR` (the lens base) and `$ITER` / `$ITER_DIR` (where THIS pass
+    writes: the base at `ITER=1`, an `iter-N/` subfolder after — never
+    overwriting one). It reads the seam itself, nearest-wins, so nothing sources
+    a marker by hand. On a re-entry qualifier (`Draft [revised from Final <date>;
+    re-verify <IDs> — <reason>]`) also scope to the `re-verify <IDs>` delta per
+    any `## Refinement Context` note, not the whole draft.
 Having read {RDR_ENV}, run the lens body against {RDR_PATH}, writing its element
 files to {EVIDENCE_DIR}. The body's {RDR_PATH}/{EVIDENCE_DIR}/<N> are already bound.
 

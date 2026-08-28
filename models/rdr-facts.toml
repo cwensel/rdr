@@ -66,6 +66,73 @@ var    = "RDR_EVIDENCE"
 suffix = ""
 
 # ===========================================================================
+# Iteration — where a re-entry pass writes, declared rather than guessed
+# ===========================================================================
+#
+# `rdr paths` answers the two questions six skill and prompt sites used to
+# hand-build: WHERE does this lens write, and WHICH iteration is next. Both
+# were prose restated per site — the shape that produced a live defect when
+# two of them named a directory the migration had moved, and nothing noticed
+# because a wrong path reads as "the lens never ran".
+#
+# The convention is DATA and not a regex in the binary, for the reason the
+# roots above are: this tool is pointed at more than one document family and
+# more than one seam. The reference workspace alone binds two disjoint ones —
+# a shared marker whose records and evidence live in different repos, and a
+# repo-local marker where `RDR_EVIDENCE = RDR_RECORDS` collapses them into
+# `<slug>/{evidence,artifacts}/`. Both work today only because the roots are
+# declared. Teaching this file a third tree must stay a TOML edit.
+#
+# NOT A GLOB, and the distinction is the one the probe rule rests on. A probe
+# names one path because guessing is how a lens that ran reads as un-run.
+# `--next-iter` names nothing: it LISTS the directory and reports the segments
+# it found. Nothing is predicted, the tree is asked — the same argument
+# `cluster-member` already makes for reading `cluster-reconcile/` by name.
+#
+# NON-CONTIGUOUS IS REAL, so the answer carries what it saw. On the reference
+# corpus `0122-0123-0130-0131-0132` holds `iter-3` with no `iter-2`. Next is
+# 1 + the HIGHEST found, never the lowest absent: reusing a gap's number would
+# file a later report under an earlier one and put a reader's history backwards.
+# The segments found travel with the answer so the gap is visible rather than
+# silently inherited.
+[iteration]
+# The segment a re-entry pass appends. `{n}` is the iteration, and it is a
+# directory name — the whole vocabulary, so a tree that spells it otherwise
+# is declared below rather than pattern-matched here.
+segment = "iter-{n}"
+# Iteration 1 is the LOOSE files directly under the base, not `iter-1/`.
+# rdr-common §evidence states it and the corpus agrees: no `iter-1` exists
+# anywhere. So a base holding files and no segment is iteration 1, and the
+# next pass is 2.
+first = "loose"
+
+# The per-lens tree: `$RDR_EVIDENCE/<slug>/evidence/<lens>/`, the base a
+# Stage-5 lens writes to and the one `--lens` selects.
+[iteration.tree.lens]
+root  = "evidence"
+under = "{lens}"
+
+# Stage 7.1's tree, the one output NOT under the record: it is keyed by the
+# cluster because one run reconciles a set and writes one directory for all
+# of them. `{key}` is the members' numbers joined, which is what makes the
+# key the membership — see `cluster_key` below, which reads these same
+# directories by name.
+[iteration.tree.cluster]
+root  = "evidence-root"
+under = "cluster-reconcile/{key}"
+
+# The per-RDR siblings that are not lenses. They take iterations by the same
+# rule (07-finalize: "first run `tooling-pass.md`; re-runs `iter-N/`"), so
+# they are declared rather than special-cased at the call site.
+[iteration.tree.spikes]
+root  = "evidence"
+under = "spikes"
+
+[iteration.tree.tooling-pass]
+root  = "evidence"
+under = "tooling-pass"
+
+# ===========================================================================
 # The record half — fields off the projection
 # ===========================================================================
 

@@ -14,8 +14,10 @@ From the arg header above, bind for this session:
     under a repo-local marker that binds another project's seam. Keep it in the
     same shell as any command reading `$RDR_ENV`/`$EVIDENCE_DIR` (state dies
     between calls — re-run, don't carry).
-  - {EVIDENCE_DIR} = the lens-output dir {RDR_ENV} resolves to for this RDR's
-    <rdr-slug>/evidence/<lens>/ (highest iter-N if it has iter-* subfolders).
+  - {EVIDENCE_DIR} = the lens-output dir, from
+    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"`.
+    Read the findings from `$ITER_DIR` — the pass that just ran wrote there
+    (`$ITER_FOUND` names the iterations on disk; at `ITER=1` it is the base).
 
 For the RDR at {RDR_PATH}, resolve each finding one by one. Read the findings
 from {EVIDENCE_DIR} — its consolidation / findings / diff file (e.g.
