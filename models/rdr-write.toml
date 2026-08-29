@@ -142,6 +142,17 @@ kind          = "bool"
 single_valued = true
 required      = true
 
+# Whether that gate.md PREDATES a re-entry's demote date. A re-entered
+# `Draft [revised from Final <date>; …]` keeps the gate.md its Final
+# earned, so `gate_written` alone would let the record lock over a gate
+# that never saw the rework. Only a re-entry has a demote date, so a
+# first-pass Draft renders `false` — the declared absent sentinel.
+[tags.gate_stale]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
 # ===========================================================================
 # claim — reserve the next number, atomically
 # ===========================================================================
@@ -545,7 +556,9 @@ surface = "the row's old and new Status, so a flip nobody intended is visible"
 # and decides; `--outcome lock` is the caller asserting READY. This
 # answers only "given READY, what is the edit".
 
-# A Draft with its gate written → the full lock.
+# A Draft with its gate written, and written SINCE any re-entry → the
+# full lock. `gate_stale` is the second half of the guard: a re-entered
+# record's old gate.md satisfies `gate_written` and must not lock.
 [[rule]]
 id = "lock-draft"
 [rule.match.recognized]
@@ -554,6 +567,8 @@ eq = "lock"
 eq = "Draft"
 [rule.guard.all.gate_written]
 eq = "true"
+[rule.guard.all.gate_stale]
+eq = "false"
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -563,6 +578,26 @@ edit   = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Final/"
 sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
 why    = "Gate written and the record is a Draft — move the four judged responses out, keep the cited one, flip to Final."
 surface = "that the README row is flipped in the same pass (`--outcome readme`), and that the commit is a standalone `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`, never a fixup!"
+
+# A Draft whose gate.md predates its re-entry → refuse. The file is
+# there, so `gate_written` reads true, but it was written for the Final
+# that 7.1 demoted and has never seen the rework; locking over it is the
+# pre-gate lock only skill sequencing has stood between. The gate is owed
+# again, and `/rdr-finalize` re-gates before it locks.
+[[rule]]
+id = "lock-gate-stale"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.gate_written]
+eq = "true"
+[rule.guard.all.gate_stale]
+eq = "true"
+[rule.emit]
+op   = "stopped:gate-stale"
+why  = "{ARTIFACT_DIR}/gate.md predates this record's re-entry — it judged the Final that was demoted, not the rework, so the gate is owed again before the lock."
+surface = "the gate.md date beside the demote date from the Status qualifier; re-run the gate (`/rdr-finalize` re-gates, overwriting gate.md) and lock only from that pass"
 
 # A Draft with NO gate.md → refuse. The responses have to exist before
 # the record can point at them; a pointer to an absent file is worse than

@@ -544,16 +544,49 @@ func TestRoutingModelLints(t *testing.T) {
 		}
 		bin = found
 	}
-	model := repoFile(t, filepath.Join("models", routingModelName))
-	out, err := exec.Command(bin, "lint", "--model", model, "--as", "json").CombinedOutput()
-	if err != nil {
-		t.Fatalf("intrastate lint refused the shipped model: %v\n%s", err, out)
+	// Both models: the write model's refuse cases are cells too, and a
+	// guard added to one lock row opens a gap another row has to close.
+	for _, name := range routingModelNames {
+		model := repoFile(t, filepath.Join("models", name))
+		out, err := exec.Command(bin, "lint", "--model", model, "--as", "json").CombinedOutput()
+		if err != nil {
+			t.Fatalf("intrastate lint refused the shipped model %s: %v\n%s", name, err, out)
+		}
+		// Exit 0 still carries advisories, and one of them matters: a table
+		// closed by a bare escape row is closed, not proved. These models
+		// claim every cell positively, so the advisory must be absent.
+		if strings.Contains(string(out), "graph-coverage-closed-by-escape") {
+			t.Errorf("%s: coverage is closed by an escape row rather than proved over its domains:\n%s", name, out)
+		}
 	}
-	// Exit 0 still carries advisories, and one of them matters: a table
-	// closed by a bare escape row is closed, not proved. This model
-	// claims every cell positively, so the advisory must be absent.
-	if strings.Contains(string(out), "graph-coverage-closed-by-escape") {
-		t.Errorf("the model's coverage is closed by an escape row rather than proved over its domains:\n%s", out)
+}
+
+// TestLockReadsGateStale pins the write model's lock group to the fact
+// 52e31a1 added for it: a re-entered Draft keeps the gate.md its Final
+// earned, so `gate_written` alone would lock over a gate that never saw
+// the rework. The full lock must guard on `gate_stale` and a refusing row
+// must claim the stale cell — the seam that the rdr-status signal table's
+// `7 Finalize` row already promises.
+func TestLockReadsGateStale(t *testing.T) {
+	m := loadRoutingModelNamed(t, "rdr-write.toml")
+	if _, ok := m.Kinds["gate_stale"]; !ok {
+		t.Fatal("rdr-write.toml does not declare gate_stale; lock-draft can resolve over a pre-demote gate.md")
+	}
+	guards := map[string]map[string][]string{}
+	for _, a := range m.Atoms {
+		if guards[a.Rule] == nil {
+			guards[a.Rule] = map[string][]string{}
+		}
+		guards[a.Rule][a.Key] = a.Literals
+	}
+	if got := guards["lock-draft"]["gate_stale"]; len(got) != 1 || got[0] != "false" {
+		t.Errorf("lock-draft guards gate_stale on %v, want exactly [false]", got)
+	}
+	if got := guards["lock-gate-stale"]["gate_stale"]; len(got) != 1 || got[0] != "true" {
+		t.Errorf("lock-gate-stale guards gate_stale on %v, want exactly [true]", got)
+	}
+	if op := m.Emits["lock-gate-stale"]["op"]; !strings.HasPrefix(op, "stopped:") {
+		t.Errorf("lock-gate-stale emits op %q; a stale gate must refuse, not lock", op)
 	}
 }
 
