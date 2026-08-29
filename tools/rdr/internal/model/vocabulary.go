@@ -1,8 +1,8 @@
 package model
 
 import (
-	"sort"
 	"regexp"
+	"sort"
 	"strings"
 )
 

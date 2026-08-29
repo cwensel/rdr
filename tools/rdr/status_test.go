@@ -482,9 +482,9 @@ func TestTagsSurviveABracketedModelID(t *testing.T) {
 // setRows is the parsed `--json` envelope of a set call.
 type setRows struct {
 	Records []struct {
-		Record string  `json:"record"`
-		Path   string  `json:"path"`
-		Facts  []Fact  `json:"facts"`
+		Record string `json:"record"`
+		Path   string `json:"path"`
+		Facts  []Fact `json:"facts"`
 	} `json:"records"`
 	Skipped []map[string]string `json:"skipped"`
 }
