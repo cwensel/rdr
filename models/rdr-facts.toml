@@ -803,9 +803,8 @@ description = "The first lens whose evidence predates the re-entry's demote date
 # The gate responses predate the demote. `gate_written` beside it says the
 # file exists; a Draft re-entered after its lock keeps that file, and a
 # re-lock that reads it as discharged is the same folder-existence error
-# one level up. Nothing routes on it yet — the lock outcome lives in
-# rdr-write.toml and should refuse on it — so it is rendered for the
-# Stage-7 row and for that rule when it lands.
+# one level up. rdr-write.toml's lock outcome refuses on it
+# (`lock-gate-stale`), and the Stage-7 row renders it.
 [fact.gate_stale]
 kind        = "bool"
 source      = "stale-path"
