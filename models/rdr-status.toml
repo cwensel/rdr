@@ -220,6 +220,20 @@ kind          = "bool"
 single_valued = true
 required      = true
 
+# The first row lens whose evidence predates a re-entry's demote date.
+# `none` is both "fresh" and the absent sentinel, so a Final or a
+# first-pass Draft always lands in the cells the existing rows claim.
+# The stale rows below fire on a profile's OWN row lenses only; an
+# off-row lens answering here (a `mid` record with old `cove/`) is not
+# owed and changes nothing, which is why every row of a profile carries
+# `unless lens_stale in <its row>` rather than `eq none`.
+[tags.lens_stale]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "cove", "grounding", "3amigo", "critique", "repeatability"]
+single_valued = true
+required      = true
+
 # --- the completion dimensions --------------------------------------------
 #
 # These answer whether a lens that RAN is FINISHED. The `lens` group
@@ -589,7 +603,7 @@ surface = "the Critical Assumptions section's lines, to be read directly"
 # `lens` — the Stage-5 lens row (rdr-common.md §lens-row)
 # ===========================================================================
 #
-# Dimensions: profile × the five lens flags × reconcile.
+# Dimensions: profile × the five lens flags × lens_stale.
 #
 # §lens-row is the one authority for the row, the first-lens fork and the
 # completion rules, and this group is that table:
@@ -654,6 +668,8 @@ eq = "lens"
 eq = "mid"
 [rule.guard.all.lens_grounding]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo"]
 [rule.emit]
 next = "/rdr-prelock grounding"
 why  = "Profile mid — grounding is the first lens of the row and has not run."
@@ -668,6 +684,8 @@ eq = "mid"
 eq = "true"
 [rule.guard.all.lens_3amigo]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
 why  = "Profile mid — grounding has run; 3amigo is the next row entry."
@@ -688,6 +706,8 @@ eq = "mid"
 eq = "true"
 [rule.guard.all.lens_3amigo]
 eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo"]
 [rule.emit]
 next    = "/rdr-reconcile"
 why     = "Profile mid — the grounding -> 3amigo row is complete."
@@ -703,6 +723,8 @@ eq = "lens"
 eq = "large"
 [rule.guard.all.lens_grounding]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock grounding"
 why  = "Profile large — grounding is the first lens of the row and has not run."
@@ -717,6 +739,8 @@ eq = "large"
 eq = "true"
 [rule.guard.all.lens_3amigo]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
 why  = "Profile large — 3amigo is the next row entry."
@@ -733,6 +757,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_critique]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock critique"
 why  = "Profile large — critique is the last row entry and has not run."
@@ -749,6 +775,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_critique]
 eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next    = "/rdr-reconcile"
 why     = "Profile large — the grounding -> 3amigo -> critique row is complete."
@@ -769,6 +797,8 @@ eq = "lens"
 eq = "foundational"
 [rule.guard.all.lens_cove]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-prelock cove"
 why  = "Profile foundational — cove leads the row (it subsumes grounding's sweep as Step 0) and has not run."
@@ -783,6 +813,8 @@ eq = "foundational"
 eq = "true"
 [rule.guard.all.lens_3amigo]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
 why  = "Profile foundational — 3amigo is the next row entry."
@@ -799,6 +831,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_critique]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next    = "/rdr-prelock critique"
 why     = "Profile foundational — critique is the next row entry."
@@ -818,6 +852,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability]
 eq = "false"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next    = "/rdr-prelock repeatability"
 why     = "Profile foundational — repeatability is the last row entry and has not run."
@@ -837,9 +873,140 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability]
 eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-reconcile"
 why  = "Profile foundational — the cove -> 3amigo -> critique -> repeatability row is complete."
+
+# --- re-entered: the evidence predates the demote --------------------------
+#
+# A `Draft [revised from Final <date>; …]` keeps every folder its Final
+# earned, so the rows above would read its row complete and route to
+# reconcile over a battery that never saw the rework — measured: three
+# prose overrides in one run. `lens_stale` names the first ROW lens whose
+# newest evidence predates the demote date, and these rows send it back
+# to that lens; the profile's other rows exclude these cells with
+# `unless`, so each cell is still claimed once. Off-row values fall
+# through to the ordinary rows: `small` owes no lens, and a `mid` record
+# is not sent to re-run a `cove/` it was never owed.
+
+[[rule]]
+id = "lens-mid-stale-grounding"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_stale]
+eq = "grounding"
+[rule.emit]
+next    = "/rdr-prelock grounding"
+why     = "Re-entered — grounding's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-mid-stale-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_stale]
+eq = "3amigo"
+[rule.emit]
+next    = "/rdr-prelock 3amigo"
+why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-large-stale-grounding"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_stale]
+eq = "grounding"
+[rule.emit]
+next    = "/rdr-prelock grounding"
+why     = "Re-entered — grounding's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-large-stale-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_stale]
+eq = "3amigo"
+[rule.emit]
+next    = "/rdr-prelock 3amigo"
+why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-large-stale-critique"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_stale]
+eq = "critique"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Re-entered — critique's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-foundational-stale-cove"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_stale]
+eq = "cove"
+[rule.emit]
+next    = "/rdr-prelock cove"
+why     = "Re-entered — cove's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-foundational-stale-3amigo"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_stale]
+eq = "3amigo"
+[rule.emit]
+next    = "/rdr-prelock 3amigo"
+why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-foundational-stale-critique"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_stale]
+eq = "critique"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Re-entered — critique's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
+
+[[rule]]
+id = "lens-foundational-stale-repeatability"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_stale]
+eq = "repeatability"
+[rule.emit]
+next    = "/rdr-prelock repeatability"
+why     = "Re-entered — repeatability's evidence predates the demote date, so the row is not current."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
 # NO ESCAPE ROW HERE EITHER. The product ranges over every lens flag for
 # every profile, so cells exist that no row names in prose — a `small`

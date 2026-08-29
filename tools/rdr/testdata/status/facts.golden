@@ -41,6 +41,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    false
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
@@ -92,6 +94,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    false
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    true
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
@@ -141,6 +145,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    false
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    true
 impl_state                   enum    IN-PROGRESS
@@ -191,6 +197,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    true
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    true
@@ -240,6 +248,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    false
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
@@ -286,6 +296,8 @@ reconcile_report_alt         bool    false
 reconcile_report_alt2        bool    false
 iter_2                       bool    false
 legacy_evidence_shape        bool    false
+lens_stale                   enum    none
+gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false

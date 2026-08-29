@@ -22,6 +22,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/model"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
@@ -828,7 +829,7 @@ var stageFacts = map[string][]string{
 		"critique_models", "repeatability_variant",
 	},
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
-	"7 Finalize":  {"status", "gate_written"},
+	"7 Finalize":  {"status", "gate_written", "gate_stale"},
 	// 7.1 Cluster reads three different things, and all are facts.
 	// `cluster` is what the record DECLARES, which is what the tandem
 	// barrier reads and what the row surfaces; `clustered` is that
@@ -1439,4 +1440,133 @@ func TestReadmeRowMatchesOnTheNumberNotTheTitle(t *testing.T) {
 	if !ok || got != "Final" {
 		t.Errorf("readme_status = %q (present %v); a drifted title must not hide the row", got, ok)
 	}
+}
+
+// TestStaleLensDatesEvidenceAgainstTheDemote covers the four readings
+// the freshness facts make: a content `Date:` outranks the mtime, the
+// mtime dates a file with no stamp, a re-run under iter-N makes the lens
+// current however old the loose pass is, and a record with no demote
+// date can never read stale at all.
+func TestStaleLensDatesEvidenceAgainstTheDemote(t *testing.T) {
+	tbl := loadRealTable(t)
+	slug := "0029-synthetic-reentry"
+	reentered := "Draft [revised from Final 2026-08-20; re-verify none — synthetic rework]"
+	old := time.Date(2026, 8, 1, 12, 0, 0, 0, time.Local)
+
+	run := func(t *testing.T, status string, lay func(evidence, records string)) []Fact {
+		t.Helper()
+		evidence, records := newEvidenceTree(t, slug, nil, nil)
+		if err := os.MkdirAll(records, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		lay(evidence, records)
+		doc := recordAt(t, records, slug, status)
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.Doc, e.readDir = doc, os.ReadDir
+		return tbl.Evaluate(e)
+	}
+	touch := func(t *testing.T, evidence, rel string, when time.Time) {
+		t.Helper()
+		full := filepath.Join(evidence, slug, "evidence", filepath.FromSlash(rel))
+		if err := os.Chtimes(full, when, when); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	t.Run("a Date header predating the demote is stale whatever the mtime says", func(t *testing.T) {
+		facts := run(t, reentered, func(ev, _ string) {
+			writeEvidence(t, ev, slug, "grounding/findings.md", "Model: m\nDate: 2026-08-10. Verdict: ok\n")
+		})
+		if v, _ := factValue(facts, "lens_stale"); v != "grounding" {
+			t.Fatalf("lens_stale = %q, want grounding", v)
+		}
+	})
+	t.Run("an unstamped file is dated by its mtime", func(t *testing.T) {
+		facts := run(t, reentered, func(ev, _ string) {
+			writeEvidence(t, ev, slug, "3amigo/consolidation.md", "Model: m\n")
+			touch(t, ev, "3amigo/consolidation.md", old)
+		})
+		if v, _ := factValue(facts, "lens_stale"); v != "3amigo" {
+			t.Fatalf("lens_stale = %q, want 3amigo", v)
+		}
+		facts = run(t, reentered, func(ev, _ string) {
+			writeEvidence(t, ev, slug, "3amigo/consolidation.md", "Model: m\n")
+		})
+		if v, _ := factValue(facts, "lens_stale"); v != "none" {
+			t.Fatalf("a file written now: lens_stale = %q, want none", v)
+		}
+	})
+	t.Run("a re-run under iter-N makes the lens current", func(t *testing.T) {
+		facts := run(t, reentered, func(ev, _ string) {
+			writeEvidence(t, ev, slug, "cove/findings.md", "Model: m\n")
+			touch(t, ev, "cove/findings.md", old)
+			writeEvidence(t, ev, slug, "cove/iter-2/findings.md", "Model: m\nDate: 2026-08-20\n")
+		})
+		if v, _ := factValue(facts, "lens_stale"); v != "none" {
+			t.Fatalf("lens_stale = %q, want none (same-day iter-2 is fresh)", v)
+		}
+	})
+	t.Run("the first stale lens in row order is named", func(t *testing.T) {
+		facts := run(t, reentered, func(ev, _ string) {
+			writeEvidence(t, ev, slug, "cove/findings.md", "Date: 2026-08-21\n")
+			writeEvidence(t, ev, slug, "3amigo/consolidation.md", "Date: 2026-08-01\n")
+			writeEvidence(t, ev, slug, "critique/critique.md", "Date: 2026-08-01\n")
+		})
+		if v, _ := factValue(facts, "lens_stale"); v != "3amigo" {
+			t.Fatalf("lens_stale = %q, want 3amigo", v)
+		}
+	})
+	t.Run("a Final and a first-pass Draft never read stale", func(t *testing.T) {
+		for _, status := range []string{"Final", "Draft", "Draft [revised from Final 2026-08-20 but not the grammar]"} {
+			facts := run(t, status, func(ev, rec string) {
+				writeEvidence(t, ev, slug, "grounding/findings.md", "Date: 2026-01-01\n")
+				gate := filepath.Join(rec, slug, "artifacts", "gate.md")
+				if err := os.MkdirAll(filepath.Dir(gate), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(gate, []byte("- **Date**: 2026-01-01\n"), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if v, _ := factValue(facts, "lens_stale"); v != "none" {
+				t.Errorf("%s: lens_stale = %q, want none", status, v)
+			}
+			if v, _ := factValue(facts, "gate_stale"); v != "false" {
+				t.Errorf("%s: gate_stale = %q, want false", status, v)
+			}
+		}
+	})
+	t.Run("gate.md is dated by its own header", func(t *testing.T) {
+		facts := run(t, reentered, func(_, rec string) {
+			gate := filepath.Join(rec, slug, "artifacts", "gate.md")
+			if err := os.MkdirAll(filepath.Dir(gate), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.WriteFile(gate, []byte("# Gate\n\n- **Date**: 2026-08-19\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		})
+		if v, _ := factValue(facts, "gate_stale"); v != "true" {
+			t.Fatalf("gate_stale = %q, want true", v)
+		}
+		facts = run(t, reentered, func(_, _ string) {})
+		if v, _ := factValue(facts, "gate_stale"); v != "false" {
+			t.Fatalf("no gate.md: gate_stale = %q, want false (unwritten is not old)", v)
+		}
+	})
+	t.Run("an unbound evidence root leaves both absent", func(t *testing.T) {
+		_, records := newEvidenceTree(t, slug, nil, nil)
+		if err := os.MkdirAll(records, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		doc := recordAt(t, records, slug, reentered)
+		e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
+			readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+		facts := tbl.Evaluate(e)
+		for _, name := range []string{"lens_stale", "gate_stale"} {
+			if _, ok := factValue(facts, name); ok {
+				t.Errorf("%s answered with no root bound", name)
+			}
+		}
+	})
 }

@@ -763,6 +763,57 @@ paths = [
 ]
 description = "Pre-migration evidence exists for this record outside its own directory."
 
+# --- freshness: evidence older than the re-entry ---------------------------
+#
+# Every probe above answers whether evidence EXISTS. On a re-entered record
+# that is the wrong question: `Draft [revised from Final <date>; …]` keeps
+# every folder its Final earned, so the lens row read complete — and routed
+# to reconcile — over a battery that never saw the rework. Three prose
+# overrides in one measured run, each re-deriving "this predates the
+# demote" by hand. These two facts are that reading.
+#
+# The reference point is the DEMOTE DATE the qualifier already carries:
+# content, so it survives a checkout, and by construction the date after
+# which the record changed. Only a re-entered record has one, so a Final or
+# a first-pass Draft can never read stale — both answer the fresh value.
+#
+# The evidence side is dated content-first, mtime last. A file with a
+# `Date:` header (gate.md, reconcile and tooling-pass reports) is dated by
+# it; a file without one — the lens element files carry `Model:` and no
+# date — by its modification time. That fallback is the one
+# non-deterministic read in this table and it fails SAFE: a checkout resets
+# mtimes to now, which reads as fresh, the answer routing gave before these
+# facts existed. Same-day is fresh, so a re-verify landing on the demote
+# date counts.
+
+# The first lens, in row order, whose newest file (loose or under any
+# iter-N) predates the demote date. `none` is both the fresh answer and the
+# absent sentinel: a record with nothing to be older than routes as it did.
+# Cove and grounding are never on one row together, so listing both in
+# this order walks whichever row the profile owns.
+[fact.lens_stale]
+kind        = "enum"
+source      = "stale-lens"
+root        = "evidence"
+paths       = ["cove", "grounding", "3amigo", "critique", "repeatability"]
+domain      = ["none", "cove", "grounding", "3amigo", "critique", "repeatability"]
+absent      = "none"
+description = "The first lens whose evidence predates the re-entry's demote date; none when fresh or not re-entered."
+
+# The gate responses predate the demote. `gate_written` beside it says the
+# file exists; a Draft re-entered after its lock keeps that file, and a
+# re-lock that reads it as discharged is the same folder-existence error
+# one level up. Nothing routes on it yet — the lock outcome lives in
+# rdr-write.toml and should refuse on it — so it is rendered for the
+# Stage-7 row and for that rule when it lands.
+[fact.gate_stale]
+kind        = "bool"
+source      = "stale-path"
+root        = "artifacts"
+path        = "artifacts/gate.md"
+absent      = "false"
+description = "artifacts/gate.md predates the re-entry's demote date."
+
 # --- the artifact half -----------------------------------------------------
 
 # Stage 8's done-signal. The locked gate's four judgement responses move

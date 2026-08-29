@@ -200,6 +200,7 @@ var factSources = map[string]bool{
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
+	"stale-lens": true, "stale-path": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -210,6 +211,7 @@ var factSources = map[string]bool{
 var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
 	"cluster-key": true, "header-field": true, "readme-row": true,
+	"stale-lens": true, "stale-path": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -396,6 +398,25 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Path == "" {
 			return d, fmt.Errorf("fact %q: a section-prose names the section it reads", name)
 		}
+	case "stale-lens":
+		// The paths ARE the answer's vocabulary: the fact names the first
+		// stale one, so every path must be a declared member and `none`
+		// must be there for a row to claim the fresh cell.
+		if d.Root == "" || len(d.Paths) == 0 || d.Kind != "enum" {
+			return d, fmt.Errorf("fact %q: a stale-lens is an enum naming a root and paths", name)
+		}
+		if !slices.Contains(d.Domain, "none") {
+			return d, fmt.Errorf("fact %q: a stale-lens domain declares none, the fresh answer", name)
+		}
+		for _, p := range d.Paths {
+			if !slices.Contains(d.Domain, p) {
+				return d, fmt.Errorf("fact %q: path %q is not in the domain it answers with", name, p)
+			}
+		}
+	case "stale-path":
+		if d.Root == "" || d.Path == "" || d.Kind != "bool" {
+			return d, fmt.Errorf("fact %q: a stale-path is a bool naming a root and a path", name)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
 		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
@@ -549,6 +570,10 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.sectionProse(d)
 	case "readme-row":
 		return e.readmeRow(d)
+	case "stale-lens":
+		return e.staleLens(d)
+	case "stale-path":
+		return e.stalePath(d)
 	}
 	return Fact{}, false
 }
@@ -1280,6 +1305,168 @@ func (e *FactEnv) clusterKey(d FactDecl) (Fact, bool) {
 		return Fact{}, false
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: best}, true
+}
+
+// --- freshness: is the evidence older than the re-entry? -------------------
+//
+// A lens folder says the lens RAN and its product file says it FINISHED,
+// and on a first pass those two answer the row. On a RE-ENTERED record
+// they do not: a `Draft [revised from Final <date>; …]` keeps every
+// folder its Final earned, so the folder-and-stamp reading answers
+// "row complete → /rdr-reconcile" over a battery that never saw the
+// rework. Measured on a live run: three prose overrides in one pass,
+// each re-litigating "this evidence predates the demote" by hand.
+//
+// The reference point is the DEMOTE DATE the qualifier already carries.
+// It is content, so it survives a fresh checkout, and it is the one date
+// that means "the record changed after this" by construction. Only a
+// re-entered record has one, which is what makes a Final or a first-pass
+// Draft incapable of reading stale: with no demote date there is
+// nothing to be older than, and both facts answer their fresh value.
+//
+// The evidence side is content-first and mtime last. Each file under
+// the lens is dated by a `Date:` stamp in its header where one is
+// written (gate.md, reconcile and tooling-pass reports carry one; the
+// lens element files carry a `Model:` stamp and, mostly, no date), and
+// by its modification time otherwise. The mtime fallback is the one
+// non-deterministic read in this table and it is deliberate: a checkout
+// resets mtimes to NOW, which reads as FRESH — the answer this fact gave
+// before it existed — so the failure mode of the fallback is the status
+// quo, never a spurious re-verify. A lens is dated by its NEWEST file,
+// loose or under any iter-N, so a re-verify pass that wrote iter-3 today
+// makes the lens current however old iter-1 is.
+//
+// Same-day is fresh. A demote and its re-verify routinely land on one
+// date, and a strict "older than" is what lets the re-run count.
+
+// demoteDate is the `revised from Final YYYY-MM-DD` date off the Status
+// qualifier, or "" for any record that is not a scoped re-entry.
+//
+// This is the one place a fact re-reads a qualifier the projector
+// already classified, and it does so with the projector's OWN grammar:
+// the date is not a projected field yet, and `RevisedFromGrammar` is
+// exported precisely so nothing spells the form twice. The form check
+// comes first, so a bracketed near-miss (which lint already names)
+// stays "not a re-entry" here as it does everywhere else.
+func (e *FactEnv) demoteDate() string {
+	if e.Doc == nil {
+		return ""
+	}
+	f := metadataField(e.Doc, "Status")
+	if f == nil || f.Status == nil || f.Status.Form != model.QualifierRevisedFrom.String() {
+		return ""
+	}
+	m := model.RevisedFromGrammar.FindStringSubmatch(strings.TrimSpace(f.Status.Qualifier))
+	if m == nil {
+		return ""
+	}
+	return m[1]
+}
+
+// staleLens names the first declared lens, in the table's order, whose
+// newest evidence predates the demote date; `none` otherwise.
+//
+// The order the table lists the paths in is the row order, and the
+// answer is the FIRST stale one because that is how the lens group
+// walks a row — one lens per answer, the next on the next call. Absent
+// when the evidence root is unbound, like any probe: "no evidence root"
+// is not "nothing is stale".
+func (e *FactEnv) staleLens(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	demoted := e.demoteDate()
+	if demoted == "" {
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "none"}, true
+	}
+	for _, p := range d.Paths {
+		newest := e.newestDate(filepath.Join(base, filepath.FromSlash(p)))
+		if newest != "" && newest < demoted {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: p}, true
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "none"}, true
+}
+
+// stalePath answers whether one file predates the demote date. A
+// missing file is not stale — the existence probe beside it says
+// "unwritten", and this must not say "old" about nothing.
+func (e *FactEnv) stalePath(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	demoted := e.demoteDate()
+	if demoted == "" {
+		return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+	}
+	dated := e.fileDate(filepath.Join(base, filepath.FromSlash(d.Path)))
+	return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(dated != "" && dated < demoted)}, true
+}
+
+// newestDate is the latest fileDate under a directory, recursively, or
+// "" when there is no file to date. Dotfiles are skipped as nextIteration
+// skips them: an editor's swap file is not evidence.
+func (e *FactEnv) newestDate(dir string) string {
+	if e.readDir == nil {
+		return ""
+	}
+	entries, err := e.readDir(dir)
+	if err != nil {
+		return ""
+	}
+	newest := ""
+	for _, ent := range entries {
+		if strings.HasPrefix(ent.Name(), ".") {
+			continue
+		}
+		full := filepath.Join(dir, ent.Name())
+		var d string
+		if ent.IsDir() {
+			d = e.newestDate(full)
+		} else {
+			d = e.fileDate(full)
+		}
+		if d > newest {
+			newest = d
+		}
+	}
+	return newest
+}
+
+// dateStamp is the YYYY-MM-DD a `Date:` header opens with. Anchored so
+// `Date: 2026-08-22. Verdict: …` yields the date and nothing after it.
+var dateStamp = regexp.MustCompile(`^(\d{4}-\d{2}-\d{2})`)
+
+// fileDate dates one file: its `Date:` header if it writes one, else its
+// mtime as a calendar day in local time. "" when the file is unreadable.
+func (e *FactEnv) fileDate(path string) string {
+	raw, err := e.readFile(path)
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(string(raw), "\n")
+	if len(lines) > headerLines {
+		lines = lines[:headerLines]
+	}
+	for _, ln := range lines {
+		bare := strings.TrimSpace(strings.NewReplacer("**", "", "*", "", "_", "", "`", "", "- ", "").Replace(ln))
+		if len(bare) < len("date:") || !strings.EqualFold(bare[:len("date:")], "date:") {
+			continue
+		}
+		if m := dateStamp.FindStringSubmatch(strings.TrimSpace(bare[len("date:"):])); m != nil {
+			return m[1]
+		}
+	}
+	if e.statPath == nil {
+		return ""
+	}
+	fi, err := e.statPath(path)
+	if err != nil {
+		return ""
+	}
+	return fi.ModTime().Format("2006-01-02")
 }
 
 func boolLiteral(b bool) string {

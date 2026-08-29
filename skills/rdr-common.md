@@ -497,7 +497,9 @@ names. Test the binary, never the exit code.
 
 It answers with the next command and its reason, and returns
 `stopped:no-profile` when the `Profile` field is absent — a §stop-packet, never
-a default. The row it walks (`small` skips Stage 5; `mid` grounding → 3amigo;
+a default. On a re-entered Draft it also names a row lens whose evidence
+predates the qualifier's demote date (`lens_stale`), since a folder its Final
+earned is not a lens run over the rework. The row it walks (`small` skips Stage 5; `mid` grounding → 3amigo;
 `large` + critique; `foundational` cove → 3amigo → critique → repeatability,
 leading with cove because cove subsumes grounding's sweep), the
 first-missing-lens rule, and the additive-never-shrinks rule are all encoded
