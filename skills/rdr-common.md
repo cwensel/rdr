@@ -341,7 +341,12 @@ property of the RDR's on-disk state, which the prompt already inspects.
   with "never `sed`/`grep` the record". The spawn prompt also carries the shell
   rule: output separators are `---`, never `===` — zsh aborts an unquoted
   `=`-leading word (`=== not found`), poisoning the turn and skipping every
-  chained call.
+  chained call. Two more lines for the brief: cap each Bash call's expected
+  output — batch selects only up to a few KB, split anything larger (an
+  overflow past the ~30KB cap costs a file + read-back round-trip); and a
+  sub-agent that owes an evidence file (a lens contract's `findings.md`, a
+  persona file) writes it with a Bash heredoc, never the Write tool — some
+  harnesses refuse sub-agent Writes and return only text.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
