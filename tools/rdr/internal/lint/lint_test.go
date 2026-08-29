@@ -536,3 +536,98 @@ func TestPeerElementHintNamesRealElements(t *testing.T) {
 		t.Errorf("hint without the peer lost the form or the command: %s", alone)
 	}
 }
+
+// record builds a minimal document for the peer rules: a Metadata block
+// carrying the Overrides value given, and one Peer-RDR assumption whose
+// Evidence is the text given.
+func record(t *testing.T, number, overrides, evidence string) *scan.Document {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString("# Recommendation " + number + ": Peer shapes\n\n## Metadata\n\n")
+	b.WriteString("- **Date**: 2026-08-29\n- **Status**: Draft\n")
+	if overrides != "" {
+		b.WriteString("- **Overrides**: " + overrides + "\n")
+	}
+	b.WriteString("\n## Critical Assumptions\n\n- **A1 [Load-bearing]**: the peer holds.\n")
+	b.WriteString("  - **Status**: Verified\n  - **Method**: Peer RDR\n")
+	b.WriteString("  - **Evidence**: " + evidence + "\n")
+	return scan.Bytes([]byte(b.String()), scan.Options{})
+}
+
+func pair(t *testing.T, a, b *scan.Document) []*scan.Document {
+	t.Helper()
+	docs := []*scan.Document{a, b}
+	scan.NewResolver(docs, "").ResolveAll(docs)
+	return docs
+}
+
+// TestPeerEvidenceIsDischargedPerPeer is the 0113 refine session's shape:
+// the Evidence cites `cli/0112:A11` and `cli/0112:A7`, then says
+// `cli/0112 is Draft`. The bare mention is prose once an element cite
+// stands beside it; six lint iterations pronoun-ified accurate text to
+// clear a finding that should not have been lit. A peer with only bare
+// mentions still fires, and a second peer is judged on its own cites.
+func TestPeerEvidenceIsDischargedPerPeer(t *testing.T) {
+	cited := record(t, "0113", "",
+		"cli/0112:A11 states the scan posture and cli/0112:A7 the fold; cli/0112 is Draft, so 7.1 reconciles.")
+	if r := Run(cited, Options{}); has(r, "peer-evidence:no-element") {
+		t.Errorf("a bare mention beside two element cites to the same peer fired: %v", codes(r))
+	}
+
+	bare := record(t, "0113", "", "cli/0112 is Draft and its fold is the authority here.")
+	if r := Run(bare, Options{}); !has(r, "peer-evidence:no-element") {
+		t.Errorf("a peer cited only as a record did not fire: %v", codes(r))
+	}
+
+	mixed := record(t, "0113", "", "cli/0112:A11 holds; cli/0092 is where the purpose rungs live.")
+	r := Run(mixed, Options{})
+	var fired []string
+	for _, f := range r.Findings {
+		if f.Code == "peer-evidence:no-element" {
+			fired = append(fired, f.Message)
+		}
+	}
+	if len(fired) != 1 || !strings.Contains(fired[0], "cli/0092") {
+		t.Errorf("element cite to one peer must not discharge a second peer's bare mention: %v", fired)
+	}
+}
+
+// TestOwnershipMutualIsCorroboratedFromBothFields is the other half of the
+// same session. 0113's Overrides field overrides cli/0092 and names
+// cli/0112 inside that clause as context; 0112's field names 0113 the
+// same way. Both tokens mint overrides edges, so the old rule read a
+// cycle out of two context mentions. The pair is asserted only when each
+// record LEADS a clause of the other's field.
+func TestOwnershipMutualIsCorroboratedFromBothFields(t *testing.T) {
+	a := record(t, "0113",
+		"cli/0103 REQ-13's file grain; **cli/0092**'s `classifyPurpose` default rung is overridden only where the inference lands outside cli/0112's fold admission band.",
+		"cli/0112:A11")
+	b := record(t, "0112",
+		"cli/0103 REQ-40 narrows-only selection; also narrows Draft cli/0106 I-4(a), which is what cli/0113 E-1's ordinal orders.",
+		"cli/0113:A1")
+	docs := pair(t, a, b)
+	for _, d := range docs {
+		if r := Run(d, Options{Corpus: docs}); has(r, "ownership:mutual") {
+			t.Errorf("%s: two context mentions were read as a cycle: %v", d.Record, find(t, r, "ownership:mutual").Message)
+		}
+	}
+
+	// The real cycle still fires from either side.
+	x := record(t, "0113", "cli/0112's fold, replaced by the grammar's ordinal.", "cli/0112:A1")
+	y := record(t, "0112", "cli/0113 E-1's ordinal, replaced by the fold.", "cli/0113:A1")
+	docs = pair(t, x, y)
+	for _, d := range docs {
+		if r := Run(d, Options{Corpus: docs}); !has(r, "ownership:mutual") {
+			t.Errorf("%s: a corroborated mutual override did not fire: %v", d.Record, codes(r))
+		}
+	}
+
+	// One side leading, the other mentioning, is not a cycle either —
+	// and a peer not in hand asserts nothing.
+	if r := Run(x, Options{Corpus: pair(t, x, b)}); has(r, "ownership:mutual") {
+		t.Error("a lead on one side and a context mention on the other was asserted mutual")
+	}
+	if r := Run(x, Options{Corpus: []*scan.Document{x}}); has(r, "ownership:mutual") {
+		t.Error("mutual asserted with the peer out of hand")
+	}
+}
