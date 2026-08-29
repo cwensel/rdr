@@ -233,19 +233,32 @@ func usageFacet(cmd string, f *flags, target string) string {
 	}
 	switch cmd {
 	case "inspect":
-		if f.sel != nil && *f.sel != "" {
-			return "select:" + selectorClass(*f.sel)
+		// A named set reads several files in one call — the arity that
+		// replaces a chain of single calls — so it is named as `status`
+		// names its own, and every --select is carried: a log that
+		// collapsed `--select A20 --select A21` to one select would read
+		// the accumulation this exists to measure as never used.
+		which := ""
+		if f.argc > 1 {
+			which = "records:"
+		}
+		if len(f.sel.values) > 0 {
+			classes := make([]string, 0, len(f.sel.values))
+			for _, sel := range f.sel.values {
+				classes = append(classes, selectorClass(sel))
+			}
+			return which + "select:" + strings.Join(classes, ",")
 		}
 		if f.json != nil && *f.json {
 			if f.filter != nil && *f.filter != "" {
 				// The filter is the whole difference between the 150KB
 				// envelope and an 800-byte answer; a log that cannot tell
 				// them apart cannot audit what --filter saves.
-				return "json:" + strings.ReplaceAll(*f.filter, " ", "")
+				return which + "json:" + strings.ReplaceAll(*f.filter, " ", "")
 			}
-			return "json"
+			return which + "json"
 		}
-		return "text"
+		return which + "text"
 	case "index":
 		for _, c := range []struct {
 			on   bool

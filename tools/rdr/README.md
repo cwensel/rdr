@@ -21,6 +21,9 @@ first non-flag word.
     rdr inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
     rdr inspect --select 0055:C4 0055      # the bytes the id names
     rdr inspect --select edges 0055        # the typed relations alone
+    rdr inspect --select 0055:A1 --select 0055:C4 0055   # several, in order; text is the bytes in sequence, --json an array
+    rdr inspect 0055 0056 0057             # a named set: each record's projection in turn, --json with identity per row
+    rdr inspect cli/0055:C4                # the corpus's own citation spelling, as printed by lint, reaches the bytes
     rdr index --derived --records ../rdr/cli
     rdr index --coverage --records ../rdr/cli
     rdr index --unresolved --records ../rdr/cli --repo ../src
@@ -1236,6 +1239,36 @@ harness happened to be.
 Each of those is one fewer round-trip. A tool that answers `open 3: no
 such file` to `3` costs a turn to diagnose and a turn to retry, and a
 turn re-sends the whole conversation — far more than the bytes at stake.
+
+The corpus's own citation spelling is a name too: `cli/0055` is record
+0055 when the records dir is called `cli` — the prefix is read off the
+bound dir, never spelled in Go, so another dir's prefix still names
+another dir — and `cli/0055:C4` or `0055:C4` as the positional selects
+that element. Lint prints citations in exactly this form, so a finding's
+id pastes back as a working call.
+
+**`--select` repeats, and answers in order.** `--select A20 --select A21`
+used to return A21 alone with no word said (Go's flag package keeps the
+last value), and sessions fell back to one call per element — 64 selects
+in one refine pass. Now each select is answered as it would be alone:
+text element selects print their bytes in sequence, JSON is an array of
+the single forms with a named facet wrapped as `{"select": name, name:
+value}`. A select that names nothing is still `stopped:no-such-element`
+for the whole call, never a partial answer.
+
+**A named set is one call.** `inspect 0097 0108 0110` is each record's
+projection in the order given, resolved by name so only those files are
+read — the arity `status` has, for the same caller: 7.1's critique agent
+held a list of members and tried it twice before falling back. Text is
+each record's own rendering in turn (the summary heads itself with the
+number; element bytes print as the single form prints them); `--json` is
+`{records: [{record, path, value}], skipped: []}`, the form to read when
+the selects span records. A member that does not resolve is a `skipped`
+row with its reason, not a refusal of the whole call — the discipline
+§status states. A citation per member (`inspect cli/0112:A3 cli/0113:A8`)
+reads several records' elements in one call. The usage log names the
+arity (`records:text`, `records:select:element`) and every select class
+(`select:element,element`), so a chain replaced by one call is measurable.
 
 **`--filter` keeps only the top-level keys you name**, comma-separated:
 

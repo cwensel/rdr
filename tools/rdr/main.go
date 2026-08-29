@@ -88,9 +88,13 @@ pay that (~1.5s on a large corpus); every other facet answers from the
 record alone (~20ms).
 inspect with no flag is the summary: one line per element, id and line range —
 the cheap id list (~50 lines); --select elements is every element as JSON,
-~25× larger. --select <id> then names a section or element to read.
-A record is named by number (3, 03, 0003), slug, or path; --records defaults
-to $RDR_RECORDS and a relative one resolves against it.
+~25× larger. --select <id> then names a section or element to read;
+repeat it for several, answered in order. A record is named by number (3,
+03, 0003), slug, path, or the corpus's own citation (cli/0003, and
+cli/0003:A2 selects the element); --records defaults to $RDR_RECORDS and a
+relative one resolves against it. Name SEVERAL records for the set: each
+is resolved by name, one that does not is a "skipped" row, and --json
+carries identity per row.
 
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
@@ -283,10 +287,11 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 // flags holds the values of every declared flag; a subcommand reads only
 // its own.
 type flags struct {
-	json, all, derived    *bool
-	coverage              *bool
-	sel, project, records *string
-	filter                *string
+	json, all, derived *bool
+	coverage           *bool
+	project, records   *string
+	sel                multiString // inspect: every --select, in order
+	filter             *string
 	// argc is how many positional arguments the invocation carried. The
 	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
 	// which are the same verb at two very different costs.
@@ -309,6 +314,14 @@ type flags struct {
 	template            *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
 }
 
+// multiString is a flag given several times. The flag package's String
+// keeps only the last value, which is how `--select A20 --select A21`
+// answered A21 alone without a word; this keeps every one, in order.
+type multiString struct{ values []string }
+
+func (m *multiString) String() string     { return strings.Join(m.values, ",") }
+func (m *multiString) Set(v string) error { m.values = append(m.values, v); return nil }
+
 // declareFlags registers each subcommand's flags. They are declared here —
 // not where a facet reads them — so that `rdr <cmd> --help` states the
 // invocation contract before every facet exists, and so an unknown flag
@@ -323,7 +336,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
-		f.sel = fs.String("select", "", "project one facet: outline|elements|edges|warnings|metadata|fields|anchors|<element-id>")
+		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|<element-id>; repeat for several, answered in order")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
@@ -679,84 +692,203 @@ func recordFiles(paths []string) []string {
 	return out
 }
 
+// inspect is `rdr inspect [flags] NNNN…`: one record's projection, or a
+// NAMED SET of records', each resolved by name so only those files are
+// read. The set is the arity `status` already has, and it exists for the
+// same reason: 7.1's critique agent held a list of members and tried
+// `inspect 0097 0108 0110` twice before falling back to one call per
+// record. A member that does not resolve is a skipped row, not a
+// refusal — a set that answers nothing says nothing about any member.
 func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
-	if len(args) != 1 {
-		fmt.Fprintln(stderr, "stopped:usage (inspect takes exactly one NNNN or path)")
+	if len(args) == 0 {
+		fmt.Fprintln(stderr, "stopped:usage (inspect takes one or more NNNN, citation or path)")
 		return 2
 	}
-	arg := args[0]
-	if record, sel := splitCitation(arg, *f.records); sel != "" {
-		if *f.sel != "" && *f.sel != sel {
-			fmt.Fprintf(stderr, "stopped:usage (%s names an element and --select names %s; pass one)\n", arg, *f.sel)
-			return 2
-		}
-		arg, *f.sel = record, sel
+	for i, sel := range f.sel.values {
+		f.sel.values[i] = localCitation(sel, *f.records)
 	}
-	*f.sel = localCitation(*f.sel, *f.records)
-	path, err := resolve(arg, *f.records)
-	if err != nil {
-		fmt.Fprintln(stderr, err)
-		return 2
-	}
-	doc, err := scan.File(path, scan.Options{Project: *f.project})
-	if err != nil {
-		fmt.Fprintf(stderr, "stopped:unreadable (%v)\n", err)
-		return 2
-	}
-	if doc.Record == "" {
-		fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
-		return 2
-	}
-	if showsEdges(f) {
-		resolveEdges(doc, f, stderr)
-	}
-
-	if f.filter != nil && *f.filter != "" {
-		out, err := filterEnvelope(doc, *f.filter)
+	if len(args) == 1 {
+		r, err := project(args[0], f, stderr)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 2
 		}
-		return emit(out, stdout, stderr)
+		return r.render(f, stdout, stderr)
 	}
+	return inspectSet(args, f, stdout, stderr)
+}
 
-	var out any = doc
-	switch sel := *f.sel; sel {
-	case "":
-	case "outline":
-		out = doc.Outline
-	case "elements":
-		out = doc.Elements
-	case "edges":
-		out = doc.Edges
-	case "warnings":
-		out = doc.Warnings
-	case "metadata":
-		out = doc.Metadata
-	case "fields":
-		out = doc.Fields
-	case "anchors":
-		out = doc.Anchors
-	default:
-		start, end, ok := doc.Select(sel)
-		if !ok {
-			fmt.Fprintf(stderr, "stopped:no-such-element (%s in %s)\n", sel, doc.Record)
-			return 2
-		}
-		if *f.json {
-			out = map[string]any{"id": sel, "line_start": start, "line_end": end,
-				"lines": doc.Slice(start, end)}
-			break
-		}
-		for _, l := range doc.Slice(start, end) {
+// projection is what one record answers: the JSON value when the call is
+// a JSON one, the element lines when it is a text `--select`, or neither
+// when it is the text summary.
+type projection struct {
+	doc   *scan.Document
+	value any
+	lines []string
+}
+
+// render is the single-record output, unchanged from before the set
+// arity: bytes for a text element select, JSON for everything --json or
+// facet-shaped, the summary otherwise.
+func (r projection) render(f *flags, stdout, stderr io.Writer) int {
+	switch {
+	case r.lines != nil && !*f.json:
+		for _, l := range r.lines {
 			fmt.Fprintln(stdout, l)
 		}
 		return 0
+	case r.value != nil:
+		return emit(r.value, stdout, stderr)
 	}
-	if *f.json || *f.sel != "" {
-		return emit(out, stdout, stderr)
+	return summary(r.doc, stdout)
+}
+
+// inspectSet projects several records in the order named. Text is each
+// record's own rendering in sequence — the summary heads itself with the
+// record number, and element bytes are printed as the single form prints
+// them — with a `skipped` line per member that did not resolve, as
+// `status` writes them. `--json` carries identity on every row, which is
+// the form to read when the selects are elements of several records.
+func inspectSet(args []string, f *flags, stdout, stderr io.Writer) int {
+	rows := []map[string]any{}
+	skipped := []map[string]string{}
+	var results []projection
+	for _, arg := range args {
+		r, err := project(arg, f, stderr)
+		if err != nil {
+			skipped = append(skipped, map[string]string{"target": arg, "why": strings.TrimSpace(err.Error())})
+			continue
+		}
+		results = append(results, r)
+		row := map[string]any{"record": r.doc.Record, "path": r.doc.Path, "value": r.value}
+		if r.value == nil {
+			row["value"] = r.doc
+		}
+		rows = append(rows, row)
 	}
-	return summary(doc, stdout)
+	if *f.json {
+		return emit(map[string]any{"schema": schemaVersion, "records": rows, "skipped": skipped}, stdout, stderr)
+	}
+	for _, r := range results {
+		if code := r.render(f, stdout, stderr); code != 0 {
+			return code
+		}
+	}
+	for _, s := range skipped {
+		fmt.Fprintf(stdout, "%s skipped  %s\n", s["target"], s["why"])
+	}
+	return 0
+}
+
+// project answers one record. A citation used as the argument
+// (`cli/0112:A3`) adds its element to the selects, since pasting a
+// finding's id back is how a caller reaches its bytes.
+//
+// REPEATED `--select` ACCUMULATES. Each flag used to overwrite the last
+// silently, so `--select A20 --select A21` answered A21 alone with no
+// word said, and sessions fell back to one call per element — 64 selects
+// in one refine pass. Several selects answer in the order given: text
+// element selects print their bytes in sequence, exactly as each would
+// alone; anything JSON-shaped is an array of the single forms, a named
+// facet wrapped as `{"select": name, name: value}` so it keeps its name.
+func project(arg string, f *flags, stderr io.Writer) (projection, error) {
+	arg, own := splitCitation(arg, *f.records)
+	sels := append([]string(nil), f.sel.values...)
+	if own != "" && !hasString(sels, own) {
+		sels = append(sels, own)
+	}
+	path, err := resolve(arg, *f.records)
+	if err != nil {
+		return projection{}, err
+	}
+	doc, err := scan.File(path, scan.Options{Project: *f.project})
+	if err != nil {
+		return projection{}, fmt.Errorf("stopped:unreadable (%v)", err)
+	}
+	if doc.Record == "" {
+		return projection{}, fmt.Errorf("stopped:no-record-number (neither the title nor the filename carries NNNN)")
+	}
+	if showsEdges(f) {
+		resolveEdges(doc, f, stderr)
+	}
+	r := projection{doc: doc}
+
+	if f.filter != nil && *f.filter != "" {
+		out, err := filterEnvelope(doc, *f.filter)
+		if err != nil {
+			return projection{}, err
+		}
+		r.value = out
+		return r, nil
+	}
+	if len(sels) == 0 {
+		if *f.json {
+			r.value = doc
+		}
+		return r, nil
+	}
+
+	var items []any
+	var lines []string
+	textual := !*f.json
+	for _, sel := range sels {
+		if v, ok := facetOf(doc, sel); ok {
+			textual = false
+			if len(sels) == 1 {
+				items = append(items, v)
+			} else {
+				items = append(items, map[string]any{"select": sel, sel: v})
+			}
+			continue
+		}
+		start, end, ok := doc.Select(sel)
+		if !ok {
+			return projection{}, fmt.Errorf("stopped:no-such-element (%s in %s)", sel, doc.Record)
+		}
+		items = append(items, map[string]any{"id": sel, "line_start": start, "line_end": end,
+			"lines": doc.Slice(start, end)})
+		lines = append(lines, doc.Slice(start, end)...)
+	}
+	if len(items) == 1 {
+		r.value = items[0]
+	} else {
+		r.value = items
+	}
+	if textual {
+		r.lines = lines
+	}
+	return r, nil
+}
+
+// facetOf is the named-facet half of --select: the projection's own
+// top-level lists by name. An element id is anything else.
+func facetOf(doc *scan.Document, sel string) (any, bool) {
+	switch sel {
+	case "outline":
+		return doc.Outline, true
+	case "elements":
+		return doc.Elements, true
+	case "edges":
+		return doc.Edges, true
+	case "warnings":
+		return doc.Warnings, true
+	case "metadata":
+		return doc.Metadata, true
+	case "fields":
+		return doc.Fields, true
+	case "anchors":
+		return doc.Anchors, true
+	}
+	return nil, false
+}
+
+func hasString(list []string, s string) bool {
+	for _, v := range list {
+		if v == s {
+			return true
+		}
+	}
+	return false
 }
 
 func emit(v any, stdout, stderr io.Writer) int {
@@ -798,7 +930,7 @@ func summary(doc *scan.Document, w io.Writer) int {
 	// The read instruction lands where the ranges are read: a model that
 	// has just seen `118-1128` reaches for sed -n; the id beside it is the
 	// call that returns the same bytes and survives the next edit.
-	fmt.Fprintf(w, "read: rdr inspect --select <id> %s   (one section or element; never sed -n on these ranges)\n", doc.Record)
+	fmt.Fprintf(w, "read: rdr inspect --select <id> %s   (a section or element; repeat --select for several; never sed -n on these ranges)\n", doc.Record)
 	return 0
 }
 
@@ -1060,11 +1192,10 @@ func showsEdges(f *flags) bool {
 		}
 		return false
 	}
-	sel := ""
-	if f.sel != nil {
-		sel = *f.sel
+	if hasString(f.sel.values, "edges") {
+		return true
 	}
-	return sel == "edges" || (sel == "" && f.json != nil && *f.json)
+	return len(f.sel.values) == 0 && f.json != nil && *f.json
 }
 
 // resolveEdges decides one record's edges against the records dir it

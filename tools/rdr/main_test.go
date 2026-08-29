@@ -1740,14 +1740,158 @@ func TestCitationSpellingResolves(t *testing.T) {
 	if got := record("0112:A1"); got != "0112:A1" {
 		t.Errorf("0112:A1 as the positional selected %q", got)
 	}
-	// A positional element and a different --select cannot both be meant.
-	code, _, errb := runCapture(t, "inspect", "--records", dir, "--select", "outline", "cli/0112:A1")
-	if code != 2 || !strings.Contains(errb, "stopped:usage") {
-		t.Errorf("two selectors: exit %d, stderr %q", code, errb)
-	}
 	// Another dir's prefix is not this dir's record.
-	code, _, errb = runCapture(t, "inspect", "--records", dir, "other/0112")
+	code, _, errb := runCapture(t, "inspect", "--records", dir, "other/0112")
 	if code != 2 || !strings.Contains(errb, "stopped:unreadable") {
 		t.Errorf("foreign prefix: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestRepeatedSelectAccumulates: `--select A1 --select A2` used to answer
+// A2 alone, silently — the flag package keeps the last value — so
+// sessions fell back to one call per element. Every select is answered
+// now, in order: text is each element's bytes in sequence, exactly as
+// each prints alone; JSON is an array of the single forms.
+func TestRepeatedSelectAccumulates(t *testing.T) {
+	fx := fixturePath("current-shape.md")
+	_, a1, _ := runCapture(t, "inspect", "--select", "0004:A1", fx)
+	_, a2, _ := runCapture(t, "inspect", "--select", "0004:A2", fx)
+	code, both, errb := runCapture(t, "inspect", "--select", "0004:A1", "--select", "0004:A2", fx)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if both != a1+a2 {
+		t.Errorf("two selects are not the two single answers in order:\n%s", both)
+	}
+
+	code, out, errb := runCapture(t, "inspect", "--json", "--select", "0004:A2", "--select", "0004:A1", fx)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var items []struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal([]byte(out), &items); err != nil {
+		t.Fatalf("not an array: %v\n%s", err, out)
+	}
+	if len(items) != 2 || items[0].ID != "0004:A2" || items[1].ID != "0004:A1" {
+		t.Errorf("order not kept: %+v", items)
+	}
+
+	// A named facet beside an element keeps its name.
+	code, out, errb = runCapture(t, "inspect", "--select", "outline", "--select", "0004:A1", fx)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var mixed []map[string]any
+	if err := json.Unmarshal([]byte(out), &mixed); err != nil {
+		t.Fatalf("not an array: %v", err)
+	}
+	if len(mixed) != 2 || mixed[0]["select"] != "outline" || mixed[0]["outline"] == nil || mixed[1]["id"] != "0004:A1" {
+		t.Errorf("mixed selects: %v", out)
+	}
+
+	// One select of the pair missing is still a stop, not a partial answer.
+	code, _, errb = runCapture(t, "inspect", "--select", "0004:A1", "--select", "0004:C9", fx)
+	if code != 2 || !strings.Contains(errb, "no-such-element") {
+		t.Errorf("missing element among several: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestInspectSetArity: `inspect 0097 0108 0110` was refused with the
+// answer on stderr — two wasted turns for 7.1's critique agent. A named
+// set is answered record by record in the order given; a member that
+// does not resolve is a `skipped` row, as `status` writes them, never a
+// refusal of the whole call.
+func TestInspectSetArity(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "inspect", "--records", dir, "0001", "0002", "0009")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	for _, want := range []string{"0001  Recommendation 0001: Alpha", "0002  Recommendation 0002: Beta", "0009 skipped  stopped:no-such-record"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("text set lacks %q:\n%s", want, out)
+		}
+	}
+
+	code, out, errb = runCapture(t, "inspect", "--json", "--records", dir, "--select", "0001:A1", "--select", "0002:A1", "0001", "0002", "0009")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var env struct {
+		Records []struct {
+			Record string `json:"record"`
+			Path   string `json:"path"`
+			Value  any    `json:"value"`
+		} `json:"records"`
+		Skipped []map[string]string `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	// A select naming another record's element is that record's miss:
+	// 0001 has no 0002:A1, so 0001 is skipped and 0002 skips on 0001:A1.
+	if len(env.Records) != 0 || len(env.Skipped) != 3 {
+		t.Errorf("cross-record selects: %d rows, %d skipped\n%s", len(env.Records), len(env.Skipped), out)
+	}
+
+	// The set with a citation per member is the form that reads several
+	// records' elements in one call.
+	code, out, errb = runCapture(t, "inspect", "--json", "--records", dir, "0001:A1", "0002:A1")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if len(env.Records) != 2 || env.Records[0].Record != "0001" || env.Records[1].Record != "0002" || len(env.Skipped) != 0 {
+		t.Errorf("citation set: %s", out)
+	}
+	if v, _ := env.Records[1].Value.(map[string]any); v["id"] != "0002:A1" {
+		t.Errorf("row value is not the element: %v", env.Records[1].Value)
+	}
+
+	// --filter and --select outline keep their shape per row.
+	code, out, errb = runCapture(t, "inspect", "--json", "--records", dir, "--filter", "metadata", "0001", "0002")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("not JSON: %v", err)
+	}
+	if v, _ := env.Records[0].Value.(map[string]any); v["metadata"] == nil || v["elements"] != nil {
+		t.Errorf("filtered row: %v", env.Records[0].Value)
+	}
+}
+
+// TestUsageLogNamesTheInspectArity: a set call and an accumulated select
+// are the shapes this change exists to measure; a log that averaged them
+// into `text` and `select:element` would read them as never used.
+func TestUsageLogNamesTheInspectArity(t *testing.T) {
+	dir := corpusDir(t)
+	log := filepath.Join(t.TempDir(), "usage.jsonl")
+	t.Setenv(usageEnvVar, log)
+	for _, tc := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"0001", "0002"}, "records:text"},
+		{[]string{"--json", "0001", "0002"}, "records:json"},
+		{[]string{"--select", "0001:A1", "--select", "outline", "0001"}, "select:element,outline"},
+		{[]string{"--select", "0001:A1", "0001", "0002"}, "records:select:element"},
+	} {
+		if err := os.WriteFile(log, nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+		runCapture(t, append([]string{"inspect", "--records", dir}, tc.args...)...)
+		raw, _ := os.ReadFile(log)
+		var line map[string]any
+		if err := json.Unmarshal([]byte(strings.TrimSpace(string(raw))), &line); err != nil {
+			t.Fatalf("%v: not JSON: %v", tc.args, err)
+		}
+		if line["facet"] != tc.want {
+			t.Errorf("%v: facet = %v, want %s", tc.args, line["facet"], tc.want)
+		}
 	}
 }
