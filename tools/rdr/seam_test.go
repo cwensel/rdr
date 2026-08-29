@@ -183,12 +183,24 @@ export RDR_RECORDS
 	}
 }
 
+// allowMarkerLog opts one test back into marker-decided logging, which
+// usageMarkerFallback refuses under `go test` so a fixture run can never
+// reach a real workspace's log. The tests below build their own marker
+// in a temp workspace, and the marker's say is the thing under test.
+func allowMarkerLog(t *testing.T) {
+	t.Helper()
+	prev := usageMarkerFallback
+	usageMarkerFallback = true
+	t.Cleanup(func() { usageMarkerFallback = prev })
+}
+
 // TestUsageLogDefaultsUnderTheProjectDotDir: `/rdr-init` turns logging
 // on for a project by writing a bare truthy value into the marker, and
 // the binary decides where. `.rdr/` is this flow's repo-local run-output
 // directory — the counterpart of the sibling codebase's `$REPO/.retrofit/`
 // — and it self-ignores, so nothing written here can reach a commit.
 func TestUsageLogDefaultsUnderTheProjectDotDir(t *testing.T) {
+	allowMarkerLog(t)
 	body := `: "${PROJECT:?needs the canonical resolver}"
 RDR_RECORDS="$PROJECT/docs/rdr"
 RDR_USAGE_LOG="true"
@@ -216,6 +228,7 @@ export RDR_RECORDS RDR_USAGE_LOG
 // TestUsageLogExplicitPathBeatsTheDefault: a caller naming a file means
 // that file, marker or no marker.
 func TestUsageLogExplicitPathBeatsTheDefault(t *testing.T) {
+	allowMarkerLog(t)
 	body := `: "${PROJECT:?needs the canonical resolver}"
 RDR_RECORDS="$PROJECT/docs/rdr"
 RDR_USAGE_LOG="true"
@@ -241,6 +254,7 @@ export RDR_RECORDS RDR_USAGE_LOG
 // TestUsageLogOffSwitchBeatsTheMarker: a project that logs by default
 // must be silenceable for one run without editing the marker.
 func TestUsageLogOffSwitchBeatsTheMarker(t *testing.T) {
+	allowMarkerLog(t)
 	body := `: "${PROJECT:?needs the canonical resolver}"
 RDR_RECORDS="$PROJECT/docs/rdr"
 RDR_USAGE_LOG="true"
@@ -263,6 +277,7 @@ export RDR_RECORDS RDR_USAGE_LOG
 // truthy setting with nowhere to put the file writes nothing rather than
 // picking a directory nobody asked for.
 func TestUsageLogOnWithNoProjectStaysOff(t *testing.T) {
+	allowMarkerLog(t)
 	dir := t.TempDir()
 	t.Chdir(dir)
 	t.Setenv("RDR_USAGE_LOG", "true")
@@ -279,6 +294,7 @@ func TestUsageLogOnWithNoProjectStaysOff(t *testing.T) {
 // out of, and scatter one shared setting into per-repo files nobody
 // ignored.
 func TestUsageLogUnderAWorkspaceMarkerStaysOutOfTheRepo(t *testing.T) {
+	allowMarkerLog(t)
 	body := `: "${WS:?needs the canonical resolver}"
 RDR_RECORDS="$WS/consumer/docs/rdr"
 RDR_USAGE_LOG="true"
@@ -305,6 +321,7 @@ export RDR_RECORDS RDR_USAGE_LOG
 // TestUsageLogIsOnePerWorkspace: siblings sharing a marker share its log,
 // rather than each growing an untracked file of its own.
 func TestUsageLogIsOnePerWorkspace(t *testing.T) {
+	allowMarkerLog(t)
 	body := `: "${WS:?needs the canonical resolver}"
 RDR_RECORDS="$WS/consumer/docs/rdr"
 RDR_USAGE_LOG="true"
@@ -340,6 +357,33 @@ export RDR_RECORDS RDR_USAGE_LOG
 	}
 	if _, err := os.Stat(filepath.Join(sibling, ".rdr")); err == nil {
 		t.Error("the sibling grew its own .rdr/")
+	}
+}
+
+// TestUsageLogMarkerFallbackIsRefusedUnderGoTest: the guarantee, proved
+// the way it was broken. A marker with logging on, an env nobody set,
+// a refusal-path run — the exact shape that used to write fixture rows
+// into the workspace's production log on every `go test` — and no log
+// may appear. No allowMarkerLog here: this test IS the default.
+func TestUsageLogMarkerFallbackIsRefusedUnderGoTest(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+RDR_USAGE_LOG="true"
+export RDR_RECORDS RDR_USAGE_LOG
+`
+	project, _ := newProject(t, "local", body)
+	t.Chdir(project)
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_USAGE_LOG", "") // the old contaminating shape: nothing explicit, marker on
+
+	if code, _, _ := runCapture(t, "inspect", "--select", "0007:Z9", "7"); code == 0 {
+		t.Fatal("the refusal path did not refuse")
+	}
+	if code, _, errb := runCapture(t, "inspect", "--json", "--filter", "path", "7"); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if _, err := os.Stat(filepath.Join(project, ".rdr", "usage.jsonl")); err == nil {
+		t.Error("go test wrote a row via marker fallback")
 	}
 }
 

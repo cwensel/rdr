@@ -47,6 +47,10 @@ package main
 // every other seam var, and the log lands in `$PROJECT/.rdr/` — this
 // flow's repo-local run-output directory, self-ignored by git. A caller
 // that wants it somewhere else names a path instead.
+//
+// Under `go test` the marker gets no say (usageMarkerFallback): the
+// suite runs inside a live workspace, and its fixture refusals once
+// wrote rows into the very log this file exists to keep honest.
 
 import (
 	"encoding/json"
@@ -54,6 +58,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 )
 
@@ -92,6 +97,9 @@ const usageDefaultName = "usage.jsonl"
 func usageLogPath() string {
 	v := strings.TrimSpace(os.Getenv(usageEnvVar))
 	if v == "" {
+		if !usageMarkerFallback {
+			return ""
+		}
 		v = seamValue(usageEnvVar)
 	}
 	switch strings.ToLower(v) {
@@ -100,6 +108,9 @@ func usageLogPath() string {
 	case "0", "false", "off", "no":
 		return ""
 	case "1", "true", "on", "yes":
+		if !usageMarkerFallback {
+			return ""
+		}
 		marker, _, _ := findMarker()
 		if marker == "" {
 			return ""
@@ -108,6 +119,17 @@ func usageLogPath() string {
 	}
 	return v
 }
+
+// usageMarkerFallback gates whether the marker may decide the log: its
+// value when the env is silent, and its location when the setting is
+// bare-truthy. Under `go test` the gate is closed. The test binary runs
+// inside a real workspace whose marker has logging on, so every fixture
+// refusal that forgot to set the env var landed in that workspace's
+// production log — rows a measurement pass then had to disqualify by
+// hand. An explicit path in the env is honoured either way, because a
+// path named is a destination chosen; a test that means to exercise the
+// marker path itself flips this for its own scope.
+var usageMarkerFallback = !testing.Testing()
 
 // lineHardMaxBytes caps one record, mirroring the sibling serializer's
 // ceiling. A line this long means a field is carrying something it

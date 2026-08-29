@@ -1138,7 +1138,7 @@ func TestReceiptVouchesOnlyForALintAfterTheLastWrite(t *testing.T) {
 	}
 	log := filepath.Join(t.TempDir(), "usage.jsonl")
 
-	t.Setenv(usageEnvVar, "off") // an empty env falls through to the marker, and this repo's is on
+	t.Setenv(usageEnvVar, "off") // explicit off; usageMarkerFallback keeps the marker out under go test anyway
 	if code, _, errb := runCapture(t, "receipt", "--records", dir, "7"); code != 2 || !strings.Contains(errb, "no-usage-log") {
 		t.Fatalf("no log: exit %d %q, want 2 stopped:no-usage-log", code, errb)
 	}
