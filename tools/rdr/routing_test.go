@@ -29,6 +29,13 @@ import (
 
 const routingModelName = "rdr-status.toml"
 
+// routingModelNames is every routing model in this repo that matches on
+// fact names. Both bind to `rdr-facts.toml` the same way and neither
+// binary calls the other, so a check that covered only the first would
+// leave the second free to drift — and the write model carries its own
+// copy of the status vocabulary plus `readme_status`'s.
+var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml"}
+
 // routingModel is the parsed model, reduced to what the seam needs: the
 // observed tags it declares and the atoms its rules compare.
 type routingModel struct {
@@ -67,7 +74,14 @@ type routingAtom struct {
 // vacuously.
 func loadRoutingModel(t *testing.T) *routingModel {
 	t.Helper()
-	path := repoFile(t, filepath.Join("models", routingModelName))
+	return loadRoutingModelNamed(t, routingModelName)
+}
+
+// loadRoutingModelNamed is the same parse against any of the routing
+// models, so a check can sweep every one of them.
+func loadRoutingModelNamed(t *testing.T, name string) *routingModel {
+	t.Helper()
+	path := repoFile(t, filepath.Join("models", name))
 	src, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("the shipped routing model is unreadable: %v", err)
@@ -227,6 +241,85 @@ func TestRoutingModelMatchesTheFactTable(t *testing.T) {
 			if !factCanCarry(f, lit) {
 				t.Errorf("rule %q compares %q against %q, which that fact cannot carry (kind %s, domain %v)",
 					a.Rule, a.Key, lit, f.Kind, f.Domain)
+			}
+		}
+	}
+}
+
+// TestRoutingTagsMatchFactKindAndDomain closes the one direction of the
+// seam that nothing watched: a fact whose DOMAIN widens past the routing
+// model's copy of it.
+//
+// The vocabulary is chained from TEMPLATE.md through
+// `model.StatusVocabulary()` into the fact table, and
+// `TestEnumFactsStayInTheirDomain` holds that link. From the fact table
+// to the routing models the chain went dark, and the two failures are
+// not symmetric:
+//
+//   - A model comparing against a value the fact CANNOT carry is already
+//     caught — by `TestRoutingModelMatchesTheFactTable` if a rule names
+//     it, and by `intrastate lint` if the domain declares it. Both look
+//     only at literals some rule mentions.
+//   - A fact that GAINS a value no rule claims is caught by neither.
+//     `intrastate lint` reads one file and cannot see the fact table;
+//     the atom check reads only literals already written down. Adding a
+//     status to TEMPLATE.md, then to the fact table, leaves the routing
+//     models silently unclaiming a cell — measured, and the whole suite
+//     stayed green. The consequence is not a mis-route (the kernel is
+//     three-valued and refuses at exit 2) but an unroutable record, found
+//     by whoever next runs the navigator instead of at build time.
+//
+// So the domains are compared as SETS, both ways. Kind is compared too:
+// `intrastate lint` rejects a kind/domain pair that is internally
+// inconsistent, but a kind that merely disagrees with the fact's is
+// internally fine on both sides.
+//
+// Every routing model is swept, because the write model carries a second
+// copy of the same status vocabulary and a `readme_status` domain of its
+// own.
+func TestRoutingTagsMatchFactKindAndDomain(t *testing.T) {
+	tbl := loadRealTable(t)
+	decl := map[string]FactDecl{}
+	for _, f := range tbl.Facts {
+		decl[f.Name] = f
+	}
+
+	for _, name := range routingModelNames {
+		m := loadRoutingModelNamed(t, name)
+		for tag, modelDomain := range m.Tags {
+			f, ok := decl[tag]
+			if !ok {
+				// The name check is TestRoutingModelMatchesTheFactTable's
+				// for rdr-status.toml; report it here for the others so a
+				// model this test sweeps is never checked vacuously.
+				t.Errorf("%s: tag %q names no declared fact", name, tag)
+				continue
+			}
+			if got, want := m.Kinds[tag], f.Kind; got != want {
+				t.Errorf("%s: tag %q is kind %q, but fact %q is kind %q; "+
+					"the model and the fact table disagree about what the value IS",
+					name, tag, got, tag, want)
+			}
+			// A kind with no declared domain has nothing to compare: a
+			// bool's domain is implicit, a set's is a power set, and a
+			// scalar has none.
+			if f.Kind != "enum" {
+				continue
+			}
+			for _, v := range modelDomain {
+				if !containsString(f.Domain, v) {
+					t.Errorf("%s: tag %q admits %q, which fact %q cannot carry (fact domain %v); "+
+						"the ROUTING MODEL is ahead — either the fact table lost a value or the model invented one",
+						name, tag, v, tag, f.Domain)
+				}
+			}
+			for _, v := range f.Domain {
+				if !containsString(modelDomain, v) {
+					t.Errorf("%s: fact %q can carry %q, which tag %q does not admit (model domain %v); "+
+						"the FACT TABLE is ahead — the projector can emit a value no rule claims, "+
+						"so a record carrying it is unroutable (flow-guard-unevaluable, exit 2)",
+						name, tag, v, tag, modelDomain)
+				}
 			}
 		}
 	}
