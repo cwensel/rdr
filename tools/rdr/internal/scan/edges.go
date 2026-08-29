@@ -189,6 +189,15 @@ var metadataFieldKinds = map[string]edge.Kind{
 // really a predecessor is a judgment, and judgment is not this package's.
 // The edge's Evidence carries the clause so a consumer can see the
 // context the projector refused to interpret.
+//
+// Overrides is the one field with a SYNTAX for context: it is a `;`-run
+// of clauses, each opening on the record it narrows and then explaining
+// how, and the explanation names peers freely — `cli/0092's default
+// rung is overridden … outside cli/0112's fold band` overrides 0092 and
+// merely names 0112. So a clause's first reference mints the overrides
+// edge and the rest mint mentions; that is reading the field's grammar,
+// not judging its prose. Predecessors stays a list of targets — its
+// clauses hold `cli/0004 + cli/0030` — and Cluster is a plain list.
 func (d *Document) metadataEdges(claimed map[int][][2]int) {
 	for _, f := range d.Metadata {
 		if placeholderValue(f.Value) {
@@ -210,8 +219,13 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 		switch {
 		case metadataFieldKinds[f.Canonical] != "":
 			kind := metadataFieldKinds[f.Canonical]
-			for _, r := range edge.FindRefs(f.Value, true) {
-				d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: kind,
+			refs := edge.FindRefs(f.Value, true)
+			for i, r := range refs {
+				k := kind
+				if kind == edge.Overrides && !leadsClause(f.Value, refs, i) {
+					k = edge.Mentions
+				}
+				d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: k,
 					Line: f.LineStart, LineEnd: f.LineEnd, Evidence: r.Raw, Field: f.Canonical, Slug: r.Slug},
 					claimed, [2]int{r.Start, r.End})
 			}
@@ -227,6 +241,14 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 			d.issueEdges(d.docID(), f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
 		}
 	}
+}
+
+// leadsClause reports whether refs[i] opens its `;`-clause of value:
+// it is the first reference, or a `;` separates it from the reference
+// before it. FindRefs returns refs in offset order, so the previous
+// reference is either the previous clause's last or this clause's leader.
+func leadsClause(value string, refs []edge.Ref, i int) bool {
+	return i == 0 || strings.Contains(value[refs[i-1].End:refs[i].Start], ";")
 }
 
 // placeholderValue reports whether a metadata value is the template seed

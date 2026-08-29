@@ -78,7 +78,7 @@ func TestUnresolvedIsAFinding(t *testing.T) {
 	docs := corpus(t, map[string]string{
 		"0001-alpha.md": record("0001", "Alpha", ""),
 		"0002-beta.md": record("0002", "Beta", `- **Predecessors**: 0001-alpha
-- **Overrides**: 0001-alpha A1 and 0001-alpha A9`),
+- **Overrides**: 0001-alpha A1; 0001-alpha A9`),
 	})
 	NewResolver(docs, "").ResolveAll(docs)
 	beta := docs[1]
@@ -269,8 +269,8 @@ func TestWordBoundaryHoldsAtEveryPosition(t *testing.T) {
 func TestSectionCitationResolvesExactly(t *testing.T) {
 	docs := corpus(t, map[string]string{
 		"0001-alpha.md": record("0001", "Alpha", "") + "\n### Identity stack\n\nProse.\n\n### Semantic contract\n\nProse.\n\n### Semantic no-ops\n\nProse.\n",
-		"0002-beta.md": record("0002", "Beta", "- **Overrides**: 0001-alpha §Identity stack, "+
-			"0001-alpha §Semantic, and 0001-alpha §Nowhere at all"),
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: 0001-alpha §Identity stack; "+
+			"0001-alpha §Semantic; and 0001-alpha §Nowhere at all"),
 	})
 	NewResolver(docs, "").ResolveAll(docs)
 
@@ -472,8 +472,8 @@ func TestUniqueHeadingPrefixResolves(t *testing.T) {
 		"0001-alpha.md": target,
 		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
 			// citation shorter than the heading
-			"0001-alpha §No-op operations, "+
-			"0001-alpha §Safety-boundary, "+
+			"0001-alpha §No-op operations; "+
+			"0001-alpha §Safety-boundary; "+
 			// citation longer: the window ran into the prose
 			"0001-alpha §Failure-Modes residual chartered it as a"),
 	})
@@ -507,7 +507,7 @@ func TestAmbiguousHeadingPrefixStaysUnresolved(t *testing.T) {
 	docs := corpus(t, map[string]string{
 		"0001-alpha.md": target,
 		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
-			"0001-alpha §Semantic, 0001-alpha §Semantic engine rewrites the fold, "+
+			"0001-alpha §Semantic; 0001-alpha §Semantic engine rewrites the fold; "+
 			"and 0001-alpha §Semantic per-op"),
 	})
 	NewResolver(docs, "").ResolveAll(docs)
@@ -559,8 +559,8 @@ The paragraph continues, and a **bold run mid-paragraph** is emphasis.
 	docs := corpus(t, map[string]string{
 		"0001-alpha.md": target,
 		"0002-beta.md": record("0002", "Beta", "- **Overrides**: "+
-			`0001-alpha §"The values", `+
-			`0001-alpha §"Attribute resolution is as-authored, byte-preserving", `+
+			`0001-alpha §"The values"; `+
+			`0001-alpha §"Attribute resolution is as-authored, byte-preserving"; `+
 			`0001-alpha §"bold run mid-paragraph"`),
 	})
 	NewResolver(docs, "").ResolveAll(docs)
@@ -617,7 +617,7 @@ func TestNumberedDecisionsAreAddressable(t *testing.T) {
 - **D2** Element-ID-keyed storage throughout.
 - **D6** The rule walks the inverse-reference graph.
 `,
-		"0002-beta.md": record("0002", "Beta", "- **Overrides**: 0001-alpha §D6, 0001-alpha §D9"),
+		"0002-beta.md": record("0002", "Beta", "- **Overrides**: 0001-alpha §D6; 0001-alpha §D9"),
 	})
 	NewResolver(docs, "").ResolveAll(docs)
 

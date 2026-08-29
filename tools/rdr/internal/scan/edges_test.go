@@ -215,3 +215,55 @@ Nothing yet.
 		t.Error("the warning itself went missing")
 	}
 }
+
+// TestOverridesClauseLeaderIsTheTarget pins the Overrides grammar: within
+// each `;`-clause the first reference is what the record overrides, and
+// every further reference is a peer the explanation names. The last case
+// is the corpus shape that read as a mutual override — 0113's field
+// overrides cli/0092 and names cli/0112 as the band it stays inside.
+func TestOverridesClauseLeaderIsTheTarget(t *testing.T) {
+	// Expected targets are listed in sorted order: same-line edges sort
+	// by target, and a local number inherits the document's prefix.
+	cases := []struct {
+		name, value string
+		overrides   []string
+		mentions    []string
+	}{
+		{"single ref", "cli/0003 Approach item 3; the op was renamed", []string{"cli/0003"}, nil},
+		{"multi-ref clause", "cli/0092's default rung is overridden outside cli/0112's fold band", []string{"cli/0092"}, []string{"cli/0112"}},
+		{"multiple clauses", "cli/0103 REQ-13's file grain; cli/0120 REQ-CARRIER-6's zero-record read; 0089 A5", []string{"cli/0089", "cli/0103", "cli/0120"}, nil},
+		{"element cite leads", "cli/0092:A6 — narrows the rung cli/0094 shipped; also overrides cli/0092:A4 (retrofit#ngzs) and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081", "cli/0094"}},
+		{"0113 shape", "overrides cli/0092; cli/0112 stays authoritative for the fold band cli/0092 sits inside", []string{"cli/0092", "cli/0112"}, []string{"cli/0092"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			src := "# Recommendation 0113: Clause leaders\n\n## Metadata\n\n- **Date**: 2026-08-29\n- **Status**: Draft\n- **Overrides**: " + c.value + "\n\n## Problem Statement\n\nNothing yet.\n"
+			d := Bytes([]byte(src), Options{Project: "cli"})
+			got := map[edge.Kind][]string{}
+			for _, e := range d.Edges {
+				if e.Field != "Overrides" {
+					continue
+				}
+				got[e.Kind] = append(got[e.Kind], e.To)
+			}
+			if !equalStrings(got[edge.Overrides], c.overrides) {
+				t.Errorf("overrides: got %v, want %v", got[edge.Overrides], c.overrides)
+			}
+			if !equalStrings(got[edge.Mentions], c.mentions) {
+				t.Errorf("mentions: got %v, want %v", got[edge.Mentions], c.mentions)
+			}
+		})
+	}
+}
+
+func equalStrings(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}

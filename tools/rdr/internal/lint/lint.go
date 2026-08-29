@@ -484,13 +484,11 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 	// predecessors and a moved-to that comes home. The full cycle walk is
 	// `index --cycles`; lint sees the pair its own record is half of.
 	//
-	// An Overrides edge is minted from EVERY record token in the field,
-	// and the field is prose: `cli/0092's default rung is overridden …
-	// outside cli/0112's fold band` names 0112 as context, not as a
-	// target. So for overrides the pair is corroborated from both fields
-	// as written — each side must LEAD a clause of the other's field —
-	// before the rule asserts it; a peer not in hand is not asserted.
-	leads := overridesLeads(d)
+	// An Overrides field is prose, but the scanner reads its grammar:
+	// only the record that LEADS a `;`-clause mints an overrides edge,
+	// and the peers the clause names on the way are mentions. So the
+	// pair is read off the typed edges of both records, and a peer not
+	// in hand is not asserted.
 	for _, e := range d.Edges {
 		if !ownershipKind(e.Kind) {
 			continue
@@ -499,14 +497,8 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 		if t == "" || t == d.Record {
 			continue
 		}
-		if e.Kind == edge.Overrides && !leads[t] {
-			continue
-		}
 		for _, p := range opts.Corpus {
 			if p.Record != t {
-				continue
-			}
-			if e.Kind == edge.Overrides && !overridesLeads(p)[d.Record] {
 				continue
 			}
 			for _, back := range p.Edges {
@@ -675,27 +667,6 @@ func itoa(n int) string {
 
 func ownershipKind(k edge.Kind) bool {
 	return k == edge.Predecessor || k == edge.Overrides || k == edge.MovedTo
-}
-
-// overridesLeads reads the records an Overrides field overrides, as
-// distinct from the ones it mentions. The field is a `;`-separated run
-// of clauses, each opening on the record it narrows and then explaining
-// how — and the explanation names peers freely. The clause's first
-// record is its target; everything after is context. Predecessors is a
-// comma list of nothing but targets, so it needs no such reading.
-func overridesLeads(d *scan.Document) map[string]bool {
-	out := map[string]bool{}
-	for _, f := range d.Metadata {
-		if f.Canonical != "Overrides" {
-			continue
-		}
-		for _, clause := range strings.Split(f.Value, ";") {
-			if refs := edge.FindRefs(clause, true); len(refs) > 0 {
-				out[refs[0].Record] = true
-			}
-		}
-	}
-	return out
 }
 
 var recordRef = regexp.MustCompile(`\b(\d{4})\b`)
