@@ -338,7 +338,10 @@ property of the RDR's on-disk state, which the prompt already inspects.
   by line range, every call a turn. Paste into its prompt: the absolute
   `$RDR_HOME/bin/rdr`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list),
   `inspect --select NNNN:A7 NNNN` / `NNNN:§section`, `--json --filter metadata` —
-  with "never `sed`/`grep` the record".
+  with "never `sed`/`grep` the record". The spawn prompt also carries the shell
+  rule: output separators are `---`, never `===` — zsh aborts an unquoted
+  `=`-leading word (`=== not found`), poisoning the turn and skipping every
+  chained call.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
@@ -477,6 +480,10 @@ IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
   --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
 ```
+
+Substitute `--tags` inline as written — never capture it into a variable
+first: zsh does not word-split an unquoted `$TAGS`, so intrastate receives one
+newline-joined argument and refuses it.
 
 The guard is not optional. Unresolved, `$IS` is EMPTY, and an unguarded
 `"$IS" …` exits **0** with a bare `permission denied:` — a stage would read a
