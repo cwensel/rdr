@@ -735,6 +735,46 @@ func TestEnumFactsStayInTheirDomain(t *testing.T) {
 			t.Errorf("qualifier form %q is not in status_form's domain", f)
 		}
 	}
+
+	// `readme_status` is the SAME lifecycle vocabulary, plus two
+	// sentinels, and it was the one copy of it chained to nothing.
+	//
+	// Its two copies (the fact's domain here, and rdr-write's
+	// `[tags.readme_status]`) are pinned to EACH OTHER by
+	// TestRoutingTagsMatchFactKindAndDomain, so a one-side edit is
+	// caught. What was not caught is editing both the same way: adding a
+	// status to TEMPLATE.md and walking the three failures that follow
+	// leaves `readme_status` behind, and the suite stays green —
+	// measured. `readme_status` is a live routing dimension in
+	// rdr-write's `readme_status` x `status` product, so the record that
+	// carries the new status against a README row is unroutable
+	// (flow-guard-unevaluable, exit 2), found by whoever next runs the
+	// navigator rather than at build time.
+	//
+	// The extras are asserted too, and in both directions: the sentinels
+	// are what make this domain wider than the vocabulary, so an
+	// unexplained third value is drift rather than a sentinel.
+	readmeSentinels := map[string]bool{"unindexed": true, "none": true}
+	readmeDomain := map[string]bool{}
+	for _, v := range byName["readme_status"].Domain {
+		readmeDomain[v] = true
+	}
+	for _, v := range append(append([]string{}, modelStatusCanonical()...), modelStatusObserved()...) {
+		if !readmeDomain[v] {
+			t.Errorf("status %q is in the model's vocabulary and not in readme_status's domain; "+
+				"a record with a README row carrying it would be unroutable", v)
+		}
+		delete(readmeDomain, v)
+	}
+	for v := range readmeDomain {
+		if !readmeSentinels[v] {
+			t.Errorf("readme_status admits %q, which is neither a lifecycle status nor a declared sentinel", v)
+		}
+		delete(readmeSentinels, v)
+	}
+	for v := range readmeSentinels {
+		t.Errorf("readme_status no longer admits the sentinel %q", v)
+	}
 }
 
 // The vocabulary and grammar bridges. They exist so the domain test above
