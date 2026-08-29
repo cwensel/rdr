@@ -1689,3 +1689,65 @@ func TestIndexFilterProjectsTheNamedKeys(t *testing.T) {
 		t.Errorf("the stop should list the keys that do exist: %s", errb)
 	}
 }
+
+// TestCitationSpellingResolves: the corpus cites its own records as
+// `<dir>/NNNN` — `cli/0112` under a records dir named cli — and lint's
+// fix hints print that spelling back. Read as a path it named `./cli/0112`
+// and exited stopped:unreadable, a retry turn per citation. The prefix is
+// the records dir's basename, read off the bound dir; a foreign prefix
+// still names another dir and is refused as before.
+func TestCitationSpellingResolves(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := "# Recommendation 0112: Layering\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Critical Assumptions\n\n- **A1**: the claim\n  - **Method**: Source Search\n" +
+		"  - **Evidence**: `x.go::F`\n  - **Status**: Verified\n"
+	if err := os.WriteFile(filepath.Join(dir, "0112-layering.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	record := func(args ...string) string {
+		t.Helper()
+		code, out, errb := runCapture(t, append([]string{"inspect", "--json", "--records", dir}, args...)...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", args, code, errb)
+		}
+		var env struct {
+			Record string `json:"record"`
+			ID     string `json:"id"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil {
+			t.Fatal(err)
+		}
+		if env.ID != "" {
+			return env.ID
+		}
+		return env.Record
+	}
+	if got := record("cli/0112"); got != "0112" {
+		t.Errorf("cli/0112 resolved to %q", got)
+	}
+	if got := record("--select", "cli/0112:A1", "cli/0112"); got != "0112:A1" {
+		t.Errorf("--select cli/0112:A1 selected %q", got)
+	}
+	// The citation alone reaches the element: it is what a finding prints.
+	if got := record("cli/0112:A1"); got != "0112:A1" {
+		t.Errorf("cli/0112:A1 as the positional selected %q", got)
+	}
+	if got := record("0112:A1"); got != "0112:A1" {
+		t.Errorf("0112:A1 as the positional selected %q", got)
+	}
+	// A positional element and a different --select cannot both be meant.
+	code, _, errb := runCapture(t, "inspect", "--records", dir, "--select", "outline", "cli/0112:A1")
+	if code != 2 || !strings.Contains(errb, "stopped:usage") {
+		t.Errorf("two selectors: exit %d, stderr %q", code, errb)
+	}
+	// Another dir's prefix is not this dir's record.
+	code, _, errb = runCapture(t, "inspect", "--records", dir, "other/0112")
+	if code != 2 || !strings.Contains(errb, "stopped:unreadable") {
+		t.Errorf("foreign prefix: exit %d, stderr %q", code, errb)
+	}
+}

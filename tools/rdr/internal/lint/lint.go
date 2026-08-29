@@ -530,7 +530,7 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 			Message:   "Peer-RDR Evidence cites the record " + e.To + " but no element in it",
 			LineStart: e.Line,
 			LineEnd:   e.LineEnd,
-			Fix:       "cite the element the claim rests on (" + e.To + ":A3, " + e.To + ":C4); `rdr inspect " + e.To + "` lists them",
+			Fix:       peerElementFix(e.To, opts.Corpus),
 		})
 	}
 
@@ -552,6 +552,49 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 	}
 
 	return out
+}
+
+// peerElementFix is the hint for a Peer-RDR citation naming a record and
+// no element. The command it prints is one the projector accepts VERBATIM
+// — `rdr inspect cli/0112` resolves since the citation spelling became a
+// record name — and the ids it offers are read off the peer's actual
+// elements, never invented: the first assumption and contract it holds,
+// spelled with the citation's own prefix. An earlier form printed
+// `NNNN:A3, NNNN:C4` as placeholders that looked real, and a refine pass
+// seeded them into three sub-agent prompts before anyone checked. When
+// the peer is not in hand the hint names the FORM and no id.
+func peerElementFix(to string, corpus []*scan.Document) string {
+	prefix, _, _ := strings.Cut(to, "/")
+	if !strings.Contains(to, "/") {
+		prefix = ""
+	}
+	listed := "; `rdr inspect " + to + "` lists them"
+	target := refRecord(to)
+	for _, p := range corpus {
+		if p.Record != target {
+			continue
+		}
+		var ids []string
+		seen := map[ident.Kind]bool{}
+		for _, el := range p.Elements {
+			if el.Kind != ident.Assumption && el.Kind != ident.Contract || seen[el.Kind] {
+				continue
+			}
+			id, err := ident.Parse(el.ID)
+			if err != nil {
+				continue
+			}
+			seen[el.Kind] = true
+			ids = append(ids, id.Qualified(prefix))
+		}
+		if len(ids) > 0 {
+			return "cite the element the claim rests on — " + to + " holds " +
+				strings.Join(ids, ", ") + " among others" + listed
+		}
+		break
+	}
+	return "cite the element the claim rests on, as " + to + ":A<n> for an assumption or " +
+		to + ":C<n> for a contract" + listed
 }
 
 // reentryNearMiss reports a bracketed Status qualifier that begins

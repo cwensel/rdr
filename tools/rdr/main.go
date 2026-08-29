@@ -290,23 +290,23 @@ type flags struct {
 	// argc is how many positional arguments the invocation carried. The
 	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
 	// which are the same verb at two very different costs.
-	argc int
-	repo                  *string
-	status                *bool
-	backlinks, readme     optString
-	clusterOf             *string
-	unresolved, anchors   *bool
-	literals              *bool
-	openJoint, cycles     *bool
-	locking               *bool
-	since                 *string // receipt: the instant a lint must postdate
-	tags                  *bool   // status: render the facts as a resolver's argv
-	facts                 *string // status/paths: the fact table to evaluate
-	lens                  *string // paths: the per-lens iteration tree
-	cluster               *string // paths: Stage 7.1's cluster-keyed tree
-	tree                  *string // paths: any declared tree, as <name>[=<operand>]
-	nextIter              *bool   // paths: list the base, report the next iteration
-	template              *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
+	argc                int
+	repo                *string
+	status              *bool
+	backlinks, readme   optString
+	clusterOf           *string
+	unresolved, anchors *bool
+	literals            *bool
+	openJoint, cycles   *bool
+	locking             *bool
+	since               *string // receipt: the instant a lint must postdate
+	tags                *bool   // status: render the facts as a resolver's argv
+	facts               *string // status/paths: the fact table to evaluate
+	lens                *string // paths: the per-lens iteration tree
+	cluster             *string // paths: Stage 7.1's cluster-keyed tree
+	tree                *string // paths: any declared tree, as <name>[=<operand>]
+	nextIter            *bool   // paths: list the base, report the next iteration
+	template            *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
 }
 
 // declareFlags registers each subcommand's flags. They are declared here —
@@ -367,6 +367,11 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 // resolve turns a NNNN or a path into a record path. A bare number is
 // looked up as NNNN-*.md in the records dir.
 func resolve(arg, records string) (string, error) {
+	// The corpus cites its own records as `<dir>/NNNN` — `cli/0112` under
+	// a records dir at …/rdr/cli — and lint's fix hints print that
+	// spelling back. Read as a path it named `./cli/0112`, a file nobody
+	// asked for, and cost the caller a retry turn per citation.
+	arg = localCitation(arg, records)
 	// A caller who types `3` means record 0003. Only the flow's own shell
 	// helpers zero-pad today, so a direct call — which is how a stage
 	// prompt reaches this binary — used to fall through to the path
@@ -407,6 +412,40 @@ func resolve(arg, records string) (string, error) {
 		}
 	}
 	return arg, nil
+}
+
+// localCitation strips the records dir's own name off a citation: with
+// records at …/rdr/cli, `cli/0112` is `0112` and `cli/0112:A3` is
+// `0112:A3`. The prefix is the DIRECTORY'S basename, read off the bound
+// dir rather than spelled here, because the corpus writes its citations
+// with exactly that word and nothing else makes it a project name. Any
+// other prefix is left alone: it names another records dir, and a
+// lookup here would find the wrong record or none.
+func localCitation(arg, records string) string {
+	prefix, rest, ok := strings.Cut(arg, "/")
+	if !ok || prefix == "" || strings.Contains(rest, "/") {
+		return arg
+	}
+	if !ident.IsRecord(rest) && !ident.IsID(rest) {
+		return arg
+	}
+	if prefix != filepath.Base(absOrSelf(recordsDir(records))) {
+		return arg
+	}
+	return rest
+}
+
+// splitCitation reads an element citation used as a positional: `0112:A3`
+// or `cli/0112:A3` is the record 0112 with A3 selected. It is the form the
+// corpus and lint print, and pasting it back is how a caller reaches the
+// bytes a finding names without re-spelling it as two arguments.
+func splitCitation(arg, records string) (record, sel string) {
+	local := localCitation(arg, records)
+	id, err := ident.Parse(local)
+	if err != nil {
+		return arg, ""
+	}
+	return id.Record, local
 }
 
 // identityKeys are carried by every filtered envelope, unasked. They cost
@@ -645,7 +684,16 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:usage (inspect takes exactly one NNNN or path)")
 		return 2
 	}
-	path, err := resolve(args[0], *f.records)
+	arg := args[0]
+	if record, sel := splitCitation(arg, *f.records); sel != "" {
+		if *f.sel != "" && *f.sel != sel {
+			fmt.Fprintf(stderr, "stopped:usage (%s names an element and --select names %s; pass one)\n", arg, *f.sel)
+			return 2
+		}
+		arg, *f.sel = record, sel
+	}
+	*f.sel = localCitation(*f.sel, *f.records)
+	path, err := resolve(arg, *f.records)
 	if err != nil {
 		fmt.Fprintln(stderr, err)
 		return 2

@@ -492,3 +492,47 @@ func TestReentryNearMissFiresOnAMalformedRevisedFrom(t *testing.T) {
 		}
 	}
 }
+
+// TestPeerElementHintNamesRealElements: the fix for a bare peer citation
+// used to print `NNNN:A3, NNNN:C4` — placeholders that looked real and
+// were pasted into sub-agent prompts as if they were. The ids it offers
+// now are the peer's own, in the citation's spelling; the command it
+// prints resolves as written; and a peer not in hand gets the form and
+// no id.
+func TestPeerElementHintNamesRealElements(t *testing.T) {
+	dir := t.TempDir()
+	body := "# Recommendation 0011: Header\n\n## Metadata\n\n- **Date**: 2026-08-01\n" +
+		"- **Status**: Draft\n- **Profile**: standard\n\n## Critical Assumptions\n\n" +
+		"- **A1**: ten bytes is enough\n  - **Status**: Verified\n  - **Method**: Peer RDR\n" +
+		"  - **Evidence**: `cli/0010` fixes the field order.\n  - **If wrong**: overrun.\n"
+	if err := os.WriteFile(filepath.Join(dir, "0011-header.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := scan.File(filepath.Join(dir, "0011-header.md"), scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	fix := func(opts Options) string {
+		t.Helper()
+		for _, f := range Run(d, opts).Findings {
+			if f.Code == "peer-evidence:no-element" {
+				return f.Fix
+			}
+		}
+		t.Fatalf("the bare peer citation raised no finding: %v", codes(Run(d, opts)))
+		return ""
+	}
+	withPeer := fix(Options{Corpus: []*scan.Document{corpus(t)["0010"]}})
+	for _, want := range []string{"cli/0010:A1", "cli/0010:C1", "`rdr inspect cli/0010`"} {
+		if !strings.Contains(withPeer, want) {
+			t.Errorf("hint with the peer in hand lacks %q: %s", want, withPeer)
+		}
+	}
+	alone := fix(Options{})
+	if strings.Contains(alone, ":A1") || strings.Contains(alone, ":A3") || strings.Contains(alone, ":C4") {
+		t.Errorf("hint without the peer invents an id: %s", alone)
+	}
+	if !strings.Contains(alone, "cli/0010:A<n>") || !strings.Contains(alone, "`rdr inspect cli/0010`") {
+		t.Errorf("hint without the peer lost the form or the command: %s", alone)
+	}
+}
