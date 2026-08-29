@@ -1292,6 +1292,12 @@ func backlinksFacet(docs []*scan.Document, f *flags, stdout, stderr io.Writer) i
 // an LLM reading every candidate: related = mutual Predecessors, Peer-RDR
 // citations, or a shared Cross-Cutting Concern owner.
 func clusterFacet(docs []*scan.Document, of string, f *flags, stdout, stderr io.Writer) int {
+	// `--cluster-of 113` means record 0113, exactly as `inspect 113` does:
+	// resolve() already zero-pads its positional argument, and refusing the
+	// same vocabulary here cost the caller a retry turn.
+	if n := shortRecordNumber(of); n != "" {
+		of = n
+	}
 	seed := ident.RecordOf(of)
 	if seed == "" {
 		fmt.Fprintf(stderr, "stopped:usage (--cluster-of takes a record number, got %q)\n", of)

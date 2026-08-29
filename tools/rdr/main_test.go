@@ -314,6 +314,15 @@ func TestIndexClusterFacet(t *testing.T) {
 	if !strings.Contains(out, "2 members") {
 		t.Errorf("want a 2-member cluster:\n%s", out)
 	}
+	// A bare short number is the same vocabulary resolve() already reads:
+	// `--cluster-of 1` seeds record 0001 rather than stopping on usage.
+	code, short, errb := runCapture(t, "index", "--cluster-of", "1", "--records", dir)
+	if code != 0 {
+		t.Fatalf("short number refused, exit %d: %s", code, errb)
+	}
+	if short != out {
+		t.Errorf("--cluster-of 1 and --cluster-of 0001 disagree:\nshort: %s\nfull:  %s", short, out)
+	}
 }
 
 // corpusDir writes a small synthetic records dir: two Drafts rewriting one
