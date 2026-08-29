@@ -239,6 +239,46 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     fail "12 intrastate not found - the routing models cannot be resolved, so every stage's next-step answer stops - \$rdr-init in Codex or /rdr-init in Claude installs it, or set RDR_INTRASTATE in $MARKER to a built binary"
   fi
 fi
+
+# 13 - non-farm marker callers. A marker binds only under the $PROJECT/$WS the
+# canonical resolver exports and REFUSES a foreign one (workspace.example). Farm
+# skills inherit the resolver from rdr-common; a consumer-local skill that
+# sources a marker through a hand-rolled resolver misses the contract two ways,
+# and both were observed, not imagined: it derives the right path under another
+# NAME and never exports PROJECT, so the marker's own guard stops it with a
+# message about a resolver the skill never names; or it takes no stop from `.`,
+# so a refusal binds nothing, execution continues, and the next probe misblames
+# a derived path (a "missing" env file) instead of the seam that refused. Check
+# 10b proves the farm complete; nothing proved anything about callers OUTSIDE
+# the farm, which is exactly where both consumers here keep such skills. Two
+# greps per file: cheap, mechanical, and only over non-farm skill dirs.
+if [ -n "$seen10" ]; then
+  seen13=""; n13=0; bad13=""
+  for base in "$PROJECT/.claude/skills" "$PROJECT/.codex/skills"; do
+    [ -d "$base" ] || continue
+    for d in "$base"/*/; do
+      real=$(cd "$d" 2>/dev/null && pwd -P) || continue
+      case "$real" in "$RDR_HOME"/skills/*) continue;; esac
+      case " $seen13 " in *" $real "*) continue;; esac
+      seen13="$seen13 $real"
+      for f in "$real/SKILL.md" "$real"/*.sh; do
+        [ -f "$f" ] || continue
+        src=$(grep -E '\. "\$[A-Za-z_]+(/\.rdr/workspace|/\.rdr-workspace)"' "$f" 2>/dev/null)
+        [ -n "$src" ] || continue
+        n13=$((n13+1))
+        grep -E 'export[^#]*PROJECT' "$f" | grep -q 'WS' || bad13="$bad13
+        $f: sources a marker but never exports PROJECT+WS - the marker guard refuses before binding"
+        echo "$src" | grep -qv '||' && bad13="$bad13
+        $f: a marker source line takes no || stop - a refusal falls through and the next probe misblames a derived path"
+      done
+    done
+  done
+  if [ -n "$bad13" ]; then
+    warn "13 consumer-local skills source a marker outside the resolver contract (export PROJECT WS before the source; take non-zero from . as the stop):$bad13"
+  elif [ "$n13" -gt 0 ]; then
+    pass "13 $n13 non-farm marker callers export PROJECT/WS and stop on refusal"
+  fi
+fi
 if [ "$nf" -gt 0 ]; then echo "Verdict: $nf FAIL, $nw WARN - fix the FAIL(s) above (usually \$rdr-init in Codex or /rdr-init in Claude), then re-run \$rdr-doctor in Codex or /rdr-doctor in Claude."
 elif [ "$nw" -gt 0 ]; then echo "Verdict: 0 FAIL, $nw WARN - healthy; WARNs are advisory."
 else echo "Verdict: all checks PASS - the seam is healthy."; fi
