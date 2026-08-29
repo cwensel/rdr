@@ -199,7 +199,7 @@ var factSources = map[string]bool{
 	"field": true, "probe": true, "probe-any": true, "ca-tally": true,
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
 	"cluster-member": true, "cluster-key": true, "header-field": true,
-	"model-compare": true, "section-prose": true,
+	"model-compare": true, "section-prose": true, "readme-row": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -209,7 +209,7 @@ var factSources = map[string]bool{
 // reason it applies to a probe.
 var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
-	"cluster-key": true, "header-field": true,
+	"cluster-key": true, "header-field": true, "readme-row": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -547,6 +547,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.modelCompare(d)
 	case "section-prose":
 		return e.sectionProse(d)
+	case "readme-row":
+		return e.readmeRow(d)
 	}
 	return Fact{}, false
 }
@@ -946,6 +948,75 @@ func (e *FactEnv) exists(root, path string) bool {
 	}
 	_, err := e.statPath(filepath.Join(base, filepath.FromSlash(path)))
 	return err == nil
+}
+
+// readmeRow answers what the records dir's index table says about THIS
+// record: whether it has a row at all, and the Status that row carries.
+//
+// It is the one write-side read that no other source can give. A probe
+// names a path and a field reads this record's own projection, but the
+// index row lives in a SIBLING document — `$RDR_RECORDS/README.md` — and
+// is keyed by the record number rather than by a path. `index --readme`
+// already computes the whole table's drift; this is the per-record slice
+// of the same read, so the two cannot disagree about what a row says.
+//
+// Three-valued like every other fact, and the distinction is the point:
+//
+//	absent  the root is unbound, or there is no README, or it holds no
+//	        index table — nothing looked
+//	"none"  the table was read and this record has NO row (a pre-seed
+//	        record, or one seed never indexed)
+//	<status> the row's Status cell, verbatim
+//
+// "looked and found no row" is a real answer a write op must act on —
+// `readme --add` is exactly the op for it, and `--flip` must refuse
+// there rather than inventing a row — so it is a declared value and not
+// an absence. An unreadable README is the opposite: nothing looked, so
+// nothing is claimed.
+//
+// `d.Label` selects which cell is reported, defaulting to the Status.
+// The row's own presence is reported as the `none` member of the
+// declared domain, which is why the domain must name it.
+func (e *FactEnv) readmeRow(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	if err != nil {
+		return Fact{}, false
+	}
+	rows := scan.ParseReadmeIndex(strings.Split(string(raw), "\n"))
+	if len(rows) == 0 {
+		// No index table is "nothing looked", not "no row": a README that
+		// is prose-only says nothing about whether this record is indexed.
+		return Fact{}, false
+	}
+	// The record number is the key the table is written on, and a row is
+	// matched on it exactly — never on the title, which drifts.
+	want := e.Doc.Record
+	for _, r := range rows {
+		if r.Record != want {
+			continue
+		}
+		v := strings.TrimSpace(r.Status)
+		if d.Label == "title" {
+			v = strings.TrimSpace(r.Title)
+		} else if d.Label == "priority" {
+			v = strings.TrimSpace(r.Priority)
+		}
+		if v == "" {
+			// A row whose cell is empty is a malformed row, not a missing
+			// one. Reporting "none" would send a caller to `--add` over a
+			// row that already exists; absent says the table cannot answer.
+			return Fact{}, false
+		}
+		if d.Kind == "enum" && len(d.Domain) > 0 && !slices.Contains(d.Domain, v) {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: "none"}, true
 }
 
 // sectionProse reports whether a section carries text the AUTHOR wrote.

@@ -61,21 +61,17 @@ not a human pause:
 
 - NOT READY (any blocker) — report the named blockers and the stage each
   returns to. Flip NOTHING. Stop here.
-- READY — lock immediately: write responses 1, 2, 3 and 5 to
+- READY — lock immediately. First write responses 1, 2, 3 and 5 to
   {ARTIFACT_DIR}/gate.md (on a re-lock, overwrite it — gate.md is the current
-  lock's record), and replace those four `###` sub-sections in the RDR's
-  Finalization Gate with the single pointer line
-  `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`.
-  **`### Cross-Cutting Concerns` STAYS in the record**, below the pointer:
-  it is the one gate item written to be cited BY OTHER RDRs (this prompt's
-  own item 4 says "which peer RDR owns the policy"), so it stays projected
-  and addressable as `cli/NNNN:G-cross-cutting`. The other four judge this
-  record at this lock and no peer cites them. Then set
-  Status to Final, and **flip this RDR's README index row to Final** (the row
-  seed added at Draft, updated in place; correct Title/Priority only if
-  drifted). If the row is missing (a pre-seed RDR), add
-  it: `| [NNNN](NNNN-slug.md) | <Title> | Final | <Priority> |`. If autocommit is
-  on (rdr-common §commit),
+  lock's record). Then run rdr-common §rdr-write twice: `--outcome lock` moves
+  those four sub-sections out behind the pointer line and flips Status to Final,
+  and `--outcome readme` brings the index row with it (adding one if this is a
+  pre-seed RDR that has none). **`### Cross-Cutting Concerns` STAYS in the
+  record**, below the pointer: it is the one gate item written to be cited BY
+  OTHER RDRs (this prompt's own item 4 says "which peer RDR owns the policy"),
+  so it stays projected and addressable as `cli/NNNN:G-cross-cutting`. The
+  other four judge this record at this lock and no peer cites them.
+  If autocommit is on (rdr-common §commit),
   commit it as a **standalone** `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`
   over the RDR + README + {ARTIFACT_DIR}/gate.md — **never** a `fixup!` (RDR
   commits ARE the design history; we record the lock as its own real subject,

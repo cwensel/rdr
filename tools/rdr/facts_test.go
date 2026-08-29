@@ -811,6 +811,35 @@ var stageFacts = map[string][]string{
 	"8 Implement": {"impl_capsule", "impl_state"},
 }
 
+// modelTags reads the `[tags.<name>]` keys a routing model declares.
+//
+// It is READ FROM THE MODELS rather than restated here. The fact names
+// are a cross-repo contract, and the whole point of the backward check
+// below is that a declared fact nothing reads is dead weight — so "what
+// reads it" has to be measured against the files that do the reading. A
+// hand-kept list would have to be edited every time a model starts or
+// stops guarding on a fact, and the edit that gets forgotten is exactly
+// the one this test exists to catch.
+func modelTags(t *testing.T, path string) map[string]bool {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("routing model %s: %v", path, err)
+	}
+	out := map[string]bool{}
+	for _, ln := range strings.Split(string(raw), "\n") {
+		ln = strings.TrimSpace(ln)
+		if !strings.HasPrefix(ln, "[tags.") || !strings.HasSuffix(ln, "]") {
+			continue
+		}
+		out[strings.TrimSuffix(strings.TrimPrefix(ln, "[tags."), "]")] = true
+	}
+	if len(out) == 0 {
+		t.Fatalf("routing model %s declares no [tags.*] — the reader is wrong, not the model", path)
+	}
+	return out
+}
+
 // routingFacts are declared for the "How it decides next" section rather
 // than for a signal-table row: the Status qualifier forms that route, and
 // the corpus claim the legacy probe defends.
@@ -888,12 +917,25 @@ func TestEveryStageRowIsExpressedAsFacts(t *testing.T) {
 		}
 	}
 
+	// A fact a ROUTING MODEL guards on is read, whichever model it is.
+	// Both are checked, so a fact that moved from one table to the other
+	// stays covered and one that left both is reported.
+	routedByModel := map[string]bool{}
+	for _, m := range []string{"rdr-status.toml", "rdr-write.toml"} {
+		for k := range modelTags(t, filepath.Join("..", "..", "models", m)) {
+			routedByModel[k] = true
+		}
+	}
+
 	// Backward: no fact is declared that nothing reads.
 	for _, f := range tbl.Facts {
 		if claimed[f.Name] {
 			continue
 		}
 		if _, ok := routingFacts[f.Name]; ok {
+			continue
+		}
+		if routedByModel[f.Name] {
 			continue
 		}
 		t.Errorf("fact %q is declared and no signal-table row or routing rule reads it; "+
@@ -1242,5 +1284,119 @@ func TestContractsProseSeparatesTemplateFromAuthored(t *testing.T) {
 				t.Errorf("contracts_prose = %q, want %q, for:\n%s", got, c.want, c.body)
 			}
 		})
+	}
+}
+
+// readmeIndex writes a records-dir index README carrying the given rows.
+func readmeIndex(t *testing.T, records string, rows ...string) {
+	t.Helper()
+	body := "# RDRs\n\n## Index\n\n| RDR | Title | Status | Priority |\n| --- | --- | --- | --- |\n"
+	for _, r := range rows {
+		body += r + "\n"
+	}
+	if err := os.WriteFile(filepath.Join(records, "README.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// recordAt writes a minimal record and returns its parsed document.
+func recordAt(t *testing.T, records, slug, status string) *scan.Document {
+	t.Helper()
+	path := filepath.Join(records, slug+".md")
+	num := slug[:4]
+	body := "# Recommendation " + num + ": Synthetic\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-28\n- **Status**: " + status + "\n- **Profile**: small\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := scan.File(path, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
+// TestReadmeRowIsThreeValued is the whole contract of the fact, and each
+// of the three answers drives a different write op.
+//
+// The distinction that matters is `none` vs absent. "The table was read
+// and this record has no row" is the exact condition `readme --add`
+// exists for, so it is a DECLARED value a routing row can claim. "There
+// is no README, or it carries no index table" is nothing-looked, and a
+// write op must not act on it at all — inventing a row from an unreadable
+// index is how a second index gets written beside the real one.
+func TestReadmeRowIsThreeValued(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		rows  []string
+		noIdx bool
+		want  string
+		ok    bool
+	}{
+		{name: "row says Final",
+			rows: []string{"| [0009](0009-thing.md) | Thing | Final | High |"},
+			want: "Final", ok: true},
+		{name: "row says Draft",
+			rows: []string{"| [0009](0009-thing.md) | Thing | Draft | High |"},
+			want: "Draft", ok: true},
+		{name: "table read, this record has no row",
+			rows: []string{"| [0001](0001-other.md) | Other | Final | High |"},
+			want: "none", ok: true},
+		{name: "no README at all — nothing looked", noIdx: true, ok: false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			records := t.TempDir()
+			doc := recordAt(t, records, "0009-thing", "Draft")
+			if !c.noIdx {
+				readmeIndex(t, records, c.rows...)
+			}
+			tbl := loadRealTable(t)
+			env := testEnv(t, tbl, "0009-thing", "", records)
+			env.Doc = doc
+			got, ok := factValue(tbl.Evaluate(env), "readme_status")
+			if ok != c.ok {
+				t.Fatalf("present = %v, want %v (value %q)", ok, c.ok, got)
+			}
+			if ok && got != c.want {
+				t.Errorf("readme_status = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
+
+// TestReadmeRowWithoutATableIsAbsentNotNone: a README that is prose only
+// says NOTHING about whether this record is indexed. Answering `none`
+// there would send `readme --add` at a records dir whose index lives
+// somewhere this parser cannot see, and it would append a second table.
+func TestReadmeRowWithoutATableIsAbsentNotNone(t *testing.T) {
+	records := t.TempDir()
+	doc := recordAt(t, records, "0009-thing", "Draft")
+	if err := os.WriteFile(filepath.Join(records, "README.md"),
+		[]byte("# RDRs\n\nThe index lives elsewhere.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	tbl := loadRealTable(t)
+	env := testEnv(t, tbl, "0009-thing", "", records)
+	env.Doc = doc
+	if got, ok := factValue(tbl.Evaluate(env), "readme_status"); ok {
+		t.Errorf("readme_status = %q on a README with no index table; want absent", got)
+	}
+}
+
+// TestReadmeRowMatchesOnTheNumberNotTheTitle: the number is the key the
+// table is written on. A title drifts — `index --readme` reports title
+// drift as an ordinary finding — so matching on it would make the fact
+// disagree with the facet on exactly the records that need fixing.
+func TestReadmeRowMatchesOnTheNumberNotTheTitle(t *testing.T) {
+	records := t.TempDir()
+	doc := recordAt(t, records, "0009-thing", "Draft")
+	readmeIndex(t, records, "| [0009](0009-thing.md) | A Stale Title | Final | High |")
+	tbl := loadRealTable(t)
+	env := testEnv(t, tbl, "0009-thing", "", records)
+	env.Doc = doc
+	got, ok := factValue(tbl.Evaluate(env), "readme_status")
+	if !ok || got != "Final" {
+		t.Errorf("readme_status = %q (present %v); a drifted title must not hide the row", got, ok)
 	}
 }

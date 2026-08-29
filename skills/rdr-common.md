@@ -187,6 +187,32 @@ hundred bytes instead of the whole envelope.
 
 `/rdr-seed` does **not** resolve — it *allocates* the next number (see §rdr-claim).
 
+## §rdr-write — the structural edits, resolved not described
+
+The four structural edits (claim a number, add/flip the README row, lock, route
+back) are **resolved from a linted decision table**, not restated per site.
+`intrastate lint --model` proves every cell of `models/rdr-write.toml` is claimed
+by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
+
+```sh
+# §rdr-write — one call. $RDR_HOME comes from §seam-bind.
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" \
+  --outcome <claim|readme|lock|demote> $("$RDR_HOME/bin/rdr" status --tags NNNN)
+```
+
+`emit` is the answer: `op` (the operation), `target`, `edit` (the exact
+expression), `why`, `surface` (show verbatim). **Apply `edit` as handed** — it is
+data, not a description; retyping it makes the guarantee prose again. Two `op`
+values are not edits: `none` (the state already holds — every op is idempotent)
+and `stopped:*` (a shape the table refuses rather than guesses; surface per
+§stop-packet).
+
+The table routes structure and status, never judgement: the gate verdict and the
+demotion call arrive as your `--outcome`. `rdr` stays read-only — it renders the
+facts, the table decides, you apply the edit with `sed`/`git mv`. A write re-arms
+the lint receipt (§commit).
+
 ## §rdr-claim — atomically reserve a number before authoring (`/rdr-seed` only)
 
 `max(NNNN)+1` alone races: two concurrent sessions both read the same max, both
@@ -195,34 +221,22 @@ RDRs silently sharing one number (no write error, because the slugs differ). The
 cure is to **claim the number atomically as the first step**, before any
 authoring, and **fail loudly on collision** so the loser just bumps and retries.
 
-Reserve-then-rename. The reservation filename is keyed on the number **only** — no
-slug, no session suffix — so `set -C` (noclobber) makes a second claimant's write
-genuinely fail rather than coexist under a different name. The number is the lock.
-The claim **materializes a copy of TEMPLATE.md** in the same atomic step, so the
-reserved file *is* the canonical skeleton — there is never a reason to author
-structure from scratch or copy a neighbor RDR for "house style" (that drifts the
-template and leaks the neighbor's solution into a Draft that must have none).
+Run §rdr-write with `--outcome claim` and apply its `edit`. It reserves
+`NNNN-RESERVED.md` under `set -C` (noclobber) as a **verbatim copy of
+TEMPLATE.md**, retrying on collision, and echoes the claimed `NNNN`. The
+filename is keyed on the number **only** — no slug, no session suffix — so the
+number is the lock and a concurrent session's `max()` scan counts the
+reservation and picks NNNN+1.
 
-```sh
-# 1. CLAIM — first thing, before authoring. Atomic copy of TEMPLATE.md; retry-on-collision.
-# $RDR_RECORDS is exported by §seam-bind (the marker); do NOT recompute it.
-[ -n "$RDR_RECORDS" ] && [ -d "$RDR_RECORDS" ] || { echo "stopped:no-rdr-dir:$RDR_RECORDS" >&2; exit 1; }
-TEMPLATE="$RDR_HOME/TEMPLATE.md"
-while :; do
-  max=$(ls "$RDR_RECORDS" | grep -oE '^[0-9]{4}' | sort -n | tail -1)
-  printf -v NNNN '%04d' "$((10#${max:-0} + 1))"
-  reserved="$RDR_RECORDS/${NNNN}-RESERVED.md"
-  if ( set -C; cat "$TEMPLATE" > "$reserved" ) 2>/dev/null; then break; fi  # atomic; loser loops
-done
-# NNNN is now ours and "$reserved" holds the verbatim template skeleton. A
-# concurrent session's max() scan counts ${NNNN}-RESERVED.md, so it picks NNNN+1.
-# 2. FILL IN PLACE: edit ONLY the H1 [NUMBER]/[TITLE], Metadata, Problem Statement,
-#    Context. Leave every other section exactly as the template ships it — those
-#    placeholders ARE the Draft placeholders. No solution/assumptions/research.
-# 3. RENAME to the final slug once known:  git mv "$reserved" "$RDR_RECORDS/${NNNN}-<slug>.md"
-```
+The reserved file **is** the canonical skeleton, so there is never a reason to
+author structure from scratch or copy a neighbour RDR for "house style" (that
+drifts the template and leaks the neighbour's solution into a Draft that must
+have none). Fill it IN PLACE — only the H1 `[NUMBER]`/`[TITLE]`, Metadata,
+Problem Statement and Context; every other section stays exactly as the template
+ships it, because those placeholders ARE the Draft placeholders. Then rename to
+the final slug: `git mv "$RDR_RECORDS/NNNN-RESERVED.md" "$RDR_RECORDS/NNNN-<slug>.md"`.
 
-If authoring is abandoned before the rename, the stray `${NNNN}-RESERVED.md` is the
+If authoring is abandoned before the rename, the stray `NNNN-RESERVED.md` is the
 trace — delete it (or rename it) so the number frees up; until then it correctly
 holds the slot. The reservation is intentionally visible to other sessions.
 

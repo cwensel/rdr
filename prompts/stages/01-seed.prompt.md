@@ -9,21 +9,13 @@ before writing.
 worktree: sessions share this branch, so branching hides the new RDR and breaks the
 §rdr-claim number lock.
 
-**Claim the number atomically FIRST** (rdr-common §rdr-claim), before authoring
-anything: in a retry-on-collision loop, take `max(NNNN)+1` and materialize
-`<rdr-dir>/NNNN-RESERVED.md` **as a copy of TEMPLATE.md** under `set -C`
-(noclobber); on collision, bump and retry. This both reserves the slot (so a
-concurrent session picks NNNN+1) and gives you the canonical skeleton to fill.
+**Claim the number atomically FIRST** — rdr-common §rdr-claim, before authoring
+anything. It reserves the slot and hands you the canonical TEMPLATE.md skeleton.
 
-**The TEMPLATE.md copy is the skeleton — do not author structure from scratch and
-do not copy another RDR for "house style."** A neighbor RDR is a *finished*
-document; copying it drifts the structure and leaks its chosen solution into your
-Draft. Fill ONLY Metadata, Problem Statement, and Context (plus `[NUMBER]` /
-`[TITLE]` in the H1) from the kata, editing in place. Leave every other section
-**exactly as the template ships it** — its placeholders already are the Draft
-placeholders. Do NOT invent a solution, assumptions, or research findings; those
-are later stages. Once the slug is settled,
-`git mv <rdr-dir>/NNNN-RESERVED.md <rdr-dir>/NNNN-slug.md`.
+Fill it IN PLACE: ONLY Metadata, Problem Statement, and Context (plus `[NUMBER]` /
+`[TITLE]` in the H1) from the kata. Leave every other section **exactly as the
+template ships it** — its placeholders already are the Draft placeholders. Do NOT
+invent a solution, assumptions, or research findings; those are later stages.
 
 Fill the **Seam Lineage** Metadata field from the `kata-scope-review
 §seam-accretion` emission on the originating kata (the locus `path::Symbol`/
@@ -50,10 +42,8 @@ If {IDEA} is a plain description rather than a kata id, synthesize a
 one-paragraph problem statement from it, flagged for my review.
 
 Once the Draft file is at its final `<rdr-dir>/NNNN-slug.md` path, **add its row
-to the RDR README index** (`$RDR_RECORDS/README.md`, the authoritative status
-table): append `| [NNNN](NNNN-slug.md) | <Title> | Draft | <Priority> |` to the
-`## Index` table, Title/Priority from the RDR's own H1/Metadata. Replace the
-first-RDR placeholder comment if present; touch no other row. (A `Demoted` seed
-adds no row — it runs no further stages.)
+to the RDR README index**: rdr-common §rdr-write, `--outcome readme`. Title and
+Priority come from the RDR's own H1/Metadata. (A `Demoted` seed adds no row — it
+runs no further stages.)
 
 This is a skeleton, not a finished document. No ultrathink at seed time.

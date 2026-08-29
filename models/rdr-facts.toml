@@ -59,6 +59,14 @@ suffix = "{slug}/evidence"
 var    = "RDR_RECORDS"
 suffix = "{slug}"
 
+# `records` is $RDR_RECORDS itself — the directory, not a per-RDR subtree.
+# It exists for the index README, which is the one shared document the
+# facts read: it sits BESIDE the records rather than under any one of
+# them, so no `{slug}` suffix can reach it.
+[root.records]
+var    = "RDR_RECORDS"
+suffix = ""
+
 # The evidence root itself, unsuffixed: the pre-migration shapes hang
 # directly off it, keyed by slug, rather than under the record's folder.
 [root.evidence-root]
@@ -932,3 +940,26 @@ source      = "section-prose"
 path        = "Normative Contracts"
 absent      = "false"
 description = "Normative Contracts carries authored text, labelled or not."
+
+# --- the index row ---------------------------------------------------------
+#
+# What `$RDR_RECORDS/README.md`'s index table says about this record. The
+# write-side ops (rdr-write.toml) route on it: `readme --add` needs "there
+# is no row", `--flip` and `lock` need "there is one, and it says X", and
+# both must REFUSE rather than guess on a shape they do not recognise.
+#
+# It reads the same table `index --readme` audits, through the same
+# parser, so a per-record answer and the corpus report cannot disagree.
+#
+# `none` is a DECLARED value, not an absence: "the table was read and this
+# record has no row" is the exact condition `--add` exists for, and a
+# fact that went absent there would be indistinguishable from an
+# unreadable README — which is the one case where nothing may be claimed.
+[fact.readme_status]
+kind        = "enum"
+source      = "readme-row"
+root        = "records"
+path        = "README.md"
+domain      = ["unindexed", "none", "Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+absent      = "unindexed"
+description = "The Status cell of this record's README index row, or `none` when it has no row."

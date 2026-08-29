@@ -205,16 +205,33 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     IS=$(command -v intrastate 2>/dev/null)
   fi
   if [ -n "$IS" ]; then
-    if lintout=$("$IS" lint --model "$RDR_HOME/models/rdr-status.toml" --as json 2>&1); then
-      case "$lintout" in
+    # EVERY model in the dir, not a named one. The coverage proof is the whole
+    # reason these are data, and a model nobody lints has none - naming one file
+    # here means the next model added is unproven and this check still says PASS.
+    n12=0; bad12=""; esc12=""
+    for m in "$RDR_HOME"/models/rdr-*.toml; do
+      [ -f "$m" ] || continue
+      # The FACT table is not a transition model and graph-lint does not read it.
+      case "$(basename "$m")" in rdr-facts.toml|rdr-template.toml) continue;; esac
+      n12=$((n12+1))
+      if lintout=$("$IS" lint --model "$m" --as json 2>&1); then
         # Exit 0 still carries advisories, and one of them matters here:
         # coverage closed by a bare escape row is closed, not proved.
-        *graph-coverage-closed-by-escape*)
-          warn "12 routing model coverage is closed by an escape row rather than proved over its declared domains - a bare green is deliberately not available" ;;
-        *) pass "12 routing model lints clean - every routing cell is claimed exactly once" ;;
-      esac
+        case "$lintout" in
+          *graph-coverage-closed-by-escape*) esc12="$esc12 $(basename "$m")";;
+        esac
+      else
+        bad12="$bad12 $(basename "$m"): $(echo "$lintout" | head -c 120);"
+      fi
+    done
+    if [ -n "$bad12" ]; then
+      warn "12 a routing model fails graph-lint, so its coverage proof is broken -$bad12"
+    elif [ -n "$esc12" ]; then
+      warn "12 routing model coverage is closed by an escape row rather than proved over its declared domains ($esc12) - a bare green is deliberately not available"
+    elif [ "$n12" -gt 0 ]; then
+      pass "12 $n12 routing models lint clean - every routing cell is claimed exactly once"
     else
-      warn "12 routing model fails graph-lint, so the navigator's coverage proof is broken - $(echo "$lintout" | head -c 200)"
+      warn "12 no routing models found under $RDR_HOME/models - the navigator has nothing to resolve against"
     fi
   elif [ -z "$RDR_INTRASTATE" ]; then
     # Only when nothing was configured: a bad RDR_INTRASTATE already FAILed, and

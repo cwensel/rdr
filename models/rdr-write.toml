@@ -1,0 +1,667 @@
+# rdr-write.toml — the flow's structural record edits, as data.
+#
+# Four operations the flow performs by hand today, restated across five
+# prompt sites and re-derived by a model on every run: claim a number,
+# add or flip the README index row, lock at Stage 7, demote at 7.1. They
+# are the largest edits in the flow and the most mechanical.
+#
+# ---------------------------------------------------------------------
+# WHY THIS IS A TABLE AND NOT AN `rdr` SUBCOMMAND
+#
+# `rdr` stays READ-ONLY. Its own doctrine — "It never writes to a record"
+# (tools/rdr/README.md §What it refuses to do) — is unchanged by this
+# file, deliberately and not by omission. The alternative was four write
+# verbs in the projector; it was rejected because every such verb is Go
+# that has to be kept correct, and because the win being chased is not
+# "a binary that writes" but SMALLER PROMPTS AND HIGHER DETERMINISM.
+# That win needs the operation NAMED and DISPATCHED somewhere a prompt
+# can cite — which is here.
+#
+# So the composition is the one `rdr-status.toml` already proves:
+#
+#   rdr status --tags NNNN  →  intrastate flow resolve --model rdr-write.toml
+#      (the facts, as argv)       (this table)   →   emit{op, target, edit}
+#
+# Neither binary calls the other. `rdr` renders the facts, `intrastate`
+# selects exactly one row, and the caller applies the emitted edit with
+# an established tool (`sed`, `git mv`). Determining the state and
+# applying the change are both delegated; this file is the decision in
+# between, and it is reviewable as one document.
+#
+# WHAT `intrastate lint --model` BUYS, AND IT IS THE POINT: every cell of
+# each declared product is claimed by exactly one row. The refuse cases —
+# a record already Final, a pre-seed record with no index row — are not
+# fixtures hoping to be written. They are CELLS, and a gap in them is a
+# lint failure here rather than a wrong answer to an agent months from
+# now. That is a stronger guarantee than a per-op refuse test.
+#
+# THE EDIT IS DATA. `[rule.emit]` carries the exact `sed` expression, not
+# a description of one. Emit values are uninterpreted strings compared by
+# bytes — there is no interpolation — so `NNNN` and slugs are never
+# spelled here; the caller appends what it already holds. This is also
+# what makes the file forward-compatible: when intrastate ships a write
+# accessor that INVOKES a declared command (intrastate#v0hb), the same
+# declaration becomes that accessor's command and no row changes.
+#
+# ---------------------------------------------------------------------
+# THE COUPLING IS THE FACT NAMES, AND NOTHING ELSE
+#
+# Every `[tags.*]` name below must match a fact `models/rdr-facts.toml`
+# declares. A rename there is a breaking change here, exactly as it is
+# for `rdr-status.toml`.
+#
+# THE DIMENSIONS ARE GUARD ATOMS, NEVER MATCH ATOMS. `[rule.match.*]`
+# scopes a row's group and contributes NO dimension to the product lint
+# proves exhaustiveness over. A table discriminated by match atoms ranges
+# over an empty product that any single row closes — green whether or not
+# it is complete.
+#
+# FOUR OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
+# different question over a different slice of the facts, and splitting
+# the question splits the product.
+#
+# ---------------------------------------------------------------------
+# WHAT THIS TABLE DOES NOT DECIDE
+#
+# It routes STRUCTURE and STATUS. It never authors content, and it never
+# judges. Whether the gate PASSES is Stage 7's reading of five written
+# responses; whether a cluster defect warrants a demotion is 7.1's
+# judgement. Those arrive as the caller's `--outcome` — the table answers
+# "given that verdict, what is the edit", never "what is the verdict".
+#
+# Where the flow's own answer is a judgement a fact cannot make, the row
+# emits a `stopped:` token naming what is missing, exactly as
+# §stop-packet requires: a skipped check must never read as a passed one.
+
+outcomes = ["claim", "readme", "lock", "demote"]
+
+[model]
+id          = "rdr-write"
+version     = 1
+class       = "decision-table"
+description = "RDR write side: the record's facts to the one structural edit."
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+single_valued = true
+required      = true
+
+# --- the dimensions --------------------------------------------------------
+#
+# Each is `required` and `single_valued`. An optional tag withholds the
+# coverage claim at lint (`graph-unprovable-coverage`) AND refuses at
+# resolve (`flow-guard-unevaluable`), so a dimension that is merely
+# sometimes supplied cannot be routed on at all. Where the underlying
+# field is genuinely sometimes absent, the FACT TABLE declares the
+# sentinel and `--tags` always renders the key.
+
+[tags.status]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+single_valued = true
+required      = true
+
+# The index row's own Status, from `rdr-facts.toml`'s `readme_status`.
+# `none` is "the table was read and this record has no row" — the
+# condition `readme --add` exists for. `unindexed` is the declared absent
+# sentinel: no README, or one carrying no index table, which is
+# nothing-looked and must never be written into.
+[tags.readme_status]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["unindexed", "none", "Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+single_valued = true
+required      = true
+
+# The two SET-VALUED facts the producer emits, declared with NO guard atom.
+#
+# They are here purely so the composition does not refuse. `rdr status
+# --tags` emits the whole fact vector and this table guards on a subset —
+# the intended shape, since only guard atoms make dimensions. But an
+# undeclared set-valued tag is currently refused as a kind mismatch
+# (intrastate#3exy), so every record would refuse with a message naming a
+# declaration that does not exist. Declaring them costs the product
+# nothing: no guard atom references them, so they contribute no dimension.
+# Delete both when 3exy lands.
+[tags.cluster]
+provenance = "observed"
+kind       = "set"
+
+[tags.open_joint_decisions]
+provenance = "observed"
+kind       = "set"
+
+# Stage 7's done-signal: `{ARTIFACT_DIR}/gate.md` exists. It does not say
+# the gate PASSED — the projector does not open that file — so `lock`
+# reads it only to tell a first lock from a re-lock.
+[tags.gate_written]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# ===========================================================================
+# claim — reserve the next number, atomically
+# ===========================================================================
+#
+# Replaces the `ls | grep -oE '^[0-9]{4}' | sort -n | tail -1` loop plus
+# the `set -C` copy at rdr-common §rdr-claim and 01-seed.prompt.md.
+#
+# THE RESERVATION IS LOAD-BEARING AND STAYS. `NNNN-RESERVED.md` is keyed
+# on the number ONLY — no slug, no session suffix — so `set -C`
+# (noclobber) makes a second claimant's write genuinely fail rather than
+# coexist under a different name. The number is the lock, and a
+# concurrent session's `max()` scan counts the reservation, so it picks
+# NNNN+1. Retry-on-collision stays with it: the loser bumps and loops.
+#
+# The claim materialises a copy of TEMPLATE.md in the same atomic step,
+# so the reserved file IS the canonical skeleton — which is what removes
+# the reason to author structure from scratch or copy a neighbour RDR.
+#
+# This op is the one that does not read the record: there is no record
+# yet. It guards on nothing but the outcome, so its group's product is
+# the single recognized cell, claimed once.
+
+# The guard is what makes `readme_status` a participating dimension for
+# this group, so its coverage is PROVABLE rather than merely unclaimed.
+# It is not decoration: a claim reserves a number in a records dir, and a
+# dir whose index cannot be read is one where the max() scan is the only
+# thing standing between two sessions and the same number.
+[[rule]]
+id = "claim-reserve"
+[rule.match.recognized]
+eq = "claim"
+[rule.guard.unless.readme_status]
+eq = "unindexed"
+[rule.emit]
+op     = "claim"
+target = "records-dir"
+# One atomic step, and the loop is the retry. `set -C` is the lock; the
+# subshell keeps noclobber out of the caller's shell.
+edit   = "while :; do max=$(ls \"$RDR_RECORDS\" | grep -oE '^[0-9]{4}' | sort -n | tail -1); NNNN=$(printf '%04d' $((10#${max:-0} + 1))); if ( set -C; cat \"$RDR_HOME/TEMPLATE.md\" > \"$RDR_RECORDS/$NNNN-RESERVED.md\" ) 2>/dev/null; then break; fi; done; echo \"$NNNN\""
+why    = "The number is the lock: reserve it before authoring, and let a collision retry."
+surface = "the claimed NNNN, and that the reserved file is a verbatim TEMPLATE.md copy — fill it in place, never author structure or copy a neighbour RDR"
+# The rename is a separate, later act: the slug is not known at claim time.
+then   = "git mv \"$RDR_RECORDS/$NNNN-RESERVED.md\" \"$RDR_RECORDS/$NNNN-<slug>.md\" once the slug is settled"
+
+# A records dir whose index cannot be read → refuse the claim too. The
+# reservation itself would still work, but the seed that follows it has
+# nowhere to add a row, and a number claimed against an unreadable index
+# is how a record ends up outside the table it is supposed to be in.
+[[rule]]
+id = "claim-unreadable-index"
+[rule.match.recognized]
+eq = "claim"
+[rule.guard.all.readme_status]
+eq = "unindexed"
+[rule.emit]
+op   = "stopped:no-index-table"
+why  = "No readable index table in the records dir — a claim here yields a record the seed cannot index."
+surface = "the records dir, so the human can scaffold or repoint it"
+
+# ===========================================================================
+# readme — the index row (the write twin of `index --readme`)
+# ===========================================================================
+#
+# `index --readme` CHECKS the table against the records; this is the
+# symmetric write. Sites: 01-seed.prompt.md, 07-finalize.prompt.md,
+# 07.1-cluster-reconcile.prompt.md.
+#
+# The product here is readme_status (11) x status (9) = 99 cells, and the
+# rows below claim all of them: no-row adds, a row that already agrees is
+# a no-op, a row that disagrees flips, and the unreadable index refuses.
+
+# The four rows below claim every (readme_status x status) cell: 11 x 9 = 99.
+# The order of the guards is what makes them disjoint — `unindexed` first
+# (nothing looked), then `none` (no row), then the two that compare a real
+# row against the record.
+
+# The index cannot be read → REFUSE, before anything else. Nothing looked,
+# so nothing may be written: appending to a README whose index this parser
+# cannot see would write a second table beside the real one.
+[[rule]]
+id = "readme-unreadable"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.readme_status]
+eq = "unindexed"
+[rule.emit]
+op   = "stopped:no-index-table"
+why  = "No README, or one carrying no `| [NNNN](...) |` index table — nothing looked, so nothing is written."
+surface = "the records dir, so the human can say whether the index moved or was never scaffolded"
+
+# No row → ADD one carrying the record's own status.
+[[rule]]
+id = "readme-add"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.readme_status]
+eq = "none"
+[rule.emit]
+op     = "readme-add"
+target = "readme"
+# Appended after the LAST existing index row, so the table stays contiguous
+# and no other row is touched. The caller supplies the cells it holds.
+edit   = "append `| [NNNN](NNNN-slug.md) | <Title> | <Status> | <Priority> |` after the final `| [NNNN](` row of the `## Index` table; replace a first-RDR placeholder comment if one is present"
+why    = "The record has no index row and the table was read cleanly — add it."
+surface = "Title and Priority from the record's own H1 and Metadata, never invented"
+
+# A row that already carries the record's status → NO-OP. This is what
+# makes the op idempotent: running it twice is running it once. The guard
+# is an EQUALITY BETWEEN TWO DIMENSIONS, which the grammar cannot state,
+# so it is written as one row per status value.
+[[rule]]
+id = "readme-agrees"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.readme_status]
+eq = "Draft"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-final"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.readme_status]
+eq = "Final"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-implemented"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Implemented"
+[rule.guard.all.readme_status]
+eq = "Implemented"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-deferred"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Deferred"
+[rule.guard.all.readme_status]
+eq = "Deferred"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-demoted"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Demoted"
+[rule.guard.all.readme_status]
+eq = "Demoted"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-abandoned"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Abandoned"
+[rule.guard.all.readme_status]
+eq = "Abandoned"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-superseded"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Superseded"
+[rule.guard.all.readme_status]
+eq = "Superseded"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-reverted"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Reverted"
+[rule.guard.all.readme_status]
+eq = "Reverted"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+[[rule]]
+id = "readme-agrees-rejected"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none"]
+[rule.guard.all.status]
+eq = "Rejected"
+[rule.guard.all.readme_status]
+eq = "Rejected"
+[rule.emit]
+op   = "none"
+why  = "The index row already carries this record's status — nothing to write."
+
+# A row that DISAGREES with the record → FLIP it in place. The record is
+# the source of truth; the index is derived, so the row moves to match it
+# and never the other way.
+#
+# ONE ROW PER RECORD STATUS, each excluding the readme_status that equals
+# it. The grammar has no "these two dimensions are equal" atom, so the
+# diagonal is subtracted explicitly — and it must be: a single catch-all
+# flip row would accept every cell the `agrees` rows do, lint would call
+# those rows redundant, and the op would rewrite a row that already said
+# the right thing. That is the difference between idempotent and not.
+
+[[rule]]
+id = "readme-flip-draft"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Draft"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-final"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Final"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-implemented"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Implemented"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Implemented"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-deferred"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Deferred"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Deferred"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-demoted"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Demoted"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Demoted"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-abandoned"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Abandoned"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Abandoned"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-superseded"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Superseded"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Superseded"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-reverted"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Reverted"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Reverted"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+[[rule]]
+id = "readme-flip-rejected"
+[rule.match.recognized]
+eq = "readme"
+[rule.guard.all.status]
+eq = "Rejected"
+[rule.guard.unless.readme_status]
+in = ["unindexed", "none", "Rejected"]
+[rule.emit]
+op     = "readme-flip"
+target = "readme"
+edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
+surface = "the row's old and new Status, so a flip nobody intended is visible"
+
+# ===========================================================================
+# lock — Stage 7's READY action
+# ===========================================================================
+#
+# The largest hand-edit in the flow, and the one with a genuine content
+# move in it. Four gate sub-sections leave the record for
+# {ARTIFACT_DIR}/gate.md and are replaced by one pointer line;
+# `### Cross-Cutting Concerns` STAYS, because it is the one gate item
+# written to be cited BY OTHER RDRs (`cli/NNNN:G-cross-cutting`). The
+# other four judge this record at this lock and no peer cites them.
+#
+# WHICH ITEMS ARE RETAINED IS NOT SPELLED HERE. TEMPLATE.md carries a
+# `[Retained at lock — …]` marker beside the sub-section it describes,
+# and the projector parses it (`GateItemRetained`). The edit below names
+# the retained heading once, as the boundary the section move stops at;
+# a template that retains a different item changes there, not here.
+#
+# The VERDICT is not this table's. Stage 7 reads five written responses
+# and decides; `--outcome lock` is the caller asserting READY. This
+# answers only "given READY, what is the edit".
+
+# A Draft with its gate written → the full lock.
+[[rule]]
+id = "lock-draft"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.gate_written]
+eq = "true"
+[rule.emit]
+op     = "lock"
+target = "record"
+# Three edits, in this order. The status flip is last so a failure in the
+# section move leaves the record legibly mid-lock rather than Final.
+edit   = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Final/"
+sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
+why    = "Gate written and the record is a Draft — move the four judged responses out, keep the cited one, flip to Final."
+surface = "that the README row is flipped in the same pass (`--outcome readme`), and that the commit is a standalone `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`, never a fixup!"
+
+# A Draft with NO gate.md → refuse. The responses have to exist before
+# the record can point at them; a pointer to an absent file is worse than
+# an unlocked record, because it reads as a discharged gate.
+[[rule]]
+id = "lock-no-gate"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.gate_written]
+eq = "false"
+[rule.emit]
+op   = "stopped:no-gate-written"
+why  = "No {ARTIFACT_DIR}/gate.md — the pointer line would name a file that does not exist, which reads as a discharged gate."
+surface = "Stage 7 writes the five responses first; the lock is the second half of that pass"
+
+# Already Final → idempotent no-op, not an error. Re-running a lock is
+# how a re-lock begins, and the flow re-locks after a 7.1 route-back.
+[[rule]]
+id = "lock-already-final"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Final"
+[rule.emit]
+op   = "none"
+why  = "Already Final — the lock is idempotent, so this is a no-op rather than a second flip."
+
+# A terminal or parked record → refuse. These are past the gate entirely
+# and their content is never amended.
+[[rule]]
+id = "lock-terminal"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+in = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected", "Deferred"]
+[rule.emit]
+op   = "stopped:not-lockable"
+why  = "Terminal or parked — the record is past the gate and its content is not amended."
+surface = "the status, verbatim"
+
+# ===========================================================================
+# demote — 7.1's route-back
+# ===========================================================================
+#
+# A cluster reconcile found a SPEC-DEFECT and named this record — the
+# less foundational of the pair — as the one to change. The route-back is
+# ONE edit and touches no design body: the status flips with its scope
+# qualifier, the index row follows, and a re-entry note lands after
+# `## References`.
+#
+# THE QUALIFIER RIDES ON THE LIVE STATUS VALUE, which is what makes it
+# durable: Stage 3's history-scrub never touches it, and the Stage 7
+# re-lock flip overwrites it. The named assumption IDs are the only ones
+# whose lock-time `Verified` stamp the defect disturbs.
+#
+# The note is appended AFTER the flip, when the record is already a Draft
+# — Drafts carry working context, so it is not an amend. Stage 7 confirms
+# it is gone before re-lock, and `models/rdr-template.toml`'s
+# `[prose.change-history]` sweep is what proves it: `Refinement Context`
+# is a declared word there, so a note that survives a re-lock is a lint
+# finding rather than something a reader has to notice.
+
+[[rule]]
+id = "demote-final"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.emit]
+op     = "demote"
+target = "record"
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <date>; re-verify <assumption IDs> — <one-line reason>]/"
+sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE, RE-ENTRY SCOPE, resolution direction, and a pointer to the report"
+why    = "A cluster reconcile named this record as the less foundational of the pair — flip with the scope qualifier, then land the note."
+surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
+
+# Already a Draft → no-op. The record is already back in flight; a second
+# demote would stack a qualifier on a qualifier.
+[[rule]]
+id = "demote-already-draft"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.emit]
+op   = "none"
+why  = "Already a Draft — the route-back is idempotent, and a second qualifier would stack on the first."
+
+# Anything else → refuse. 7.1 demotes a Final; a terminal or parked
+# record is not in the cluster's live set.
+[[rule]]
+id = "demote-not-final"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+in = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected", "Deferred"]
+[rule.emit]
+op   = "stopped:not-demotable"
+why  = "Terminal or parked — 7.1 routes back a Final, and this record is not one."
+surface = "the status, verbatim"
