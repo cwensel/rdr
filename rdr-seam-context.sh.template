@@ -9,11 +9,18 @@
 # SessionStart hook entry. Fail-quiet: if the marker is missing, emit nothing.
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || exit 0
 GC=$(cd "$GC" 2>/dev/null && pwd -P) || exit 0
-PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export WS
+# BOTH exported: a marker guards on the var its scope anchors, and asserts its
+# RDR_PROJECT_ANCHOR against $PROJECT. Exporting only $WS would leave $PROJECT
+# empty, so a repo-local marker would refuse its own project.
+PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
 # nearest marker wins: repo-local (inside .rdr/) overrides the shared workspace marker
 if   [ -f "$PROJECT/.rdr/workspace" ]; then MARKER="$PROJECT/.rdr/workspace"
 elif [ -f "$WS/.rdr-workspace" ];      then MARKER="$WS/.rdr-workspace"
 else exit 0; fi
+# A marker that REFUSES (foreign project) exits non-zero and binds nothing. Emit
+# nothing rather than a half seam: this hook is ergonomics, and a fast-path block
+# carrying unset paths would be worse than no block — §seam-bind takes those
+# literals on trust, so a wrong one would outlive the turn that made it.
 . "$MARKER" 2>/dev/null || exit 0
 [ -n "$RDR_ENV" ] && [ -f "$RDR_ENV" ] || exit 0
 # Emit the five-var engine contract + the RDR_AUTOCOMMIT gate the skills read. (A

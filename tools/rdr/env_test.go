@@ -17,7 +17,7 @@ import (
 func runEnv(t *testing.T, args ...string) (string, string, int) {
 	t.Helper()
 	seamMu.Lock()
-	seamDir, seamCache = "\x00unset", nil
+	seamDir, seamCache, seamRefusal = "\x00unset", nil, ""
 	seamMu.Unlock()
 	fs := flag.NewFlagSet("env", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -305,5 +305,101 @@ func TestEnvNamesItselfInTheUsageLog(t *testing.T) {
 		if got := usageFacet("env", f, ""); got != c.want {
 			t.Errorf("env %v logs as %q, want %q", c.args, got, c.want)
 		}
+	}
+}
+
+// anchoredMarkerBody is the marker /rdr-init writes: the same contract as
+// envMarkerBody, plus the self-identifying anchor that makes a foreign
+// bind refuse instead of fabricating paths from whatever $PROJECT held.
+func anchoredMarkerBody(anchor string) string {
+	return `: "${PROJECT:?needs the canonical resolver}"
+RDR_PROJECT_ANCHOR="` + anchor + `"
+[ "$PROJECT" = "$RDR_PROJECT_ANCHOR" ] || {
+  echo "stopped:foreign-project marker=$RDR_PROJECT_ANCHOR/.rdr/workspace describes=$RDR_PROJECT_ANCHOR handed=$PROJECT" >&2
+  return 1 2>/dev/null || exit 1
+}
+` + envMarkerBody
+}
+
+// TestEnvBindsAnAnchoredMarkerUnchanged is the compatibility half of the
+// anchor guard: a marker that DOES describe this project must bind exactly
+// as it did before the guard existed. The guard is only allowed to cost a
+// foreign caller something.
+func TestEnvBindsAnAnchoredMarkerUnchanged(t *testing.T) {
+	project, records := newProject(t, "local", "")
+	body := anchoredMarkerBody(project)
+	if err := os.WriteFile(filepath.Join(project, ".rdr", "workspace"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+
+	out, errb, code := runEnv(t)
+	if code != 0 {
+		t.Fatalf("exit %d, want 0 — an anchored marker on its OWN project must bind: %s", code, errb)
+	}
+	got := parseEnvText(out)
+	if got["RDR_RECORDS"] != records {
+		t.Errorf("RDR_RECORDS = %q, want %q", got["RDR_RECORDS"], records)
+	}
+	if got[envProjectVar] != project {
+		t.Errorf("%s = %q, want %q", envProjectVar, got[envProjectVar], project)
+	}
+}
+
+// TestEnvStopsOnAMarkerThatRefuses is 2pb4's acceptance, at the layer that
+// would otherwise defeat it.
+//
+// A marker whose anchor names another project refuses to bind. Before this,
+// that refusal was swallowed: bindSeam returned an empty map, which is
+// indistinguishable from "no marker here", so `env` exited 0 publishing
+// only RDR_MARKER and RDR_PROJECT. The caller's own §seam-bind assertion
+// then PASSED — this binary computes RDR_PROJECT from git topology, not
+// from the marker, so it matched — and the flow proceeded with every
+// contract var unset. That is the same silent bind one layer later.
+func TestEnvStopsOnAMarkerThatRefuses(t *testing.T) {
+	project, _ := newProject(t, "local", "")
+	// The anchor names a project this one is not.
+	body := anchoredMarkerBody(filepath.Join(filepath.Dir(project), "other-project"))
+	if err := os.WriteFile(filepath.Join(project, ".rdr", "workspace"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+
+	out, errb, code := runEnv(t)
+	if code != 1 {
+		t.Errorf("exit %d, want 1 — a refusing marker must stop, not publish a partial seam", code)
+	}
+	if out != "" {
+		t.Errorf("published a seam from a marker that refused:\n%s", out)
+	}
+	if !strings.Contains(errb, "stopped:marker-refused") {
+		t.Errorf("the refusal is not named as one: %s", errb)
+	}
+	// The marker's OWN message must survive: it names the project the
+	// marker describes and the one it was handed, which is the whole
+	// diagnosis and is not reconstructable from this side.
+	if !strings.Contains(errb, "stopped:foreign-project") ||
+		!strings.Contains(errb, "other-project") ||
+		!strings.Contains(errb, project) {
+		t.Errorf("the marker's own reason did not survive: %s", errb)
+	}
+}
+
+// TestEnvRefusalIsNotAMissingMarker pins the distinction itself. The two
+// stop for different reasons and a caller acts differently on each: no
+// marker means run /rdr-init, a refusal means this repo is not the one the
+// marker describes. Collapsing them sends the caller to the wrong fix.
+func TestEnvRefusalIsNotAMissingMarker(t *testing.T) {
+	project, _ := newProject(t, "local", "")
+	body := anchoredMarkerBody(filepath.Join(filepath.Dir(project), "elsewhere"))
+	if err := os.WriteFile(filepath.Join(project, ".rdr", "workspace"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(project)
+
+	_, errb, _ := runEnv(t)
+	if strings.Contains(errb, "stopped:no-marker") {
+		t.Errorf("a marker that refused is reported as absent — the caller would run /rdr-init "+
+			"and rewrite a marker that is correct for its own project: %s", errb)
 	}
 }

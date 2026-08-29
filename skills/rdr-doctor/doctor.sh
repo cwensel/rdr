@@ -16,7 +16,26 @@ if   [ -f "$PROJECT/.rdr/workspace" ]; then MARKER="$PROJECT/.rdr/workspace"; SC
 elif [ -f "$WS/.rdr-workspace" ];   then MARKER="$WS/.rdr-workspace";  SCOPE="workspace (shared)"
 else fail "1 no marker - run \$rdr-init in Codex or /rdr-init in Claude in this repo (looked in $PROJECT/.rdr and $WS)"; echo "Verdict: 1 FAIL - no marker."; exit 0; fi
 pass "1 marker present - $MARKER  [$SCOPE]"
-. "$MARKER" 2>/tmp/rdrdoc.err && pass "2 marker sources clean" || fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
+# A marker states which project it describes (RDR_PROJECT_ANCHOR) and REFUSES under
+# another, binding nothing. Stop here when it does: every check below reads a contract
+# var, so continuing would report an unbound seam as a broken engine and a missing
+# records dir - a cascade of wrong diagnoses over one real cause. Check 1b's
+# membership rule is the same judgement reached independently, and it is what the
+# workspace-scope marker's own guard implements; it still runs for an ANCHORLESS
+# shared marker, which binds and so cannot refuse.
+if . "$MARKER" 2>/tmp/rdrdoc.err; then
+  pass "2 marker sources clean"
+else
+  fail "2 marker source error - $(head -1 /tmp/rdrdoc.err)"
+  case "$(head -1 /tmp/rdrdoc.err)" in
+    stopped:foreign-*)
+      echo "        the marker describes another project, so no seam var is bound;"
+      echo "        checks 3+ would report that as a broken install. Fix the bind first:"
+      echo "        run \$rdr-init in Codex or /rdr-init in Claude here for a repo-local marker."
+      echo "Verdict: $((nf)) FAIL - marker refused this project."
+      exit 0;;
+  esac
+fi
 m=""; for v in RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES; do eval "[ -n \"\$$v\" ]" || m="$m $v"; done
 [ -z "$m" ] && pass "3 five-var contract set" || fail "3 unset:$m - re-run \$rdr-init in Codex or /rdr-init in Claude to write the marker"
 # 3b-legacy - a marker written before the rename still exports RDR_REPO. The

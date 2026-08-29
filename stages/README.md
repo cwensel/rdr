@@ -321,10 +321,14 @@ cwd:
 
 ```sh
 GC=$(git rev-parse --git-common-dir) && GC=$(cd "$GC" && pwd -P)   # split: empty capture would make cd a no-op
-PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")
+PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
 # nearest wins: a repo-local marker (inside .rdr/) overrides the shared workspace one
-if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace"   # repo-local scope (default)
-elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"        # workspace scope (shared)
+# `|| exit`: a marker states which project it describes and REFUSES under another
+# (its RDR_PROJECT_ANCHOR guard). An unchecked `.` swallows that refusal and leaves
+# every contract var unset, which reads downstream as an unconfigured repo — so the
+# caller proceeds on a seam that was never bound. Take the non-zero as the stop.
+if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace" || exit 1  # repo-local (default)
+elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"      || exit 1  # workspace (shared)
 else echo "no marker in $PROJECT/.rdr or $WS — run /rdr-init" >&2; fi
 ```
 
@@ -379,6 +383,23 @@ records rather than getting its own. **A second project takes a repo-local
 marker**, which is why repo-local is the default. `/rdr-init` will not silently
 adopt a shared marker that names a different project's records; rdr-doctor
 reports the same as check 1b.
+
+**A marker states which project it describes, and refuses under any other.** The
+`: "${PROJECT:?…}"` / `: "${WS:?…}"` set-check at the top of a marker proves the
+RESOLVER ran; it does not prove the resolver resolved *this* marker's project.
+Without more, a marker sourced under a foreign `$PROJECT` derives every path
+below it from that value and exports a seam for a project it does not describe —
+exit 0, no warning, and indistinguishable from a correct bind. So `/rdr-init`
+writes an `RDR_PROJECT_ANCHOR` into every marker it generates, and the marker
+stops with `stopped:foreign-project` rather than binding. The assertion differs
+by scope: a repo-local marker tests **equality** on `$PROJECT`; a workspace
+marker anchors `$WS` and legitimately describes several sibling repos, so it
+tests `$WS` equality **and membership** — this repo must hold one of the four
+seam paths (`RDR_SOURCE_REPO`, `RDR_RECORDS`, `RDR_EVIDENCE`, `RDR_ENV`), the
+rule doctor.sh check 1b already applies from its own resolver. `rdr env` carries
+the marker's refusal out and exits 1, so a refusal never reads as a repo that was
+never configured. Markers written before this still bind; adding the anchor is a
+`/rdr-init --reconfigure` (per-machine config, nothing versioned).
 
 > **Worked example — a pinned-seam consumer.** A consumer may pin its seam this
 > way and **retire `.rdr/` entirely** — no gitignored scratch seam at all.

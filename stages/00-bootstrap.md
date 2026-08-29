@@ -109,6 +109,18 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    **Copy the tracked template** `workspace.example` (symlinked beside this skill) to
    the chosen path and fill its blocks (set `WS`/`PROJECT` at the top to match the
    anchor). A repo-local marker **never reads or writes** the shared one.
+   **Fill `RDR_PROJECT_ANCHOR` and keep the arm matching the scope, deleting the
+   other.** The template ships both. The set-check above it proves only that the
+   RESOLVER ran, not that it resolved *this* marker's project — without the anchor a
+   marker sourced under a foreign `$PROJECT` derives every path from it and exports a
+   seam it invented, exit 0 and no warning. Write the anchor as the **physical** path
+   (`pwd -P`, the same value the resolver produces): on macOS a `/tmp` or `/var` path
+   is a symlink, and an unresolved anchor refuses its own project. Repo-local takes
+   `$PROJECT` and asserts equality; workspace takes `$WS`, asserts equality, and
+   **also keeps the membership block at the end of the file** — `$WS` matching says
+   nothing about whether this repo belongs to the project, which is the case that
+   actually misbinds. An existing marker with no anchor still binds; adding one is a
+   `--reconfigure` edit (below).
    If the selected marker already exists and this is not `--reconfigure`, do not
    rewrite it; verify + report the five-var contract, then continue to the optional
    hook offer.
@@ -118,6 +130,12 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    its value and its place on the `export` line — and say so; this is the one
    edit permitted without `--reconfigure`, because leaving it turns a configured
    consumer into an unconfigured one. Add nothing else to an existing marker.
+   **Add a missing `RDR_PROJECT_ANCHOR` only under `--reconfigure`**, and say so in
+   the report. Unlike the rename, an anchorless marker still binds correctly for its
+   own project — it is unguarded, not broken — so this is a hardening edit, not a
+   repair, and it does not earn the standing exception above. Under `--reconfigure`,
+   add the arm matching the marker's existing scope (do not change the scope), using
+   the physical path, and leave every other line as written.
    Fill the **five-var engine contract** (all required — the skills read only these):
    - **`RDR_HOME`** — the RDR engine (holds `stages/`, `prompts/`, `skills/`,
      `TEMPLATE.md`). Resolve by install shape, first that binds:

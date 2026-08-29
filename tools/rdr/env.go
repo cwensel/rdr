@@ -67,6 +67,20 @@ func envCmd(f *flags, stdout, stderr io.Writer) int {
 		return 1
 	}
 
+	// A marker that REFUSED is not an unconfigured repo, and publishing an
+	// empty seam would make it look like one: the caller's own
+	// `RDR_PROJECT` assertion still passes (this binary computes that var,
+	// the marker does not), so it would proceed with every contract var
+	// unset. That is the silent foreign bind the anchor guard exists to
+	// stop, arriving one layer later. The marker's message is carried
+	// verbatim — it names the project it describes and the one it was
+	// handed, which is what a caller needs and this binary cannot restate.
+	if why := markerRefusal(); why != "" {
+		fmt.Fprintf(stderr, "%s\n", why)
+		fmt.Fprintf(stderr, "stopped:marker-refused %s\n", marker)
+		return 1
+	}
+
 	bound := map[string]string{}
 	for _, v := range seamVars {
 		// seamValue, never envOrSeam: the marker is the authority here.

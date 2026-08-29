@@ -16,6 +16,43 @@
 # $PROJECT; a workspace marker uses $WS. Guard on whichever this marker anchors on:
 : "${WS:?source this file via the canonical resolver so \$WS / \$PROJECT are set}"
 
+# --- self-identification (FILL: keep the arm matching this marker's scope) ---
+# A set-check proves the RESOLVER ran. It does not prove the resolver resolved
+# THIS marker's project — every path below is derived from whatever $PROJECT
+# happened to hold, so a marker sourced under a foreign project exports paths it
+# invented, exit 0, no warning. A caller cannot tell that from a correct bind, and
+# the consequence is silent: records read against another project's RDR_EVIDENCE
+# make every lens probe read false, so a record with finished lenses reports as
+# never lensed and the flow re-runs them over the evidence already on disk.
+#
+# So the marker states which project it describes and refuses to bind under any
+# other. The assertion differs by scope, because the scopes claim different things:
+#
+#   repo-local  — describes ONE repo. EQUALITY on $PROJECT.
+#   workspace   — anchors $WS and describes several sibling repos, so it is a
+#                 MEMBERSHIP test: this repo must hold one of the seam paths.
+#                 (doctor.sh check 1b implements the same rule independently.)
+#
+# Keep ONE arm and delete the other. RDR_PROJECT_ANCHOR is the absolute path this
+# marker describes; it is written by /rdr-init and is not a contract var.
+
+# repo-local arm — delete for a workspace marker:
+RDR_PROJECT_ANCHOR="/abs/path/to/<your-project>"
+[ "$PROJECT" = "$RDR_PROJECT_ANCHOR" ] || {
+  echo "stopped:foreign-project marker=$RDR_PROJECT_ANCHOR/.rdr/workspace describes=$RDR_PROJECT_ANCHOR handed=$PROJECT" >&2
+  return 1 2>/dev/null || exit 1
+}
+
+# workspace arm — delete for a repo-local marker; uncomment and set the anchor.
+# This is only the FIRST half: a workspace marker makes two claims, and $WS
+# equality is the cheap one (it catches a marker carried to another tree). The
+# MEMBERSHIP half needs the contract vars, so it sits at the END of this file.
+# RDR_PROJECT_ANCHOR="/abs/path/to/<your-workspace>"
+# [ "$WS" = "$RDR_PROJECT_ANCHOR" ] || {
+#   echo "stopped:foreign-workspace marker=$RDR_PROJECT_ANCHOR/.rdr-workspace describes=$RDR_PROJECT_ANCHOR handed=$WS" >&2
+#   return 1 2>/dev/null || exit 1
+# }
+
 # --- per-consumer repo roots (FILL: keep the ones this workspace has) ---
 # These name the sibling repos in YOUR workspace. They are conveniences for
 # building the contract paths below — NOT load-bearing for the flow itself.
@@ -83,5 +120,33 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 #   for which stage and which lens come next, so a skill that cannot reach it
 #   stops rather than inferring an answer, and rdr-doctor 12 FAILs.
 # RDR_INTRASTATE="$RDR_HOME/bin/intrastate"
+
+# --- workspace membership (WORKSPACE SCOPE ONLY — delete for a repo-local marker) ---
+# The second half of the workspace assertion, here because it reads the contract
+# vars above. $WS matching says only that this marker belongs to this tree; it says
+# nothing about whether THIS repo is part of the project the marker describes, and
+# a sibling that merely lives under the same parent is exactly the caller that must
+# not bind — it would inherit another project's RDR_RECORDS and land its RDRs there.
+#
+# Membership = this repo is the source root, or holds the records / evidence / seam
+# data the marker names. A *_ROOT naming this repo is NOT membership: a marker lists
+# sibling repos as conveniences, most with no RDR role. Only the four seam paths
+# decide. doctor.sh check 1b implements this same rule from its own resolver, and
+# must keep doing so: it may not use the seam to validate the seam.
+# The ENGINE repo is a member by definition: $RDR_HOME is where the flow itself lives,
+# it holds no records or evidence of its own, and doctor.sh 1b exempts it the same way
+# (`"$PROJECT" != "$RDR_HOME"` gates that whole check). Without this arm a workspace
+# marker refuses the very repo the skills are read from.
+# _mine=""
+# [ "$PROJECT" = "$RDR_HOME" ] && _mine=1
+# for _v in "$RDR_SOURCE_REPO" "$RDR_RECORDS" "$RDR_EVIDENCE" "$RDR_ENV"; do
+#   case "$_v" in "$PROJECT"|"$PROJECT"/*) _mine=1;; esac
+# done
+# [ -n "$_mine" ] || {
+#   echo "stopped:foreign-project marker=$RDR_PROJECT_ANCHOR/.rdr-workspace describes=$RDR_PROJECT_ANCHOR (records=$RDR_RECORDS) handed=$PROJECT — this repo holds none of its seam paths; run /rdr-init here to write a repo-local marker" >&2
+#   unset _mine _v
+#   return 1 2>/dev/null || exit 1
+# }
+# unset _mine _v
 
 export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_USAGE_LOG RDR_INTRASTATE

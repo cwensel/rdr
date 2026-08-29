@@ -61,10 +61,16 @@ var seamVars = []string{
 // binds once — but the cwd IS the lookup key, so a process that moves
 // (a test binary, or any long-lived caller) must not keep answering from
 // the directory it started in.
+//
+// seamRefusal rides with the cache, under the same lock: it carries why a
+// marker that EXISTS bound nothing — the message the marker itself
+// printed. `env` is the one caller that must tell that apart from an
+// unconfigured repo, and it is per-cwd for the same reason the cache is.
 var (
-	seamMu    sync.Mutex
-	seamDir   string
-	seamCache map[string]string
+	seamMu      sync.Mutex
+	seamDir     string
+	seamCache   map[string]string
+	seamRefusal string
 )
 
 func seam() map[string]string {
@@ -77,8 +83,18 @@ func seam() map[string]string {
 	if seamCache != nil && seamDir == cwd {
 		return seamCache
 	}
+	seamRefusal = ""
 	seamDir, seamCache = cwd, bindSeam()
 	return seamCache
+}
+
+// markerRefusal reports why the bound marker refused, or "" when none did.
+// It forces the bind first, so a caller need not have read a var to ask.
+func markerRefusal() string {
+	seam()
+	seamMu.Lock()
+	defer seamMu.Unlock()
+	return seamRefusal
 }
 
 // bindSeam finds the marker and returns the vars it exports. An empty
@@ -90,13 +106,23 @@ func bindSeam() map[string]string {
 	if marker == "" {
 		return out
 	}
-	// The marker guards itself with `: "${WS:?…}"` / `"${PROJECT:?…}"` so
-	// that sourcing it directly, without the resolver that derives them
-	// from git topology, fails loudly rather than binding half a seam.
-	// Supplying both is what makes this the canonical read rather than
-	// the direct source the marker refuses.
+	// The marker guards itself twice, and the two guards fail for
+	// different reasons. `: "${WS:?…}"` / `"${PROJECT:?…}"` prove the
+	// RESOLVER ran — supplying both is what makes this the canonical read
+	// rather than the direct source the marker refuses. The anchor check
+	// proves the resolver resolved THIS marker's project: a marker whose
+	// `$RDR_PROJECT_ANCHOR` names another project refuses rather than
+	// deriving every path below it from a foreign `$PROJECT`.
+	//
+	// A refusal is NOT "no marker", and the difference is the whole point.
+	// Swallowing it would hand back an empty map, which reads as an
+	// unconfigured repo — so a caller would proceed with unset vars
+	// instead of stopping, which is the silent bind this guard exists to
+	// end. The marker's own message is captured and carried out, because
+	// it names the two paths (described, handed) that a caller needs to
+	// see and this binary cannot reconstruct.
 	script := `set -e
-. "$1" >/dev/null 2>&1 || exit 1
+. "$1" >/dev/null || exit 1
 for v in ` + strings.Join(seamVars, " ") + `; do
   eval "val=\$$v"
   [ -n "$val" ] && printf '%s=%s\n' "$v" "$val"
@@ -105,8 +131,14 @@ exit 0`
 	cmd := exec.Command("sh", "-c", script, "_", marker)
 	cmd.Env = append(os.Environ(), "PROJECT="+project, "WS="+ws)
 	cmd.Dir = project
+	var refusal strings.Builder
+	cmd.Stderr = &refusal
 	stdout, err := cmd.Output()
 	if err != nil {
+		seamRefusal = strings.TrimSpace(refusal.String())
+		if seamRefusal == "" {
+			seamRefusal = "the marker could not be sourced"
+		}
 		return out
 	}
 	for _, line := range strings.Split(string(stdout), "\n") {
