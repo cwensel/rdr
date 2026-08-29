@@ -526,16 +526,7 @@ func (r *Resolver) primeSymbols(docs []*Document) {
 	if len(want) == 0 {
 		return
 	}
-	hit := map[string]bool{}
-	r.walk(func(body []byte) bool {
-		for sym, needle := range want {
-			if containsWord(body, needle) {
-				hit[sym] = true
-				delete(want, sym)
-			}
-		}
-		return len(want) > 0
-	})
+	hit := r.seek(want)
 	for sym := range hit {
 		r.symbols[sym] = true
 	}
@@ -552,6 +543,190 @@ func (r *Resolver) primeSymbols(docs []*Document) {
 		}
 		r.symbols[sym] = verdict
 	}
+}
+
+// tokenScanFloor is the needle count above which enumerating a file's
+// identifier tokens beats testing each needle against the file.
+//
+// The two strategies have different shapes: per-needle is O(needles x
+// bytes) and tokenising is O(bytes) however many needles there are, so
+// one wins at small counts and the other at large. Measured over the
+// corpus's own needles against the reference repo (3,672 files, 59 MB),
+// they cross within a few percent of this value — 192 needles is 381ms
+// against 461ms, 256 is 492ms against 485ms, 512 is 1.53s against 468ms.
+//
+// BOTH ENDS ARE REAL CALLS, and they are far apart. A corpus pass wants
+// every symbol the corpus cites — 1,305 on the reference corpus — and is
+// what made the walk the dominant cost. A single-record pass wants only
+// that record's own anchors plus their member fallbacks: 14 at the
+// median, 42 at the ninth decile, 108 at the corpus maximum. No record
+// comes near the floor, so in practice this routes every per-record call
+// one way and every corpus call the other, and its exact value is not
+// delicate.
+//
+// The floor is not an optimisation of one path but the avoidance of a
+// REGRESSION in the other: moving the corpus pass onto the token scan
+// without it made `lint 0130` and `inspect --filter edges` measurably
+// slower — 720ms to 847ms — because the tokeniser reads every identifier
+// in the tree to answer a question about a few dozen needles.
+//
+// Its value cannot be pinned by a unit test: the strategies agree on
+// every verdict, so a mutation check finds a floor of 128 or 512
+// indistinguishable. BenchmarkSeekStrategies is what defends it.
+const tokenScanFloor = 256
+
+// seekPerNeedle tests each needle against each file, stopping as soon as
+// every needle is decided. This is the original strategy and stays the
+// one used below tokenScanFloor, where it is several times faster.
+func (r *Resolver) seekPerNeedle(want map[string][]byte) map[string]bool {
+	rem := make(map[string][]byte, len(want))
+	for sym, needle := range want {
+		rem[sym] = needle
+	}
+	hit := map[string]bool{}
+	r.walk(func(body []byte) bool {
+		for sym, needle := range rem {
+			if containsWord(body, needle) {
+				hit[sym] = true
+				delete(rem, sym)
+			}
+		}
+		return len(rem) > 0
+	})
+	return hit
+}
+
+// seek reports which of the wanted needles appear in the repo, as whole
+// words, in ONE pass per file.
+//
+// It replaces a loop that called containsWord once per needle per file.
+// That loop is O(needles x bytes): the reference corpus cites ~1.3k
+// symbols over a 59 MB tree, which is ~4.8M substring scans. That loop,
+// not the file reading, was the walk: reading all 59 MB costs ~96ms
+// against the ~5.9s the priming pass took. A file's identifier tokens can instead be enumerated
+// ONCE and each looked up in a set, which is O(bytes) however many
+// needles there are.
+//
+// THE VERDICTS MUST NOT MOVE, and the equivalence is exact rather than
+// approximate. containsWord(body, n) asks for an occurrence of n bounded
+// by non-identifier bytes on both sides. For a needle made only of
+// identifier bytes that is precisely the definition of a maximal
+// identifier run equal to n — so emitting every maximal run and testing
+// set membership decides the same question. A qualified needle
+// (`TableVertex.LiveConstraints`) is two such runs separated by exactly
+// one `.`, and the run maximality supplies both outer boundaries, so it
+// is decided from the same token stream. Anything else — a needle
+// carrying a space, a second dot, a parenthesis — keeps containsWord
+// verbatim; there is one such needle in the reference corpus and none in
+// the second, so the fallback is a correctness guarantee rather than a
+// cost.
+//
+// THE EARLY EXIT IS KEPT. A repo where every cited symbol is present
+// stops as soon as the last needle is found — measured on the second
+// corpus, which stops at 407 of 1,112 files. It essentially never fires
+// on the first, where 46 cited symbols are absent and proving an absence
+// requires reading the whole tree; the scan is fast enough that this no
+// longer matters.
+func (r *Resolver) seek(want map[string][]byte) map[string]bool {
+	if len(want) < tokenScanFloor {
+		return r.seekPerNeedle(want)
+	}
+	return r.seekTokens(want)
+}
+
+// seekTokens is the token-stream strategy seek routes to at scale. It is
+// named and reachable on its own so a test can run it against
+// seekPerNeedle over the same needles and assert they agree — the two are
+// chosen by count, and a disagreement would make a verdict depend on how
+// many symbols the rest of the corpus cites.
+func (r *Resolver) seekTokens(want map[string][]byte) map[string]bool {
+	// The three needle shapes, split once rather than per file.
+	plain := map[string]bool{}
+	dotted := map[string]map[string]bool{} // qualifier -> member -> present
+	other := map[string][]byte{}
+	for sym, needle := range want {
+		switch a, b, ok := splitQualified(sym); {
+		case isIdent(sym):
+			plain[sym] = true
+		case ok:
+			if dotted[a] == nil {
+				dotted[a] = map[string]bool{}
+			}
+			dotted[a][b] = true
+		default:
+			other[sym] = needle
+		}
+	}
+	hit := map[string]bool{}
+	remaining := len(plain) + len(other)
+	for _, ms := range dotted {
+		remaining += len(ms)
+	}
+	r.walk(func(body []byte) bool {
+		// prev is the previous token and prevEnd where it ended, so a
+		// qualified needle is recognised without a second pass.
+		prev, prevEnd := "", -1
+		for i := 0; i < len(body); {
+			if !identByte(body[i]) {
+				i++
+				continue
+			}
+			j := i
+			for j < len(body) && identByte(body[j]) {
+				j++
+			}
+			tok := string(body[i:j])
+			if plain[tok] {
+				delete(plain, tok)
+				hit[tok] = true
+				remaining--
+			}
+			if prevEnd == i-1 && i > 0 && body[i-1] == '.' {
+				if ms := dotted[prev]; ms[tok] {
+					delete(ms, tok)
+					hit[prev+"."+tok] = true
+					remaining--
+				}
+			}
+			prev, prevEnd = tok, j
+			i = j
+		}
+		for sym, needle := range other {
+			if containsWord(body, needle) {
+				delete(other, sym)
+				hit[sym] = true
+				remaining--
+			}
+		}
+		return remaining > 0
+	})
+	return hit
+}
+
+// isIdent reports whether every byte of s is an identifier byte, which is
+// what lets a needle be decided by token equality alone.
+func isIdent(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if !identByte(s[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+// splitQualified splits `Type.Member` into its two halves when both are
+// plain identifiers, which is the only compound shape the token stream
+// can decide. A needle with two dots, or a non-identifier byte in either
+// half, is not one.
+func splitQualified(s string) (string, string, bool) {
+	a, b, ok := strings.Cut(s, ".")
+	if !ok || !isIdent(a) || !isIdent(b) {
+		return "", "", false
+	}
+	return a, b, true
 }
 
 // Member is one record of a derived cluster, with the relation that put

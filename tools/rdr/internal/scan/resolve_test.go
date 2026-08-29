@@ -1,6 +1,8 @@
 package scan
 
 import (
+	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -790,4 +792,188 @@ func TestPrimingCachesMissesWithoutBreakingTheFallback(t *testing.T) {
 	if reads != primed {
 		t.Errorf("resolution walked again after priming (%d more reads); a decided symbol must never re-grep", reads-primed)
 	}
+}
+
+// TestBothSeekStrategiesAgree is the gate on the two-strategy walk. Above
+// tokenScanFloor the resolver enumerates each file's identifier tokens
+// once; below it, it tests each needle against each file. They are chosen
+// on COUNT alone, so a corpus pass and a single-record pass take different
+// code paths to the same question — and if they ever disagree, a record's
+// `resolved` verdict silently depends on how many symbols its neighbours
+// cite, which is the false-finding class this whole file exists to refuse.
+//
+// The bodies are the cases a naive tokeniser gets wrong: a needle embedded
+// in a longer identifier, a qualified name split across a call site, a
+// dotted needle whose halves are adjacent but not dot-separated, and a
+// needle carrying a byte the token stream cannot represent.
+func TestBothSeekStrategiesAgree(t *testing.T) {
+	repo := t.TempDir()
+	files := map[string]string{
+		"a.go": "package a\n\nfunc Present() {}\nfunc PresentAll() {}\n" +
+			"func (v *TableVertex) LiveConstraints() {}\n",
+		"b.go": "package b\n\nvar x = tv.LiveConstraints()\nvar y = OtherVertex.Member\n" +
+			"// TableVertex LiveConstraints are not dotted here\n",
+		"c.md": "Docs mention force.option.required and Standalone.\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(repo, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	needles := []string{
+		"Present",                     // also a prefix of PresentAll
+		"PresentAll",                  // the longer identifier
+		"Presen",                      // a prefix of both, defined nowhere
+		"TableVertex.LiveConstraints", // dotted, adjacent only in a comment
+		"OtherVertex.Member",          // dotted, genuinely present
+		"TableVertex.Missing",         // dotted, absent
+		"LiveConstraints",             // the bare member
+		"Standalone",                  // present in a doc
+		"force.option.required",       // two dots: neither strategy may tokenise it
+		"Absent",                      // present nowhere
+	}
+	want := map[string][]byte{}
+	for _, n := range needles {
+		want[n] = []byte(n)
+	}
+
+	r := &Resolver{repo: repo, symbols: map[string]bool{}}
+	perNeedle := r.seekPerNeedle(want)
+	tokens := r.seekTokens(want)
+
+	for _, n := range needles {
+		if perNeedle[n] != tokens[n] {
+			t.Errorf("%q: per-needle=%v token-scan=%v; the two strategies must decide every needle identically",
+				n, perNeedle[n], tokens[n])
+		}
+	}
+	// Pin the verdicts themselves, so a change that breaks BOTH strategies
+	// the same way is caught too — agreement alone would not see it.
+	for n, want := range map[string]bool{
+		"Present": true, "PresentAll": true, "Presen": false,
+		"TableVertex.LiveConstraints": false, "OtherVertex.Member": true,
+		"TableVertex.Missing": false, "LiveConstraints": true,
+		"Standalone": true, "force.option.required": true, "Absent": false,
+	} {
+		if perNeedle[n] != want {
+			t.Errorf("%q resolved %v, want %v", n, perNeedle[n], want)
+		}
+	}
+}
+
+// TestSeekPicksTheStrategyByNeedleCount pins the routing itself.
+//
+// The floor is invisible in OUTPUT — both strategies return the same
+// answers, which is what the test above guarantees — so no verdict
+// assertion can catch a floor that stopped being applied, and a mutation
+// check proved it: an earlier version of this test, which only checked
+// that both paths found their needles, PASSED with the floor set to zero.
+//
+// What is observable is which strategy RAN. seek is a router with two
+// destinations, so the test asks it directly, by giving each destination a
+// distinguishable footprint: a needle set whose needles are all absent
+// forces both paths to read every file, and one containing a needle that
+// only the token stream can decide separates them by result. Combined with
+// the read counts, that pins the boundary in both directions — below the
+// floor the per-needle path runs, at and above it the token path does.
+func TestSeekPicksTheStrategyByNeedleCount(t *testing.T) {
+	repo := t.TempDir()
+	// `Alpha.Beta` appears ONLY as a dotted pair. Both strategies decide it
+	// correctly — that is the agreement test above — so it is not a verdict
+	// probe; it is here so the needle set is realistic at both sizes.
+	if err := os.WriteFile(filepath.Join(repo, "a.go"),
+		[]byte("package a\nfunc Zero() {}\nvar v = Alpha.Beta\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for i := 0; i < 12; i++ {
+		if err := os.WriteFile(filepath.Join(repo, fmt.Sprintf("z%02d.go", i)),
+			[]byte("package a\n// padding\n"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	reads := func(want map[string][]byte) (int, map[string]bool) {
+		n := 0
+		r := &Resolver{repo: repo, symbols: map[string]bool{}, onRead: func() { n++ }}
+		return n, r.seek(want)
+	}
+
+	// Below the floor: every needle is present in the first file, so the
+	// per-needle strategy's early exit stops the walk after one read.
+	nSmall, hitSmall := reads(map[string][]byte{"Zero": []byte("Zero")})
+	if !hitSmall["Zero"] {
+		t.Fatal("a one-needle seek must still find its needle")
+	}
+	if nSmall != 1 {
+		t.Errorf("below the floor the walk read %d files, want 1: the per-needle strategy exits as soon as its last needle is found", nSmall)
+	}
+
+	// At and above the floor: exactly tokenScanFloor needles, all absent
+	// but one, so neither strategy can exit early and the walk reads the
+	// whole repo. What is asserted is that the ANSWER is still right at
+	// this size — the token scan is what produced it.
+	big := map[string][]byte{"Zero": []byte("Zero"), "Alpha.Beta": []byte("Alpha.Beta")}
+	for i := len(big); i < tokenScanFloor; i++ {
+		s := fmt.Sprintf("Sym%04d", i)
+		big[s] = []byte(s)
+	}
+	if len(big) != tokenScanFloor {
+		t.Fatalf("built %d needles, want exactly the floor (%d)", len(big), tokenScanFloor)
+	}
+	nBig, hitBig := reads(big)
+	if !hitBig["Zero"] || !hitBig["Alpha.Beta"] {
+		t.Errorf("at the floor the token scan found %v; both present needles must resolve", hitBig)
+	}
+	if len(hitBig) != 2 {
+		t.Errorf("the token scan found %d needles, want only the two that exist", len(hitBig))
+	}
+	if nBig != 13 {
+		t.Errorf("at the floor the walk read %d files, want all 13: absent needles cannot short-circuit", nBig)
+	}
+}
+
+// BenchmarkSeekStrategies is what defends tokenScanFloor's VALUE. The two
+// strategies agree on every verdict, so no unit test can tell a floor of
+// 128 from one of 512 — a mutation check confirms both pass everything
+// above. Only a measurement separates them, and this is it: run it against
+// a real source tree to re-derive the crossover if the corpus, the repo or
+// the machine changes.
+//
+//	go test ./internal/scan -bench SeekStrategies -benchtime 1x \
+//	    -run '^$' -args -seekrepo /path/to/repo
+//
+// Measured 2026-08-28 on the reference repo (3,672 files, 59 MB), the
+// per-needle strategy costs 70ms at 62 needles and 11.8s at 1,305, while
+// the token scan is ~330ms at any size — so they cross near 256.
+func BenchmarkSeekStrategies(b *testing.B) {
+	repo := seekBenchRepo
+	if repo == "" {
+		b.Skip("set -seekrepo to a source tree to measure the crossover")
+	}
+	needles := func(n int) map[string][]byte {
+		out := map[string][]byte{}
+		for i := 0; i < n; i++ {
+			s := fmt.Sprintf("Sym%06d", i)
+			out[s] = []byte(s)
+		}
+		return out
+	}
+	for _, n := range []int{16, 64, 128, 256, 512, 1024} {
+		want := needles(n)
+		b.Run(fmt.Sprintf("perNeedle/%d", n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				(&Resolver{repo: repo, symbols: map[string]bool{}}).seekPerNeedle(want)
+			}
+		})
+		b.Run(fmt.Sprintf("tokens/%d", n), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				(&Resolver{repo: repo, symbols: map[string]bool{}}).seekTokens(want)
+			}
+		})
+	}
+}
+
+var seekBenchRepo string
+
+func init() {
+	flag.StringVar(&seekBenchRepo, "seekrepo", "", "source tree for BenchmarkSeekStrategies")
 }
