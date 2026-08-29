@@ -442,3 +442,53 @@ func TestScaffoldRowIsReportedWithoutAPatch(t *testing.T) {
 		t.Error("scaffold:row is blocking; it is conformance advice like every other surviving-template finding")
 	}
 }
+
+// TestReentryNearMissFiresOnAMalformedRevisedFrom: a bracketed qualifier
+// that begins `revised from` and fails the grammar is a near-miss, not a
+// free-text note. Routing keys on the FORM, so the near-miss silently
+// turns off every re-entry rule — a live demote pass shipped one extra
+// word before the semicolon and the flow skipped the scoped re-verify
+// pass on seven records while lint said nothing.
+func TestReentryNearMissFiresOnAMalformedRevisedFrom(t *testing.T) {
+	rec := func(status string) *scan.Document {
+		return scan.Bytes([]byte("# Recommendation 0010: Frame header\n\n"+
+			"## Metadata\n\n"+
+			"- **Status**: "+status+"\n"+
+			"- **Date**: 2026-01-01\n"), scan.Options{})
+	}
+
+	// The firing case: the date is missing, which no tolerance covers.
+	d := rec("Draft [revised from Final; re-verify A2 — the date went missing]")
+	r := Run(d, Options{})
+	f := find(t, r, "status:reentry-near-miss")
+	if f.Tier != TierResolution {
+		t.Errorf("tier = %s, want resolution", f.Tier)
+	}
+	if f.Blocking {
+		t.Error("near-miss blocks off a lock gate; mid-flow it is a to-do")
+	}
+	if f.LineStart != 5 {
+		t.Errorf("finding points at line %d, want the Status line 5", f.LineStart)
+	}
+	if !strings.Contains(f.Fix, "revised from Final YYYY-MM-DD;") {
+		t.Errorf("fix does not quote the canonical spelling: %q", f.Fix)
+	}
+
+	// At a lock gate the same near-miss blocks, like the tier's peers.
+	if f := find(t, Run(d, Options{Locking: true}), "status:reentry-near-miss"); !f.Blocking {
+		t.Error("near-miss does not block at a lock gate")
+	}
+
+	// The non-firing cases: the canonical spelling, the tolerated
+	// stage-token spelling a live pass wrote, and a bracketed note that
+	// never claimed to be a re-entry.
+	for name, status := range map[string]string{
+		"canonical":   "Draft [revised from Final 2026-03-04; re-verify A2,A4 — the frame width was never pinned]",
+		"stage token": "Draft [revised from Final 2026-08-29 cluster-reconcile; re-verify none — wording/cross-reference fixes only]",
+		"plain note":  "Draft [unblocked — the predecessor reached Implemented]",
+	} {
+		if r := Run(rec(status), Options{}); has(r, "status:reentry-near-miss") {
+			t.Errorf("%s: near-miss fired on %q (codes: %v)", name, status, codes(r))
+		}
+	}
+}

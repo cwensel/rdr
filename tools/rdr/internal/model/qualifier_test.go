@@ -41,6 +41,26 @@ func TestParseStatusQualifiers(t *testing.T) {
 			qual: "revised from Final 2026-03-04; — the sibling withdrew its half",
 		},
 		{
+			// The exact spelling a live demote pass wrote on seven
+			// records: a stage token between the date and the semicolon.
+			// Rejecting it degraded the form to `bracketed` and every
+			// re-entry routing rule went dark.
+			name:  "revised from Final with a stage token after the date",
+			raw:   "Draft [revised from Final 2026-08-29 cluster-reconcile; re-verify none — wording/cross-reference fixes only]",
+			label: "Draft", tier: Canonical,
+			form: QualifierRevisedFrom,
+			qual: "revised from Final 2026-08-29 cluster-reconcile; re-verify none — wording/cross-reference fixes only",
+		},
+		{
+			// Missing date: the tolerance is for a stamp after the date,
+			// never for the date's absence. This stays a free-text note.
+			name:  "revised from Final without a date is not the form",
+			raw:   "Draft [revised from Final; re-verify A2 — the date went missing]",
+			label: "Draft", tier: Canonical,
+			form: QualifierBracketed,
+			qual: "revised from Final; re-verify A2 — the date went missing",
+		},
+		{
 			name:  "joint decision on Final",
 			raw:   "Final [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]",
 			label: "Final", tier: Canonical,
@@ -160,6 +180,29 @@ func TestQualifierGrammarCaptures(t *testing.T) {
 	}
 	if m[3] != "the frame width was never pinned" {
 		t.Errorf("reason capture = %q", m[3])
+	}
+
+	// The tolerated stage token rides between the date and the semicolon
+	// without entering any capture, and `re-verify none` — the sanctioned
+	// empty set — leaves the assumption capture empty rather than reading
+	// `none` as a label the scanner would emit a dangling edge for.
+	m = RevisedFromGrammar.FindStringSubmatch(
+		"revised from Final 2026-08-29 cluster-reconcile; re-verify none — wording/cross-reference fixes only")
+	if m == nil {
+		t.Fatal("RevisedFromGrammar did not match the tolerated stage-token spelling")
+	}
+	if m[1] != "2026-08-29" {
+		t.Errorf("date capture = %q, want \"2026-08-29\"", m[1])
+	}
+	if m[2] != "" {
+		t.Errorf("re-verify capture = %q, want empty for `none`", m[2])
+	}
+	if m[3] != "wording/cross-reference fixes only" {
+		t.Errorf("reason capture = %q", m[3])
+	}
+	if RevisedFromGrammar.MatchString(
+		"revised from Final 2026-08-29 the whole reason written before the semicolon; — drift") {
+		t.Error("the stage-token run is capped at two; a sentence before the semicolon must not match")
 	}
 
 	j := JointDecisionGrammar.FindStringSubmatch(

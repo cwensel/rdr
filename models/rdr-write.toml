@@ -636,7 +636,10 @@ eq = "Final"
 [rule.emit]
 op     = "demote"
 target = "record"
-edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <date>; re-verify <assumption IDs> — <one-line reason>]/"
+# The `;` must immediately follow the date (at most one short stage token
+# between): RevisedFromGrammar keys on it, and anything looser degrades
+# the qualifier to a free-text note that blinds every re-entry rule.
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> — <one-line reason>]/"
 sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE, RE-ENTRY SCOPE, resolution direction, and a pointer to the report"
 why    = "A cluster reconcile named this record as the less foundational of the pair — flip with the scope qualifier, then land the note."
 surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"

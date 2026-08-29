@@ -82,8 +82,18 @@ var (
 	// RevisedFromGrammar matches `revised from Final YYYY-MM-DD;
 	// re-verify A2,A4 — <reason>`, capturing the date, the assumption
 	// list and the reason. The re-verify clause is optional: a demotion
-	// that reopens no specific assumption omits it.
-	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})\s*;\s*(?:re-verify\s+([A-Za-z0-9,\s]+?)\s*)?[—-]\s*(.+)$`)
+	// that reopens no specific assumption omits it. `re-verify none` is
+	// the sanctioned spelling of that same empty set, so `none` matches
+	// without being captured — a captured `none` would read as an
+	// assumption label and emit a re-verify edge to nothing.
+	//
+	// Between the date and the semicolon the grammar tolerates a short
+	// run of lowercase stage tokens (`2026-08-29 cluster-reconcile;`):
+	// a live demote pass wrote the flipping stage's name there, and
+	// rejecting it silently degraded the qualifier to a free-text note
+	// that blinded every re-entry routing rule. The run is capped at two
+	// tokens so the slot stays a stamp, not a sentence.
+	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})(?:\s+[a-z][a-z0-9-]*){0,2}\s*;\s*(?:re-verify\s+(?:none|([A-Za-z0-9,\s]+?))\s*)?[—-]\s*(.+)$`)
 
 	// JointDecisionGrammar matches `joint decision → <home §-anchor>:
 	// <question>`, capturing the home anchor and the open question.

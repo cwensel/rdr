@@ -534,6 +534,8 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 		})
 	}
 
+	out = append(out, reentryNearMiss(d, blocks)...)
+
 	// Contracts on a record written after the rule landed.
 	if n := unlabelled(d); n > 0 && subjectToLabelRule(d, opts) {
 		sec, start, end := contractSpan(d)
@@ -550,6 +552,40 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 	}
 
 	return out
+}
+
+// reentryNearMiss reports a bracketed Status qualifier that begins
+// `revised from` and fails RevisedFromGrammar. Re-entry routing reads the
+// FORM, never the prose: a near-miss degrades to a free-text note, the
+// re-entry fact reads false, and the flow silently skips the scoped
+// re-verification the qualifier exists to trigger — which is why this
+// sits in the resolution tier with the record's other consumed claims
+// rather than with the advisory shape hints. A live demote pass proved
+// the failure mode: one extra word before the semicolon blinded every
+// re-entry rule, and lint said nothing.
+func reentryNearMiss(d *scan.Document, blocks bool) []Finding {
+	s := model.ParseStatus(d.MetadataValue("Status"))
+	if s.QualifierForm != model.QualifierBracketed ||
+		!strings.HasPrefix(s.Qualifier, "revised from") {
+		return nil
+	}
+	line := 0
+	for _, f := range d.Metadata {
+		if f.Canonical == "Status" {
+			line = f.LineStart
+			break
+		}
+	}
+	return []Finding{{
+		Tier:      TierResolution,
+		Code:      "status:reentry-near-miss",
+		Blocking:  blocks,
+		Element:   "Status",
+		Message:   "the Status qualifier begins `revised from` but does not parse as the re-entry form, so routing reads it as a free-text note and no re-entry rule fires",
+		LineStart: line,
+		LineEnd:   line,
+		Fix:       "spell it `revised from Final YYYY-MM-DD; re-verify <IDs> — <reason>`: the semicolon immediately after the date (at most a short stage token between), `re-verify none` for an empty set",
+	}}
 }
 
 // itoa is strconv.Itoa without the import, kept local because the only
