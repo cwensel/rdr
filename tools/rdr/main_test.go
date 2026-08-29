@@ -47,6 +47,68 @@ func TestSelectRoundTripsToBytes(t *testing.T) {
 	}
 }
 
+// TestSelectReachesAClause: the corpus cites one grain below the contract
+// (`cli/0112 §Normative Contracts L-3`) and `--select 0112:L-3` refused
+// with no-such-element, so a session guessed six ids and then sed-sliced
+// the 530-line C1. A clause label resolves to the clause's own lines, by
+// flag and as a pasted citation; a label the record defines twice is
+// refused as AMBIGUOUS with both candidates named, which is not the stop
+// an absent id gets; and the clause is listed under its contract.
+func TestSelectReachesAClause(t *testing.T) {
+	// The dir is named `cli` so a pasted `cli/0021:L-4` is local to it.
+	dir := filepath.Join(t.TempDir(), "cli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write := func(body string) string {
+		p := filepath.Join(dir, "0021-layers.md")
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	fence := "```"
+	p := write("# Recommendation 0021: Layers\n\n## Metadata\n\n- **Status**: Draft\n\n#### Normative Contracts\n\n**C1**\n\n" +
+		fence + "normative\nL-1  input := owned records\nL-3  ONE CAPTURE PER (table, label, anchor)\n     enforced at mint.\nL-4  tableState := {}\n" + fence + "\n")
+
+	code, out, errb := runCapture(t, "inspect", "--select", "0021:L-3", p)
+	if code != 0 || out != "L-3  ONE CAPTURE PER (table, label, anchor)\n     enforced at mint.\n" {
+		t.Errorf("--select clause: exit %d, out %q, stderr %q", code, out, errb)
+	}
+	code, out, _ = runCapture(t, "inspect", "--select", "0021:L-1", "--select", "0021:L-4", p)
+	if code != 0 || out != "L-1  input := owned records\nL-4  tableState := {}\n" {
+		t.Errorf("several clauses: exit %d, out %q", code, out)
+	}
+	code, out, _ = runCapture(t, "inspect", "--records", dir, "cli/0021:L-4")
+	if code != 0 || out != "L-4  tableState := {}\n" {
+		t.Errorf("pasted citation: exit %d, out %q", code, out)
+	}
+	code, out, _ = runCapture(t, "inspect", "--json", "--select", "0021:L-3", p)
+	var one map[string]any
+	if err := json.Unmarshal([]byte(out), &one); code != 0 || err != nil || one["id"] != "0021:L-3" || one["line_start"] != float64(13) {
+		t.Errorf("--json clause select: exit %d, %v, %s", code, err, out)
+	}
+	code, out, _ = runCapture(t, "inspect", p)
+	if i, j := strings.Index(out, "0021:C1 "), strings.Index(out, "0021:L-3 "); code != 0 || i < 0 || j < i {
+		t.Errorf("summary lists the clause under its contract: exit %d\n%s", code, out)
+	}
+	if strings.Contains(out, "clause 0/") {
+		t.Errorf("derived line shows a backlog for a kind that is never derived:\n%s", out)
+	}
+	code, _, errb = runCapture(t, "inspect", "--select", "0021:L-2", p)
+	if code != 2 || !strings.Contains(errb, "stopped:no-such-element (0021:L-2 in 0021)") {
+		t.Errorf("absent clause: exit %d, stderr %q", code, errb)
+	}
+
+	// The same label under a second contract: neither is picked.
+	p = write("# Recommendation 0021: Layers\n\n## Metadata\n\n- **Status**: Draft\n\n#### Normative Contracts\n\n**C1**\n\n" +
+		fence + "normative\nL-3  first\n" + fence + "\n\n**C2**\n\n" + fence + "normative\nL-3  second\n" + fence + "\n")
+	code, _, errb = runCapture(t, "inspect", "--select", "0021:L-3", p)
+	if code != 2 || !strings.Contains(errb, "stopped:ambiguous-element (0021:L-3 in 0021: L-3 is defined in more than one contract (0021:C1 12-12, 0021:C2 18-18)") {
+		t.Errorf("duplicated label: exit %d, stderr %q", code, errb)
+	}
+}
+
 // TestJSONIsDeterministic: two runs produce identical bytes, and the
 // envelope carries the schema version and the project prefix.
 func TestJSONIsDeterministic(t *testing.T) {

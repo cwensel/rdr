@@ -22,6 +22,8 @@ func TestParseRoundTrip(t *testing.T) {
 		{"0055:G-contradiction", ID{Record: "0055", Kind: Gate, Key: "contradiction"}},
 		{"0055:§normative-contracts", ID{Record: "0055", Kind: Section, Key: "normative-contracts"}},
 		{"cli/0055:C4", ID{Project: "cli", Record: "0055", Kind: Contract, Key: "4"}},
+		{"0055:L-3", ID{Record: "0055", Kind: Clause, Key: "L-3"}},
+		{"cli/0055:REQ-12a", ID{Project: "cli", Record: "0055", Kind: Clause, Key: "REQ-12a"}},
 		{"my.proj-2/0001:§approach", ID{Project: "my.proj-2", Record: "0001", Kind: Section, Key: "approach"}},
 	}
 	for _, c := range cases {
@@ -43,7 +45,7 @@ func TestParseRejects(t *testing.T) {
 	for _, in := range []string{
 		"", "0055", "55:A3", "0055:A", "0055:X1", "0055:D-", "0055:D-Identity",
 		"0055 A3", "cli/0055 A5", "0055:§Normative Contracts", "0055:MVV1",
-		"/0055:C4", "0055:ALT", "0055:§",
+		"/0055:C4", "0055:ALT", "0055:§", "0055:L3", "0055:L-", "0055:l-3", "0055:ABCD-1",
 	} {
 		if _, err := Parse(in); err == nil {
 			t.Errorf("Parse(%q) accepted; want ErrSyntax", in)
@@ -52,6 +54,23 @@ func TestParseRejects(t *testing.T) {
 	// Surrounding whitespace is tolerated; interior whitespace is not.
 	if _, err := Parse("  0055:C4\n"); err != nil {
 		t.Errorf("surrounding whitespace rejected: %v", err)
+	}
+}
+
+// TestClauseYieldsToSlugKinds: a clause label is any letters-hyphen-number,
+// but `D-` and `G-` are the decision and gate grammars and stay theirs —
+// a record's `D-3` is a decision keyed `3`, never a clause.
+func TestClauseYieldsToSlugKinds(t *testing.T) {
+	for in, kind := range map[string]Kind{"0055:D-3": Decision, "0055:G-1": Gate, "0055:E-3": Clause, "0055:S-1": Clause} {
+		id, err := Parse(in)
+		if err != nil || id.Kind != kind {
+			t.Errorf("Parse(%q) = %+v, %v; want kind %s", in, id, err, kind)
+		}
+	}
+	// A clause's kind token is the label's own letters; the kind name
+	// never appears in the string form.
+	if got := New("", "0055", Clause, "L-3").String(); got != "0055:L-3" {
+		t.Errorf("clause String() = %q", got)
 	}
 }
 

@@ -212,6 +212,7 @@ Every element of a record has one ID, in one grammar:
 | --- | --- | --- |
 | `0055:A3` | assumption | the `A3` label, as written (`A4b` / `A1.b` → `A4b`, `A1b`) |
 | `0055:C4` | normative contract (a ```` ```normative ```` block) | a `**C4**` / `##### C4` label on the line above the fence; else the block's document ordinal |
+| `0055:L-3` | a clause inside a contract fence | the label as written at column zero of a definition line (`L-3  …`, `REQ-2 (…)`, `NC-1:`; any 1–3 capitals but `D-`/`G-`, which are the decision and gate grammars); `parent` names the contract. Labels are unique per record: one defined twice mints nothing, warns `clause:duplicate`, and `--select` refuses it as `ambiguous-element` naming both |
 | `0055:D-identity` | load-bearing decision | the template's decision class (`DecisionClasses`); else the author's own number (`D-6`); else the label's slug |
 | `0055:RT1` | round-trip invariant | an `RT1` / `INV-1` lead, or a unique list number; else ordinal |
 | `0055:ALT2` | alternative | the `Alternative 2` scaffold ordinal |
@@ -293,6 +294,13 @@ Contracts carry `**C1**`, `**C2**` … in document order, on the line above
 the fence (TEMPLATE.md §Normative Contracts). The number is the contract's
 name for life: never reused, never renumbered — a deleted `C2` leaves a
 gap, because somewhere a peer cites it.
+
+A contract's clauses carry their own labels inside the fence — `L-1  …`,
+`REQ-2 (…)` — and the corpus cites them one grain below the contract
+(`cli/0112 §Normative Contracts L-3`); `--select 0112:L-3` answers the
+clause's lines, not the 500-line contract's. The label is the clause's
+name within the record, so a second contract restarts nowhere: the next
+fence continues the numbering or takes another letter.
 
 A cross-record reference to a load-bearing element — an assumption, a
 contract, a scenario, a decision — is written as an ID: `0055:C4`,

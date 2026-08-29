@@ -240,7 +240,9 @@ State each Normative item in a clearly labeled block.
 order** — the label is the contract's name for life: peers
 cite `NNNN:C2`, and it survives a heading rewrite, a split,
 or the contract moving to another RDR. Never reuse a number,
-never renumber (a deleted C2 leaves a gap).
+never renumber (a deleted C2 leaves a gap). A clause labelled
+at column zero inside the fence (`L-3  …`) is cited as
+`NNNN:L-3`; keep clause labels unique across the record.
 
 **C1**
 

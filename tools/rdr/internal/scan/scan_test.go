@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -393,6 +394,97 @@ func TestLabelledContractIsAsWritten(t *testing.T) {
 	}
 	if len(doc.Warnings) != 1 || doc.Warnings[0].Code != "c:collision" {
 		t.Errorf("warnings = %+v, want one c:collision", doc.Warnings)
+	}
+}
+
+// TestClausesAreMintedUnderTheirContract: a labelled clause inside a
+// normative fence is an element of its own, keyed by the label as written,
+// with its contract as Parent; the label must open a definition (two
+// spaces, ` (`, `:`, or a bold close), not a wrapped line of prose; and a
+// label defined twice in the record mints nothing and warns with both
+// candidates, so `--select` can refuse it as ambiguous rather than pick.
+func TestClausesAreMintedUnderTheirContract(t *testing.T) {
+	raw := []byte(`# Recommendation 0009: Layers
+
+## Metadata
+
+- **Status**: Draft
+
+#### Normative Contracts
+
+**C1**
+
+` + "```normative" + `
+L-1  input := owned records (cli/0110 O-3), each
+     carrying a label; L-2 reads them.
+L-2 (chain state): the fold at render point p.
+
+L-3 tolerates nothing here — this line opens with a label but is prose.
+**REQ-4b (the emission shape).** No row is dropped.
+NC-5(2) is a reference to a sub-item, not a definition.
+` + "```" + `
+
+**C2**
+
+` + "```normative" + `
+E-1:  ordinal of a record within its file.
+` + "```" + `
+`)
+	doc := Bytes(raw, Options{})
+	want := map[string][3]any{ // id → parent, label, line range
+		"0009:L-1":    {"0009:C1", "input := owned records (cli/0110 O-3), each", [2]int{12, 13}},
+		"0009:L-2":    {"0009:C1", "(chain state): the fold at render point p.", [2]int{14, 16}},
+		"0009:REQ-4b": {"0009:C1", "(the emission shape). No row is dropped.", [2]int{17, 18}},
+		"0009:E-1":    {"0009:C2", "ordinal of a record within its file.", [2]int{24, 24}},
+	}
+	for id, w := range want {
+		e := element(t, doc, id)
+		if e.Kind != ident.Clause || e.Parent != w[0] || e.Label != w[1] || e.Derived {
+			t.Errorf("%s = %+v; want clause under %s labelled %q", id, e, w[0], w[1])
+		}
+		if r := w[2].([2]int); e.LineStart != r[0] || e.LineEnd != r[1] {
+			t.Errorf("%s spans %d-%d, want %d-%d", id, e.LineStart, e.LineEnd, r[0], r[1])
+		}
+	}
+	for _, e := range doc.Elements {
+		if e.Kind == ident.Clause && (e.Key == "L-3" || e.Key == "NC-5") {
+			t.Errorf("prose opening with a label was minted: %+v", e)
+		}
+	}
+	if doc.Counts.Elements[ident.Clause] != 4 || doc.Counts.Derived[ident.Clause] != 0 || len(doc.Warnings) != 0 {
+		t.Errorf("counts %+v, warnings %+v", doc.Counts, doc.Warnings)
+	}
+	// Selecting a clause returns its lines, and the contract still spans them all.
+	if s, e, ok := doc.Select("0009:L-2"); !ok || s != 14 || e != 16 {
+		t.Errorf("Select(L-2) = %d-%d %v", s, e, ok)
+	}
+	if c := element(t, doc, "0009:C1"); c.LineStart > 12 || c.LineEnd < 18 {
+		t.Errorf("C1 no longer spans its clauses: %+v", c)
+	}
+
+	// The same label defined under two contracts: no id, one warning naming both.
+	dup := Bytes(bytes.Replace(raw, []byte("E-1:  ordinal"), []byte("L-1:  ordinal"), 1), Options{})
+	for _, e := range dup.Elements {
+		if e.Key == "L-1" {
+			t.Errorf("a duplicated label was minted: %+v", e)
+		}
+	}
+	if len(dup.Warnings) != 1 || dup.Warnings[0].Code != "clause:duplicate" ||
+		!strings.Contains(dup.Warnings[0].Message, "0009:C1 12-13") || !strings.Contains(dup.Warnings[0].Message, "0009:C2 24-24") {
+		t.Errorf("warnings = %+v; want one clause:duplicate naming both candidates", dup.Warnings)
+	}
+	if why := dup.Ambiguity("0009:L-1"); !strings.HasPrefix(why, "L-1 is defined") {
+		t.Errorf("Ambiguity(L-1) = %q", why)
+	}
+	if dup.Ambiguity("0009:L-2") != "" || dup.Ambiguity("0009:C1") != "" {
+		t.Error("Ambiguity answered for an id that is not a duplicated clause")
+	}
+	// A clause id can never collide with another kind's: the hyphen form
+	// is a clause, the bare form is the list kind, and D-/G- stay slugs.
+	for _, id := range []string{"0009:S1", "0009:F1", "0009:D-1"} {
+		if _, _, ok := doc.Select(id); ok {
+			t.Errorf("%s resolved on a record with no such element", id)
+		}
 	}
 }
 

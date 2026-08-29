@@ -16,6 +16,7 @@
 //	0055:MVV           minimum viable validation (one per record)
 //	0055:F2            failure mode
 //	0055:G-contradiction  gate response         keyed by the gate item
+//	0055:L-3           clause inside a contract fence, keyed by its label
 //	0055:§normative-contracts  outline section  keyed by canonical slug
 //	cli/0055:C4        the same, qualified across records dirs
 //
@@ -60,12 +61,17 @@ const (
 	Gate        Kind = "G"
 	JointCheck  Kind = "JC"
 	Section     Kind = "§"
+	// Clause is a labelled clause INSIDE a normative fence — `L-3`,
+	// `I-4`, `REQ-12` — the grain the corpus cites below the contract.
+	// Its kind token is the author's own letters, so the ID is written
+	// `0055:L-3` and the kind name appears only in JSON.
+	Clause Kind = "clause"
 )
 
 // Kinds lists every kind in the order projections and counts report them.
 var Kinds = []Kind{
 	Assumption, Contract, Decision, RoundTrip, Alternative, Rejected,
-	Scenario, MVV, Failure, Gate, Section,
+	Scenario, MVV, Failure, Gate, Clause, Section,
 }
 
 // Keyed reports whether the kind takes a slug key (`D-identity`,
@@ -95,6 +101,7 @@ var grammar = regexp.MustCompile(
 		`|(D|G)-([a-z0-9]+(?:-[a-z0-9]+)*)` + // slug kinds
 		`|(§)([a-z0-9]+(?:-[a-z0-9]+)*)` + // outline sections
 		`|(MVV)` +
+		`|([A-Z]{1,3}-\d+[a-z]?)` + // a contract clause label, as written; D-/G- are taken above
 		`)$`)
 
 // ErrSyntax is returned for a string that is not an element ID.
@@ -116,6 +123,8 @@ func Parse(s string) (ID, error) {
 		id.Kind, id.Key = Kind(m[5]), m[6]
 	case m[7] != "":
 		id.Kind, id.Key = Section, m[8]
+	case m[10] != "":
+		id.Kind, id.Key = Clause, m[10]
 	default:
 		id.Kind = MVV
 	}
@@ -138,7 +147,9 @@ func (id ID) String() string {
 	}
 	b.WriteString(id.Record)
 	b.WriteByte(':')
-	b.WriteString(string(id.Kind))
+	if id.Kind != Clause {
+		b.WriteString(string(id.Kind))
+	}
 	if id.Kind.Keyed() && id.Kind != Section {
 		b.WriteByte('-')
 	}

@@ -850,6 +850,12 @@ func project(arg string, f *flags, stderr io.Writer) (projection, error) {
 		}
 		start, end, ok := doc.Select(sel)
 		if !ok {
+			// A clause label defined twice in the record names two
+			// answers; refusing with both is the honest stop, and it is
+			// not the same stop as an id that names nothing.
+			if why := doc.Ambiguity(sel); why != "" {
+				return projection{}, fmt.Errorf("stopped:ambiguous-element (%s in %s: %s)", sel, doc.Record, why)
+			}
 			return projection{}, fmt.Errorf("stopped:no-such-element (%s in %s)", sel, doc.Record)
 		}
 		items = append(items, map[string]any{"id": sel, "line_start": start, "line_end": end,
@@ -950,7 +956,9 @@ func derivedLine(c scan.Counts) string {
 	var parts []string
 	var structural []string
 	for _, k := range ident.Kinds {
-		if c.Elements[k] == 0 {
+		// A clause is keyed by its label or not minted at all, so it
+		// has no backlog column to show.
+		if c.Elements[k] == 0 || k == ident.Clause {
 			continue
 		}
 		if c.Derived[k] > 0 || c.Structural[k] == 0 {

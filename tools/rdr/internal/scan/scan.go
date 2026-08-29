@@ -137,6 +137,10 @@ type Element struct {
 	LineEnd   int    `json:"line_end"`
 	// Transient marks a contract carrying the Transient marker.
 	Transient bool `json:"transient,omitempty"`
+	// Parent is the contract a clause was read from (`0055:C1` for
+	// `0055:L-3`); empty on every other kind. Clauses are the one kind
+	// that nests inside another element.
+	Parent string `json:"parent,omitempty"`
 	// Fields are the labelled bullets inside the element: an assumption's
 	// Evidence Record, a failure mode's Visible/Silent/Recovery, a step's
 	// Risk. Each is classified against the template (see fields.go).
@@ -824,6 +828,7 @@ func itemLabel(line string) string {
 func (d *Document) extract() {
 	d.assumptions()
 	d.contracts()
+	d.clauses()
 	d.decisions()
 	d.listKind(ident.RoundTrip, roundTripLabel)
 	d.alternatives()
@@ -1051,6 +1056,113 @@ func (d *Document) contracts() {
 		items = append(items, it)
 	}
 	d.assign(ident.Contract, items)
+}
+
+// clauseDef matches a clause DEFINITION inside a normative fence: a label
+// of one to three capitals, a hyphen and a number (`L-3`, `I-4`, `REQ-12`,
+// `NC-5a`) at column zero, followed by the definition's own separator —
+// two or more spaces (`L-1  input := …`), a space and an opening
+// parenthesis (`REQ-2 (single surface): …`), a colon, or the close of a
+// bold lead (`**REQ-4b (the emission shape).**`).
+//
+// The separator is what tells a definition from prose that merely opens
+// a wrapped line with the label: `REQ-5 serves two arities`, `NC-5(2),
+// that its naming request…`, `I-4(b) compares`. Measured over the corpus
+// the column-zero rule alone reads 112 lines with six labels defined
+// twice in one record; with the separator it reads 90 with none. A
+// continuation line is indented, so column zero is the other half of
+// the rule.
+var clauseDef = regexp.MustCompile(`^(?:\*\*)?([A-Z]{1,3}-\d+[a-z]?)(?:\*\*|\s{2,}|\s\(|:)`)
+
+// clauses reads the labelled clauses inside every contract fence, in
+// document order, and mints each as an element whose Parent is the
+// contract. A contract is the projector's grain; the corpus cites one
+// grain finer — every joint-decision home is written `cli/0112
+// §Normative Contracts L-3` — and a 530-line C1 answers a citation of
+// its L-3 with 530 lines.
+//
+// Labels are keyed as written and are UNIQUE PER RECORD, which is what
+// the corpus does (ten records, twenty fences, ninety clauses, no
+// label defined twice); a record whose contracts each restart at L-1
+// would have no bare id for either. So a label defined in more than one
+// place mints nothing and warns `clause:duplicate` naming every
+// candidate, and `--select` refuses it as ambiguous rather than
+// answering one of them. A clause runs from its definition line to the
+// line before the next definition or the fence's close, trailing blank
+// lines dropped.
+func (d *Document) clauses() {
+	type cand struct {
+		el    Element
+		where string
+	}
+	byKey := map[string][]cand{}
+	var order []string
+	for _, c := range d.Elements {
+		if c.Kind != ident.Contract {
+			continue
+		}
+		// The fence's close is the last line of the contract; a
+		// labelled contract starts on its label line, and the fence
+		// opener is inside the range either way.
+		var defs []int
+		for i := c.LineStart; i <= c.LineEnd; i++ {
+			if d.fenced[i-1] && !model.NormativeFenceOpen.MatchString(d.lines[i-1]) && clauseDef.MatchString(d.lines[i-1]) {
+				defs = append(defs, i)
+			}
+		}
+		for j, start := range defs {
+			end := c.LineEnd - 1 // the line before the closing delimiter
+			if j+1 < len(defs) {
+				end = defs[j+1] - 1
+			}
+			for end > start && strings.TrimSpace(d.lines[end-1]) == "" {
+				end--
+			}
+			// The label is the rest of the definition line after the
+			// token: the separator stays, since `(chain state)` is the
+			// author's title and the parenthesis is part of it.
+			m := clauseDef.FindStringSubmatch(d.lines[start-1])
+			label := d.lines[start-1][strings.Index(d.lines[start-1], m[1])+len(m[1]):]
+			label = strings.TrimSpace(strings.TrimLeft(strings.ReplaceAll(label, "**", ""), ":—–- "))
+			e := Element{Kind: ident.Clause, Key: m[1], Label: label, Section: c.Section,
+				Parent: c.ID, LineStart: start, LineEnd: end}
+			if _, seen := byKey[m[1]]; !seen {
+				order = append(order, m[1])
+			}
+			byKey[m[1]] = append(byKey[m[1]], cand{e, fmt.Sprintf("%s %d-%d", c.ID, start, end)})
+		}
+	}
+	for _, key := range order {
+		cs := byKey[key]
+		if len(cs) == 1 {
+			d.add(cs[0].el)
+			continue
+		}
+		var where []string
+		for _, c := range cs {
+			where = append(where, c.where)
+		}
+		d.warn("clause:duplicate", cs[0].el.LineStart, cs[len(cs)-1].el.LineEnd,
+			"%s is defined in more than one contract (%s); no clause id is minted until the labels are unique within the record", key, strings.Join(where, ", "))
+	}
+}
+
+// Ambiguity reports why an element id resolves to nothing when the
+// reason is a label defined more than once: the `clause:duplicate`
+// warning's message, naming every candidate, or "" when the id is
+// simply absent. It lets a refusal say which of two answers it declined
+// to pick instead of claiming the element does not exist.
+func (d *Document) Ambiguity(id string) string {
+	parsed, err := ident.Parse(id)
+	if err != nil || parsed.Kind != ident.Clause || parsed.Record != d.Record {
+		return ""
+	}
+	for _, w := range d.Warnings {
+		if w.Code == "clause:duplicate" && strings.HasPrefix(w.Message, parsed.Key+" ") {
+			return w.Message
+		}
+	}
+	return ""
 }
 
 // fenceBody is the text inside a fence, trimmed, for comparison against
