@@ -592,6 +592,53 @@ func TestPeerEvidenceIsDischargedPerPeer(t *testing.T) {
 	}
 }
 
+// TestPeerEvidenceIsDischargedByAColonClauseCite: the template's clause
+// form `cli/0112:L-3` is an element cite — it resolves against the peer's
+// minted clauses and discharges the per-peer rule exactly as `:A11`
+// does. A colon cite of a label the peer never minted is an element cite
+// that names the wrong thing — as `:A99` is — so it is reported as the
+// edge that does not resolve rather than as a missing element. The
+// spaced spelling `cli/0112 L-3` is a document mention by design and
+// still fires.
+func TestPeerEvidenceIsDischargedByAColonClauseCite(t *testing.T) {
+	peer := scan.Bytes([]byte("# Recommendation 0112: Fold\n\n## Metadata\n\n- **Status**: Draft\n\n"+
+		"## Normative Contracts\n\n**C1**\n\n```normative\n"+
+		"L-3  the fold admits a record once.\n"+
+		"REQ-12a (the emission shape): no row is dropped.\n```\n"), scan.Options{})
+
+	for _, tc := range []struct {
+		name, evidence string
+		fires          bool
+		unresolved     string
+	}{
+		{"minted clause", "cli/0112:L-3 admits it once.", false, ""},
+		{"minted REQ clause", "cli/0112:REQ-12a keeps every row.", false, ""},
+		{"unminted clause", "cli/0112:L-99 would admit it.", false, "cli/0112:L-99"},
+		{"spaced spelling", "cli/0112 L-3 admits it once.", true, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := record(t, "0113", "", tc.evidence)
+			docs := pair(t, d, peer)
+			r := Run(d, Options{Corpus: docs})
+			if has(r, "peer-evidence:no-element") != tc.fires {
+				t.Errorf("peer-evidence:no-element fired=%v, want %v: %v", !tc.fires, tc.fires, codes(r))
+			}
+			var dangling []string
+			for _, f := range r.Findings {
+				if f.Code == "edge:unresolved" {
+					dangling = append(dangling, f.Message)
+				}
+			}
+			switch {
+			case tc.unresolved == "" && len(dangling) != 0:
+				t.Errorf("a resolvable cite was reported dangling: %v", dangling)
+			case tc.unresolved != "" && (len(dangling) != 1 || !strings.Contains(dangling[0], tc.unresolved)):
+				t.Errorf("an unminted clause id was not reported dangling: %v", dangling)
+			}
+		})
+	}
+}
+
 // TestOwnershipMutualIsCorroboratedFromBothFields is the other half of the
 // same session. 0113's Overrides field overrides cli/0092 and names
 // cli/0112 inside that clause as context; 0112's field names 0113 the

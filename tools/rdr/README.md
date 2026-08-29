@@ -306,7 +306,11 @@ A cross-record reference to a load-bearing element — an assumption, a
 contract, a scenario, a decision — is written as an ID: `0055:C4`,
 `cli/0055:A3`. The grammar reads the colon form, the spaced form
 (`cli/0055 A5`) and `§Section Name` alike, so older citations keep
-resolving; the colon form is what new ones use. A filename or heading-text
+resolving; the colon form is what new ones use. For a clause the colon
+form (`cli/0112:L-3`, `cli/0113:REQ-12a`) is the one the edge grammar
+resolves to the clause; the prose spellings (`cli/0112 L-3`, `cli/0112
+§Normative Contracts L-3`) remain document and section references by
+design, so no existing citation is asked to change. A filename or heading-text
 reference is a `mentions` edge: fine for context, wrong for a claim, since
 it is exactly what a reword or a move breaks.
 

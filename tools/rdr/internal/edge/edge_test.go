@@ -1,6 +1,7 @@
 package edge
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
@@ -427,4 +428,83 @@ func TestRecordSlugIsNotAFilenameSegment(t *testing.T) {
 			t.Errorf("%q: record = %q, want %q", in, got, want)
 		}
 	}
+}
+
+// TestClauseIsReadInTheColonFormOnly: a contract clause label is an
+// element reference in its canonical colon form — the author's exact id,
+// the one the template prescribes — and the document or section in every
+// spaced spelling the corpus writes, which stay byte-for-byte as they
+// were so no record is asked to rewrite a citation that was never wrong.
+// The precedence mirrors ident.Parse: decisions, gate keys and the
+// ordinal kinds are read first, so `:F-1` is a clause and `:F1` a failure
+// mode, and a closed-namespace `:G-a` stays the document.
+func TestClauseIsReadInTheColonFormOnly(t *testing.T) {
+	t.Run("colon form is the clause", func(t *testing.T) {
+		for in, want := range map[string]string{
+			"cli/0112:L-3 binds it":            "cli/0112:L-3",
+			"see cli/0113:REQ-12a":             "cli/0113:REQ-12a",
+			"cli/0112:NC-5 holds":              "cli/0112:NC-5",
+			"cli/0112:F-1 is the clause":       "cli/0112:F-1",
+			"cli/0112:S-1 is the clause":       "cli/0112:S-1",
+			"0112-some-slug:L-3 by slug":       "0112:L-3",
+			"RDR cli/0112:I-4 by prefix":       "cli/0112:I-4",
+			"cli/0112:L-3, then cli/0112:L-4.": "cli/0112:L-3",
+		} {
+			refs := FindRefs(in, false)
+			if len(refs) == 0 {
+				t.Fatalf("%q: no reference found", in)
+			}
+			if refs[0].Kind != ident.Clause {
+				t.Errorf("%q: kind = %q, want clause", in, refs[0].Kind)
+			}
+			if got := refs[0].ID(); got != want {
+				t.Errorf("%q: got %q, want %q", in, got, want)
+			}
+			if !strings.Contains(refs[0].Raw, ":") {
+				t.Errorf("%q: raw %q dropped the element half", in, refs[0].Raw)
+			}
+		}
+	})
+	t.Run("the earlier grammars keep precedence", func(t *testing.T) {
+		for in, want := range map[string]struct {
+			id   string
+			kind ident.Kind
+		}{
+			"cli/0035:D-6 decided it":     {"cli/0035:D-6", ident.Decision},
+			"cli/0055:G-scope narrows it": {"cli/0055:G-scope", ident.Gate},
+			"cli/0133:G-a is a guard":     {"cli/0133", ""},
+			"cli/0112:F1 fails":           {"cli/0112:F1", ident.Failure},
+			"cli/0112:S1 scenario":        {"cli/0112:S1", ident.Scenario},
+			"cli/0055:CA-5 legacy":        {"cli/0055:A5", ident.Assumption},
+		} {
+			refs := FindRefs(in, false)
+			if len(refs) == 0 {
+				t.Fatalf("%q: no reference found", in)
+			}
+			if refs[0].Kind != want.kind || refs[0].ID() != want.id {
+				t.Errorf("%q: got %s (%q), want %s (%q)", in, refs[0].ID(), refs[0].Kind, want.id, want.kind)
+			}
+		}
+	})
+	t.Run("spaced spellings are unchanged", func(t *testing.T) {
+		for in, want := range map[string]struct {
+			id, raw string
+		}{
+			"cli/0112 L-3 binds it":                       {"cli/0112", "cli/0112"},
+			"cli/0119 REQ-89 is minted per run":           {"cli/0119", "cli/0119 REQ-89"},
+			"cli/0112: REQ-3 with punctuation":            {"cli/0112", "cli/0112: REQ-3"},
+			"cli/0112 §Normative Contracts L-3, the home": {"cli/0112:§normative-contracts", "cli/0112 §Normative Contracts L-3"},
+		} {
+			refs := FindRefs(in, false)
+			if len(refs) != 1 {
+				t.Fatalf("%q: refs = %v, want one", in, refs)
+			}
+			if refs[0].ID() != want.id || refs[0].Raw != want.raw {
+				t.Errorf("%q: got %s raw %q, want %s raw %q", in, refs[0].ID(), refs[0].Raw, want.id, want.raw)
+			}
+			if refs[0].Kind == ident.Clause {
+				t.Errorf("%q: a spaced clause spelling was promoted", in)
+			}
+		}
+	})
 }

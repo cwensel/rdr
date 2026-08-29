@@ -212,8 +212,34 @@ var recordRef = regexp.MustCompile(
 		`(?:(§)\s*` + sectionName + // §Section Name
 		`|(CA-|A|C|D-|D|S|F|RT|ALT|BR|G-|REQ-)(\d+[a-z]?)\b` + // an element label
 		`|(D|G)-([a-z0-9]+(?:-[a-z0-9]+)*)\b` + // a slug-keyed element: D-identity, G-scope
-		`|(MVV)\b))?`, // the one keyed-by-nothing element
+		`|(MVV)\b)` + // the one keyed-by-nothing element
+		`|:([A-Z]{1,3}-\d+[a-z]?)\b` + // a clause label in the colon form only; see clauseColonOnly
+		`)?`,
 )
+
+// clauseColonOnly is the rule for a contract clause label — `L-3`,
+// `NC-5`, `REQ-12a` — in a citation: it is an element reference ONLY in
+// the canonical colon form, `cli/0112:L-3`, and is the document in every
+// spaced spelling.
+//
+// The colon form is the author's exact clause id, the one TEMPLATE.md
+// prescribes and ident's grammar parses, so it resolves against the
+// target's minted clauses and a miss is the dangling reference that any
+// exact id gets. Its precedence mirrors ident.Parse: the decision and
+// gate grammars (`D-6`, `G-scope`) and the ordinal kinds (`F1`, `S1`)
+// are tried first, so `:F-1` is a clause while `:F1` is a failure mode,
+// and `:G-a` stays the document because the gate namespace is closed.
+// `:CA-5` keeps its legacy reading as an assumption.
+//
+// The spaced forms — `cli/0112 L-3`, `cli/0119 REQ-89`, `§Normative
+// Contracts L-3` — are the corpus's prose and are NOT promoted: they keep
+// the document or section edge they have today, so no record is asked
+// to rewrite a citation that was never wrong. The clause alternative is
+// therefore anchored on the colon and nothing else.
+func clauseColonOnly(s string, m []int, recordEnd int) bool {
+	start := m[2*14]
+	return start == recordEnd+1 && s[recordEnd] == ':'
+}
 
 // sectionName bounds a `§Section Name` citation. A section citation is a
 // heading fragment, not a sentence: the corpus writes `§Identity stack §1:
@@ -320,12 +346,14 @@ func FindRefs(s string, bare bool) []Ref {
 			continue
 		}
 		r := Ref{Start: m[0], End: m[1], Raw: s[m[0]:m[1]]}
+		recordEnd := 0
 		for _, base := range []int{1, 4, 7} {
 			if n := group(s, m, base+1); n != "" {
 				r.Project, r.Record = group(s, m, base), n
 				if slug := group(s, m, base+2); slug != "" {
 					r.Slug = n + slug
 				}
+				recordEnd = m[2*(base+2)+1]
 				break
 			}
 		}
@@ -333,12 +361,16 @@ func FindRefs(s string, bare bool) []Ref {
 		case group(s, m, 10) == "§":
 			name := group(s, m, 11) + group(s, m, 12) + group(s, m, 13)
 			r.Kind, r.Key = ident.Section, ident.Slug(trimSectionTail(name))
+		case group(s, m, 14) == "REQ-" && clauseColonOnly(s, m, recordEnd):
+			r.Kind, r.Key = ident.Clause, group(s, m, 14)+group(s, m, 15)
 		case group(s, m, 14) != "":
 			r.Kind, r.Key = elementKind(group(s, m, 14)), group(s, m, 15)
 		case group(s, m, 16) != "":
 			r.Kind, r.Key = slugKind(group(s, m, 16), group(s, m, 17)), group(s, m, 17)
 		case group(s, m, 18) != "":
 			r.Kind = ident.MVV
+		case group(s, m, 19) != "":
+			r.Kind, r.Key = ident.Clause, group(s, m, 19)
 		}
 		if r.Kind == ident.Section && r.Key == "" {
 			// `§` with nothing readable after it names the document.
@@ -385,7 +417,8 @@ func FindRefs(s string, bare bool) []Ref {
 // does not have and report it unresolved — 27 such false findings over
 // the corpus, each one a real citation the projector mislabelled. The
 // record is still the target; only the clause is out of this grammar's
-// reach.
+// reach. That holds for the SPACED form; the colon form `cli/0113:REQ-12a`
+// is the author's exact clause id and does resolve (clauseColonOnly).
 // slugKind maps the slug-keyed citation forms — `D-identity`, `G-scope` —
 // onto their kind. `D-` is unconditional: a decision's key IS the label's
 // slug, so any slug is a decision key the target may or may not have, and
