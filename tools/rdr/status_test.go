@@ -469,3 +469,249 @@ func TestTagsSurviveABracketedModelID(t *testing.T) {
 			"fact rather than relocating it: %q", id)
 	}
 }
+
+// ---------------------------------------------------------------------
+// The SET arity: `rdr status NNNN NNNN …`
+//
+// Stage 8's predecessor precheck and Stage 7.1's Final-and-unimplemented
+// filter both hold a list of records and used to read N `status.md`
+// headers by hand. These tests hold the properties that make one call a
+// safe replacement for that loop.
+// ---------------------------------------------------------------------
+
+// setRows is the parsed `--json` envelope of a set call.
+type setRows struct {
+	Records []struct {
+		Record string  `json:"record"`
+		Path   string  `json:"path"`
+		Facts  []Fact  `json:"facts"`
+	} `json:"records"`
+	Skipped []map[string]string `json:"skipped"`
+}
+
+func statusSetJSON(t *testing.T, args ...string) setRows {
+	t.Helper()
+	code, out, errb := runCapture(t, args...)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var env setRows
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("unparseable envelope: %v\n%s", err, out)
+	}
+	return env
+}
+
+// TestStatusSetAnswersEveryNamedRecord is the capability itself: several
+// records, one call, one row each, in the order asked.
+func TestStatusSetAnswersEveryNamedRecord(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	want := []string{"0020", "0021", "0022"}
+	env := statusSetJSON(t, append([]string{"status", "--facts", table, "--json"}, want...)...)
+	if len(env.Records) != len(want) {
+		t.Fatalf("asked for %d records, got %d", len(want), len(env.Records))
+	}
+	for i, w := range want {
+		if env.Records[i].Record != w {
+			t.Errorf("row %d is %q, want %q; the set must answer in the order asked", i, env.Records[i].Record, w)
+		}
+	}
+	if len(env.Skipped) != 0 {
+		t.Errorf("every record resolves, so skipped must be empty: %v", env.Skipped)
+	}
+}
+
+// TestStatusSetAgreesWithStatusOne is what makes the set safe to adopt:
+// the same evaluation, so a consumer that switches from N calls to one
+// cannot see a different answer.
+func TestStatusSetAgreesWithStatusOne(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	recs := []string{"0020", "0021", "0022", "0023", "0024", "0025"}
+	env := statusSetJSON(t, append([]string{"status", "--facts", table, "--json"}, recs...)...)
+
+	for i, rec := range recs {
+		code, out, errb := runCapture(t, "status", "--facts", table, "--json", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var one struct {
+			Facts []Fact `json:"facts"`
+		}
+		if err := json.Unmarshal([]byte(out), &one); err != nil {
+			t.Fatal(err)
+		}
+		got, err := json.Marshal(env.Records[i].Facts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		wantJSON, err := json.Marshal(one.Facts)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(got) != string(wantJSON) {
+			t.Errorf("%s: the set and the single-record forms disagree.\n set: %s\n one: %s", rec, got, wantJSON)
+		}
+	}
+}
+
+// TestStatusSetReportsAnUnresolvableRecordRatherThanHalting is the
+// three-valued discipline carried up to the set, and it is the property
+// Stage 8 depends on.
+//
+// A predecessor with no record — or no capsule — must read as "nothing
+// looked", distinguishable from "looked, not COMPLETE": the stage halts
+// on the second and reports the first. A refusal for the whole call would
+// collapse them, because a set that answers nothing says nothing about
+// any member.
+func TestStatusSetReportsAnUnresolvableRecordRatherThanHalting(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, out, errb := runCapture(t, "status", "--facts", table, "--json", "0020", "9999", "0021")
+	if code != 0 {
+		t.Fatalf("an unresolvable member must not fail the call: exit %d: %s", code, errb)
+	}
+	var env setRows
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatal(err)
+	}
+	if len(env.Records) != 2 {
+		t.Errorf("the two resolvable records must still be answered, got %d", len(env.Records))
+	}
+	if len(env.Skipped) != 1 || env.Skipped[0]["target"] != "9999" {
+		t.Fatalf("9999 must be reported as skipped, with its reason: %v", env.Skipped)
+	}
+	if env.Skipped[0]["why"] == "" {
+		t.Error("a skipped row with no reason is an absence nobody can act on")
+	}
+}
+
+// TestStatusSetAbsentFactStaysAbsent: a record with no capsule renders NO
+// impl_state, rather than a false or an INCOMPLETE. `filterFacts` must
+// not invent a row for a fact that did not evaluate.
+func TestStatusSetAbsentFactStaysAbsent(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	env := statusSetJSON(t, "status", "--facts", table, "--json", "--filter", "impl_state", "0020", "0021", "0022", "0023", "0024", "0025")
+	for _, r := range env.Records {
+		for _, f := range r.Facts {
+			if f.Name != "impl_state" {
+				t.Errorf("%s: --filter impl_state also returned %q", r.Record, f.Name)
+			}
+			if f.Value == "" {
+				t.Errorf("%s: impl_state rendered with an empty value; absent must mean the fact is OMITTED, "+
+					"never present-and-blank — a caller cannot tell the second from a real answer", r.Record)
+			}
+		}
+	}
+}
+
+// TestStatusSetRefusesTags: `--tags` renders one resolver's argv, and a
+// set has no single record to name. The worklist already refuses it with
+// these words; the set must not invent a second vocabulary.
+func TestStatusSetRefusesTags(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, _, errb := runCapture(t, "status", "--facts", table, "--tags", "0020", "0021")
+	if code != 2 {
+		t.Fatalf("--tags over a set must refuse, exit %d", code)
+	}
+	if !strings.Contains(errb, "stopped:usage") || !strings.Contains(errb, "name a record") {
+		t.Errorf("the refusal must be the worklist's, verbatim: %q", errb)
+	}
+}
+
+// TestStatusFilterKeepsOnlyNamedFacts, and refuses a name the table does
+// not declare rather than answering nothing — the rule `--filter` already
+// follows on inspect and index. An empty answer to a misspelled fact
+// reads as "the record does not have it", which is a claim about the
+// record instead of about the request.
+func TestStatusFilterKeepsOnlyNamedFacts(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, out, errb := runCapture(t, "status", "--facts", table, "--json", "--filter", "status,profile", "0020")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var one struct {
+		Facts []Fact `json:"facts"`
+	}
+	if err := json.Unmarshal([]byte(out), &one); err != nil {
+		t.Fatal(err)
+	}
+	if len(one.Facts) != 2 {
+		t.Fatalf("--filter status,profile returned %d facts", len(one.Facts))
+	}
+
+	code, _, errb = runCapture(t, "status", "--facts", table, "--json", "--filter", "impl_stat", "0020")
+	if code != 2 {
+		t.Fatalf("a misspelled fact must refuse, exit %d", code)
+	}
+	if !strings.Contains(errb, "stopped:no-such-fact") || !strings.Contains(errb, "impl_state") {
+		t.Errorf("the refusal must name the bad key and list what was available: %q", errb)
+	}
+}
+
+// TestStatusFilterDropsTheSummary. The reason to filter is a caller's
+// context budget, and the summary is most of the payload — Profile alone
+// carries the field's whole rationale tail. Filtering the vector while
+// still shipping the summary would answer the letter of the request and
+// miss its point.
+func TestStatusFilterDropsTheSummary(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	recs := []string{"0020", "0021", "0022", "0023", "0024", "0025"}
+	_, full, _ := runCapture(t, append([]string{"status", "--facts", table, "--json"}, recs...)...)
+	_, lean, _ := runCapture(t, append([]string{"status", "--facts", table, "--json", "--filter", "status"}, recs...)...)
+
+	if len(lean) >= len(full) {
+		t.Errorf("--filter did not shrink the set envelope: %d vs %d bytes", len(lean), len(full))
+	}
+	for _, key := range []string{"\"title\"", "\"counts\"", "\"profile\"", "\"short_title\""} {
+		if strings.Contains(lean, key) {
+			t.Errorf("the filtered row still carries %s; the summary is the bulk of the payload", key)
+		}
+	}
+	// Identity survives: a row a caller cannot attribute is not an answer.
+	for _, key := range []string{"\"record\"", "\"path\""} {
+		if !strings.Contains(lean, key) {
+			t.Errorf("the filtered row dropped %s, which is what attributes it to a record", key)
+		}
+	}
+}
+
+// TestStatusSetReadsOnlyTheRecordsNamed is the cost property, and it is
+// the whole reason this is an arity rather than a corpus facet.
+//
+// The worklist scans the records dir; a set must not. Measured on the
+// reference corpus the two are 47ms and 2.0s apart, so a set that fell
+// through to a scan would be a silent 40x regression on the call Stage 8
+// makes every run. The check is structural rather than timed: point
+// --records at a dir holding ONLY the named records' files and the answer
+// must be identical, which cannot be true of anything that enumerated.
+func TestStatusSetReadsOnlyTheRecordsNamed(t *testing.T) {
+	recs, table := bindStatusFixture(t)
+	want := statusSetJSON(t, "status", "--facts", table, "--json", "--filter", "status", "0020", "0021")
+
+	// A dir with the two named records and nothing else.
+	lean := t.TempDir()
+	for _, n := range []string{"0020", "0021"} {
+		matches, err := filepath.Glob(filepath.Join(recs, n+"-*.md"))
+		if err != nil || len(matches) == 0 {
+			t.Fatalf("fixture %s: %v", n, err)
+		}
+		body, err := os.ReadFile(matches[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(lean, filepath.Base(matches[0])), body, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("RDR_RECORDS", lean)
+	got := statusSetJSON(t, "status", "--facts", table, "--json", "--filter", "status", "--records", lean, "0020", "0021")
+
+	if len(got.Records) != len(want.Records) {
+		t.Fatalf("the set answered %d records against a lean dir, %d against the full one",
+			len(got.Records), len(want.Records))
+	}
+	for i := range got.Records {
+		if got.Records[i].Record != want.Records[i].Record {
+			t.Errorf("row %d differs: %q vs %q", i, got.Records[i].Record, want.Records[i].Record)
+		}
+	}
+}

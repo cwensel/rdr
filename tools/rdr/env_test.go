@@ -403,3 +403,36 @@ func TestEnvRefusalIsNotAMissingMarker(t *testing.T) {
 			"and rewrite a marker that is correct for its own project: %s", errb)
 	}
 }
+
+// TestStatusArityNamesItselfInTheUsageLog is the same v12r lesson for the
+// set arity. `status NNNN` and `status NNNN NNNN` are one verb at two
+// costs, and the worklist is a third — a log that could not tell them
+// apart would average a 47ms call with a 2.0s scan and hide whichever one
+// a skill actually pays.
+func TestStatusArityNamesItselfInTheUsageLog(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		args   []string
+		target string
+		argc   int
+		want   string
+	}{
+		{"worklist", nil, "", 0, "worklist"},
+		{"worklist json", []string{"--json"}, "", 0, "worklist:json"},
+		{"one record", nil, "0106", 1, "record"},
+		{"one record tags", []string{"--tags"}, "0106", 1, "record:tags"},
+		{"a set", nil, "0122 0123", 2, "records"},
+		{"a set json", []string{"--json"}, "0122 0123", 2, "records:json"},
+	} {
+		fs := flag.NewFlagSet("status", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		f := declareFlags("status", fs)
+		if err := fs.Parse(c.args); err != nil {
+			t.Fatalf("%s: parse: %v", c.name, err)
+		}
+		f.argc = c.argc
+		if got := usageFacet("status", f, c.target); got != c.want {
+			t.Errorf("%s logs as %q, want %q", c.name, got, c.want)
+		}
+	}
+}

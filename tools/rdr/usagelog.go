@@ -252,9 +252,16 @@ func usageFacet(cmd string, f *flags, target string) string {
 		// `--filter` taught this log to record rather than average away.
 		// The rendering is carried too, because `--tags` is the call the
 		// navigator actually makes and its cost is the one to audit.
+		// Three arities, three costs: a named set reads only the files it
+		// was given, and the worklist scans the corpus. A log that could
+		// not tell a set from a single record would average the two and
+		// hide whichever one a skill actually pays.
 		which := "record"
-		if target == "" {
+		switch {
+		case target == "":
 			which = "worklist"
+		case f.argc > 1:
+			which = "records"
 		}
 		switch {
 		case f.tags != nil && *f.tags:

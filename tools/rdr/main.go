@@ -8,7 +8,7 @@
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-//	rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
+//	rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
 //	rdr env [--json]
 //	rdr version
 //
@@ -60,7 +60,7 @@ usage:
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
-  rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
+  rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr env [--json]
   rdr version
@@ -110,9 +110,14 @@ whole read in one call (README §Facts, §status). Text is one fact per
 line; --json is the neutral vector; --tags renders "--tag k=v" argv for a
 resolver. A fact the table declares prose is not rendered as a tag: an
 unquoted $(rdr status --tags NNNN) splits on whitespace, so a sentence
-would arrive truncated at the first space. With no argument it is the
-Draft+Final worklist, each row carrying its facts; --tags needs a record.
-It never writes.
+would arrive truncated at the first space. Name SEVERAL records for the
+set question (Stage 8's predecessors, 7.1's cluster): each is resolved by
+name, so the corpus is never scanned, and one that does not resolve is a
+"skipped" row with its reason — absent, not "looked and not COMPLETE".
+With no argument it is the Draft+Final worklist, each row carrying its
+facts; --tags needs one record. --filter keeps only the named facts,
+which is what makes a set affordable to read (48 facts ≈ 7KB per record);
+a name the table does not declare is refused. It never writes.
 
 receipt asks the usage log whether the record was linted at or after its
 last write (README §receipt): exit 0 and the lint's log line; 1 and
@@ -190,6 +195,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		stdout = counted
 		started := stamp()
 		cmd, target := args[0], strings.Join(fs.Args(), " ")
+		f.argc = len(fs.Args())
 		code := 2
 		defer func() {
 			logUsage(usageRecord{
@@ -281,6 +287,10 @@ type flags struct {
 	coverage              *bool
 	sel, project, records *string
 	filter                *string
+	// argc is how many positional arguments the invocation carried. The
+	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
+	// which are the same verb at two very different costs.
+	argc int
 	repo                  *string
 	status                *bool
 	backlinks, readme     optString
@@ -349,6 +359,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")
 		f.facts = fs.String("facts", "", "the fact table to evaluate (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
+		f.filter = fs.String("filter", "", "comma-separated fact names to keep (impl_state,status); a name the table does not declare is refused")
 	}
 	return f
 }

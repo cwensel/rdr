@@ -31,13 +31,19 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
-// statusCmd is `rdr status [NNNN]`: one record's fact vector, or the
-// in-flight worklist with each record's facts.
+// statusCmd is `rdr status [NNNN…]`: one record's fact vector, a NAMED
+// SET of records', or the in-flight worklist with each record's facts.
+//
+// The three arities are three different questions and two different
+// costs. One record and a named set resolve each argument by name and
+// read only those files; the worklist scans the corpus. That gap is
+// measured and it is large — 47ms against 2.0s on the reference corpus —
+// so a caller who knows which records it means must never pay the scan
+// to ask about them. That is exactly what the set form is for: Stage 8's
+// predecessor precheck and 7.1's Final-and-unimplemented filter each
+// hold a list of records already, and both used to read N status.md
+// headers by hand rather than ask.
 func statusCmd(args []string, f *flags, stdout, stderr io.Writer) int {
-	if len(args) > 1 {
-		fmt.Fprintln(stderr, "stopped:usage (status takes at most one NNNN, slug or path)")
-		return 2
-	}
 	explicit := ""
 	if f.facts != nil {
 		explicit = *f.facts
@@ -52,10 +58,13 @@ func statusCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
-	if len(args) == 0 {
+	switch {
+	case len(args) == 0:
 		return statusWorklist(tbl, f, stdout, stderr)
+	case len(args) == 1:
+		return statusOne(tbl, args[0], f, stdout, stderr)
 	}
-	return statusOne(tbl, args[0], f, stdout, stderr)
+	return statusSet(tbl, args, f, stdout, stderr)
 }
 
 // statusOne evaluates one record.
@@ -75,6 +84,10 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 		return 2
 	}
 	facts := tbl.Evaluate(NewFactEnv(tbl, doc, recordSlug(path)))
+	if facts, err = filterFacts(tbl, facts, f); err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
 
 	switch {
 	case *f.tags:
@@ -83,6 +96,122 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 		return emitFacts(facts, doc.Record, stdout, stderr)
 	}
 	return emitFactLines(facts, stdout)
+}
+
+// statusSet evaluates a NAMED set of records — the question both Stage 8's
+// predecessor precheck and Stage 7.1's completeness filter actually ask.
+//
+// Each argument is resolved by name, so this reads exactly the files it
+// was given and never scans the records dir. It is the same evaluation
+// `statusOne` runs, once per record, which is what lets the two forms
+// agree by construction rather than by care.
+//
+// AN UNRESOLVABLE ARGUMENT IS A `skipped` ROW, NOT A HALT. That is the
+// three-valued discipline this table is built on, carried up to the set:
+// a predecessor whose record or artifact dir is missing must read as
+// "nothing looked", and the caller has to be able to tell that from
+// "looked, not COMPLETE" — Stage 8 halts on one and not the other. A
+// refusal here would collapse the two, since a set that cannot be
+// answered at all says nothing about any of its members. The skipped row
+// carries the reason, so absence is reported rather than inferred.
+func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer) int {
+	// `--tags` renders ONE resolver's argv; the worklist refuses it for
+	// the same reason and with the same words.
+	if *f.tags {
+		fmt.Fprintln(stderr, "stopped:usage (--tags renders one record's argv; name a record)")
+		return 2
+	}
+	rows := []statusRow{}
+	skipped := []map[string]string{}
+	for _, arg := range args {
+		path, err := resolve(arg, *f.records)
+		if err != nil {
+			skipped = append(skipped, map[string]string{"target": arg, "why": err.Error()})
+			continue
+		}
+		doc, err := scan.File(path, scan.Options{Project: *f.project})
+		if err != nil {
+			skipped = append(skipped, map[string]string{"target": arg, "why": fmt.Sprintf("unreadable (%v)", err)})
+			continue
+		}
+		if doc.Record == "" {
+			skipped = append(skipped, map[string]string{"target": arg,
+				"why": "no-record-number (neither the title nor the filename carries NNNN)"})
+			continue
+		}
+		facts := tbl.Evaluate(NewFactEnv(tbl, doc, recordSlug(path)))
+		facts, err = filterFacts(tbl, facts, f)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		rows = append(rows, statusRow{Summary: scan.Summarize(doc), Facts: facts})
+	}
+	if *f.json {
+		return emit(map[string]any{
+			"schema": schemaVersion, "records": rowsFor(rows, f), "skipped": skipped,
+		}, stdout, stderr)
+	}
+	for _, r := range rows {
+		fmt.Fprintf(stdout, "%s %-8s %s\n",
+			filepath.Base(strings.TrimSuffix(r.Path, ".md")), r.Status.Value, qualifier(r.Summary))
+		emitFactLines(r.Facts, indentWriter{stdout})
+	}
+	for _, s := range skipped {
+		fmt.Fprintf(stdout, "%s skipped  %s\n", s["target"], s["why"])
+	}
+	return 0
+}
+
+// filterFacts keeps only the named facts, and is the whole reason a set
+// call is affordable to READ.
+//
+// The vector is 48 facts and ~7KB of JSON per record, which a five-member
+// cluster turns into ~27KB of a caller's context to answer one word per
+// record. Every other projection verb already has `--filter` for exactly
+// this; `status` was the one that did not, so its callers paid the full
+// vector or went back to reading files by hand.
+//
+// A name the table does not declare is a REFUSAL, not an empty result,
+// and the message lists what could have been asked for — the same rule
+// `--filter` follows on `inspect` and `index`, because a filter that
+// silently answers nothing is read as "the fact is absent", which is a
+// claim about the record rather than about the request.
+//
+// Filtering is applied AFTER evaluation, never before: a fact's value can
+// depend on the table being evaluated whole, and a filter is a question
+// about the OUTPUT, not an instruction to look at less.
+func filterFacts(tbl *FactTable, facts []Fact, f *flags) ([]Fact, error) {
+	if f.filter == nil || *f.filter == "" {
+		return facts, nil
+	}
+	declared := make(map[string]bool, len(tbl.Facts))
+	for _, d := range tbl.Facts {
+		declared[d.Name] = true
+	}
+	keep := map[string]bool{}
+	for _, name := range strings.Split(*f.filter, ",") {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		if !declared[name] {
+			names := make([]string, 0, len(tbl.Facts))
+			for _, d := range tbl.Facts {
+				names = append(names, d.Name)
+			}
+			sort.Strings(names)
+			return nil, fmt.Errorf("stopped:no-such-fact (%s; have %s)", name, strings.Join(names, " "))
+		}
+		keep[name] = true
+	}
+	out := make([]Fact, 0, len(keep))
+	for _, fact := range facts {
+		if keep[fact.Name] {
+			out = append(out, fact)
+		}
+	}
+	return out, nil
 }
 
 // statusWorklist is the no-arg form: the Draft/Final worklist, each row
@@ -112,14 +241,16 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		if !s.InFlight {
 			continue
 		}
-		rows = append(rows, statusRow{
-			Summary: s,
-			Facts:   tbl.Evaluate(NewFactEnv(tbl, d, recordSlug(s.Path))),
-		})
+		facts, err := filterFacts(tbl, tbl.Evaluate(NewFactEnv(tbl, d, recordSlug(s.Path))), f)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		rows = append(rows, statusRow{Summary: s, Facts: facts})
 	}
 	if *f.json {
 		return emit(map[string]any{
-			"schema": schemaVersion, "records": rows, "skipped": skipped,
+			"schema": schemaVersion, "records": rowsFor(rows, f), "skipped": skipped,
 		}, stdout, stderr)
 	}
 	for _, r := range rows {
@@ -137,6 +268,38 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 type statusRow struct {
 	scan.Summary
 	Facts []Fact `json:"facts"`
+}
+
+// leanRow is what a row becomes under `--filter`: the identity keys, and
+// the facts that were asked for.
+//
+// The summary is not free. `Profile` alone carries the field's whole
+// rationale tail — a paragraph on most records — so a five-record set
+// emits ~44KB unfiltered and still ~12KB with the facts filtered, when
+// the facts themselves are about 1KB. Filtering the vector while shipping
+// the summary anyway would answer the letter of the request and miss its
+// point, since the reason to filter is a caller's context budget.
+//
+// Identity is kept for the same reason `filterKeys` keeps it: a row a
+// caller cannot attribute to a record is not an answer. `record` and
+// `path` are that minimum, and `path` stays because the flow's next act
+// on a member is usually to name a file under it.
+type leanRow struct {
+	Record string `json:"record"`
+	Path   string `json:"path"`
+	Facts  []Fact `json:"facts"`
+}
+
+// rowsFor renders the rows at the width the request asked for.
+func rowsFor(rows []statusRow, f *flags) any {
+	if f.filter == nil || *f.filter == "" {
+		return rows
+	}
+	lean := make([]leanRow, 0, len(rows))
+	for _, r := range rows {
+		lean = append(lean, leanRow{Record: r.Record, Path: r.Path, Facts: r.Facts})
+	}
+	return lean
 }
 
 // recordSlug is the filename slug a probe's paths hang under. The

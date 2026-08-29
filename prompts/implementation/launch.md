@@ -102,14 +102,23 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   `"$RDR_HOME/bin/rdr" inspect --json --filter edges,metadata,lines {RDR_PATH}`
   and take `edges[]` where `kind=="predecessor"` — each carries `to`, `slug`,
   `resolved`, `line` (`metadata`/`lines` serve the size gate below).
-  Two distinct failures, both halting:
-  - `resolved:false` — dangling predecessor, the cited record does not exist:
-    INCOMPLETE("predecessor <to> unresolved at line <line>").
-  - `<rdr-dir>/<slug>/status.md` does not read `COMPLETE` (a disk read, still
-    yours): INCOMPLETE("predecessor <slug> not COMPLETE").
-  `--records` defaults to `$RDR_RECORDS`; without a records dir `resolved` is
-  ABSENT (nothing looked), neither sound nor broken. Record the predecessor
-  artifact paths to pass to Phase 0 and Phase 1. Skip if no predecessor edges.
+  `resolved:false` is a dangling predecessor — the cited record does not
+  exist — and halts first: INCOMPLETE("predecessor <to> unresolved at line
+  <line>"). `--records` defaults to `$RDR_RECORDS`; without a records dir
+  `resolved` is ABSENT (nothing looked), neither sound nor broken.
+  Then ask every surviving predecessor at once — one call, not a read per
+  slug:
+  `"$RDR_HOME/bin/rdr" status --json --filter impl_state <slug> [<slug>…]`
+  Read each row's `impl_state` literally, and the three answers are three
+  different halts:
+  - `COMPLETE` — the only pass.
+  - any other value — INCOMPLETE("predecessor <slug> not COMPLETE: <value>").
+  - **the fact is ABSENT** — the row's `facts[]` is empty (no capsule).
+    Nothing looked, which is NOT "not COMPLETE": INCOMPLETE("predecessor
+    <slug> has no status capsule"). A `skipped[]` entry is a record that did
+    not resolve; report it the same way, never as incomplete.
+  Record the predecessor artifact paths to pass to Phase 0 and Phase 1. Skip
+  if no predecessor edges.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick

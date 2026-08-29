@@ -1113,7 +1113,53 @@ Three renderings of ONE evaluation:
     rdr status 0055                # one fact per line — the cheap human read
     rdr status --json 0055         # the neutral vector (§Facts)
     rdr status --tags 0055         # `--tag k=v` argv for a resolver
+    rdr status 0122 0123 0130      # a NAMED SET — one row per record
     rdr status                     # the Draft+Final worklist, each row with its facts
+
+### Three arities, two costs
+
+Naming several records answers the question two stages actually ask.
+Stage 8's predecessor precheck (`prompts/implementation/launch.md`) and
+Stage 7.1's Final-and-unimplemented filter each hold a LIST of records,
+and both used to construct N paths and read N `status.md` headers by
+hand — the choreography this verb exists to end, just at a different
+scale.
+
+A named set resolves each argument BY NAME, so it reads only those files
+and never enumerates the records dir. That is the whole reason it is an
+arity rather than a corpus facet: on the reference corpus one record is
+47ms and the worklist scan is 2.0s, so a set that fell through to a scan
+would be a silent 40× regression on a call Stage 8 makes every run.
+
+`--tags` stays single-record — it renders ONE resolver's argv, and a set
+has no record to name — and refuses with the worklist's own words.
+
+**An unresolvable argument is a `skipped[]` row, not a refusal.** This is
+the three-valued discipline (§Facts) carried up to the set: a predecessor
+whose record or capsule is missing must read as "nothing looked", and a
+caller has to tell that from "looked, not COMPLETE" — Stage 8 halts on
+the second and reports the first. Refusing the whole call would collapse
+them, since a set that answers nothing says nothing about any member.
+
+### `--filter` — why a set is affordable to read
+
+The vector is 48 facts, about 7KB of JSON per record, so a five-member
+cluster costs ~44KB of a caller's context to answer one word per record.
+`--filter` keeps only the facts named, and drops the row's summary with
+them — `Profile` alone carries the field's whole rationale tail, which is
+most of the payload. Measured on that cluster: 43,888 bytes to 1,569, a
+28× reduction.
+
+    rdr status --json --filter impl_state 0122 0123 0130 0131 0132
+
+Identity survives filtering (`record`, `path`), because a row a caller
+cannot attribute to a record is not an answer. A name the table does not
+declare is REFUSED with the list of what could have been asked for —
+the same rule `--filter` follows on `inspect` and `index`, because a
+filter that silently answers nothing reads as "the fact is absent", which
+is a claim about the record rather than about the request. Filtering
+happens AFTER evaluation: it is a question about the output, never an
+instruction to look at less.
 
 With no argument it is the worklist, and it absorbed `index --in-flight`,
 which answered the same question without the facts. That is also 16×
