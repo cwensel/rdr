@@ -1336,6 +1336,19 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 			t.Errorf("%s logs as %q, want %q", c.flag, got, c.want)
 		}
 	}
+	// --record is a modifier, but one whose uptake the log must show: it
+	// is the call that replaced an inline filter over every pair.
+	{
+		fs := flag.NewFlagSet("index", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		f := declareFlags("index", fs)
+		if err := fs.Parse([]string{"-anchor-intersect", "-record=1"}); err != nil {
+			t.Fatal(err)
+		}
+		if got := usageFacet("index", f, ""); got != "anchor-intersect:record" {
+			t.Errorf("scoped anchor-intersect logs as %q, want anchor-intersect:record", got)
+		}
+	}
 	// The bare graph is the only call that may fall through to "graph".
 	fs := flag.NewFlagSet("index", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
@@ -1357,7 +1370,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	declared := map[string]bool{}
 	fs.VisitAll(func(fl *flag.Flag) {
 		switch fl.Name {
-		case "json", "records", "repo", "project", "template", "all", "filter":
+		case "json", "records", "repo", "project", "template", "all", "filter", "record":
 			return // not facets: shared flags and modifiers
 		}
 		declared[fl.Name] = true
@@ -1893,5 +1906,46 @@ func TestUsageLogNamesTheInspectArity(t *testing.T) {
 		if line["facet"] != tc.want {
 			t.Errorf("%v: facet = %v, want %s", tc.args, line["facet"], tc.want)
 		}
+	}
+}
+
+// TestIndexRecordScope: the pair facets emitted every pair in the corpus,
+// and a propose session filtered them with inline python twice to keep
+// one record's rows. `--record` keeps the pairs touching one record, in
+// any spelling resolve() accepts; a record that does not resolve is a
+// stop, because an empty scope for a misspelt number would read as
+// "nothing intersects".
+func TestIndexRecordScope(t *testing.T) {
+	dir := corpusDir(t)
+	for _, spelling := range []string{"1", "0001", "0001-alpha", filepath.Join(dir, "0001-alpha.md"), filepath.Base(dir) + "/0001"} {
+		code, out, errb := runCapture(t, "index", "--anchor-intersect", "--json", "--records", dir, "--record", spelling)
+		if code != 0 {
+			t.Fatalf("%q: exit %d: %s", spelling, code, errb)
+		}
+		var env struct {
+			Record   string `json:"record"`
+			Overlaps []struct {
+				Records [2]string `json:"records"`
+			} `json:"overlaps"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil {
+			t.Fatalf("%q: %v", spelling, err)
+		}
+		if env.Record != "0001" || len(env.Overlaps) != 1 || env.Overlaps[0].Records != [2]string{"0001", "0002"} {
+			t.Errorf("%q: %s", spelling, out)
+		}
+	}
+	// A record in no pair is an empty set with the scope stated, not a stop.
+	code, out, _ := runCapture(t, "index", "--anchor-intersect", "--records", dir, "--record", "3")
+	if code != 0 || !strings.Contains(out, "total 0 overlapping pairs over in-flight records touching 0003") {
+		t.Errorf("unpaired record: exit %d\n%s", code, out)
+	}
+	code, out, _ = runCapture(t, "index", "--open-joint", "--json", "--records", dir, "--record", "2")
+	if code != 0 || !strings.Contains(out, `"record": "0002"`) {
+		t.Errorf("open-joint scope: exit %d\n%s", code, out)
+	}
+	code, _, errb := runCapture(t, "index", "--literal-intersect", "--records", dir, "--record", "9")
+	if code != 2 || !strings.Contains(errb, "no-such-record") {
+		t.Errorf("unresolvable scope: exit %d, stderr %q", code, errb)
 	}
 }

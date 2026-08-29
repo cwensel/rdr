@@ -277,6 +277,11 @@ func usageFacet(cmd string, f *flags, target string) string {
 			{f.readme.set, "readme"},
 		} {
 			if c.on {
+				// A scoped pair facet is the call that replaced an inline
+				// filter over every pair; carried so its uptake is auditable.
+				if f.record != nil && *f.record != "" {
+					return c.name + ":record"
+				}
 				return c.name
 			}
 		}

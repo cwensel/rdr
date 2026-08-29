@@ -629,6 +629,7 @@ never because the corpus happened to be in hand.
     rdr index --cluster-of N      # Stage 7.1's membership rule, as a query
     rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
     rdr index --literal-intersect # in-flight pairs whose contracts share a literal, uncited first
+    rdr index --anchor-intersect --record 0113   # only the pairs touching one record; also --literal-intersect, --open-joint
     rdr index --json --filter records,elements   # only the named graph keys
     rdr index --unresolved        # typed edges whose target was looked for and not found
     rdr index --readme[=PATH]     # the README index table checked against the records
@@ -651,6 +652,15 @@ records naming one error code, flag, field or sentinel inside their
 widening of the one above, because the couplings differ — a shared anchor
 is two records editing one function, a shared literal is two records
 specifying one surface — and a reader acts on them differently.
+
+`--record NNNN` scopes either arm (and `--open-joint`) to the rows touching
+one record, in any spelling a record is named by (§Naming a record). The
+propose stage asks "does THIS record appear in a pair", and one session
+answered it by filtering every pair with inline python, twice. The corpus
+is still scanned once — a pair needs both sides — and the JSON carries
+`record` so a reader knows the scope it is looking at. A record that does
+not resolve is a stop, never an empty scope: no rows for a misspelt number
+would read as "nothing intersects", the arm's false clear.
 
 The obvious query is not this one. Two contracts with the same content
 `hash` finds NOTHING (0 of 316 on the reference corpus): the hash is

@@ -185,15 +185,15 @@ Read the Problem Statement and Context, then:
    one symbol. **Arm 2 — contract literals** (mechanical): two open records
    naming one error/rule code, flag, field, exit code or sentinel inside their
    ```normative fences. Both are one query each, over the whole corpus, with no
-   peer body opened:
+   peer body opened, scoped to this RDR's rows (`<slug>` = its filename stem):
 
    ```sh
-   "$RDR_HOME/bin/rdr" index --anchor-intersect --json   # arm 1
-   "$RDR_HOME/bin/rdr" index --literal-intersect --json  # arm 2
+   "$RDR_HOME/bin/rdr" index --anchor-intersect --json --record <slug>   # arm 1
+   "$RDR_HOME/bin/rdr" index --literal-intersect --json --record <slug>  # arm 2
    ```
 
    Each emits `overlaps[]` `{records[], anchors[], cited}`, in-flight by default
-   and uncited pairs first. **FIRE** = this RDR appears in a pair. Cross-citation
+   and uncited pairs first. **FIRE** = `overlaps[]` is non-empty. Cross-citation
    is *context reported beside the fire*, never suppression — writing a citation
    is prose about the coupling, not a decision about it. Arm 1 needs `--repo`
    (defaults to `$RDR_SOURCE_REPO`); without a repo root its edges carry no

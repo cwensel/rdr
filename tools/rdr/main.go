@@ -303,6 +303,7 @@ type flags struct {
 	unresolved, anchors *bool
 	literals            *bool
 	openJoint, cycles   *bool
+	record              *string // index: scope the pair facets to one record
 	locking             *bool
 	since               *string // receipt: the instant a lint must postdate
 	tags                *bool   // status: render the facts as a resolver's argv
@@ -352,6 +353,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
 		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
 		f.literals = fs.Bool("literal-intersect", false, "pairs of in-flight records whose contracts share a backticked literal, uncited pairs first")
+		f.record = fs.String("record", "", "anchor-intersect, literal-intersect, open-joint: only the rows touching this record (NNNN, slug, path or citation)")
 		f.filter = fs.String("filter", "", "comma-separated graph keys to keep (records,elements,edges,backlinks); identity keys are always included")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
 	case "lint":

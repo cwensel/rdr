@@ -254,20 +254,71 @@ func backlinksTo(docs []*scan.Document, target string, f *flags, stdout, stderr 
 	return 0
 }
 
+// scopeRecord reads `--record`: the one record the pair facets keep rows
+// for, in any spelling resolve() accepts (113, 0113, the slug, a path,
+// `cli/0113`). Empty means unscoped. A record that does not resolve is
+// a stop, never an empty scope: no rows for a misspelt number would read
+// as "nothing intersects", the joint-decision arm's false clear.
+func scopeRecord(f *flags) (string, error) {
+	if f.record == nil || *f.record == "" {
+		return "", nil
+	}
+	path, err := resolve(*f.record, *f.records)
+	if err != nil {
+		return "", err
+	}
+	num := ident.RecordOf(filepath.Base(path))
+	if num == "" {
+		return "", fmt.Errorf("stopped:no-record-number (%s carries no NNNN)", *f.record)
+	}
+	return num, nil
+}
+
+// scopedOverlaps keeps the pairs touching the scoped record. The propose
+// stage asks "does THIS record appear in a pair", and answered it by
+// filtering every pair in the corpus with inline python, twice in one
+// session; the corpus is still scanned once — pairs need both sides —
+// but the answer is the record's rows alone.
+func scopedOverlaps(overlaps []scan.Overlap, record string) []scan.Overlap {
+	if record == "" {
+		return overlaps
+	}
+	kept := []scan.Overlap{}
+	for _, o := range overlaps {
+		if o.Records[0] == record || o.Records[1] == record {
+			kept = append(kept, o)
+		}
+	}
+	return kept
+}
+
+// scopeNote is the text form's account of the scope, beside the count.
+func scopeNote(record string) string {
+	if record == "" {
+		return ""
+	}
+	return " touching " + record
+}
+
 // anchorFacet is the after-propose scan: pairs of in-flight records that
 // cite the same code anchors, the uncited pairs first. `--all` widens it
-// to every record.
+// to every record; `--record` keeps one record's pairs.
 func anchorFacet(f *flags, stdout, stderr io.Writer) int {
+	record, err := scopeRecord(f)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
 	docs, _, code := corpus(f, stderr)
 	if code != 0 {
 		return code
 	}
-	overlaps := scan.AnchorIntersect(docs, !*f.all)
+	overlaps := scopedOverlaps(scan.AnchorIntersect(docs, !*f.all), record)
 	if *f.json {
 		if overlaps == nil {
 			overlaps = []scan.Overlap{}
 		}
-		return emit(map[string]any{"schema": schemaVersion, "open_only": !*f.all, "overlaps": overlaps}, stdout, stderr)
+		return emit(map[string]any{"schema": schemaVersion, "open_only": !*f.all, "record": record, "overlaps": overlaps}, stdout, stderr)
 	}
 	fires := 0
 	for _, o := range overlaps {
@@ -281,7 +332,7 @@ func anchorFacet(f *flags, stdout, stderr io.Writer) int {
 	if *f.all {
 		scope = "all"
 	}
-	fmt.Fprintf(stdout, "total %d overlapping pairs over %s records, %d with no cross-citation\n", len(overlaps), scope, fires)
+	fmt.Fprintf(stdout, "total %d overlapping pairs over %s records%s, %d with no cross-citation\n", len(overlaps), scope, scopeNote(record), fires)
 	if fires > 0 {
 		fmt.Fprintln(stdout, "an uncited pair shares code neither record acknowledges: ask the joint-decision question before either locks")
 	}
@@ -355,6 +406,11 @@ type openJoint struct {
 // In flight by default; --all includes terminal records, whose open
 // checks are a data error worth seeing, not a worklist item.
 func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
+	record, err := scopeRecord(f)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
 	docs, skipped, code := corpus(f, stderr)
 	if code != 0 {
 		return code
@@ -367,6 +423,11 @@ func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
 			continue
 		}
 		considered++
+		// `--record` keeps the record's own open decisions. `considered`
+		// still counts the scan, which is what was paid.
+		if record != "" && d.Record != record {
+			continue
+		}
 		if s.Status != nil && (s.Status.Form == "joint-decision" || len(s.Status.OpenJointDecisions) > 0) {
 			rows = append(rows, openJoint{Record: d.Record, Signal: "status",
 				Qualifier: s.Status.Qualifier, Decisions: s.Status.OpenJointDecisions})
@@ -379,7 +440,7 @@ func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
 		}
 	}
 	if *f.json {
-		return emit(map[string]any{"schema": schemaVersion, "open": rows,
+		return emit(map[string]any{"schema": schemaVersion, "record": record, "open": rows,
 			"records_considered": considered, "skipped": skipped}, stdout, stderr)
 	}
 	for _, r := range rows {
@@ -391,7 +452,7 @@ func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
 				strings.Join(r.Targets, ", "), r.Home)
 		}
 	}
-	fmt.Fprintf(stdout, "total %d open joint decisions over %d records\n", len(rows), considered)
+	fmt.Fprintf(stdout, "total %d open joint decisions over %d records%s\n", len(rows), considered, scopeNote(record))
 	return 0
 }
 
@@ -407,16 +468,21 @@ func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
 // report a pair once with no way to say which coupling fired, and the
 // stage's own vocabulary names the arms separately.
 func literalFacet(f *flags, stdout, stderr io.Writer) int {
+	record, err := scopeRecord(f)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
 	docs, _, code := corpus(f, stderr)
 	if code != 0 {
 		return code
 	}
-	overlaps := scan.LiteralIntersect(docs, !*f.all)
+	overlaps := scopedOverlaps(scan.LiteralIntersect(docs, !*f.all), record)
 	if *f.json {
 		if overlaps == nil {
 			overlaps = []scan.Overlap{}
 		}
-		return emit(map[string]any{"schema": schemaVersion, "open_only": !*f.all, "overlaps": overlaps}, stdout, stderr)
+		return emit(map[string]any{"schema": schemaVersion, "open_only": !*f.all, "record": record, "overlaps": overlaps}, stdout, stderr)
 	}
 	fires := 0
 	for _, o := range overlaps {
@@ -430,7 +496,7 @@ func literalFacet(f *flags, stdout, stderr io.Writer) int {
 	if *f.all {
 		scope = "all"
 	}
-	fmt.Fprintf(stdout, "total %d pairs sharing contract literals over %s records, %d with no cross-citation\n", len(overlaps), scope, fires)
+	fmt.Fprintf(stdout, "total %d pairs sharing contract literals over %s records%s, %d with no cross-citation\n", len(overlaps), scope, scopeNote(record), fires)
 	if fires > 0 {
 		fmt.Fprintln(stdout, "an uncited pair names the same contract literal in neither record's citation: ask the joint-decision question before either locks")
 	}
