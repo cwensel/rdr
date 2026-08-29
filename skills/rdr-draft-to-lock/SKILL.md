@@ -63,8 +63,8 @@ Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifi
   absent — never route `stopped:not-proposed` off the count.
 
 A **first** run enters at Stage 3 — refine always runs, so the cascade starts at
-its head rather than mid-way on an assumption; a re-invocation enters at the skip
-guard's first open stage (below). Stage 8 is out of scope (`launch.md` owns it).
+its head rather than mid-way on an assumption; a re-invocation enters where the
+router says (Re-entry below). Stage 8 is out of scope (`launch.md` owns it).
 
 **A demoted Draft carries its own re-entry scope — honor it, don't re-derive it.**
 `.status.form == "revised-from"` means 7.1 (or a Stage-8 spec defect) sent it back
@@ -117,7 +117,8 @@ stage makes — never a row computed here.
 
 `emit.next` is the first lens; walking the row forward from it gives the span.
 Write the plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is
-otherwise its first writer):
+otherwise its first writer). It holds what this run scheduled and decided, and
+opens by saying so — never where the RDR stands, which is derived (Re-entry below):
 
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
@@ -136,8 +137,9 @@ lens number itself.
 
 Then a **Ledger** — one row per planned stage (`verdict`, `blocking`, one-line
 note), appended as each packet lands, and any **decided fork disposition** with
-the consequence the RDR still owes. This is not bookkeeping: it is what makes
-re-entry work, and what a human reads to see where the run got to.
+the consequence the RDR still owes. It carries what only this run knows —
+verdicts, parks, dispositions, the `--to` bound — and what a human reads to see
+where the run got to. **Never a position**: that is derived (Re-entry below).
 
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
@@ -150,13 +152,13 @@ The plan records intent; the model decides.
 
 **Re-entry: re-invoke, never `--resume`.** There is no resume flag (§run-prompt —
 re-entry is a property of on-disk state). A run that stopped at a fork resumes by
-running the same command again; the **skip guard** is the plan's Ledger plus the
-evidence dirs: a stage with a `PASS`/`blocking: no` row is done — skip it. Start
-at the first row that is missing, `INCOMPLETE`, or blocking. Trust the Ledger
-only where the RDR agrees (a `PASS` row whose stage left no trace is a defect,
-not a skip); no plan file at all → Phase 0 from scratch. Brief the re-run stage
-with any fork the user has since decided, so it folds the answer in rather than
-re-asking.
+running the same command again. **The resume point is `emit.next`** — the same
+call §lens-row already makes — never the Ledger: a stage's evidence is what the
+router reads, so there is no skip guard and no tiebreak, and `/rdr-status NNNN`
+alone names the next command with this skill deleted. Read the plan for the
+`--to` bound and the forks this run settled, and brief the re-run stage with any
+fork the user has since decided. No plan file → Phase 0 from scratch: that loses
+the run's bookkeeping, never its position.
 
 ## The loop — one stage per sub-agent
 
@@ -266,6 +268,7 @@ its own row until Stage 4 writes the field.
 - Every parked fork is in the close packet — a fork dropped to reach Final is
   the failure mode this skill must not have.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.
+- On a re-entry the resume point came from the router, never from the plan file.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
 - `critique`/`repeatability` were spawned with `--auto`; a park on either names
   a harness degradation or a real finding, never a missing flag.
