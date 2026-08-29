@@ -1949,3 +1949,50 @@ func TestIndexRecordScope(t *testing.T) {
 		t.Errorf("unresolvable scope: exit %d, stderr %q", code, errb)
 	}
 }
+
+// TestLensHelpDoesNotEnumerate: the --lens help once listed five lenses
+// while the fact table's probes read more (propose-premortem, reconcile,
+// tooling-pass …), and nothing in the flag validates the name — the
+// tree's `under` is `{lens}`, so any word binds. A list the flag does not
+// enforce drifts on its own, so the help names the SOURCE and no lens;
+// this pins that no probe folder the table declares under the lens
+// tree's root is spelled in the help, and no `a|b|c` list is either.
+func TestLensHelpDoesNotEnumerate(t *testing.T) {
+	fs := flag.NewFlagSet("paths", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	declareFlags("paths", fs)
+	lens := fs.Lookup("lens")
+	if lens == nil {
+		t.Fatal("paths declares no --lens")
+	}
+	if strings.Contains(lens.Usage, "|") {
+		t.Errorf("--lens help enumerates: %q", lens.Usage)
+	}
+	tbl, err := LoadFactTable(factTableForTest(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tree, ok := tbl.Iter.Trees["lens"]
+	if !ok {
+		t.Fatal("the table declares no lens tree")
+	}
+	folders := 0
+	for _, d := range tbl.Facts {
+		if d.Source != "probe" || d.Root != tree.Root {
+			continue
+		}
+		for _, p := range append([]string{d.Path}, d.Paths...) {
+			name, _, _ := strings.Cut(p, "/")
+			if name == "" {
+				continue
+			}
+			folders++
+			if strings.Contains(lens.Usage, name) {
+				t.Errorf("--lens help spells the lens folder %q; it must name the table, not a lens", name)
+			}
+		}
+	}
+	if folders == 0 {
+		t.Fatal("no probe under the lens tree's root; the test pins nothing")
+	}
+}

@@ -366,7 +366,12 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "paths":
 		f.json = fs.Bool("json", false, "emit the bound paths as JSON")
 		f.facts = fs.String("facts", "", "the fact table to read roots and the iteration convention from (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
-		f.lens = fs.String("lens", "", "the lens whose evidence dir to bind (grounding|3amigo|critique|repeatability|cove)")
+		// No list here: nothing validates the name — the lens tree's
+		// `under` is `{lens}`, so any word binds a dir — and the five
+		// this once enumerated had fallen behind the table's probes
+		// (propose-premortem, reconcile, …). A list the flag does not
+		// enforce is guidance that goes wrong on its own.
+		f.lens = fs.String("lens", "", "the lens whose evidence dir to bind: a folder name under the table's lens tree; the probe facts (rdr status) name the ones the flow reads")
 		f.cluster = fs.String("cluster", "", "the Stage 7.1 cluster key whose dir to bind (the members' numbers joined)")
 		f.tree = fs.String("tree", "", "any tree the table declares, as <name>[=<operand>]")
 		f.nextIter = fs.Bool("next-iter", false, "list the bound dir and report the iteration the next pass should write")
