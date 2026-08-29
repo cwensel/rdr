@@ -296,8 +296,16 @@ func AnchorIntersect(docs []*Document, openOnly bool) []Overlap {
 				Cited: a.cites[b.doc.Record] || b.cites[a.doc.Record]})
 		}
 	}
-	// Uncited first, then by how much is shared, then by pair — so the
-	// top of the report is the pair most likely to be a joint decision.
+	sortOverlaps(out)
+	return out
+}
+
+// sortOverlaps ranks a pair report: uncited first, then by how much is
+// shared, then by pair — so the top of the report is the pair most likely
+// to be a joint decision. Both intersection facets rank the same way,
+// because a reader comparing an anchor fire with a literal fire is
+// comparing two answers to one question.
+func sortOverlaps(out []Overlap) {
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].Cited != out[j].Cited {
 			return !out[i].Cited
@@ -310,7 +318,6 @@ func AnchorIntersect(docs []*Document, openOnly bool) []Overlap {
 		}
 		return out[i].B < out[j].B
 	})
-	return out
 }
 
 // --- README index drift ---------------------------------------------------
@@ -444,3 +451,117 @@ func leadWord(s string) string {
 }
 
 func collapse(s string) string { return strings.Join(strings.Fields(s), " ") }
+
+// LiteralIntersect finds every pair of records whose CONTRACTS share a
+// backticked literal. It is the contract half of the joint-decision
+// check, and the analogue of AnchorIntersect: same pair shape, same
+// uncited-first ranking, same in-flight default.
+//
+// WHY NOT THE ELEMENT HASH. The obvious query — two contracts with the
+// same content hash — was tried against the live corpus and finds
+// nothing: 0 duplicate hashes across 316 contracts, because the hash is
+// exact-text identity and no two authors write a contract the same way.
+// The question the check actually asks is narrower and much commoner: do
+// two open records name the same error code, flag, field or sentinel
+// inside otherwise-different contract text. That is a shared TOKEN, not a
+// shared document, and on the same corpus it finds 36 pairs of which 4
+// are uncited — the fire shape the anchor arm produces.
+//
+// WHAT COUNTS AS A LITERAL. A backticked span inside a contract element,
+// at least minLiteral bytes long, that TEMPLATE.md does not also write.
+// The length floor drops `-q`-scale tokens that collide by accident; the
+// template subtraction drops the schema's own vocabulary, which every
+// record that kept its guidance carries and which would otherwise link
+// every pair (model.TemplateLiterals).
+func LiteralIntersect(docs []*Document, openOnly bool) []Overlap {
+	tmpl := model.TemplateLiterals()
+	type rec struct {
+		doc      *Document
+		literals map[string]bool
+		cites    map[string]bool
+	}
+	var recs []rec
+	for _, d := range docs {
+		if openOnly {
+			s := d.MetadataField("Status")
+			if s == nil || s.Status == nil || !IsInFlight(s.Status.Value) {
+				continue
+			}
+		}
+		r := rec{doc: d, literals: map[string]bool{}, cites: map[string]bool{}}
+		for _, e := range d.Elements {
+			if e.Kind != ident.Contract {
+				continue
+			}
+			for _, lit := range contractLiterals(d, e) {
+				if len(lit) >= minLiteral && !tmpl[lit] {
+					r.literals[lit] = true
+				}
+			}
+		}
+		for _, e := range d.Edges {
+			if t := recordOf(e.To); t != "" {
+				r.cites[t] = true
+			}
+		}
+		if len(r.literals) == 0 {
+			continue // nothing to intersect on
+		}
+		recs = append(recs, r)
+	}
+	var out []Overlap
+	for i := range recs {
+		for j := i + 1; j < len(recs); j++ {
+			a, b := recs[i], recs[j]
+			var shared []string
+			for lit := range a.literals {
+				if b.literals[lit] {
+					shared = append(shared, lit)
+				}
+			}
+			if len(shared) == 0 {
+				continue
+			}
+			sort.Strings(shared)
+			out = append(out, Overlap{A: a.doc.Record, B: b.doc.Record,
+				Records: [2]string{a.doc.Record, b.doc.Record}, Anchors: shared,
+				Cited: a.cites[b.doc.Record] || b.cites[a.doc.Record]})
+		}
+	}
+	sortOverlaps(out)
+	return out
+}
+
+// minLiteral is the shortest backticked span counted as a contract
+// literal. Two records both writing `id` or `-q` share a word, not a
+// decision; three bytes is where a token starts being specific enough
+// that two contracts naming it are plausibly naming one thing.
+//
+// A FREQUENCY CEILING WAS TRIED HERE AND REMOVED. The idea was to drop a
+// literal too many records carry — `snapshot`, `migrate`, `code` — as the
+// corpus's vocabulary rather than a coupling. Measured, it does not earn
+// its place. The breadth it would key on is shallow (the widest literal
+// is in 13 of 144 records, 9%), so no threshold separates vocabulary from
+// a real shared type: `BandAlways` sits in six records and IS the
+// coupling, `code` sits in seven and is not. Worse, it changed no pair on
+// the reference corpus while making scope widening LOSE a fire — `--all`
+// moved the denominator and suppressed a pair the in-flight scope had
+// reported.
+//
+// What is left is the two subtractions that are defensible on their own
+// terms: a length floor, and TEMPLATE.md's own literals. Both say
+// something true about the token regardless of corpus. The remaining
+// breadth shows up as a longer evidence list on a pair that fires anyway
+// — the FIRE is the pair, and the literals are what the reader checks it
+// against — which costs a line to read and cannot hide a coupling.
+const minLiteral = 3
+
+// contractLiterals reads the backticked spans inside one contract
+// element, from the lines the scan already holds — the projection carries
+// the element's span, so this re-reads no file.
+func contractLiterals(d *Document, e Element) []string {
+	if e.LineStart < 1 || e.LineEnd > len(d.lines) || e.LineStart > e.LineEnd {
+		return nil
+	}
+	return model.Backticked(strings.Join(d.lines[e.LineStart-1:e.LineEnd], "\n"))
+}

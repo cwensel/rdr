@@ -467,3 +467,48 @@ func IsGateItemKey(key string) bool {
 	}
 	return false
 }
+
+// TemplateLiterals are the backticked literals TEMPLATE.md itself writes.
+//
+// A record that kept the template's guidance keeps its literals too, so
+// two records can share `path::Symbol` or `stopped:usage` by having
+// copied the same schema rather than by touching the same contract. The
+// anchor intersection suppresses one such literal by name
+// (scan.anchorPlaceholder); a literal intersection cannot, because there
+// are ~50 of them and the set changes whenever the template does. Reading
+// them off the bound schema keeps the suppression correct by
+// construction — this is the same rule the anchor facet applies, stated
+// as data rather than as a constant.
+func TemplateLiterals() map[string]bool {
+	out := map[string]bool{}
+	for _, lit := range Backticked(current().TemplateSource) {
+		out[lit] = true
+	}
+	return out
+}
+
+// Backticked reads the single-backtick spans out of markdown source.
+// Fenced blocks are not special here: a literal inside a ``` fence is
+// still a literal the author wrote, and the template's fences are
+// exactly where its example contracts live.
+func Backticked(src string) []string {
+	var out []string
+	for _, line := range strings.Split(src, "\n") {
+		for {
+			i := strings.IndexByte(line, '`')
+			if i < 0 {
+				break
+			}
+			rest := line[i+1:]
+			j := strings.IndexByte(rest, '`')
+			if j < 0 {
+				break
+			}
+			if lit := strings.TrimSpace(rest[:j]); lit != "" {
+				out = append(out, lit)
+			}
+			line = rest[j+1:]
+		}
+	}
+	return out
+}

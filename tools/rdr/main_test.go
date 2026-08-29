@@ -1302,7 +1302,7 @@ func TestSummaryListsSections(t *testing.T) {
 // deleted a facet the flow uses.
 func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	// Every flag dispatch checks, with the facet name it must log as.
-	for _, c := range []struct{ flag, want string }{
+	cases := []struct{ flag, want string }{
 		{"-derived", "derived"},
 		{"-coverage", "coverage"},
 		{"-backlinks", "backlinks"},
@@ -1312,8 +1312,10 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 		{"-cycles", "cycles"},
 		{"-open-joint", "open-joint"},
 		{"-anchor-intersect", "anchor-intersect"},
+		{"-literal-intersect", "literal-intersect"},
 		{"-readme", "readme"},
-	} {
+	}
+	for _, c := range cases {
 		fs := flag.NewFlagSet("index", flag.ContinueOnError)
 		fs.SetOutput(io.Discard)
 		f := declareFlags("index", fs)
@@ -1334,6 +1336,31 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	}
 	if got := usageFacet("index", f, ""); got != "graph" {
 		t.Errorf("bare index logs as %q, want graph", got)
+	}
+
+	// The list above is hand-written, which is the same failure it exists
+	// to catch one level up: a facet added to dispatch and to usagelog but
+	// not to this list is still untested, and nothing says so. So the flag
+	// set is asked what facets it declares, and every one of them must
+	// appear above. Adding --literal-intersect proved this necessary — it
+	// was wired into both dispatch and the log, and the test passed
+	// without covering it.
+	declared := map[string]bool{}
+	fs.VisitAll(func(fl *flag.Flag) {
+		switch fl.Name {
+		case "json", "records", "repo", "project", "template", "all", "filter":
+			return // not facets: shared flags and modifiers
+		}
+		declared[fl.Name] = true
+	})
+	covered := map[string]bool{}
+	for _, c := range cases {
+		covered[strings.TrimPrefix(strings.SplitN(c.flag, "=", 2)[0], "-")] = true
+	}
+	for name := range declared {
+		if !covered[name] {
+			t.Errorf("index declares --%s but no case above pins the facet it logs as; add one", name)
+		}
 	}
 }
 
@@ -1376,6 +1403,16 @@ func TestIndexResolvesOnlyForFacetsThatShowIt(t *testing.T) {
 		{"unresolved", []string{"--unresolved"}, true},
 		{"backlinks", []string{"--backlinks"}, true},
 		{"cluster-of", []string{"--cluster-of", "0001"}, false},
+		// The graph obeys inspect's rule too: only a projection that can
+		// SHOW a `resolved` verdict pays for the walk that decides one.
+		// The whole graph carries edges, so it resolves; a --filter that
+		// keeps no edge key cannot show a verdict and must not.
+		{"whole graph", nil, true},
+		{"filter edges", []string{"--filter", "edges"}, true},
+		{"filter backlinks", []string{"--filter", "backlinks"}, true},
+		{"filter records", []string{"--filter", "records"}, false},
+		{"filter elements", []string{"--filter", "elements"}, false},
+		{"filter records,elements", []string{"--filter", "records,elements"}, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			before := scan.SourceReads.Load()
@@ -1570,5 +1607,76 @@ func TestNarrowedResolutionStillPrimesTheSymbolCache(t *testing.T) {
 	// distinct absent symbol without priming.
 	if got := scan.SourceReads.Load() - before; got != 1 {
 		t.Errorf("the repo was read %d times for one record; the narrowed path must still prime the symbol cache and walk once", got)
+	}
+}
+
+// TestIndexFilterProjectsTheNamedKeys is `--filter` at corpus scale. The
+// graph is the tool's largest emission — 5.6 MB on the reference corpus —
+// and the joint-decision check reads one of its keys, so a caller that
+// wants `elements` must not be handed `edges` and `backlinks` too.
+//
+// The rules are inspect's, deliberately: same flag, same identity carry,
+// same stop on a key that does not exist. A consumer that asked for
+// `elments` must be told, never handed `{}` and left to conclude the
+// corpus has no elements — a filter that answers an empty set for a typo
+// is a skipped check reading as a passed one.
+func TestIndexFilterProjectsTheNamedKeys(t *testing.T) {
+	dir := t.TempDir()
+	const head = "## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n- **Profile**: standard\n"
+	if err := os.WriteFile(filepath.Join(dir, "0001-alpha.md"),
+		[]byte("# Recommendation 0001: Alpha\n\n"+head+"\n## Problem Statement\n\nSynthetic.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out, errb := runCapture(t, "index", "--json", "--filter", "records", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("unparsable: %v", err)
+	}
+	if _, ok := got["records"]; !ok {
+		t.Error("the named key must be present")
+	}
+	if _, ok := got["schema"]; !ok {
+		t.Error("schema is an identity key and is carried unasked")
+	}
+	for _, k := range []string{"elements", "edges", "backlinks"} {
+		if _, ok := got[k]; ok {
+			t.Errorf("%q was not asked for and must not be emitted", k)
+		}
+	}
+
+	// Two keys, since the whole point is that a caller wanting two need
+	// not spend two invocations — and in an agent loop an invocation is a
+	// turn.
+	code, out, errb = runCapture(t, "index", "--json", "--filter", "records,elements", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatalf("unparsable: %v", err)
+	}
+	if _, ok := got["records"]; !ok {
+		t.Error("both named keys must be present")
+	}
+	if _, ok := got["elements"]; !ok {
+		t.Error("both named keys must be present")
+	}
+	if _, ok := got["edges"]; ok {
+		t.Error("an unnamed key must stay out")
+	}
+
+	// A key the graph does not have is a stop, not an empty answer.
+	code, _, errb = runCapture(t, "index", "--json", "--filter", "elments", "--records", dir)
+	if code != 2 {
+		t.Errorf("an unknown filter key must exit 2, got %d", code)
+	}
+	if !strings.Contains(errb, "stopped:no-such-facet") {
+		t.Errorf("the stop must name the fault and what could have been asked for: %s", errb)
+	}
+	if !strings.Contains(errb, "elements") {
+		t.Errorf("the stop should list the keys that do exist: %s", errb)
 	}
 }

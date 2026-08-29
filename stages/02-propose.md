@@ -60,26 +60,39 @@ peer, and only the true joint forks surfaced to the user.
   switch case, or identity rule, confirm a grep for an existing sibling path was
   *shown* (a `path::Symbol`, or "searched, none exists") — not asserted.
 - **Did the joint-decision check run, and was any fire paused on?** The prompt's
-  final step compares every open peer for shared modify-anchors / contract
-  literals (mechanics live there; citation does not suppress a fire) and records
-  a `Joint-check:` line in Decision Rationale either way. Both halves are
-  queries, not peer reads — one pass, no peer body opened:
+  final step has **three arms** — shared modify-anchors, shared contract
+  literals, and the absence arm — and records a `Joint-check:` line in Decision
+  Rationale either way. Name them separately: a check reported as "run" having
+  fired only one arm is two arms skipped, reading as passed.
+
+  **Arms 1 and 2 are queries** — one pass each, no peer body opened:
 
   ```sh
-  "$RDR_HOME/bin/rdr" index --anchor-intersect --json
-  "$RDR_HOME/bin/rdr" index --json          # elements[] kind=="C"
+  "$RDR_HOME/bin/rdr" index --anchor-intersect --json   # arm 1: modify-anchors
+  "$RDR_HOME/bin/rdr" index --literal-intersect --json  # arm 2: contract literals
   ```
 
-  Anchors: `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited
-  first — the fire shape. `--repo` defaults to `$RDR_SOURCE_REPO`, the source
-  root (rdr-common §source-root); **a repo root is required** — without one,
-  source-anchor edges carry no `resolved` key at all (absent ≠ false), and an
-  unchecked scan must not read as "no intersection". Contracts: `elements[]`
-  `kind=="C"` carries `record`, `label` and a content `hash` — equal hash across
-  two records is the same contract text, stable under reflow; **drop any hash `TEMPLATE.md` also
-  carries** (a template-shipped contract hashes the same in every seed that kept
-  it, and would link every pair). `cited: true` is context beside a fire, never
-  suppression.
+  Both emit `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited
+  first — the fire shape — so one reading serves both. Arm 1 needs a repo root:
+  `--repo` defaults to `$RDR_SOURCE_REPO` (rdr-common §source-root), and
+  **without one, source-anchor edges carry no `resolved` key at all** (absent ≠
+  false); an unchecked scan must not read as "no intersection". Arm 2 reads the
+  literals inside `C` elements and needs no repo. `cited: true` is context
+  beside a fire, never suppression.
+
+  Do **not** read `index --json` for this: the whole graph is ~5.6 MB where
+  `--literal-intersect` answers in ~8 KB. Nor does the element `hash` answer arm
+  2 — it is exact-text identity, and measured over the live corpus **no two
+  contracts share one** (0 of 316). The arm asks about a shared *token* inside
+  otherwise-different contract text, which is what the facet reports.
+
+  **Arm 3, the absence arm, stays manual** and is not convertible. It greps
+  `Final` peers for a refusal token *because that token is absent from the new
+  proposal* — the query needs the proposal that was just written, which no
+  corpus projection has. A tool can intersect what two records both say; it
+  cannot see what one of them stopped saying. Run it by hand per the prompt, and
+  do not read its absence from the two queries above as a clear.
+
   No `Joint-check:` line → it did not run, re-run it (a skipped gate item must
   not read as a passed one). A fire PAUSES propose before refine, as a user
   question — advanced over silently → re-run. A fire clears only onto a

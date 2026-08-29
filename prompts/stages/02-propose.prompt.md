@@ -178,24 +178,42 @@ Read the Problem Statement and Context, then:
    not run. Stage 5's grounding lens then delta-scopes to claims added after
    this sweep.
 8. **Joint-decision check — runs last, on the written proposal.** Catch two
-   open RDRs coupling on one decision while switching is still free. From THIS
-   RDR collect *modify-anchors* — the `Seam Lineage` locus plus backticked
-   `path::Symbol` tokens in Proposed Solution / Implementation Plan — and
-   *contract literals* — backticked error/rule codes, flag/field names, exit
-   codes, sentinels in or near its ```normative fences. Open peers = `*.md` at
-   depth 1 of `$RDR_RECORDS` (never recurse) whose FIRST `- **Status**:` value
-   starts with `Draft` or `Final` (prefix match; the template's Status comment
-   carries decoy statuses), excluding this RDR. Grep each peer for each
-   anchor/literal, whole-token match. **FIRE** = a peer shares a modify-anchor
-   or a contract literal. Cross-citation is *context reported beside the fire*,
-   never suppression — writing a citation is prose about the coupling, not a
-   decision about it.
-   **Absence arm** — when the proposal converts a refusal into an acceptance
-   (fills a previously-empty cell, removes a guard, classifies the
-   previously-unclassified), also grep `Final` peers for the refusal token
-   itself (the error / `unclassified` / refused literal): a Final peer
-   *relying on the refusal* is a FIRE — anchor greps cannot see a dependency
-   on an absence.
+   open RDRs coupling on one decision while switching is still free. It has
+   **three arms**; run all three and say so, because a check that fired one arm
+   and is reported as "run" is two arms skipped reading as a pass.
+   **Arm 1 — modify-anchors** (mechanical): two open records proposing to change
+   one symbol. **Arm 2 — contract literals** (mechanical): two open records
+   naming one error/rule code, flag, field, exit code or sentinel inside their
+   ```normative fences. Both are one query each, over the whole corpus, with no
+   peer body opened:
+
+   ```sh
+   "$RDR_HOME/bin/rdr" index --anchor-intersect --json   # arm 1
+   "$RDR_HOME/bin/rdr" index --literal-intersect --json  # arm 2
+   ```
+
+   Each emits `overlaps[]` `{records[], anchors[], cited}`, in-flight by default
+   and uncited pairs first. **FIRE** = this RDR appears in a pair. Cross-citation
+   is *context reported beside the fire*, never suppression — writing a citation
+   is prose about the coupling, not a decision about it. Arm 1 needs `--repo`
+   (defaults to `$RDR_SOURCE_REPO`); without a repo root its edges carry no
+   `resolved` key and an unchecked scan must not read as "no intersection".
+   Do not read `index --json` for either: the whole graph is ~5.6 MB against
+   ~8 KB, and the element `hash` answers neither arm (it is exact-text identity;
+   0 of 316 contracts share one).
+   **Arm 3 — absence** (MANUAL; there is no query and there cannot be one).
+   When the proposal converts a refusal into an acceptance (fills a
+   previously-empty cell, removes a guard, classifies the
+   previously-unclassified), grep `Final` peers for the refusal token itself
+   (the error / `unclassified` / refused literal): a Final peer *relying on the
+   refusal* is a FIRE. Open peers = `*.md` at depth 1 of `$RDR_RECORDS` (never
+   recurse) whose FIRST `- **Status**:` value starts with `Draft` or `Final`
+   (prefix match; the template's Status comment carries decoy statuses),
+   excluding this RDR. This arm is not convertible: it searches for a token
+   *because it is absent from the new proposal*, so it needs the proposal rather
+   than the corpus — the intersection facets can only report what two records
+   both say, never what one of them stopped saying. A clear on arms 1 and 2 is
+   not a clear on this one.
    **Record the verdict in Decision Rationale — fire or not** — one greppable
    line beside `Premortem:`, closed vocabulary:
    `Joint-check: clear (N peers) | fired → NNNN[, NNNN] (home: <home> | OPEN)`.

@@ -52,20 +52,31 @@ projection — one pass, no seed body read:
 
 ```sh
 "$RDR_HOME/bin/rdr" index --anchor-intersect --json --all
-"$RDR_HOME/bin/rdr" index --json          # elements[] kind=="C"
+"$RDR_HOME/bin/rdr" index --literal-intersect --json --all
 "$RDR_HOME/bin/rdr" status
 ```
 
-`overlaps[]` `{records[], anchors[], cited}` **is** the overlap graph — seeds
-are pre-proposal, so `--all` widens past in-flight. `--repo` defaults to
+Both emit `overlaps[]` `{records[], anchors[], cited}`, which together **are**
+the overlap graph — anchors and contract literals are the two mechanical arms of
+the joint-decision check and each finds pairs the other does not. Seeds are
+pre-proposal, so `--all` widens past in-flight on both. `--repo` defaults to
 `$RDR_SOURCE_REPO` (rdr-common §source-root); unset, source-anchor edges carry
-no `resolved` key (absent ≠ false, never "no overlap"). Contract literals: `elements[]`
-`kind=="C"`, equal `hash` across two records = same contract text. `overlaps[]`
-already ignores the template's own `path::Symbol`, but **`C` hashes are not** —
-a template-shipped contract hashes identically in every seed that kept it
-(observed: one hash across 13 records), so **drop any hash also carried by
-`TEMPLATE.md`** before linking a pair, as the token filter did. `Predecessors`
-edges (`edges[]` `kind=="predecessor"`) are hard edges — topo-sort those first.
+no `resolved` key (absent ≠ false, never "no overlap") — that is arm 1 only, as
+literals need no repo.
+
+Neither call reads the whole graph, and neither should: `index --json` is ~5.6 MB
+against ~8 KB here, and a per-key read is `index --json --filter <keys>`. The
+element `hash` is not the literal query either — it is exact-text identity, and
+**0 of 316 contracts share one** on the live corpus, so it finds nothing. Both
+facets already subtract `TEMPLATE.md`'s own literals, so a seed that kept its
+guidance does not link to every other seed that did.
+
+The check's **third arm — absence — is not a query** and does not appear here:
+it greps `Final` peers for a refusal token *because it is missing from the new
+proposal*, which needs the proposal, not the corpus. It stays with the authoring
+prompt, per member.
+
+`Predecessors` edges (`edges[]` `kind=="predecessor"`) are hard edges — topo-sort those first.
 Within an overlap group the likely **contract owner** proposes first: locus *is*
 the shared anchor > lower-level seam > Priority > number order. The order is a
 prior, not a promise — the loop corrects it; this pass makes corrections rare.

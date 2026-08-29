@@ -6,7 +6,7 @@
 // Usage:
 //
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
-//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
+//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
 //	rdr env [--json]
@@ -57,7 +57,7 @@ const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
   rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--all] [--project P] [--records DIR] [--repo DIR]
-  rdr index [--json] [<facet>] [--records DIR] [--repo DIR]
+  rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr status [<NNNN|slug|path>] [--json|--tags] [--facts PATH] [--records DIR]
@@ -71,6 +71,7 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --backlinks[=NNNN[:elem]]   who points at each target / at one target
   --cluster-of NNNN           7.1's membership rule as a query
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
+  --literal-intersect [--all] in-flight pairs whose contracts share a literal, uncited first
   --open-joint [--all]        open joint decisions: Joint-check (home: OPEN) lines + joint-decision Status forms
   --cycles                    ownership cycles, Joint-check home cycles, homes ahead of a lock, OPEN checks on a Final
   --unresolved                typed edges with no target — record data errors
@@ -78,7 +79,8 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --coverage                  the drift alarm: unclassified-line rate, unknowns
   --readme[=PATH]             the README index table checked against the records
 
---filter keeps only the named top-level envelope keys (metadata,counts,…),
+--filter keeps only the named top-level keys — of inspect's envelope
+(metadata,counts,…) or of the index graph (records,elements,edges,backlinks) —
 identity keys always included — one call where --select would need several.
 Only edges[] carries "resolved", and deciding it scans the records dir and
 walks --repo: the whole envelope, --select edges, --filter …edges and lint
@@ -250,6 +252,9 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if *f.anchors {
 			return anchorFacet(f, stdout, stderr)
 		}
+		if *f.literals {
+			return literalFacet(f, stdout, stderr)
+		}
 		if f.readme.set {
 			return readmeFacet(f, f.readme.value, stdout, stderr)
 		}
@@ -281,6 +286,7 @@ type flags struct {
 	backlinks, readme     optString
 	clusterOf             *string
 	unresolved, anchors   *bool
+	literals              *bool
 	openJoint, cycles     *bool
 	locking               *bool
 	since                 *string // receipt: the instant a lint must postdate
@@ -322,6 +328,8 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.cycles = fs.Bool("cycles", false, "dependency shapes the flow cannot progress through: ownership cycles (predecessor/overrides/moved-to), Joint-check home cycles, and Final records whose home is Draft or whose check is OPEN")
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
 		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
+		f.literals = fs.Bool("literal-intersect", false, "pairs of in-flight records whose contracts share a backticked literal, uncited pairs first")
+		f.filter = fs.String("filter", "", "comma-separated graph keys to keep (records,elements,edges,backlinks); identity keys are always included")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
@@ -417,7 +425,20 @@ var identityKeys = []string{"schema", "record", "path"}
 // consumer that asked for `elments` must be told, not handed `{}` and
 // left to conclude the record has none.
 func filterEnvelope(doc *scan.Document, filter string) (map[string]json.RawMessage, error) {
-	raw, err := json.Marshal(doc)
+	return filterKeys(doc, filter, identityKeys)
+}
+
+// filterKeys is the projection both --filter flags share: marshal, keep
+// the named top-level keys plus the identity ones, and stop on a key the
+// document does not have.
+//
+// It is ONE function because the two callers must not drift. `inspect`
+// filters a record envelope and `index` filters the corpus graph — the
+// question is the same ("give me these keys and not the rest") and so is
+// the failure that matters: a filter naming a key that does not exist
+// must be told, not handed an empty object it will read as an answer.
+func filterKeys(v any, filter string, identity []string) (map[string]json.RawMessage, error) {
+	raw, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
 	}
@@ -427,7 +448,7 @@ func filterEnvelope(doc *scan.Document, filter string) (map[string]json.RawMessa
 	}
 
 	out := map[string]json.RawMessage{}
-	for _, k := range identityKeys {
+	for _, k := range identity {
 		if v, ok := full[k]; ok {
 			out[k] = v
 		}

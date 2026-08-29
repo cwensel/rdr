@@ -625,6 +625,8 @@ never because the corpus happened to be in hand.
     rdr index --backlinks=0055    # who cites this record or anything in it
     rdr index --cluster-of N      # Stage 7.1's membership rule, as a query
     rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
+    rdr index --literal-intersect # in-flight pairs whose contracts share a literal, uncited first
+    rdr index --json --filter records,elements   # only the named graph keys
     rdr index --unresolved        # typed edges whose target was looked for and not found
     rdr index --readme[=PATH]     # the README index table checked against the records
     rdr index --derived           # the labelling backlog per record, structural ids apart
@@ -639,6 +641,33 @@ suffix (`uniqueid.go::f` is `internal/validate/uniqueid.go::f`); the
 template's own `path::Symbol` is ignored; `--all` widens the scan past
 in-flight records. On the consumer corpus's propose snapshots it fires
 on the pair the flow missed.
+
+`--literal-intersect` is the same scan over CONTRACTS: two in-flight
+records naming one error code, flag, field or sentinel inside their
+```normative fences. It is a separate arm of the same check rather than a
+widening of the one above, because the couplings differ — a shared anchor
+is two records editing one function, a shared literal is two records
+specifying one surface — and a reader acts on them differently.
+
+The obvious query is not this one. Two contracts with the same content
+`hash` finds NOTHING (0 of 316 on the reference corpus): the hash is
+exact-text identity, and no two authors write a contract the same way.
+The question is a shared token inside otherwise-different text, which on
+the same corpus reports 36 pairs of which 4 are uncited. Literals shorter
+than three bytes are dropped as words rather than decisions, and
+`TEMPLATE.md`'s own literals are subtracted so a record that kept its
+guidance does not link to every other record that did. A frequency
+ceiling for corpus vocabulary was tried and removed — it changed no pair
+here, and it made `--all` lose a fire the narrower scope reported.
+
+`--filter` is inspect's flag at corpus scale, with the same semantics:
+the named top-level graph keys (`records`, `elements`, `edges`,
+`backlinks`), `schema` carried unasked, and an unknown key a stop rather
+than an empty answer. It earns its place on size — the graph is the
+largest thing this tool emits, 5.6 MB on the reference corpus, and a
+caller wanting `elements` was paying for `edges` and `backlinks` too.
+Because only `edges` and `backlinks` can carry a `resolved` verdict, a
+filter that keeps neither also skips the repo walk that decides one.
 
 `--readme` is a check, not a generator: it names each row that disagrees
 with its record (status, title, priority, a missing or extra row) and the

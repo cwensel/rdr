@@ -38,23 +38,89 @@ func (o *optString) Set(v string) error {
 
 // corpus scans and resolves the records dir once for every facet below.
 func corpus(f *flags, stderr io.Writer) ([]*scan.Document, []string, int) {
+	return corpusResolving(f, stderr, true)
+}
+
+// corpusResolving is corpus with the resolution pass made optional.
+//
+// Resolution is the only thing a corpus read does that reaches outside
+// the records dir, and it is most of the wall time: it walks the source
+// repo to decide `resolved` on every source anchor. `inspect` already
+// refuses to pay for it when the projection asked for cannot SHOW a
+// verdict (showsEdges); this is that rule at corpus scale, and it applies
+// to exactly one caller — a `--filter` on the graph that keeps no edge
+// key.
+//
+// It is opt-IN rather than inferred everywhere, because the cost of being
+// wrong is asymmetric. Skipping resolution for a facet that does show a
+// verdict would emit `resolved` absent where it used to be true or false,
+// and this file's own doctrine is that an unchecked edge must never read
+// as a checked one. So the default stays "resolve", and only a caller
+// that has proved the verdict is unreachable may say otherwise.
+func corpusResolving(f *flags, stderr io.Writer, resolve bool) ([]*scan.Document, []string, int) {
 	docs, skipped, code := records(f, stderr)
 	if code != 0 {
 		return nil, nil, code
 	}
-	scan.NewResolver(docs, *f.repo).ResolveAll(docs)
+	if resolve {
+		scan.NewResolver(docs, *f.repo).ResolveAll(docs)
+	}
 	return docs, skipped, 0
 }
+
+// graphShowsEdges reports whether a graph projection can carry a
+// `resolved` verdict, and so whether resolution must run.
+//
+// Only two of the graph's keys carry one: `edges`, which holds the
+// verdict itself, and `backlinks`, whose rows are transposed from the
+// same edges. Everything else — `records`, `elements`, `skipped` — is
+// read out of one record at a time and cannot show it. With no filter the
+// whole graph is emitted, which includes both, so the answer is yes.
+func graphShowsEdges(f *flags) bool {
+	if f.filter == nil || *f.filter == "" {
+		return true
+	}
+	for _, k := range strings.Split(*f.filter, ",") {
+		switch strings.TrimSpace(k) {
+		case "edges", "backlinks":
+			return true
+		}
+	}
+	return false
+}
+
+// graphIdentityKeys is what a filtered graph carries unasked. Only the
+// schema: the graph is the whole corpus, so there is no record or path to
+// identify it by, and every other key is large enough that carrying one
+// uninvited would defeat the filter.
+var graphIdentityKeys = []string{"schema"}
 
 // indexGraph is the bare `rdr index`: the one graph document, or as text
 // the record table an index README carries.
 func indexGraph(f *flags, stdout, stderr io.Writer) int {
-	docs, skipped, code := corpus(f, stderr)
+	// Text output is the record table, which shows no verdict; JSON
+	// resolves unless the filter has ruled the verdict out.
+	docs, skipped, code := corpusResolving(f, stderr, *f.json && graphShowsEdges(f))
 	if code != 0 {
 		return code
 	}
 	g := scan.BuildGraph(docs, skipped)
 	if *f.json {
+		// The graph is the tool's largest single emission — 5.6 MB on the
+		// reference corpus, of which `elements` is 18% and `edges` 33% —
+		// and a caller that wants one of those keys has had to take all
+		// of them. The joint-decision check reads `elements[] kind=="C"`
+		// and paid 5.6 MB for 52 KB of answer; the same read filtered is
+		// ~106x smaller. Same flag, same semantics and the same shared
+		// projection as inspect's, so a caller learns the idiom once.
+		if f.filter != nil && *f.filter != "" {
+			out, err := filterKeys(g, *f.filter, graphIdentityKeys)
+			if err != nil {
+				fmt.Fprintln(stderr, err)
+				return 2
+			}
+			return emit(out, stdout, stderr)
+		}
 		return emit(g, stdout, stderr)
 	}
 	for _, r := range g.Records {
@@ -326,5 +392,47 @@ func openJointFacet(f *flags, all bool, stdout, stderr io.Writer) int {
 		}
 	}
 	fmt.Fprintf(stdout, "total %d open joint decisions over %d records\n", len(rows), considered)
+	return 0
+}
+
+// literalFacet is the contract half of the joint-decision check: pairs of
+// in-flight records whose contracts name the same backticked literal, the
+// uncited pairs first. `--all` widens it to every record.
+//
+// It is a separate facet from `--anchor-intersect` rather than a widening
+// of it because the two answer different questions and a reader acts on
+// them differently. A shared ANCHOR is two records proposing to edit one
+// symbol; a shared LITERAL is two records naming one error code, flag or
+// sentinel in contract text that is otherwise unalike. Merging them would
+// report a pair once with no way to say which coupling fired, and the
+// stage's own vocabulary names the arms separately.
+func literalFacet(f *flags, stdout, stderr io.Writer) int {
+	docs, _, code := corpus(f, stderr)
+	if code != 0 {
+		return code
+	}
+	overlaps := scan.LiteralIntersect(docs, !*f.all)
+	if *f.json {
+		if overlaps == nil {
+			overlaps = []scan.Overlap{}
+		}
+		return emit(map[string]any{"schema": schemaVersion, "open_only": !*f.all, "overlaps": overlaps}, stdout, stderr)
+	}
+	fires := 0
+	for _, o := range overlaps {
+		mark := "cited"
+		if !o.Cited {
+			mark, fires = "UNCITED", fires+1
+		}
+		fmt.Fprintf(stdout, "%s %s %-7s %d shared: %s\n", o.A, o.B, mark, len(o.Anchors), strings.Join(o.Anchors, " "))
+	}
+	scope := "in-flight"
+	if *f.all {
+		scope = "all"
+	}
+	fmt.Fprintf(stdout, "total %d pairs sharing contract literals over %s records, %d with no cross-citation\n", len(overlaps), scope, fires)
+	if fires > 0 {
+		fmt.Fprintln(stdout, "an uncited pair names the same contract literal in neither record's citation: ask the joint-decision question before either locks")
+	}
 	return 0
 }
