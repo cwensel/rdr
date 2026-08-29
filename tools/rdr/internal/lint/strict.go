@@ -46,9 +46,9 @@ package lint
 //     the range to move and no patch.
 
 import (
-	"sort"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -1133,4 +1133,3 @@ func scaffoldRowFindings(d *scan.Document) []Finding {
 	sort.Slice(out, func(a, b int) bool { return out[a].LineStart < out[b].LineStart })
 	return out
 }
-
