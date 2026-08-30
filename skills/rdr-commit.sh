@@ -36,7 +36,15 @@ rdr_commit() {
     if [ "$TREE" = "$(git -C "$REPO" rev-parse "$PARENT^{tree}")" ]; then  # no-op guard: my paths unchanged
       rm -f "$TMPIDX"; return 0                                            # → no empty commit, silent
     fi
-    COMMIT=$(GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" commit-tree "$TREE" -p "$PARENT" -m "$SUBJECT")
+    # `commit-tree` is plumbing: it ignores commit.gpgsign (that config only drives the
+    # `git commit` porcelain) and runs no hooks, so an unsigned commit lands silently.
+    # Honor the repo's signing policy explicitly, or 85+ unsigned commits accumulate.
+    SIGN=""
+    case "$(git -C "$REPO" config --get commit.gpgsign 2>/dev/null)" in
+      true|yes|on|1) SIGN="-S" ;;
+    esac
+    COMMIT=$(GIT_INDEX_FILE="$TMPIDX" git -C "$REPO" commit-tree $SIGN "$TREE" -p "$PARENT" -m "$SUBJECT") || {
+      rm -f "$TMPIDX"; echo "stopped:commit-sign-failed — $SUBJECT" >&2; return 1; }
     if git -C "$REPO" update-ref HEAD "$COMMIT" "$PARENT" 2>/dev/null; then   # CAS: only if HEAD unmoved
       # Reconcile ONLY my paths in the REAL index so `git status` is clean afterward,
       # without disturbing the user's own staged work. `git reset -- <pathspec>` handles
