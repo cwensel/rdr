@@ -421,6 +421,7 @@ func TestCommitRefusesARecordWithoutALintReceipt(t *testing.T) {
 		}
 	}
 	git("init", "-q")
+	git("config", "commit.gpgsign", "false") // this test is about receipts; signing has its own
 	git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "root")
 	rec := filepath.Join(repo, "0007-receipt.md")
 	body := "# Recommendation 0007: Receipt\n\n## Metadata\n\n" +
@@ -517,5 +518,121 @@ export RDR_RECORDS
 	if v, ok := got["RDR_EVIDENCE"]; ok {
 		t.Errorf("RDR_EVIDENCE = %q; an unbound var must stay unbound, not bind empty "+
 			"(an empty root would anchor every probe at the filesystem root)", v)
+	}
+}
+
+// TestCommitHonorsTheTargetRepoSigningPolicy: rdr_commit builds its commit
+// with `commit-tree`, which ignores `commit.gpgsign` (that config drives
+// only the `git commit` porcelain), so the helper must read the TARGET
+// repo's policy itself and pass `-S`. A fake `gpg.program` stands in for
+// the signer: it emits the SIG_CREATED status git looks for, or refuses
+// when told to. Three claims: a repo that signs gets a gpgsig header; a
+// signer that fails stops the commit and moves no ref; a repo-local
+// `false` wins over a global `true` — the policy is the target's.
+func TestCommitHonorsTheTargetRepoSigningPolicy(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git unavailable")
+	}
+	script, err := filepath.Abs(filepath.Join("..", "..", "skills", "rdr-commit.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fake := filepath.Join(t.TempDir(), "fake-gpg")
+	if err := os.WriteFile(fake, []byte(`#!/bin/sh
+# git invokes: gpg --status-fd=2 -bsau <key>; payload on stdin, signature on stdout.
+if [ -n "$FAKE_GPG_FAIL" ]; then echo "fake gpg: refusing to sign" >&2; exit 2; fi
+cat >/dev/null
+echo "[GNUPG:] SIG_CREATED D 1 8 00 0 0000000000000000000000000000000000000000" >&2
+printf -- '-----BEGIN PGP SIGNATURE-----\n\nZmFrZQ==\n-----END PGP SIGNATURE-----\n'
+`), 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	newRepo := func(sign string) (string, func(...string) string) {
+		repo := t.TempDir()
+		if resolved, err := filepath.EvalSymlinks(repo); err == nil {
+			repo = resolved
+		}
+		git := func(args ...string) string {
+			t.Helper()
+			cmd := exec.Command("git", args...)
+			cmd.Dir = repo
+			cmd.Env = append(os.Environ(), "GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t",
+				"GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+			out, err := cmd.CombinedOutput()
+			if err != nil {
+				t.Fatalf("git %v: %v\n%s", args, err, out)
+			}
+			return string(out)
+		}
+		git("init", "-q")
+		git("config", "user.signingkey", "FAKEKEY")
+		git("config", "gpg.program", fake)
+		git("config", "commit.gpgsign", sign)
+		git("commit", "-q", "--allow-empty", "--no-gpg-sign", "-m", "root")
+		return repo, git
+	}
+	commit := func(repo, path string, extraEnv ...string) (int, string) {
+		cmd := exec.Command("sh", "-c", `. "$1"; rdr_commit "docs(rdr): test" "$2"`, "_", script, path)
+		cmd.Dir = repo
+		// A global `commit.gpgsign=true` on the developer's machine must not
+		// leak in: the helper reads the repo it commits TO, and the last
+		// case below sets that to false on purpose.
+		cmd.Env = append(os.Environ(), "RDR_USAGE_LOG=off", "RDR_RECORDS="+repo,
+			"GIT_AUTHOR_NAME=t", "GIT_AUTHOR_EMAIL=t@t", "GIT_COMMITTER_NAME=t", "GIT_COMMITTER_EMAIL=t@t")
+		cmd.Env = append(cmd.Env, extraEnv...)
+		out, err := cmd.CombinedOutput()
+		code := 0
+		if ee, ok := err.(*exec.ExitError); ok {
+			code = ee.ExitCode()
+		} else if err != nil {
+			t.Fatalf("sh: %v\n%s", err, out)
+		}
+		return code, string(out)
+	}
+	write := func(repo, name, body string) string {
+		p := filepath.Join(repo, name)
+		if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+
+	// 1. The target repo signs: the commit carries a signature.
+	repo, git := newRepo("true")
+	p := write(repo, "note.md", "signed\n")
+	if code, out := commit(repo, p); code != 0 || !strings.Contains(out, "committed ") {
+		t.Fatalf("signing repo: exit %d %q, want a commit", code, out)
+	}
+	if head := git("cat-file", "-p", "HEAD"); !strings.Contains(head, "gpgsig") {
+		t.Errorf("the target repo's commit.gpgsign=true was not honored; commit has no gpgsig header:\n%s", head)
+	}
+
+	// 2. The signer fails: the commit stops, names the failure, and HEAD is unmoved.
+	before := strings.TrimSpace(git("rev-parse", "HEAD"))
+	write(repo, "note.md", "second edit\n")
+	code, out := commit(repo, p, "FAKE_GPG_FAIL=1")
+	if code != 1 || !strings.Contains(out, "stopped:commit-sign-failed") {
+		t.Errorf("failed signer: exit %d %q, want 1 stopped:commit-sign-failed", code, out)
+	}
+	if after := strings.TrimSpace(git("rev-parse", "HEAD")); after != before {
+		t.Errorf("a failed signature still moved HEAD %s -> %s", before, after)
+	}
+	if entries, _ := filepath.Glob(filepath.Join(repo, ".git", "rdr-skillidx-*")); len(entries) != 0 {
+		t.Errorf("private index left behind after the refusal: %v", entries)
+	}
+
+	// 3. The target repo says false, whatever the global config says: no signature.
+	repo2, git2 := newRepo("false")
+	p2 := write(repo2, "note.md", "unsigned by policy\n")
+	global := filepath.Join(t.TempDir(), "gitconfig-signs")
+	if err := os.WriteFile(global, []byte("[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = "+fake+"\n[user]\n\tsigningkey = FAKEKEY\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := commit(repo2, p2, "GIT_CONFIG_GLOBAL="+global); code != 0 {
+		t.Fatalf("non-signing repo: exit %d %q, want a commit", code, out)
+	}
+	if head := git2("cat-file", "-p", "HEAD"); strings.Contains(head, "gpgsig") {
+		t.Errorf("a repo with commit.gpgsign=false was signed anyway:\n%s", head)
 	}
 }

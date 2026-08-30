@@ -742,7 +742,9 @@ A writing stage already knows the exact files it wrote — `$RDR_PATH`,
 §seam-bind + §rdr-resolve. So it can commit *those paths and nothing else* without ever
 running `git status` / `git add -A` / inspecting "what's dirty". A record path is
 committed only with a lint receipt (`rdr receipt`; refused as `stopped:commit-unlinted`
-— run `rdr lint NNNN` after the last write, then retry). This is the whole point:
+— run `rdr lint NNNN` after the last write, then retry), and signed per the TARGET
+repo's `commit.gpgsign` (a signing failure is `stopped:commit-sign-failed`: nothing moves,
+the paths stay written — fix the signer, never retry unsigned). This is the whole point:
 **no reconnaissance, no round-trip, and no confusion about what this session owns** —
 the owned set is a property of the stage, not a discovery. It also makes parallel
 `/rdr-*` runs safe **without a worktree**: each run commits through its *own* private
