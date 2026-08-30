@@ -1746,3 +1746,26 @@ func TestEdgeTalliesAreThreeValued(t *testing.T) {
 		t.Errorf("peer_evidence_unresolved = %q (%v), want %d", v, ok, peers)
 	}
 }
+
+// TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels: the skills pass
+// the whole `rdr status --tags NNNN` vector to intrastate in one
+// substitution, and a set arrives as a JSON array literal. An undeclared
+// key is validated against the zero declaration, whose kind is not `set`,
+// so one undeclared set fact refuses EVERY call over the corpus (exit 2:
+// "flow-tag-invalid … not set-valued"). A set fact that is always on must
+// therefore be declared `[tags.<name>] kind = "set"` in every routing
+// model; an on-demand or prose fact never reaches the vector unasked.
+func TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels(t *testing.T) {
+	tbl := loadRealTable(t)
+	for _, model := range routingModelNames {
+		tags := modelTags(t, repoFile(t, filepath.Join("models", model)))
+		for _, f := range tbl.Facts {
+			if f.Kind != "set" || f.OnDemand || f.Prose {
+				continue
+			}
+			if !tags[f.Name] {
+				t.Errorf("%s: set fact %q rides the --tags vector but is not declared [tags.%s] kind = \"set\"; intrastate refuses the whole call", model, f.Name, f.Name)
+			}
+		}
+	}
+}

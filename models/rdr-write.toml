@@ -133,6 +133,21 @@ kind       = "set"
 provenance = "observed"
 kind       = "set"
 
+# The gate id-lists (ca_pending_ids, ca_off_vocabulary_ids, reverify) are
+# set-valued and always on, so they ride the one-substitution call like
+# `cluster` does; no row guards on them, so they cost the product nothing.
+[tags.ca_pending_ids]
+provenance = "observed"
+kind       = "set"
+
+[tags.ca_off_vocabulary_ids]
+provenance = "observed"
+kind       = "set"
+
+[tags.reverify]
+provenance = "observed"
+kind       = "set"
+
 # Stage 7's done-signal: `{ARTIFACT_DIR}/gate.md` exists. It does not say
 # the gate PASSED — the projector does not open that file — so `lock`
 # reads it only to tell a first lock from a re-lock.

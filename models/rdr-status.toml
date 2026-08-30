@@ -339,6 +339,21 @@ kind       = "set"
 provenance = "observed"
 kind       = "set"
 
+# The gate id-lists (ca_pending_ids, ca_off_vocabulary_ids, reverify) are
+# set-valued and always on, so they ride the one-substitution call like
+# `cluster` does; no row guards on them, so they cost the product nothing.
+[tags.ca_pending_ids]
+provenance = "observed"
+kind       = "set"
+
+[tags.ca_off_vocabulary_ids]
+provenance = "observed"
+kind       = "set"
+
+[tags.reverify]
+provenance = "observed"
+kind       = "set"
+
 # ===========================================================================
 # `locate` — the coarse position (§How it decides next, step 1)
 # ===========================================================================
