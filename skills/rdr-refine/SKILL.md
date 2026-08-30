@@ -27,7 +27,8 @@ Claude: /rdr-refine <NNNN>
    that produced it. It uses the Domain-priors section of `$RDR_RESOURCES` to decide
    which side of a contradiction is right (a clause that violates a product principle
    is the side to fix). EXCEPTION: a `Status: Draft [revised from Final …]` qualifier
-   is live state, not history — leave it.
+   is live state, not history — leave it. Read the record by `inspect NNNN` then
+   `--select NNNN:§section` (rdr-common §rdr-resolve), never `sed -n` line windows.
 
 ## Review gate (Stage `03-refine.md`)
 

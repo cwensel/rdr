@@ -117,7 +117,10 @@ absorbed into the draft as if already true.
 AMENDMENT SWEEP: rdr-common §amendment-sweep, before each fix's disposition closes.
 
 Be brief — terse reasoning, tight edits, no change-history narration (keep
-rationale for decisions, not a log of edits).
+rationale for decisions, not a log of edits). Edit mechanics: replace the exact
+bytes you just projected with `--select NNNN:<id>`, never text recalled from
+squeezed/grepped output (whitespace drifts and the replace misses); portable
+tools only — no GNU-only `sed` addresses (`N,+Mp`) or `cat -A`.
 
 TIEBREAKER-REDUCTION GATE. **Ultrathink** before applying any load-bearing /
 cross-subsystem / structural / principle-touching / intent-conflicting finding,

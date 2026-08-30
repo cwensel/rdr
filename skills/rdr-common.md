@@ -38,7 +38,7 @@ re-parses the stage doc.
 installs one), take its paths verbatim: substitute the **literal values** for the
 contract vars (`$RDR_HOME` / `$RDR_RECORDS` / `$RDR_EVIDENCE` / `$RDR_ENV` / `$RDR_RESOURCES`,
 plus the `$RDR_AUTOCOMMIT` gate var §commit reads) in the snippets below and skip the
-resolver block entirely. The block carries `RDR_AUTOCOMMIT` precisely so the fast path
+seam block below; **§rdr-resolve still runs** (it is the record lookup, not the seam). The block carries `RDR_AUTOCOMMIT` precisely so the fast path
 doesn't blind §commit's gate — if the block omits it, treat `RDR_AUTOCOMMIT` as unset
 (autocommit off). Harnesses and sessions without that block (other agents,
 headless runs) run the resolver as written — same bindings either way.
@@ -510,7 +510,8 @@ one rule, which is a guarantee prose cannot give.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
-  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
+  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN") 2>&1 |
+  grep -E '^(emit|rule|surface|stopped)'   # the answer; drops the ~50-line observed.* echo of the tags
 ```
 
 Substitute `--tags` inline as written — never capture it into a variable
@@ -742,7 +743,9 @@ committed only with a lint receipt (`rdr receipt`; refused as `stopped:commit-un
 the owned set is a property of the stage, not a discovery. It also makes parallel
 `/rdr-*` runs safe **without a worktree**: each run commits through its *own* private
 index and advances **the current branch** with a compare-and-swap, so concurrent runs
-never fight over `index.lock` and never clobber each other's commits. **Never branch
+never fight over `index.lock` and never clobber each other's commits. `rdr_commit` prints
+`committed <sha>  <subject>` — that line is the confirmation: no `git log`/`git status` after
+it, and no reading the helper or the map before it. **Never branch
 first** (`git branch`/`switch -c`/`checkout -b`) — that lands commits where siblings
 can't see them and defeats the CAS; stay on the branch as found.
 

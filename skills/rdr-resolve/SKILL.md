@@ -36,7 +36,9 @@ Claude: /rdr-resolve <NNNN>
    `.status.form == "revised-from"` scopes the run to the `edges[]`
    `kind=="reverify"` targets (+ anchors the demotion touched), carrying the rest
    forward as Verified; any other form is the cold path. Do not pass a resume
-   flag — the RDR's state drives it.
+   flag — the RDR's state drives it. "Did refine (or any earlier stage) already run?"
+   is answered by `git log --oneline -5 -- "$RDR_PATH"` (stage-named subjects) or
+   `rdr status --tags NNNN` — never by §lens-row, which only names the next lens.
 
 ## Review gate (what the human checks — Stage `04-resolve-assumptions.md`)
 
@@ -53,7 +55,8 @@ Claude: /rdr-resolve <NNNN>
 
 ## Next step (rdr-common §next-step)
 
-- If autocommit is on, run **§commit** for `resolve` first (+ a separate spike-evidence commit if a spike wrote; row in rdr-commit-map.md).
+- If autocommit is on, run **§commit** for `resolve` first: `rdr_commit "docs(rdr): resolve cli/NNNN — <summary>" "$RDR_PATH"`,
+  then, only if a spike wrote, `rdr_commit "chore(rdr): cli/NNNN spike evidence" "{SPIKE_DIR}"` (the rdr-commit-map.md row, inlined).
 - Research refuted the approach or surfaced existing capability → **back** to
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata

@@ -45,7 +45,9 @@ to fix).
    under-specified signal — route back to Stage 2.
 
 Report the contradictions/redundancies found and the triage verdict, then apply
-the fixes. Drop into ultrathink only for a contradiction whose resolution is a
+the fixes — each replacing the exact bytes just projected with `--select NNNN:<id>`,
+never text recalled from squeezed/grepped output; portable tools only, no GNU-only
+`sed` addresses (`N,+Mp`) or `cat -A`. Drop into ultrathink only for a contradiction whose resolution is a
 real design call. Be brief but not lossy in the report — terse findings and
 tight edits; spend tokens only where they change the result. Close with
 rdr-common §mechanical-gate.
