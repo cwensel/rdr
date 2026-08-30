@@ -196,13 +196,13 @@ var metadataFieldKinds = map[string]edge.Kind{
 // The edge's Evidence carries the clause so a consumer can see the
 // context the projector refused to interpret.
 //
-// Overrides is the one field with a SYNTAX for context: it is a `;`-run
-// of clauses, each opening on the record it narrows and then explaining
-// how, and the explanation names peers freely — `cli/0092's default
-// rung is overridden … outside cli/0112's fold band` overrides 0092 and
-// merely names 0112. So a clause's first reference mints the overrides
-// edge and the rest mint mentions; that is reading the field's grammar,
-// not judging its prose. Predecessors stays a list of targets — its
+// Overrides is the one field with a SYNTAX for context: it is a run of
+// clauses — `;`-separated or full sentences — each opening on the record
+// it narrows and then explaining how, and the explanation names peers
+// freely — `cli/0092's default rung is overridden … outside cli/0112's
+// fold band` overrides 0092 and merely names 0112. So a clause's first
+// reference mints the overrides edge and the rest mint mentions; that is
+// reading the field's grammar, not judging its prose. Predecessors stays a list of targets — its
 // clauses hold `cli/0004 + cli/0030` — and Cluster is a plain list.
 func (d *Document) metadataEdges(claimed map[int][][2]int) {
 	for _, f := range d.Metadata {
@@ -228,7 +228,10 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 			refs := edge.FindRefs(f.Value, true)
 			for i, r := range refs {
 				k := kind
-				if kind == edge.Overrides && !leadsClause(f.Value, refs, i) {
+				if kind == edge.Overrides && (r.Record == d.Record || !leadsClause(f.Value, refs, i)) {
+					// A record cannot override itself — a self-reference in
+					// the field's prose (`RDR NNNN adopts …`) is the record
+					// speaking, not a supersession target.
 					k = edge.Mentions
 				}
 				d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: k,
@@ -249,25 +252,48 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 	}
 }
 
-// leadsClause reports whether refs[i] opens its `;`-clause of value.
+// leadsClause reports whether refs[i] opens its clause of value.
 // The field's first reference always leads: the field is the statement.
 // A later reference leads only when it is the first token of its
-// `;`-clause — nothing but whitespace and light punctuation (emphasis,
-// a bracket, a quote, a dash) between the `;` and the reference. A `;`
+// clause — nothing but whitespace and light punctuation (emphasis,
+// a bracket, a quote, a dash) between the boundary and the reference.
+// A clause ends at `;` or at a sentence end: a supersession the author
+// wrote as its own sentence (`…; contract narrowed here). cli/NNNN:A8 —
+// its rejection is reassigned…`) opens on its record exactly as a
+// `;`-clause does, and a full stop is the stronger separator. A `;`
 // is prose too, and a peer named mid-sentence after one is a mention:
 // `…; this field is the record. Also owed to a peer: cli/NNNN …` names
 // a peer, it does not override it. FindRefs returns refs in offset
-// order, so a `;` before the previous reference is not this clause's.
+// order, so a boundary before the previous reference is not this
+// clause's.
 func leadsClause(value string, refs []edge.Ref, i int) bool {
 	if i == 0 {
 		return true
 	}
 	start := refs[i].Start
-	semi := strings.LastIndex(value[:start], ";")
-	if semi < refs[i-1].End {
+	b := clauseBoundary(value[:start])
+	if b < refs[i-1].End {
 		return false
 	}
-	return clauseLead(value[semi+1 : start])
+	return clauseLead(value[b+1 : start])
+}
+
+// clauseBoundary returns the index of the clause boundary nearest the
+// reference: the last `;`, or a later sentence end — `.`, `!` or `?`
+// followed by whitespace. A period inside a path or code token is
+// followed by a letter, not whitespace, and bounds nothing.
+func clauseBoundary(s string) int {
+	b := strings.LastIndex(s, ";")
+	for i := len(s) - 1; i > b; i-- {
+		c := s[i]
+		if c != '.' && c != '!' && c != '?' {
+			continue
+		}
+		if i+1 < len(s) && (s[i+1] == ' ' || s[i+1] == '\t' || s[i+1] == '\n') {
+			return i
+		}
+	}
+	return b
 }
 
 // ClauseLeadPunct is what may sit between a `;` and the reference that
@@ -275,11 +301,17 @@ func leadsClause(value string, refs []edge.Ref, i int) bool {
 const ClauseLeadPunct = " \t*_`([\"'\u201c\u2018\u2014\u2013-:,"
 
 // clauseLead reports whether s carries no prose. The list joiner `and`
-// is not prose: `A; B; and C` is one list of three.
+// is not prose: `A; B; and C` is one list of three. Neither is the
+// author naming the edge type — `Also overrides cli/NNNN — reverses …`
+// declares the override in so many words, while any other prose before
+// the verb (`does not override`, `no longer overrides`) keeps the
+// reference a mention.
 func clauseLead(s string) bool {
 	s = strings.TrimLeft(s, ClauseLeadPunct)
-	if rest, ok := strings.CutPrefix(s, "and"); ok {
-		s = strings.TrimLeft(rest, ClauseLeadPunct)
+	for _, w := range []string{"and", "Also", "also", "Overrides", "overrides"} {
+		if rest, ok := strings.CutPrefix(s, w); ok {
+			s = strings.TrimLeft(rest, ClauseLeadPunct)
+		}
 	}
 	return s == ""
 }

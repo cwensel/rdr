@@ -239,9 +239,28 @@ func TestOverridesClauseLeaderIsTheTarget(t *testing.T) {
 		// a cross-pointer as an override — while emphasis, a bracket, a
 		// dash or the list joiner `and` do not.
 		{"prose semicolon", "cli/0103 REQ-38's read arm; this field is the record. Also owed to a peer, not an override: cli/0112 L-3's prose names a spelling I-1 removes", []string{"cli/0103"}, []string{"cli/0112"}},
-		{"verb after semicolon", "cli/0092:A6 — narrows the rung; also overrides cli/0092:A4 and cli/0081 REQ-37", []string{"cli/0092:A6"}, []string{"cli/0081", "cli/0092:A4"}},
+		{"naming the edge type leads", "cli/0092:A6 — narrows the rung; also overrides cli/0092:A4 and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081"}},
 		{"light punctuation leads", "cli/0103 REQ-13; **cli/0092**'s default rung; — (cli/0120) REQ-6; and cli/0089 A5", []string{"cli/0089:A5", "cli/0092", "cli/0103", "cli/0120"}, nil},
 		{"semicolon inside the first clause", "cli/0103 REQ-38 (A5 coalesce; scenario (i) → ONE) — its normalization survives; cli/0104 REQ-35 → multiset", []string{"cli/0103", "cli/0104"}, nil},
+		// A clause also ends at a sentence boundary — `.` followed by
+		// whitespace — so a supersession the author wrote as its own
+		// sentence opens on its record; a period inside a code token
+		// bounds nothing, and a sentence led by prose stays a mention.
+		{"sentence-form supersession", "cli/0030 — the op was renamed (fix r1; contract narrowed here). cli/0032:A8 — its rejection is reassigned to this RDR", []string{"cli/0030", "cli/0032:A8"}, nil},
+		{"bold sentence lead", "cli/0104 REQ-35 → multiset. **cli/0133's** closed guard set is WIDENED by one member", []string{"cli/0104", "cli/0133"}, nil},
+		{"also-overrides sentence", "cli/0092:A6 — narrows the rung. Also overrides cli/0092:A4 — reverses the serialization choice", []string{"cli/0092:A4", "cli/0092:A6"}, nil},
+		{"prose-led sentence stays a mention", "cli/0103 REQ-13's file grain. The guard identifier is the contract, and cli/0133 is Implemented", []string{"cli/0103"}, []string{"cli/0133"}},
+		{"code period is not a boundary", "cli/0029's totality premise, which replay.go::doDecomposeTable enforces today and cli/0034's recognition premise restates", []string{"cli/0029"}, []string{"cli/0034"}},
+		// A record cannot override itself: a self-reference opening a
+		// sentence is the record speaking about its own choice.
+		{"self-reference is a mention", "cli/0092's rung is narrowed. RDR 0113 adopts frozen labels for the rest", []string{"cli/0092"}, []string{"cli/0113"}},
+		// Read as written: a sentence OPENING on a record it then
+		// disclaims still mints the override — the grammar reads clause
+		// structure, not the prose after the reference (a negation
+		// guard measurably demotes true overrides whose explanation
+		// contains an unquoted `not`). The edge carries its clause as
+		// evidence, so a reader who follows it sees the disclaimer.
+		{"negated sentence lead reads as written", "cli/0135 REQ-3, by named supersession. cli/0129 REQ-71 needs no supersession — its A3 pre-authorizes the flag", []string{"cli/0129", "cli/0135"}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
