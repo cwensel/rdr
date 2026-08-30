@@ -115,6 +115,18 @@ domain        = ["unindexed", "none", "Draft", "Final", "Implemented", "Deferred
 single_valued = true
 required      = true
 
+# The qualifier grammar, carried verbatim from model.QualifierForm — the
+# same tag `rdr-status.toml` routes the joint-decision home check on.
+# Here it splits the lock: a Draft still carrying `[joint decision → …]`
+# must keep that qualifier through the status flip, because the
+# navigator's `locate-final-joint-decision` row reads it off the Final.
+[tags.status_form]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+single_valued = true
+required      = true
+
 # The two SET-VALUED facts the producer emits, declared with NO guard atom.
 #
 # They are here purely so the composition does not refuse. `rdr status
@@ -573,7 +585,9 @@ surface = "the row's old and new Status, so a flip nobody intended is visible"
 
 # A Draft with its gate written, and written SINCE any re-entry → the
 # full lock. `gate_stale` is the second half of the guard: a re-entered
-# record's old gate.md satisfies `gate_written` and must not lock.
+# record's old gate.md satisfies `gate_written` and must not lock. The
+# joint-decision form is carved out below — its edit must keep the
+# qualifier this row's edit flattens.
 [[rule]]
 id = "lock-draft"
 [rule.match.recognized]
@@ -584,6 +598,8 @@ eq = "Draft"
 eq = "true"
 [rule.guard.all.gate_stale]
 eq = "false"
+[rule.guard.unless.status_form]
+eq = "joint-decision"
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -593,6 +609,35 @@ edit   = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Final/"
 sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
 why    = "Gate written and the record is a Draft — move the four judged responses out, keep the cited one, flip to Final."
 surface = "that the README row is flipped in the same pass (`--outcome readme`), and that the commit is a standalone `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`, never a fixup!"
+
+# A Draft still owing a joint decision locks WITH its qualifier. The bare
+# row's edit would flatten `Draft [joint decision → …]` to a bare `Final`,
+# and the navigator's `locate-final-joint-decision` row routes the home
+# check on that qualifier — a lock that drops it unroutes the check. The
+# edit captures the qualifier and re-emits it (a sed backreference), so
+# "apply `edit` as handed" still holds: nothing asks the caller to
+# recompose what the expression can carry.
+[[rule]]
+id = "lock-draft-joint-decision"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.status_form]
+eq = "joint-decision"
+[rule.guard.all.gate_written]
+eq = "true"
+[rule.guard.all.gate_stale]
+eq = "false"
+[rule.emit]
+op     = "lock"
+target = "record"
+# Same three edits as `lock-draft`, in the same order; only the status
+# flip differs — the captured `[joint decision → …]` survives onto Final.
+edit   = "s/^- \\*\\*Status\\*\\*: Draft *\\(\\[joint decision.*\\]\\).*$/- **Status**: Final \\1/"
+sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
+why    = "Gate written and the Draft still owes a joint decision — lock as usual, but the qualifier survives the flip: `Final [joint decision → …]` is what routes the home check."
+surface = "the preserved qualifier verbatim, so the open question is visible at the lock; the README row flips in the same pass (`--outcome readme`), commit `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`"
 
 # A Draft whose gate.md predates its re-entry → refuse. The file is
 # there, so `gate_written` reads true, but it was written for the Final

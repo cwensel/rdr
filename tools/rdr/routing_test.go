@@ -618,3 +618,76 @@ func containsString(hay []string, needle string) bool {
 	}
 	return false
 }
+
+// TestLockPreservesJointDecisionQualifier pins the lock split on the
+// qualifier form: a Draft still carrying `[joint decision → …]` must keep
+// that qualifier through the status flip, because the navigator's
+// `locate-final-joint-decision` row routes the home check on it. The bare
+// `lock-draft` edit flattens the Status line to `Final`, so the
+// joint-decision cell is carved out into its own row whose sed edit
+// captures and re-emits the qualifier — "apply `edit` as handed" then
+// preserves it with no caller judgement.
+func TestLockPreservesJointDecisionQualifier(t *testing.T) {
+	m := loadRoutingModelNamed(t, "rdr-write.toml")
+	if kind := m.Kinds["status_form"]; kind != "enum" {
+		t.Fatalf("rdr-write.toml declares status_form as %q, want enum; without it the lock cannot tell a joint-decision Draft apart", kind)
+	}
+
+	guards := map[string]map[string][]string{}
+	for _, a := range m.Atoms {
+		if guards[a.Rule] == nil {
+			guards[a.Rule] = map[string][]string{}
+		}
+		guards[a.Rule][a.Key] = a.Literals
+	}
+
+	// The carved-out row: joint-decision form, and the same stale-gate
+	// refusal boundary the bare lock holds.
+	jd := guards["lock-draft-joint-decision"]
+	if jd == nil {
+		t.Fatal("rdr-write.toml has no lock-draft-joint-decision rule; a joint-decision Draft locks through the flattening edit")
+	}
+	if got := jd["status_form"]; len(got) != 1 || got[0] != "joint-decision" {
+		t.Errorf("lock-draft-joint-decision guards status_form on %v, want exactly [joint-decision]", got)
+	}
+	if got := jd["gate_stale"]; len(got) != 1 || got[0] != "false" {
+		t.Errorf("lock-draft-joint-decision guards gate_stale on %v, want exactly [false]; the stale-gate refusal must still win", got)
+	}
+	if op := m.Emits["lock-draft-joint-decision"]["op"]; op != "lock" {
+		t.Errorf("lock-draft-joint-decision emits op %q, want lock", op)
+	}
+
+	// The bare row must carry the carve-out atom (lint proves the cells
+	// stay disjoint; this pins that the atom exists at all) and its edit
+	// must stay the bare flip.
+	if got := guards["lock-draft"]["status_form"]; len(got) != 1 || got[0] != "joint-decision" {
+		t.Errorf("lock-draft carries no status_form atom over joint-decision (%v); its edit would flatten the qualifier", got)
+	}
+	if bare := m.Emits["lock-draft"]["edit"]; strings.Contains(bare, "joint") {
+		t.Errorf("lock-draft edit %q mentions the qualifier; the split belongs to the joint-decision row", bare)
+	}
+
+	// The parse keeps the TOML escaping (`\\*` for `\*`); the caller's
+	// shell sees the unescaped expression, so unescape before judging it.
+	edit := strings.ReplaceAll(m.Emits["lock-draft-joint-decision"]["edit"], `\\`, `\`)
+	if !strings.Contains(edit, `\(\[joint decision`) || !strings.Contains(edit, `Final \1`) {
+		t.Fatalf("lock-draft-joint-decision edit %q does not capture and re-emit the qualifier", edit)
+	}
+
+	// The edit is data the caller applies as handed, so its behavior is
+	// pinned by running it: the qualifier must survive onto Final.
+	if _, err := exec.LookPath("sed"); err != nil {
+		t.Skip("sed not on PATH; the edit's capture behavior went UNCHECKED here")
+	}
+	in := "- **Status**: Draft [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]\n"
+	cmd := exec.Command("sed", edit)
+	cmd.Stdin = strings.NewReader(in)
+	out, err := cmd.Output()
+	if err != nil {
+		t.Fatalf("sed refused the emitted edit %q: %v", edit, err)
+	}
+	want := "- **Status**: Final [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]\n"
+	if string(out) != want {
+		t.Errorf("the emitted edit rewrote the Status line to %q, want %q", out, want)
+	}
+}
