@@ -41,19 +41,41 @@ SCOPED RE-ENTRY. Ask the projector, don't parse the Status line:
 `metadata[]` where `label=="Status"` → `.status.form == "revised-from"` means this
 RDR was lock-audited and demoted by the 07.1 cluster gate for a named defect. The
 scope set is `edges[]` where `kind=="reverify"`: each `to` is one of this record's
-own `NNNN:A*` ids. Re-verify ONLY those (plus any whose Evidence anchor the
-demotion's edit touched — a diff signal, not a projection); carry the rest forward
-as already Verified — do NOT re-derive them. Read each named assumption by id, not
-the whole Critical Assumptions section:
+own `NNNN:A*` ids. Re-verify ONLY those; carry the rest forward as already
+Verified — do NOT re-derive them. Anchors the demotion's edit touched are read by
+id in one call (`--select <NNNN>:I-4`), never by line windows. Read each named
+assumption by id, not the whole Critical Assumptions section:
 
 ```sh
 "$RDR_HOME/bin/rdr" inspect --select <NNNN>:A2 <NNNN>
 ```
 
+Third branch — `revised-from` with an EMPTY `reverify` set and a refine commit
+after the demote (a route-back refine that rewrote the list): scope = the
+assumptions whose lines that commit touched. Never `git show` it; take its
+post-image hunk starts and intersect with `inspect`'s `A*` line ranges:
+
+```sh
+sha=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): refine' -- "$RDR_PATH")
+git -C "$RDR_RECORDS" diff -U0 "$sha^" "$sha" -- "$RDR_PATH" | grep '^@@' \
+  | sed -E 's/^@@ -[0-9]+(,[0-9]+)? \+([0-9]+)(,([0-9]+))? @@.*/\2 \4/'
+```
+
+(start, length; a blank length is 1) against the `A*` rows of `inspect <NNNN>` —
+an assumption is in scope when a hunk overlaps its range. Write the resulting ids
+back into the qualifier so the next stage routes without recomputing.
+
 A `resolved:false` target names an assumption that does not exist — report it
 rather than skipping silently; `resolved` absent means nothing looked, neither
 sound nor broken. `.status.form` anything else (a bare `Draft`) is the cold path:
 verify every assumption from scratch as below.
+
+On any scoped re-entry the reuse audit and the {RDR_ENV} / {RDR_RESOURCES} reads
+above are owed only for behaviours the in-scope assumptions introduce; otherwise
+the close packet says `reuse audit: n/a — scoped re-entry`. A landing-order
+precondition on a peer ("NNNN lands first") is answered by
+`"$RDR_HOME/bin/rdr" status --tags <peer>` — `status=Final` and
+`gate_stale=false` — never by reading the peer's files or history.
 
 For each Critical Assumption in scope:
 - Pick exactly one Method: Source Search | Spike | Prior Art | Derivation |

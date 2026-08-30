@@ -19,9 +19,15 @@ to fix).
    "read against §X" annotation, which no rule decides. Fold whatever is still TRUE into the live
    Problem Statement / Solution / Alternatives; delete the rest outright. A
    reader should see only the current design, never the path to it. EXCEPTION:
-   a `Status: Draft [revised from Final …]` qualifier is live state (the 07.1
-   re-entry signal Stage 4 needs), not history — leave it; the Stage 7 re-lock
-   flip clears it.
+   a `Status: Draft [revised from Final …; re-verify <IDs> @<stage>]` qualifier
+   is parsed routing data (`inspect` emits its ids as `reverify` edges; `status`
+   reads `reentry_target`), not history — keep it byte-for-byte. A route-back
+   refine that amends or adds an assumption APPENDS that id to the list
+   (`re-verify A2,A4` → `re-verify A2,A4,A9`), keeps `@<stage>`, and never
+   writes `none`: `none` tells Stage 4 nothing is in scope. The 07.1
+   `## Refinement Context` note is read-only for this stage — read it for the
+   defect, append no disposition; Stage 7 deletes it. The re-lock flip clears
+   the qualifier.
 4. Find bloat — rejected-alternative narratives over ~30 lines, code blocks
    longer than the prose explaining them, deferred-feature detail. Trim.
 5. Preserve decision rationale. Never trim WHY a choice was made; only trim

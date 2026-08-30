@@ -19,10 +19,13 @@ carries change-history narration, contradicts its own sections, or is bloated.
 
 ## Review gate
 
-- **Is all change-history gone?** No "Rescope Note", "Refinement Context",
-  "retained as history", "re-proposed" Metadata narration, or "this is now
-  wrong" annotation should survive — only the current design. A draft that
-  still reads as a layered edit log goes back.
+- **Is all change-history gone?** No "Rescope Note", "retained as history",
+  "re-proposed" Metadata narration, or "this is now wrong" annotation should
+  survive — only the current design. A draft that still reads as a layered
+  edit log goes back. Two things are live state, not history: the 07.1
+  `## Refinement Context` note (read-only here, unappended; Stage 7 deletes
+  it) and the `re-verify <IDs> @<stage>` qualifier (routing data — byte-for-byte,
+  the amended ids added, never `none`).
 - **Did it cut rationale by mistake?** The one thing this stage must not lose
   is *why* decisions were made. Spot-check that every non-obvious choice still
   has its reason. (Rationale = *why this design*; history = *what the design

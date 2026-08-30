@@ -49,7 +49,8 @@ Claude: /rdr-resolve <NNNN>
   only the user can settle, each with its grounding; approved fixtures named as
   normative fixtures in the RDR body — an unapproved fixture is not Evidence.
   Most RDRs render no fixtures; the round still runs if it has a question.
-- The reuse audit ran against the `$RDR_ENV` reuse-audit paths.
+- The reuse audit ran against the `$RDR_ENV` reuse-audit paths (or the close
+  packet says `reuse audit: n/a — scoped re-entry`).
 - No research finding contradicts the approach — if one does, that's **not** a
   citation fix.
 

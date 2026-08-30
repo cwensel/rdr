@@ -26,8 +26,12 @@ Claude: /rdr-refine <NNNN>
    don't preserve superseded content. Keep decision *rationale*; cut the *history*
    that produced it. It uses the Domain-priors section of `$RDR_RESOURCES` to decide
    which side of a contradiction is right (a clause that violates a product principle
-   is the side to fix). EXCEPTION: a `Status: Draft [revised from Final …]` qualifier
-   is live state, not history — leave it. Read the record by `inspect NNNN` then
+   is the side to fix). EXCEPTION: a `Status: Draft [revised from Final …; re-verify
+   <IDs> @<stage>]` qualifier is parsed routing data (`reverify` edges,
+   `reentry_target`), not history — keep it byte-for-byte; a route-back refine
+   rewrites only the id list to `re-verify <IDs> + <ids it amended or added>`,
+   keeping `@<stage>`, never `none`. The 07.1 `## Refinement Context` note is
+   read-only here — no disposition appended; Stage 7 deletes it. Read the record by `inspect NNNN` then
    `--select NNNN:§section` (rdr-common §rdr-resolve), never `sed -n` line windows.
 
 ## Review gate (Stage `03-refine.md`)

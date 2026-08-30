@@ -56,6 +56,12 @@ One invocation runs the full loop for one lens:
    `$EVIDENCE_DIR`, `$ITER`, `$ITER_DIR` (write to `$ITER_DIR`; at `ITER=1` it
    *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
    Final …; re-verify <IDs>]` qualifier delta-scopes the pass to `<IDs>`.
+   `re-verify none` with `lens_stale` naming this lens (`status --tags`) →
+   scope = the elements whose lines the rework touched: hunk starts of
+   `git -C "$RDR_RECORDS" diff -U0 <demote-base> HEAD -- "$RDR_PATH" | grep '^@@'`
+   (demote-base = the last `finalize` commit on the path) intersected with
+   `inspect <NNNN>`'s line-range rows. Compute it once, here; a spawn brief
+   carries the id list, never the diff command.
 2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
    `2-critique.md` · `4-cove.md`)
    → it writes element files to `{EVIDENCE_DIR}`. `3amigo` is not one prompt run:
