@@ -127,7 +127,11 @@ grounding it takes to rule on it** — the source anchor, spike output, or prior
 decision (peer RDR, RFD clause, standing contract) that constrains the answer.
 You hold these from the Method work above; withheld, the author re-derives what
 you just verified or answers blind. Can't name the grounding → not ready to
-ask: resolve by another Method first. An approved fixture → record it as a
+ask: resolve by another Method first. A question that sets or leans on a
+corpus-wide posture cites a precedent search of the resources index in its
+options (or states "no precedent found") — prior decisions are grounding too.
+And nothing the round will rule on is written into the record beforehand: a
+pre-applied recommended edit is a rewrite waiting on a different answer. An approved fixture → record it as a
 normative fixture in the RDR body: named on the assumption's Evidence line
 and, where a Testing Strategy scenario covers it, in that scenario's Expected
 — citing the spike artifact under {SPIKE_DIR} that produced it (TEMPLATE.md's
