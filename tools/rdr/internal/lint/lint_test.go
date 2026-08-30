@@ -761,10 +761,10 @@ func TestPeerElementHintListsEveryIdBounded(t *testing.T) {
 // reference opens and says how to rewrite it.
 func TestOwnershipMutualProseSemicolonAndFixQuotesTheClause(t *testing.T) {
 	a := record(t, "0106",
-		"cli/0103 REQ-38's read arm; cli/0104 REQ-35's set equality → multiset. Both predecessors are Final; this field is the record. Also owed to a peer, not an override: cli/0112 L-3's prose names a spelling I-1 removes.",
+		"cli/0103 REQ-8's read arm; cli/0104 REQ-5's equality rule. Both predecessors are Final; this field is the record. Also owed to a peer, not an override: cli/0112 L-3's prose names a spelling I-1 removes.",
 		"cli/0112:L3")
 	b := record(t, "0112",
-		"cli/0103 REQ-40 narrows-only selection; cli/0106 I-4(a) — narrowed to the cohort space.",
+		"cli/0103 REQ-9 narrows-only selection; cli/0106 I-4(a) — narrowed to the smaller space.",
 		"cli/0106:A1")
 	docs := pair(t, a, b)
 	for _, d := range docs {
@@ -776,7 +776,7 @@ func TestOwnershipMutualProseSemicolonAndFixQuotesTheClause(t *testing.T) {
 	// The same field with the peer LEADING its clause is the cycle, and
 	// the fix says which token was read and what to do with it.
 	x := record(t, "0106",
-		"cli/0103 REQ-38's read arm; cli/0112 L-3's prose names a spelling I-1 removes, not an override.",
+		"cli/0103 REQ-8's read arm; cli/0112 L-3's prose names a spelling I-1 removes, not an override.",
 		"cli/0112:L3")
 	f := find(t, Run(x, Options{Corpus: pair(t, x, b)}), "ownership:mutual")
 	for _, want := range []string{

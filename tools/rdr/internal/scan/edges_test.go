@@ -232,7 +232,7 @@ func TestOverridesClauseLeaderIsTheTarget(t *testing.T) {
 		{"single ref", "cli/0003 Approach item 3; the op was renamed", []string{"cli/0003"}, nil},
 		{"multi-ref clause", "cli/0092's default rung is overridden outside cli/0112's fold band", []string{"cli/0092"}, []string{"cli/0112"}},
 		{"multiple clauses", "cli/0103 REQ-13's file grain; cli/0120 REQ-CARRIER-6's zero-record read; 0089 A5", []string{"cli/0089", "cli/0103", "cli/0120"}, nil},
-		{"element cite leads", "cli/0092:A6 — narrows the rung cli/0094 shipped; cli/0092:A4 (retrofit#ngzs) and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081", "cli/0094"}},
+		{"element cite leads", "cli/0092:A6 — narrows the rung cli/0094 shipped; cli/0092:A4 (tracker#ngzs) and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081", "cli/0094"}},
 		{"0113 shape", "overrides cli/0092; cli/0112 stays authoritative for the fold band cli/0092 sits inside", []string{"cli/0092", "cli/0112"}, []string{"cli/0092"}},
 		// A leader is the first token of its clause. Prose after a `;`
 		// makes the reference a mention — the prose semicolon that read
