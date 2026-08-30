@@ -47,7 +47,9 @@ N/A-bulleted). -->
     grammar is spelled: the date, `;`, `re-verify <IDs>` or
     `re-verify none`, then `@<stage>` naming the target
     re-entry stage (`@propose` = Stage 2, `@refine` = 3,
-    `@resolve` = 4), then `— <reason>`. Every clause after
+    `@resolve` = 4, `@finalize` = a RE-LOCK-ONLY re-entry
+    whose note-listed wording fixes land in the lock pass),
+    then `— <reason>`. Every clause after
     the date is optional; `/rdr-status` routes on `@<stage>`
     and falls back to `/rdr-resolve` when it is absent. It
     is still a `Draft` for every binary Draft/Final gate;

@@ -187,6 +187,11 @@ func (d *Document) metadataField(f *Field) {
 	}
 	if f.Canonical == "Status" {
 		f.Status = lifecycleStatus(f.Value)
+		if f.Status.Form == "revised-from" && f.Status.ReentryTarget == "" {
+			// A pre-grammar qualifier: the 07.1 note is the only place
+			// the target was written, so read it there.
+			f.Status.ReentryTarget = d.noteReentryTarget()
+		}
 	}
 }
 

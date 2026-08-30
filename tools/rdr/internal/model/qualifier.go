@@ -106,7 +106,7 @@ var (
 	// rejecting it silently degraded the qualifier to a free-text note
 	// that blinded every re-entry routing rule. The run is capped at two
 	// tokens so the slot stays a stamp, not a sentence.
-	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})(?:\s+[a-z][a-z0-9-]*){0,2}\s*;\s*(?:re-verify\s+(?:none|([A-Za-z0-9,\s]+?))\s*)?(?:@(propose|refine|resolve)\b\s*)?(?:[—-]\s*(.+))?$`)
+	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})(?:\s+[a-z][a-z0-9-]*){0,2}\s*;\s*(?:re-verify\s+(?:none|([A-Za-z0-9,\s]+?))\s*)?(?:@(propose|refine|resolve|finalize)\b\s*)?(?:[—-]\s*(.+))?$`)
 
 	// JointDecisionGrammar matches `joint decision → <home §-anchor>:
 	// <question>`, capturing the home anchor and the open question.
@@ -127,11 +127,13 @@ var (
 )
 
 // ReentryTargets is the vocabulary of the `@<stage>` slot in
-// RevisedFromGrammar: the front-half stages a demoted record can re-enter
-// at, spelled as the verb of the skill that runs each (Stage 2 propose,
-// Stage 3 refine, Stage 4 resolve). The regexp above and the fact table's
-// `reentry_target` domain both spell this list; this is the one Go copy.
-var ReentryTargets = []string{"propose", "refine", "resolve"}
+// RevisedFromGrammar: the stages a demoted record can re-enter at, spelled
+// as the verb of the skill that runs each (Stage 2 propose, Stage 3 refine,
+// Stage 4 resolve, and Stage 7 finalize for a RE-LOCK-ONLY re-entry whose
+// wording fixes are applied in the lock pass itself). The regexp above and
+// the fact table's `reentry_target` domain both spell this list; this is
+// the one Go copy.
+var ReentryTargets = []string{"propose", "refine", "resolve", "finalize"}
 
 // ReentryTarget reads the `@<stage>` off a revised-from qualifier, or ""
 // when the qualifier is not that form or names no target. Absent is not

@@ -137,7 +137,7 @@ required      = true
 [tags.reentry_target]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["propose", "refine", "resolve", "none"]
+domain     = ["propose", "refine", "resolve", "finalize", "none"]
 single_valued = true
 required      = true
 
@@ -675,10 +675,21 @@ next    = "/rdr-resolve"
 why     = "The qualifier names @resolve — /rdr-resolve self-scopes to the listed IDs."
 surface = "the qualifier, so the human knows the run is a delta"
 
-# No `@<stage>` in the qualifier: the historical spelling, where the
-# target lives in the prose note only. The answer is the resolve default
-# WITH the instruction to read the note first — a fallback the human can
-# see is one, never a silent guess.
+[[rule]]
+id = "reentry-finalize"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "finalize"
+[rule.emit]
+next    = "/rdr-finalize"
+why     = "The target is @finalize — a RE-LOCK-ONLY re-entry: the note's listed wording/citation defects are applied in the lock pass, then the record re-locks."
+surface = "the qualifier and the note's defect list, so the human knows the run is a fix-and-lock"
+
+# Neither the qualifier nor the note's TARGET RE-ENTRY STAGE line names a
+# target the projector can read. The answer is the resolve default WITH
+# the instruction to read the note first — a fallback the human can see
+# is one, never a silent guess.
 [[rule]]
 id = "reentry-untargeted"
 [rule.match.recognized]
@@ -688,7 +699,7 @@ eq = "none"
 [rule.emit]
 next    = "/rdr-resolve"
 why     = "The qualifier names no @<stage> — /rdr-resolve is the default, not the recorded target."
-surface = "the qualifier, and the TARGET RE-ENTRY STAGE line of the record's `## Refinement Context` note: if it names Stage 2 or 3, run /rdr-propose or /rdr-refine instead"
+surface = "the qualifier, and the TARGET RE-ENTRY STAGE line of the record's `## Refinement Context` note: if it names Stage 2, 3 or a fix-and-lock, run /rdr-propose, /rdr-refine or /rdr-finalize instead"
 
 # ===========================================================================
 # `lens` — the Stage-5 lens row (rdr-common.md §lens-row)

@@ -76,7 +76,10 @@ Take `emit.next` (a command, `none`, or `stopped:…`), `emit.why`, and
 nothing. Except where `emit.next_arg` says otherwise: `cluster` marks the one
 route whose argument is a SET, not this record (step 3 below). A
 `flow-guard-unevaluable` refusal means a fact went **absent**, not false: a root
-is unbound or names no directory. Say so; never fill the gap.
+is unbound or names no directory. Say so; never fill the gap. ANY refusal (exit
+2 — `flow-tag-invalid`, `flow-guard-unevaluable`, …) is `stopped:navigator-refused`:
+print the error and stop. Never hand-derive the row or the checklist from the
+facts — a hand-rendered status reads a demoted Final as a fresh Draft.
 
 Only one signal needs a second `rdr` call, and only when `status_form` is not
 `none` — the Status qualifier's prose is deliberately not a fact:

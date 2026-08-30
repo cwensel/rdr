@@ -37,7 +37,10 @@ ALSO confirm no cluster re-entry note survives: a `## Refinement Context
 (cluster re-entry — delete on re-lock)` block left by the 07.1 gate MUST be
 gone by re-lock — its defect resolved and folded into live text. Stage 7 is the
 one chokepoint every re-entry path (2/3/4) shares, so a surviving note is NOT
-READY: the cross-RDR defect that demoted this RDR was never closed.
+READY: the cross-RDR defect that demoted this RDR was never closed. On a
+`@finalize` re-entry (RE-LOCK-ONLY, `re-verify none`) the note's listed
+defects ARE this stage's content fix: apply each in place first, by `--select`
+id, then run the sweep and delete the note.
 
 ALSO scan `Profile` + `Normative Contracts`: for a `mid`/`large` RDR whose
 contract names step-ordering, parse/deparse, import/export, compose/decompose,

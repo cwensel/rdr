@@ -202,7 +202,7 @@ description = "The Status is a scoped re-entry from Final."
 kind        = "enum"
 source      = "field"
 path        = "metadata.Status.status.reentry_target"
-domain      = ["propose", "refine", "resolve", "none"]
+domain      = ["propose", "refine", "resolve", "finalize", "none"]
 absent      = "none"
 description = "The `@<stage>` a scoped re-entry names; `none` when the qualifier carries no target."
 
