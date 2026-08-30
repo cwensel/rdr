@@ -428,14 +428,17 @@ art *before* enumerating — Propose selection, above): the budget bounds that r
 instead of leaving it open-ended. The curate-a-finite-context discipline is the
 same (Anthropic, *Effective context engineering*, §3).
 
-### Exact state tracking — transitions go to the `rdr` binary, not prose
+### Exact state tracking — state from `rdr`, transitions from `intrastate`, neither in prose
 
 **Drives**: the *Exact state lives in a tool call* doctrine
 ([`stages/README.md`](stages/README.md#doctrine-applies-to-every-stage)); the
-`rdr` companion binary's facets (`tools/rdr/`: status/inspect/index/lint,
-`--tags`, `--json --filter`) and the `rdr-common` sections that route every
-count, id lookup, and anchor tally through it (`§rdr-resolve`,
-`§mechanical-gate`) rather than through the model's own text.
+split of roles between the two companion binaries — `rdr` (`tools/rdr/`:
+status/inspect/index/lint, `--tags`, `--json --filter`) supplies the *state*
+(counts, ids, edges, anchor tallies), and `intrastate` over the routing models
+(`models/`, `rdr-common §intrastate`, `§lens-row`) supplies the *transition*
+(which stage, lens, or gate verdict follows) — and the `rdr-common` sections
+that route every count, lookup, and routing answer through them
+(`§rdr-resolve`, `§mechanical-gate`) rather than through the model's own text.
 
 - **Guo, Wu & Yiu (2026), *The Deterministic Horizon: When Extended Reasoning
   Fails and Tool Delegation Becomes Necessary***, arXiv 2606.00376 — on
@@ -452,8 +455,9 @@ count, id lookup, and anchor tally through it (`§rdr-resolve`,
   step — residual errors are interface errors (transcription, parsing), so a
   tool result is consumed as a value, never re-derived; (ii) the tool was exact,
   so the gap is an upper bound — the doctrine binds only where the facet is
-  itself exact (`rdr`, `intrastate`, grep), which is the case for every count
-  and lookup the flow needs. Scope caveat from the paper: approximate or
+  itself exact (`rdr` for state, `intrastate` for transitions, grep for literal
+  sweeps), which is the case for every count, lookup, and routing answer the
+  flow needs. Scope caveat from the paper: approximate or
   stochastic tasks need not obey the horizon — this is a rule about *exact*
   state, not about delegating judgment. <https://arxiv.org/abs/2606.00376>
 
