@@ -596,6 +596,13 @@ For anchors, `resolved` is **three-valued** (§source-root): `true`, `false`, or
 check did not run rather than closing over it. `rdr index --unresolved` is the
 corpus-wide form.
 
+**Cadence: twice per stage, not per edit.** A baseline lint before the first
+edit (it surfaces the findings that pre-date this stage — no stash-and-compare
+to tell old from new), and one after the last write (that is the receipt). The
+only reason to lint mid-pass is a `resolution` finding this stage just created.
+Each run is a corpus scan + repo walk; when a stage greps the output more than
+once, capture it once to a file under `$ITER_DIR` and grep the file.
+
 ## §amendment-sweep — propagate clause changes at disposition
 
 Cited by the 04/05/06 stage prompts, not by any SKILL.md (as §mechanical-gate).

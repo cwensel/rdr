@@ -18,12 +18,15 @@ C3, C4 and C9 remain judgment on a narrowed read.
 ## Run first
 
 ```bash
-"$RDR_HOME/bin/rdr" lint --locking {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" lint --locking {RDR_NUMBER} > "$ITER_DIR/lint.txt"; echo "lint exit $?"
 "$RDR_HOME/bin/rdr" inspect --json --filter outline,elements,edges,metadata {RDR_NUMBER}
 ```
 
 `lint` exit 1 = at least one blocking finding (printed with a leading `!`).
 Exit 0 with findings = advisory only. Read the findings; do not re-derive them.
+Run it ONCE: every CHECK below greps `$ITER_DIR/lint.txt` (`grep '^!'` for the
+blocking set), never re-runs `lint`; re-run only after an edit to the record.
+A spawned sweep gets that path in its brief, not a "lint already ran" note.
 
 ## Prompt
 

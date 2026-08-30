@@ -20,7 +20,8 @@ Build the open set from FOUR sources:
 3. Every spike NAMED anywhere in the RDR (or its findings) with no captured
    run — check {SPIKE_DIR} for existing results before assuming one is unrun.
 4. An exactness-word sweep over what a review round touched or introduced:
-   `rdr lint`'s `prose:exactness` for the terms of art, plus the quantifiers
+   `rdr lint NNNN | grep prose:exactness` — the one lint slice this stage
+   reads, never the whole output — for the terms of art, plus the quantifiers
    (all/every, first/nearest) read by eye. (Stage 4 already swept every
    exactness word against an Evidence Record; this is only the post-mutation
    delta — a claim with no record that the rounds did NOT touch is a Stage 7

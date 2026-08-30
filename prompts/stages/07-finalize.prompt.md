@@ -14,7 +14,8 @@ reconcile just rewrote this draft. Bind the report dir in one call
 (rdr-common §evidence — ask for the dir, never compose one):
 `eval "$("$RDR_HOME/bin/rdr" paths --lens tooling-pass --next-iter <NNNN>)"` →
 write `tooling-pass.md` to `$ITER_DIR` (at `ITER=1` it *is* the base; re-runs
-land in `iter-N/`). On BLOCK, split the findings:
+land in `iter-N/`). Lint once to `$ITER_DIR/lint.txt` (the sweep's "Run first");
+a sweep you spawn gets that path in its brief. On BLOCK, split the findings:
 
 - MECHANICAL — fix in this pass, re-run the sweep: a hollow/bracketed section
   fillable from material already in the RDR (`## References` from citations the
