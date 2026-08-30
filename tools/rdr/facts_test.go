@@ -551,7 +551,7 @@ func TestReentryTargetIsAbsentUntilWritten(t *testing.T) {
 		if got, ok := factValue(facts, "reentry_target"); ok {
 			t.Errorf("%s: reentry_target = %q, want absent", status, got)
 		}
-		if got, ok := factValue(withAbsentSentinels(tbl, facts), "reentry_target"); !ok || got != "none" {
+		if got, ok := factValue(withAbsentSentinels(tbl, facts, nil), "reentry_target"); !ok || got != "none" {
 			t.Errorf("%s: --tags reentry_target = %q/%v, want the none sentinel", status, got, ok)
 		}
 	}
@@ -872,6 +872,7 @@ var stageFacts = map[string][]string{
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
 	// The anchor and peer-evidence tallies are §mechanical-gate's
 	// numbers; three-valued, so unlooked travels with total.
+	// On demand: evaluated only when --filter names them.
 	"7 Finalize": {"status", "gate_written", "gate_stale",
 		"anchors_total", "anchors_unresolved", "anchors_unlooked", "peer_evidence_unresolved"},
 	// 7.1 Cluster reads three different things, and all are facts.
@@ -1690,7 +1691,20 @@ func TestEdgeTalliesAreThreeValued(t *testing.T) {
 		t.Fatalf("fixture carries %d anchors and %d peer citations; the test needs both", anchors, peers)
 	}
 
-	unlooked := tbl.Evaluate(NewFactEnv(tbl, doc, "current-shape"))
+	// Unfiltered, the tallies are not evaluated at all: they are declared
+	// on demand, because deciding edges is the one costly fact and the
+	// navigator renders --tags several times a stage.
+	if quiet := tbl.Evaluate(NewFactEnv(tbl, doc, "current-shape")); len(quiet) > 0 {
+		for _, name := range []string{"anchors_total", "anchors_unresolved", "anchors_unlooked", "peer_evidence_unresolved"} {
+			if _, ok := factValue(quiet, name); ok {
+				t.Errorf("%s was evaluated by an unfiltered call; it is on demand", name)
+			}
+		}
+	}
+	tallies := map[string]bool{"anchors_total": true, "anchors_unresolved": true, "anchors_unlooked": true, "peer_evidence_unresolved": true}
+	quietEnv := NewFactEnv(tbl, doc, "current-shape")
+	quietEnv.Want = tallies
+	unlooked := tbl.Evaluate(quietEnv)
 	if v, _ := factValue(unlooked, "anchors_total"); v != strconv.Itoa(anchors) {
 		t.Errorf("anchors_total = %q, want %d", v, anchors)
 	}
@@ -1717,7 +1731,7 @@ func TestEdgeTalliesAreThreeValued(t *testing.T) {
 	if tbl.Evaluate(env); calls != 0 {
 		t.Errorf("a call filtered to the cheap facts resolved edges %d times", calls)
 	}
-	env.Want = nil
+	env.Want = tallies
 	looked := tbl.Evaluate(env)
 	if calls != 1 {
 		t.Errorf("the hook ran %d times for four tallies, want once", calls)

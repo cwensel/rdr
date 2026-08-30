@@ -184,7 +184,7 @@ is a selector, and ids survive edits where line numbers shift. In JSON
 Method / Evidence are `fields[]{label,value}` rows, not top-level keys. WHICH
 assumption is a fact, not a walk: `status --tags NNNN` carries `ca_pending_ids`,
 `ca_off_vocabulary_ids` and `reverify` (the qualifier's re-verify ids; absent off a
-re-entry), and `--json --filter assumptions` is the per-assumption `status.value` /
+re-entry); the anchor tallies are on demand (§mechanical-gate); and `--json --filter assumptions` is the per-assumption `status.value` /
 `method.{members,off_vocabulary}` / `evidence.anchors` view, a tenth of `elements`.
 `--json --filter metadata,counts` for the status line. Those cost ~20ms; `edges`,
 bare `--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
@@ -576,7 +576,7 @@ template text.)
 
 ```sh
 "$RDR_HOME/bin/rdr" lint "$NNNN"                            # placeholder:survived + the structural share; header: blocking=N resolution=N placeholder=N advisory=N
-"$RDR_HOME/bin/rdr" status --filter anchors_total,anchors_unresolved,anchors_unlooked,peer_evidence_unresolved "$NNNN"   # the anchor counts; --filter edges only to read WHICH
+"$RDR_HOME/bin/rdr" status --tags --filter anchors_total,anchors_unresolved,anchors_unlooked,peer_evidence_unresolved "$NNNN"   # the anchor counts (on demand: only when named); --filter edges only to read WHICH
 ```
 
 **The tool reports the text; the stage judges the obligation.** A finding says

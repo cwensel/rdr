@@ -49,10 +49,6 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     ["0020:A1","0020:A2"]
 ca_off_vocabulary_ids        set     []
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 
 # 0021
 status                       enum    Final
@@ -109,10 +105,6 @@ cluster_key                  scalar  0021-0022-0023
 contracts_prose              bool    true
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 
 # 0022
 status                       enum    Draft
@@ -168,10 +160,6 @@ contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
 reverify                     set     ["0022:A1","0022:A2"]
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 
 # 0023
 status                       enum    Implemented
@@ -225,10 +213,6 @@ cluster_key                  scalar  0021-0022-0023
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 
 # 0024
 status                       enum    Deferred
@@ -281,10 +265,6 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     ["0024:A1"]
 ca_off_vocabulary_ids        set     []
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 
 # 0025
 status                       enum    Draft
@@ -335,8 +315,4 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
-anchors_total                int     0
-anchors_unresolved           int     0
-anchors_unlooked             int     0
-peer_evidence_unresolved     int     0
 

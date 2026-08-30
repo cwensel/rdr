@@ -95,7 +95,7 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 
 	switch {
 	case *f.tags:
-		return emitTags(tbl, facts, stdout, stderr)
+		return emitTags(tbl, facts, wantedFacts(f), stdout, stderr)
 	case *f.json:
 		return emitFacts(facts, doc.Record, stdout, stderr)
 	}
@@ -423,13 +423,16 @@ func (i indentWriter) Write(p []byte) (int, error) {
 // A fact with no `absent` declaration is untouched: it is omitted when
 // absent exactly as before, which is right for the facts nothing routes
 // on. Adding a sentinel to one is a deliberate act, not a default.
-func withAbsentSentinels(tbl *FactTable, facts []Fact) []Fact {
+func withAbsentSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []Fact {
 	have := make(map[string]bool, len(facts))
 	for _, f := range facts {
 		have[f.Name] = true
 	}
 	missing := false
 	for _, d := range tbl.Facts {
+		if want != nil && !want[d.Name] {
+			continue
+		}
 		if d.HasAbsent && !have[d.Name] {
 			missing = true
 			break
@@ -444,6 +447,9 @@ func withAbsentSentinels(tbl *FactTable, facts []Fact) []Fact {
 	}
 	out := make([]Fact, 0, len(facts)+1)
 	for _, d := range tbl.Facts {
+		if want != nil && !want[d.Name] {
+			continue
+		}
 		switch f, ok := byName[d.Name]; {
 		case ok:
 			out = append(out, f)
@@ -454,12 +460,12 @@ func withAbsentSentinels(tbl *FactTable, facts []Fact) []Fact {
 	return out
 }
 
-func emitTags(tbl *FactTable, facts []Fact, stdout, stderr io.Writer) int {
+func emitTags(tbl *FactTable, facts []Fact, want map[string]bool, stdout, stderr io.Writer) int {
 	prose := map[string]bool{}
 	for _, d := range tbl.Facts {
 		prose[d.Name] = d.Prose
 	}
-	facts = withAbsentSentinels(tbl, facts)
+	facts = withAbsentSentinels(tbl, facts, want)
 	var lines []string
 	for _, f := range facts {
 		if prose[f.Name] {

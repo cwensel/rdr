@@ -148,6 +148,13 @@ type FactDecl struct {
 	// make `--tags` succeed or fail depending on which record was asked
 	// about, which is the drift this whole file replaced.
 	Prose bool
+	// OnDemand marks a fact whose evaluation has a cost the unfiltered
+	// render must not pay — the edge tallies resolve edges (a corpus scan
+	// plus a repo walk, ~1s on a large record) for a navigator that calls
+	// `--tags` several times a stage. Like `prose`, it is DECLARED: the
+	// fact is evaluated only when `--filter` names it, and omitted from
+	// every unfiltered render; a caller that wants it asks by name.
+	OnDemand bool
 	// Absent is the value `--tags` renders when this fact evaluates to
 	// nothing — the sentinel that carries "the record does not say".
 	//
@@ -337,13 +344,19 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		}
 		d.Prose = v == "true"
 	}
+	if v, ok := tbl.Scalar("on_demand"); ok {
+		if v != "true" && v != "false" {
+			return d, fmt.Errorf("fact %q: on_demand is true or false, got %q", name, v)
+		}
+		d.OnDemand = v == "true"
+	}
 	if v, ok := tbl.Scalar("absent"); ok {
 		d.Absent, d.HasAbsent = v, true
 	}
 	for _, k := range tbl.Keys() {
 		switch k {
 		case "kind", "source", "path", "paths", "root", "domain",
-			"equals", "transform", "select", "label", "min", "prose", "absent", "description":
+			"equals", "transform", "select", "label", "min", "prose", "on_demand", "absent", "description":
 		default:
 			return d, fmt.Errorf("fact %q: unknown key %q", name, k)
 		}
@@ -444,6 +457,11 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 	// and prose is the one kind nothing routes on — `--tags` omits it
 	// wholesale, so a sentinel there would name a rendering that never
 	// happens.
+	// An on-demand fact is never in an unfiltered render, so a sentinel
+	// for it would name a rendering that never happens either.
+	if d.HasAbsent && d.OnDemand {
+		return d, fmt.Errorf("fact %q: an on-demand fact is rendered only when asked for, so absent would not apply", name)
+	}
 	if d.HasAbsent && d.Prose {
 		return d, fmt.Errorf("fact %q: a prose fact is never rendered as a tag, so absent would not apply", name)
 	}
@@ -552,7 +570,7 @@ func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 func (t *FactTable) Evaluate(e *FactEnv) []Fact {
 	out := []Fact{}
 	for _, d := range t.Facts {
-		if e.Want != nil && !e.Want[d.Name] {
+		if e.Want != nil && !e.Want[d.Name] || e.Want == nil && d.OnDemand {
 			continue
 		}
 		if f, ok := t.evaluate(d, e); ok {

@@ -1071,10 +1071,15 @@ description = "The assumption ids a scoped re-entry must re-verify; absent when 
 # these: total, looked-for-and-missing, and never-looked (no source root
 # bound). The three are read together — an `unlooked` equal to `total`
 # says the check did not run, which is neither pass nor fail.
+# ON DEMAND: deciding an edge scans the records dir and walks the source
+# root (~1s on a large record), and the navigator renders `--tags` several
+# times a stage. So these four are evaluated only when `--filter` names
+# them, and an unfiltered render omits them — declared, like `prose`.
 [fact.anchors_total]
 kind        = "int"
 source      = "edge-tally"
 select      = "anchors-total"
+on_demand   = true
 min         = 0
 description = "Source anchors (`path::Symbol`) the record cites."
 
@@ -1082,6 +1087,7 @@ description = "Source anchors (`path::Symbol`) the record cites."
 kind        = "int"
 source      = "edge-tally"
 select      = "anchors-unresolved"
+on_demand   = true
 min         = 0
 description = "Source anchors looked for in the source root and not found."
 
@@ -1089,6 +1095,7 @@ description = "Source anchors looked for in the source root and not found."
 kind        = "int"
 source      = "edge-tally"
 select      = "anchors-unlooked"
+on_demand   = true
 min         = 0
 description = "Source anchors nothing looked for — no source root was bound."
 
@@ -1098,5 +1105,6 @@ description = "Source anchors nothing looked for — no source root was bound."
 kind        = "int"
 source      = "edge-tally"
 select      = "peer-evidence-unresolved"
+on_demand   = true
 min         = 0
 description = "Peer-RDR Evidence citations whose element was looked for and not found; absent while unchecked."
