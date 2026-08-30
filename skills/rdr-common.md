@@ -186,10 +186,21 @@ assumption is a fact, not a walk: `status --tags NNNN` carries `ca_pending_ids`,
 `ca_off_vocabulary_ids` and `reverify` (the qualifier's re-verify ids; absent off a
 re-entry); the anchor tallies are on demand (§mechanical-gate); and `--json --filter assumptions` is the per-assumption `status.value` /
 `method.{members,off_vocabulary}` / `evidence.anchors` view, a tenth of `elements`.
-`--json --filter metadata,counts` for the status line. Those cost ~20ms; `edges`,
-bare `--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
-rewrite the file reads it whole, in one call; if that exceeds one call's output,
-chunk by `--select NNNN:§section`, never `sed -n` windows. A corpus question
+`--json --filter metadata,counts` for the Status/qualifier text — its `status`
+object; that is not a fact name (`reverify` alone carries the re-verify ids).
+Those cost ~20ms; `edges`,
+bare `--json` and `lint` (text-only — it has no `--json`) pay a corpus scan +
+repo walk (~1.5s). A big section or corpus-scanning facet is **saved once to a
+scratch file and sliced there — in the main context exactly as in a spawn**;
+the ban is on the record file, not the scratch copy. A stage that must
+rewrite the file reads it whole in one sanctioned call —
+`--select NNNN:§title NNNN > /tmp/<slug>.md` (the H1 span), sliced from the
+scratch — never `sed -n` windows on the record. Body edits replace exact bytes
+read from the file **in the same turn** (an exact-replace with a
+one-occurrence check); retyping from an earlier projection is where edits
+fail. Locating an edit anchor with `grep -n` on the file for a phrase just
+projected is sanctioned; window-reading content that way is not. And never
+`2>/dev/null` an `rdr` call — the `stopped:` diagnostics live on stderr. A corpus question
 ("who cites this", "what is Draft", "what blocks") goes through
 `index --status` / `--backlinks=NNNN[:elem]` / `--cycles` — a few lines each —
 never bare `index --json` (the whole graph, MB, and nothing to grep it for).
@@ -531,10 +542,12 @@ one rule, which is a guarantee prose cannot give.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
-"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
-  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN") 2>&1 |
-  grep -E '^(emit|rule|surface|stopped)'   # the answer; drops the ~50-line observed.* echo of the tags
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
+  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
 ```
+
+(`--plan-only` drops the ~50-line `observed.*` echo of the tags — the one
+idiom for that, here as in §rdr-write; no grep filter.)
 
 Substitute `--tags` inline as written — never capture it into a variable
 first: zsh does not word-split an unquoted `$TAGS`, so intrastate receives one
@@ -623,8 +636,11 @@ corpus-wide form.
 edit (it surfaces the findings that pre-date this stage — no stash-and-compare
 to tell old from new), and one after the last write (that is the receipt). The
 only reason to lint mid-pass is a `resolution` finding this stage just created.
-Each run is a corpus scan + repo walk; when a stage greps the output more than
-once, capture it once to a file under `$ITER_DIR` and grep the file.
+Each run is a corpus scan + repo walk, so the run IS the capture:
+`lint <NNNN> | tee "$ITER_DIR/lint.txt"` — every follow-up question (tier
+counts, per-code greps, one finding's text) reads the saved copy. Re-invoking
+lint to re-grep output it already printed is the cadence leak this rule exists
+to stop.
 
 ## §amendment-sweep — propagate clause changes at disposition
 
@@ -787,6 +803,9 @@ exports in the workspace/`.rdr` marker to default-on a project; unset/false = of
 `--commit` arg forces on for this run, `--no-commit` forces off. Precedence:
 `--no-commit` > `--commit` > `RDR_AUTOCOMMIT` > off. Resolve it with `rdr_autocommit_on`
 below and skip §commit entirely when it returns false (the human commits manually).
+The var is read from a fresh `eval "$("$RDR_HOME/bin/rdr" env)"` in the shell
+that commits — never restated from session memory (a resumed session's recall
+can force-commit a project that has it off).
 
 **Run the block below verbatim** (same doctrine as §seam-bind — do not paraphrase or
 abbreviate; weaker models must run it literally). The gate is inline; `rdr_commit`
