@@ -5,7 +5,7 @@
 //
 // Usage:
 //
-//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--project P] [--records DIR]
+//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
@@ -59,7 +59,7 @@ const schemaVersion = scan.SchemaVersion
 const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
-  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--all] [--project P] [--records DIR] [--repo DIR]
+  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--grep TEXT] [--all] [--project P] [--records DIR] [--repo DIR]
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
@@ -94,12 +94,16 @@ off_vocabulary}, evidence.{line_start,line_end,anchors[]} — the gate
 questions in ~10KB where elements is ~140KB; an anchor's "resolved" is
 present only when edges were resolved in the same call
 (--filter assumptions,edges).
-inspect with no flag is the summary: one line per section and element, id,
-line range and a label capped at 100 runes — the cheap read plan (~100-200
-lines, under 20KB on the largest records); --select elements is every
-element as JSON, uncapped and ~25× larger. --select <id> then names a
+inspect with no flag is the summary: one line per section and element — id,
+line range, byte size and a label capped at 100 runes — the cheap read plan
+(~100-200 lines, under 21KB on the largest records); --select elements is
+every element as JSON, uncapped and ~25× larger. --select <id> then names a
 section or element to read;
-repeat it for several, answered in order. A record is named by number (3,
+repeat it for several, answered in order. --grep TEXT asks which elements
+hold the literal (case-sensitive, fixed string): one row per containing
+element — id, range, matching line numbers, first matching line — a bare
+miss answers no-match at exit 0; it does not combine with --select/--filter.
+A record is named by number (3,
 03, 0003), slug, path, or the corpus's own citation (cli/0003, and
 cli/0003:A2 selects the element); --records defaults to $RDR_RECORDS and a
 relative one resolves against it. Name SEVERAL records for the set: each
@@ -369,6 +373,7 @@ type flags struct {
 	coverage           *bool
 	project, records   *string
 	sel                multiString // inspect: every --select, in order
+	grep               *string     // inspect: the literal whose containing elements to name
 	filter             *string
 	// argc is how many positional arguments the invocation carried. The
 	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
@@ -416,6 +421,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
 		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|assumptions|<element-id>; repeat for several, answered in order")
+		f.grep = fs.String("grep", "", "name the elements whose lines carry this literal (case-sensitive, fixed string); no-match answers exit 0; not with --select or --filter")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
@@ -871,6 +877,12 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:usage (inspect takes one or more NNNN, citation or path)")
 		return 2
 	}
+	// --grep is its own question — which elements hold the literal — and
+	// crossing it with a projection flag has no one answer to give.
+	if f.grep != nil && *f.grep != "" && (len(f.sel.values) > 0 || (f.filter != nil && *f.filter != "")) {
+		fmt.Fprintln(stderr, "stopped:usage (--grep answers alone; drop --select/--filter)")
+		return 2
+	}
 	for i, sel := range f.sel.values {
 		f.sel.values[i] = localCitation(sel, *f.records)
 	}
@@ -980,6 +992,11 @@ func project(arg string, f *flags, stderr io.Writer) (projection, error) {
 	}
 	if doc.Record == "" {
 		return projection{}, fmt.Errorf("stopped:no-record-number (neither the title nor the filename carries NNNN)")
+	}
+	// --grep answers before edges resolve: a text search over one record
+	// never needs the corpus scan the edge verdicts pay for.
+	if f.grep != nil && *f.grep != "" {
+		return grepRecord(doc, *f.grep, *f.json), nil
 	}
 	if showsEdges(f) {
 		resolveEdges(doc, f, stderr)
@@ -1157,6 +1174,102 @@ func wordByte(b byte) bool {
 	return b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
 
+// grepHit is one containing element the literal was found in.
+type grepHit struct {
+	ID        string `json:"id"`
+	LineStart int    `json:"line_start"`
+	LineEnd   int    `json:"line_end"`
+	Lines     []int  `json:"lines"`
+	First     string `json:"first"`
+}
+
+// grepHitLineNumbers bounds how many matching line numbers a text row
+// prints; JSON carries them all.
+const grepHitLineNumbers = 10
+
+// grepRecord answers `inspect --grep`: which minted elements hold the
+// literal, case-sensitive and fixed — the author-label question ("which
+// element defines this term") that used to be a select-per-element hunt.
+// One row per containing element: id, range, matching line numbers, the
+// first matching line trimmed. A hit inside no element names the
+// tightest section, so no line of the record is out of reach. A bare
+// miss is a stated absence — `no-match`, exit 0 — not an error.
+func grepRecord(doc *scan.Document, literal string, jsonOut bool) projection {
+	var order []string
+	byID := map[string]*grepHit{}
+	for n := 1; n <= doc.Lines; n++ {
+		line := doc.Line(n)
+		if !strings.Contains(line, literal) {
+			continue
+		}
+		id, start, end := containerOf(doc, n)
+		if id == "" {
+			continue
+		}
+		h := byID[id]
+		if h == nil {
+			h = &grepHit{ID: id, LineStart: start, LineEnd: end, First: clip(strings.TrimSpace(line))}
+			byID[id] = h
+			order = append(order, id)
+		}
+		h.Lines = append(h.Lines, n)
+	}
+	hits := []grepHit{}
+	for _, id := range order {
+		hits = append(hits, *byID[id])
+	}
+	r := projection{doc: doc}
+	if jsonOut {
+		r.value = map[string]any{"schema": schemaVersion, "record": doc.Record, "path": doc.Path,
+			"grep": literal, "matches": hits}
+		return r
+	}
+	if len(hits) == 0 {
+		r.lines = []string{fmt.Sprintf("no-match  %q in %s", literal, doc.Record)}
+		return r
+	}
+	for _, h := range hits {
+		r.lines = append(r.lines, fmt.Sprintf("%-24s %5d-%-5d lines %s  %s",
+			h.ID, h.LineStart, h.LineEnd, lineList(h.Lines), h.First))
+	}
+	return r
+}
+
+// lineList joins matching line numbers, bounded for the text row.
+func lineList(ns []int) string {
+	parts := make([]string, 0, len(ns))
+	for i, n := range ns {
+		if i == grepHitLineNumbers {
+			parts = append(parts, fmt.Sprintf("+%d more", len(ns)-i))
+			break
+		}
+		parts = append(parts, strconv.Itoa(n))
+	}
+	return strings.Join(parts, ",")
+}
+
+// containerOf is the minted id whose range holds the line: the tightest
+// element, else the tightest section, each an id --select can read.
+func containerOf(doc *scan.Document, line int) (id string, start, end int) {
+	if e := tightestAt(doc, line); e != nil {
+		return e.ID, e.LineStart, e.LineEnd
+	}
+	var best *scan.Node
+	for i := range doc.Outline {
+		n := &doc.Outline[i]
+		if line < n.LineStart || line > n.LineEnd {
+			continue
+		}
+		if best == nil || n.LineEnd-n.LineStart < best.LineEnd-best.LineStart {
+			best = n
+		}
+	}
+	if best == nil {
+		return "", 0, 0
+	}
+	return best.ID, best.LineStart, best.LineEnd
+}
+
 // nearMisses filters the record's own id roster against the token: one
 // edit apart first — the typo class — then ids sharing its kind prefix,
 // in the order Select searches. Nothing is ever invented; every id
@@ -1293,9 +1406,13 @@ func summary(doc *scan.Document, w io.Writer) int {
 	// Sections first, nested by level: the read plan for a record too big
 	// for one call, without the 700-line JSON outline that used to be the
 	// only way to get these ranges.
+	// Every range row carries its byte size: line counts do not predict
+	// bytes — a dense table weighs pages of prose — and a reader budgeting
+	// the next call pulled 65KB elements blind on the count alone.
 	for _, n := range doc.Outline {
 		indent := strings.Repeat("  ", n.Level-1)
-		fmt.Fprintf(w, "§ %-36s %5d-%-5d %s%s\n", n.ID, n.LineStart, n.LineEnd, indent, n.Heading)
+		fmt.Fprintf(w, "§ %-36s %5d-%-5d %6s %s%s\n", n.ID, n.LineStart, n.LineEnd,
+			humanBytes(doc.SpanBytes(n.LineStart, n.LineEnd)), indent, n.Heading)
 	}
 	for _, e := range doc.Elements {
 		// `~` marks an id a label would pin. A kind the template does not
@@ -1305,7 +1422,8 @@ func summary(doc *scan.Document, w io.Writer) int {
 		if e.Backlog {
 			mark = "~"
 		}
-		fmt.Fprintf(w, "%s %-24s %5d-%-5d %s\n", mark, e.ID, e.LineStart, e.LineEnd, clip(e.Label))
+		fmt.Fprintf(w, "%s %-24s %5d-%-5d %6s %s\n", mark, e.ID, e.LineStart, e.LineEnd,
+			humanBytes(e.Bytes), clip(e.Label))
 	}
 	for _, wn := range doc.Warnings {
 		fmt.Fprintf(w, "! %-24s %5d-%-5d %s\n", wn.Code, wn.LineStart, wn.LineEnd, clip(wn.Message))
@@ -1325,6 +1443,19 @@ func summary(doc *scan.Document, w io.Writer) int {
 // sed. The id is the identity and the label only orients, so the row keeps
 // its head and `--select <id>` returns the bytes. JSON is uncapped.
 const summaryLabelRunes = 100
+
+// humanBytes renders a size in at most six characters — `843B`, `12.4K`
+// — so a summary row pays a fixed column, not a number that grows.
+func humanBytes(n int) string {
+	if n < 1000 {
+		return strconv.Itoa(n) + "B"
+	}
+	k := float64(n) / 1024
+	if k < 100 {
+		return fmt.Sprintf("%.1fK", k)
+	}
+	return fmt.Sprintf("%.0fK", k)
+}
 
 // clip bounds a summary label to summaryLabelRunes, marking the cut.
 func clip(s string) string {

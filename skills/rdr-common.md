@@ -379,8 +379,8 @@ property of the RDR's on-disk state, which the prompt already inspects.
   FIRST call** is `inspect --json --filter edges,elements NNNN`, kept to the
   edges whose `resolved` is false or absent — that list is its worklist, not a
   hand sweep of every anchor. **An outsized single element is never pulled
-  whole** (a contracts section runs tens of KB) — check its § row's line range
-  first and split. A spawn working lint findings gets the captured
+  whole** (a contracts section runs tens of KB) — the summary row's size
+  column says what a select weighs; check it first and split. A spawn working lint findings gets the captured
   `$ITER_DIR/lint.txt` path, not a fresh lint; text it drafts for the record
   cites colon ids (`NNNN:ID`), never `NNNN ID`. Delegate the *other*-repo
   reads — the host record's own clauses stay with the authoring parent.

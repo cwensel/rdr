@@ -2344,3 +2344,126 @@ func TestTrailingFlagsNameTheRealMistake(t *testing.T) {
 		}
 	}
 }
+
+// TestSummaryRowsCarryByteSizes: every range row of the text summary says
+// what the range weighs, because line counts do not predict bytes — a
+// 250-line dense element was read blind at 65KB on a "≈25KB" guess. The
+// element's size is the bytes --select returns for it, the JSON elements
+// facet carries the same number, and on a record built to be enormous the
+// summary itself stays within the one-call cap the label clip protects.
+func TestSummaryRowsCarryByteSizes(t *testing.T) {
+	code, out, errb := runCapture(t, "inspect", fixturePath("current-shape.md"))
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	raw, _ := os.ReadFile(fixturePath("current-shape.md"))
+	lines := strings.Split(string(raw), "\n")
+	want := len(strings.Join(lines[43:50], "\n")) + 1 // A2 is lines 44-50
+	var a2, sec string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, " 0004:A2 ") {
+			a2 = l
+		}
+		if strings.Contains(l, ":§metadata ") {
+			sec = l
+		}
+	}
+	if a2 == "" || !strings.Contains(a2, " "+humanBytes(want)+" ") {
+		t.Errorf("A2 row should carry %s:\n%q", humanBytes(want), a2)
+	}
+	if sec == "" || !strings.Contains(sec, "B ") && !strings.Contains(sec, "K ") {
+		t.Errorf("section row should carry a size:\n%q", sec)
+	}
+	code, jsonOut, _ := runCapture(t, "inspect", "--json", "--select", "elements", fixturePath("current-shape.md"))
+	if code != 0 || !strings.Contains(jsonOut, fmt.Sprintf("\"bytes\": %d", want)) {
+		t.Errorf("JSON elements should carry bytes %d: exit %d", want, code)
+	}
+
+	// A synthetic monster: one assumption whose body is a page of dense
+	// lines, plus a long roster of long-labelled peers. The heavy row says
+	// so in K, and the whole summary stays under the ~30KB call budget.
+	dense := strings.Repeat("  - widget batching holds under replay pressure and never reorders the ledger\n", 900)
+	var peers strings.Builder
+	for i := 2; i <= 120; i++ {
+		fmt.Fprintf(&peers, "- **A%d [%s]**\n  - Evidence: synthetic\n", i, strings.Repeat("x", 160))
+	}
+	body := "# Recommendation 0031: Weighing\n\n## Metadata\n\n- **Status**: Draft\n\n" +
+		"## Critical Assumptions\n\n- **A1 [The heavy one]**\n" + dense + peers.String()
+	path := filepath.Join(t.TempDir(), "0031-weighing.md")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb = runCapture(t, "inspect", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var heavy string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, " 0031:A1 ") {
+			heavy = l
+		}
+	}
+	if !strings.Contains(heavy, "K ") {
+		t.Errorf("the dense element's row should carry a K size:\n%q", heavy)
+	}
+	if len(out) > 30*1024 {
+		t.Errorf("summary is %d bytes; the size column must not break the ~30KB cap", len(out))
+	}
+}
+
+// TestGrepNamesTheContainingElement: `inspect --grep` answers which
+// minted elements hold a literal — the author-label question that used to
+// be a select-per-element hunt. A label buried mid-prose inside a clause
+// reports the clause, one row with id, range, line numbers and the first
+// matching line; a bare miss is a stated absence at exit 0; and crossing
+// --grep with --select has no one answer, so it is refused as usage.
+func TestGrepNamesTheContainingElement(t *testing.T) {
+	fence := "```"
+	body := "# Recommendation 0022: Bands\n\n## Metadata\n\n- **Status**: Draft\n\n" +
+		"#### Normative Contracts\n\n**C1**\n\n" +
+		fence + "normative\nL-1  input := owned rows\nL-2  the BandHold rule keeps every row\n" +
+		"     in its band until release\n" + fence + "\n\nProse mentions BandHold once more.\n"
+	dir := t.TempDir()
+	path := filepath.Join(dir, "0022-bands.md")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := runCapture(t, "inspect", "--grep", "BandHold", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	rows := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(rows) != 2 || !strings.HasPrefix(rows[0], "0022:L-2 ") {
+		t.Fatalf("want the clause first, then the prose section:\n%s", out)
+	}
+	if !strings.Contains(rows[0], "lines 13") || !strings.Contains(rows[0], "L-2  the BandHold rule keeps every row") {
+		t.Errorf("clause row should carry its line number and first match:\n%q", rows[0])
+	}
+	if !strings.Contains(rows[1], ":§") {
+		t.Errorf("a hit outside every element names its section:\n%q", rows[1])
+	}
+	code, out, _ = runCapture(t, "inspect", "--json", "--grep", "BandHold", path)
+	var rep struct {
+		Grep    string `json:"grep"`
+		Matches []struct {
+			ID    string `json:"id"`
+			Lines []int  `json:"lines"`
+			First string `json:"first"`
+		} `json:"matches"`
+	}
+	if err := json.Unmarshal([]byte(out), &rep); code != 0 || err != nil ||
+		rep.Grep != "BandHold" || len(rep.Matches) != 2 || rep.Matches[0].ID != "0022:L-2" {
+		t.Errorf("--json grep: exit %d, %v, %s", code, err, out)
+	}
+
+	// A miss answers, it does not error: absence stated, exit 0.
+	code, out, _ = runCapture(t, "inspect", "--grep", "bandhold", path)
+	if code != 0 || !strings.Contains(out, "no-match") {
+		t.Errorf("case-sensitive miss: exit %d, out %q", code, out)
+	}
+
+	code, _, errb = runCapture(t, "inspect", "--grep", "BandHold", "--select", "0022:C1", path)
+	if code != 2 || !strings.Contains(errb, "stopped:usage") {
+		t.Errorf("--grep with --select: exit %d, stderr %q", code, errb)
+	}
+}

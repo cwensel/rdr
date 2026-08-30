@@ -16,7 +16,8 @@ edge graph. `lint` is the conformance authority (§Lint).
 Flags precede the positional argument — Go's flag parser stops at the
 first non-flag word.
 
-    rdr inspect 55                         # sections (§, nested) then elements, one line each, ids first
+    rdr inspect 55                         # sections (§, nested) then elements, one line each: id, range, byte size, label
+    rdr inspect --grep 'RetryBudget' 0055  # which elements hold the literal (case-sensitive): id, range, hit lines, first match; a miss is no-match at exit 0
     rdr inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
     rdr inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
     rdr inspect --select 0055:C4 0055      # the bytes the id names

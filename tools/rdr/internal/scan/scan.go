@@ -135,6 +135,11 @@ type Element struct {
 	Section   string `json:"section"`
 	LineStart int    `json:"line_start"`
 	LineEnd   int    `json:"line_end"`
+	// Bytes is the size of the element's lines, newlines included — the
+	// bytes `--select <id>` returns. Line counts do not predict it: a
+	// dense table row weighs what a page of prose does, and a reader
+	// budgeting a call needs the size before the read, not after.
+	Bytes int `json:"bytes"`
 	// Transient marks a contract carrying the Transient marker.
 	Transient bool `json:"transient,omitempty"`
 	// Parent is the contract a clause was read from (`0055:C1` for
@@ -239,7 +244,27 @@ func Bytes(raw []byte, opts Options) *Document {
 	doc.edges()
 	doc.coverage()
 	doc.count()
+	doc.sizes()
 	return doc
+}
+
+// sizes fills each element's byte size once every pass that could move a
+// range has run.
+func (d *Document) sizes() {
+	for i := range d.Elements {
+		e := &d.Elements[i]
+		e.Bytes = d.SpanBytes(e.LineStart, e.LineEnd)
+	}
+}
+
+// SpanBytes is the byte size of lines start..end inclusive, each with its
+// newline — the size of the text `--select` returns for that range.
+func (d *Document) SpanBytes(start, end int) int {
+	n := 0
+	for _, l := range d.Slice(start, end) {
+		n += len(l) + 1
+	}
+	return n
 }
 
 // Line returns the 1-based line, or "" out of range.

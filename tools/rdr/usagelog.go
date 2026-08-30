@@ -242,6 +242,11 @@ func usageFacet(cmd string, f *flags, target string) string {
 		if f.argc > 1 {
 			which = "records:"
 		}
+		if f.grep != nil && *f.grep != "" {
+			// The literal itself is never logged: the facet audits uptake,
+			// and record text does not belong in the usage log.
+			return which + "grep"
+		}
 		if len(f.sel.values) > 0 {
 			classes := make([]string, 0, len(f.sel.values))
 			for _, sel := range f.sel.values {
