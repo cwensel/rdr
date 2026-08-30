@@ -24,7 +24,11 @@ to fix).
    reads `reentry_target`), not history — keep it byte-for-byte. A route-back
    refine that amends or adds an assumption APPENDS that id to the list
    (`re-verify A2,A4` → `re-verify A2,A4,A9`), keeps `@<stage>`, and never
-   writes `none`: `none` tells Stage 4 nothing is in scope. The 07.1
+   writes `none`: `none` tells Stage 4 nothing is in scope. The amended
+   assumption itself keeps its prior terminal Status and stamp — the re-verify
+   list, not the record's own line, says re-verification is owed; a
+   "Verified (re-entry)" stamp written here asserts Stage-4 work this stage
+   did not do. The 07.1
    `## Refinement Context` note is read-only for this stage — read it for the
    defect, append no disposition; Stage 7 deletes it. The re-lock flip clears
    the qualifier.
@@ -51,7 +55,8 @@ to fix).
    under-specified signal — route back to Stage 2.
 
 Report the contradictions/redundancies found and the triage verdict, then apply
-the fixes — each replacing the exact bytes just projected with `--select NNNN:<id>`,
+the fixes — each replacing exact bytes projected with `--select NNNN:<id>` **in
+the same turn as the replace** (a projection several edits old has drifted),
 never text recalled from squeezed/grepped output; portable tools only, no GNU-only
 `sed` addresses (`N,+Mp`) or `cat -A`. Drop into ultrathink only for a contradiction whose resolution is a
 real design call. Be brief but not lossy in the report — terse findings and
