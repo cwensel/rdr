@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
@@ -2056,5 +2057,44 @@ func TestLensHelpDoesNotEnumerate(t *testing.T) {
 	}
 	if folders == 0 {
 		t.Fatal("no probe under the lens tree's root; the test pins nothing")
+	}
+}
+
+// TestSummaryClipsLongLabels: a table-row scenario or a paragraph-long
+// contract carries its whole text as its label; uncapped, those rows put
+// the summary of a large record past the ~30KB one call returns. The text
+// row keeps the head of the label with a marker; JSON keeps it whole.
+func TestSummaryClipsLongLabels(t *testing.T) {
+	raw, _ := os.ReadFile(fixturePath("current-shape.md"))
+	long := strings.Repeat("é", 150) + " tail"
+	body := strings.Replace(string(raw), "- **A2 [The checksum helper is the only implementation in the tree]**",
+		"- **A2 ["+long+"]**", 1)
+	path := filepath.Join(t.TempDir(), "0004-current-shape.md")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := runCapture(t, "inspect", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var row string
+	for _, l := range strings.Split(out, "\n") {
+		if strings.Contains(l, " 0004:A2 ") {
+			row = l
+		}
+	}
+	if row == "" {
+		t.Fatalf("no A2 row:\n%s", out)
+	}
+	label := row[strings.Index(row, "é"):]
+	if n := utf8.RuneCountInString(label); n != summaryLabelRunes || !strings.HasSuffix(label, "…") || strings.Contains(row, "tail") {
+		t.Errorf("A2 label should be %d runes ending in …, got %d: %q", summaryLabelRunes, n, label)
+	}
+	code, out, errb = runCapture(t, "inspect", "--json", "--select", "elements", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, long) {
+		t.Errorf("JSON elements should carry the whole label")
 	}
 }

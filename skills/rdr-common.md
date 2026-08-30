@@ -172,8 +172,10 @@ RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identit
 
 **Reading a record** — this one or any peer — through the projector, never
 `sed -n`/`grep` on the file. `inspect NNNN` first: its `§` rows are the sections
-with line ranges, then every element — the whole read plan in ~150 lines (not
-`--filter outline`, ~800, nor `--select elements`, 25× larger). Then read by id:
+with line ranges, then every element, labels capped at 100 runes — the whole
+read plan in one call (~100-200 lines, under 20KB on the largest records; never
+`| head`, which drops element rows silently; not `--filter outline`, ~800 lines,
+nor `--select elements`, 25× larger). Then read by id:
 `--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:ALT5` / a contract
 clause `NNNN:S-1`, `NNNN:L-3` (the label as written inside the fence; never pull
 the whole `§normative-contracts`, tens of KB, to reach one clause) — each `§` row
@@ -343,10 +345,10 @@ property of the RDR's on-disk state, which the prompt already inspects.
   **The spawn prompt carries the projector.** A sub-agent loads no SKILL.md and
   no rdr-common, so it reads the record however it can — `sed -n`/`grep`/`awk`
   by line range, every call a turn. Paste into its prompt: the absolute
-  `$RDR_HOME/bin/rdr`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list),
-  `inspect --select NNNN:A7 NNNN` / `NNNN:§section`, `--json --filter metadata` —
-  with "never `sed`/`grep` the record". The spawn prompt also carries the shell
-  rule: output separators are `---`, never `===` — zsh aborts an unquoted
+  `$RDR_HOME/bin/rdr`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list,
+  under 20KB, never `| head`), `inspect --select NNNN:A7 NNNN` / `NNNN:§section`,
+  `--json --filter metadata` — with "never `sed`/`grep` the record". The spawn
+  prompt also carries the shell rule: output separators are `---`, never `===` — zsh aborts an unquoted
   `=`-leading word (`=== not found`), poisoning the turn and skipping every
   chained call. Paste these read rules too, each a turn saved: **batch
   `--select`s by summed line range** — the ranges in `inspect NNNN` add up, ~250

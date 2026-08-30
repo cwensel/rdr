@@ -36,6 +36,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
@@ -86,9 +87,11 @@ Only edges[] carries "resolved", and deciding it scans the records dir and
 walks --repo: the whole envelope, --select edges, --filter …edges and lint
 pay that (~1.5s on a large corpus); every other facet answers from the
 record alone (~20ms).
-inspect with no flag is the summary: one line per element, id and line range —
-the cheap id list (~50 lines); --select elements is every element as JSON,
-~25× larger. --select <id> then names a section or element to read;
+inspect with no flag is the summary: one line per section and element, id,
+line range and a label capped at 100 runes — the cheap read plan (~100-200
+lines, under 20KB on the largest records); --select elements is every
+element as JSON, uncapped and ~25× larger. --select <id> then names a
+section or element to read;
 repeat it for several, answered in order. A record is named by number (3,
 03, 0003), slug, path, or the corpus's own citation (cli/0003, and
 cli/0003:A2 selects the element); --records defaults to $RDR_RECORDS and a
@@ -936,10 +939,10 @@ func summary(doc *scan.Document, w io.Writer) int {
 		if e.Backlog {
 			mark = "~"
 		}
-		fmt.Fprintf(w, "%s %-24s %5d-%-5d %s\n", mark, e.ID, e.LineStart, e.LineEnd, e.Label)
+		fmt.Fprintf(w, "%s %-24s %5d-%-5d %s\n", mark, e.ID, e.LineStart, e.LineEnd, clip(e.Label))
 	}
 	for _, wn := range doc.Warnings {
-		fmt.Fprintf(w, "! %-24s %5d-%-5d %s\n", wn.Code, wn.LineStart, wn.LineEnd, wn.Message)
+		fmt.Fprintf(w, "! %-24s %5d-%-5d %s\n", wn.Code, wn.LineStart, wn.LineEnd, clip(wn.Message))
 	}
 	fmt.Fprintf(w, "derived: %s\n", derivedLine(doc.Counts))
 	// The read instruction lands where the ranges are read: a model that
@@ -947,6 +950,23 @@ func summary(doc *scan.Document, w io.Writer) int {
 	// call that returns the same bytes and survives the next edit.
 	fmt.Fprintf(w, "read: rdr inspect --select <id> %s   (a section or element; repeat --select for several; never sed -n on these ranges)\n", doc.Record)
 	return 0
+}
+
+// summaryLabelRunes bounds one summary row. A table-row scenario or a
+// paragraph-long contract carries its whole text as its label, and on a
+// large record those rows put the summary past the ~30KB a harness returns
+// in one call — the read plan overflowed to a file and got sliced with
+// sed. The id is the identity and the label only orients, so the row keeps
+// its head and `--select <id>` returns the bytes. JSON is uncapped.
+const summaryLabelRunes = 100
+
+// clip bounds a summary label to summaryLabelRunes, marking the cut.
+func clip(s string) string {
+	if utf8.RuneCountInString(s) <= summaryLabelRunes {
+		return s
+	}
+	r := []rune(s)
+	return string(r[:summaryLabelRunes-1]) + "…"
 }
 
 // derivedLine reports the labelling backlog per kind, and the ids that
