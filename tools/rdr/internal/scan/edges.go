@@ -243,12 +243,39 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 	}
 }
 
-// leadsClause reports whether refs[i] opens its `;`-clause of value:
-// it is the first reference, or a `;` separates it from the reference
-// before it. FindRefs returns refs in offset order, so the previous
-// reference is either the previous clause's last or this clause's leader.
+// leadsClause reports whether refs[i] opens its `;`-clause of value.
+// The field's first reference always leads: the field is the statement.
+// A later reference leads only when it is the first token of its
+// `;`-clause — nothing but whitespace and light punctuation (emphasis,
+// a bracket, a quote, a dash) between the `;` and the reference. A `;`
+// is prose too, and a peer named mid-sentence after one is a mention:
+// `…; this field is the record. Also owed to a peer: cli/NNNN …` names
+// a peer, it does not override it. FindRefs returns refs in offset
+// order, so a `;` before the previous reference is not this clause's.
 func leadsClause(value string, refs []edge.Ref, i int) bool {
-	return i == 0 || strings.Contains(value[refs[i-1].End:refs[i].Start], ";")
+	if i == 0 {
+		return true
+	}
+	start := refs[i].Start
+	semi := strings.LastIndex(value[:start], ";")
+	if semi < refs[i-1].End {
+		return false
+	}
+	return clauseLead(value[semi+1 : start])
+}
+
+// ClauseLeadPunct is what may sit between a `;` and the reference that
+// leads the clause without making the reference a mid-sentence mention.
+const ClauseLeadPunct = " \t*_`([\"'\u201c\u2018\u2014\u2013-:,"
+
+// clauseLead reports whether s carries no prose. The list joiner `and`
+// is not prose: `A; B; and C` is one list of three.
+func clauseLead(s string) bool {
+	s = strings.TrimLeft(s, ClauseLeadPunct)
+	if rest, ok := strings.CutPrefix(s, "and"); ok {
+		s = strings.TrimLeft(rest, ClauseLeadPunct)
+	}
+	return s == ""
 }
 
 // placeholderValue reports whether a metadata value is the template seed

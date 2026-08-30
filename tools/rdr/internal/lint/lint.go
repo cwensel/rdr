@@ -511,7 +511,7 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 						Message:   string(e.Kind) + " names " + t + ", and " + t + " " + string(e.Kind) + " this record back — one of the two is wrong",
 						LineStart: e.Line,
 						LineEnd:   e.LineEnd,
-						Fix:       "decide which record holds the relation and remove the other side's line",
+						Fix:       ownershipFix(d, e),
 					})
 					break
 				}
@@ -712,6 +712,55 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(b[i:])
+}
+
+// ownershipFix names the repair. A Predecessors or Moved-to line is the
+// relation, so one side's line goes. An Overrides field is prose read
+// by clause, and the edge is minted by a reference OPENING a `;`-clause
+// — which a prose semicolon can do by accident. The fix quotes the
+// clause so the author sees which token was read, and says how to keep
+// the sentence when it is a mention.
+func ownershipFix(d *scan.Document, e scan.Edge) string {
+	if e.Kind != edge.Overrides {
+		return "decide which record holds the relation and remove the other side's line"
+	}
+	clause := overridesClause(d, e.Evidence)
+	return "the reference " + e.Evidence + " at L" + itoa(e.Line) + " opens the `;`-clause \"" + clause +
+		"\", which reads as an override — if it is a mention, rewrite the clause so it does not open with " +
+		e.Evidence + " (move the reference after its verb, or join it to the clause before with a comma or dash); " +
+		"if it is the override, remove the other record's line"
+}
+
+// overridesClause returns the `;`-clause of the Overrides field that the
+// reference raw opens — or, for the field's first reference, the clause
+// that holds it — trimmed for the message.
+func overridesClause(d *scan.Document, raw string) string {
+	var holds string
+	for _, f := range d.Metadata {
+		if f.Canonical != "Overrides" {
+			continue
+		}
+		for _, c := range strings.Split(f.Value, ";") {
+			c = strings.TrimSpace(c)
+			if strings.HasPrefix(strings.TrimLeft(c, scan.ClauseLeadPunct), raw) {
+				return clip(c)
+			}
+			if holds == "" && strings.Contains(c, raw) {
+				holds = c
+			}
+		}
+	}
+	if holds == "" {
+		return raw
+	}
+	return clip(holds)
+}
+
+func clip(s string) string {
+	if r := []rune(s); len(r) > 72 {
+		return string(r[:72]) + "…"
+	}
+	return s
 }
 
 func ownershipKind(k edge.Kind) bool {

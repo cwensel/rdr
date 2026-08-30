@@ -232,8 +232,16 @@ func TestOverridesClauseLeaderIsTheTarget(t *testing.T) {
 		{"single ref", "cli/0003 Approach item 3; the op was renamed", []string{"cli/0003"}, nil},
 		{"multi-ref clause", "cli/0092's default rung is overridden outside cli/0112's fold band", []string{"cli/0092"}, []string{"cli/0112"}},
 		{"multiple clauses", "cli/0103 REQ-13's file grain; cli/0120 REQ-CARRIER-6's zero-record read; 0089 A5", []string{"cli/0089", "cli/0103", "cli/0120"}, nil},
-		{"element cite leads", "cli/0092:A6 — narrows the rung cli/0094 shipped; also overrides cli/0092:A4 (retrofit#ngzs) and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081", "cli/0094"}},
+		{"element cite leads", "cli/0092:A6 — narrows the rung cli/0094 shipped; cli/0092:A4 (retrofit#ngzs) and cli/0081 REQ-37", []string{"cli/0092:A4", "cli/0092:A6"}, []string{"cli/0081", "cli/0094"}},
 		{"0113 shape", "overrides cli/0092; cli/0112 stays authoritative for the fold band cli/0092 sits inside", []string{"cli/0092", "cli/0112"}, []string{"cli/0092"}},
+		// A leader is the first token of its clause. Prose after a `;`
+		// makes the reference a mention — the prose semicolon that read
+		// a cross-pointer as an override — while emphasis, a bracket, a
+		// dash or the list joiner `and` do not.
+		{"prose semicolon", "cli/0103 REQ-38's read arm; this field is the record. Also owed to a peer, not an override: cli/0112 L-3's prose names a spelling I-1 removes", []string{"cli/0103"}, []string{"cli/0112"}},
+		{"verb after semicolon", "cli/0092:A6 — narrows the rung; also overrides cli/0092:A4 and cli/0081 REQ-37", []string{"cli/0092:A6"}, []string{"cli/0081", "cli/0092:A4"}},
+		{"light punctuation leads", "cli/0103 REQ-13; **cli/0092**'s default rung; — (cli/0120) REQ-6; and cli/0089 A5", []string{"cli/0089:A5", "cli/0092", "cli/0103", "cli/0120"}, nil},
+		{"semicolon inside the first clause", "cli/0103 REQ-38 (A5 coalesce; scenario (i) → ONE) — its normalization survives; cli/0104 REQ-35 → multiset", []string{"cli/0103", "cli/0104"}, nil},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

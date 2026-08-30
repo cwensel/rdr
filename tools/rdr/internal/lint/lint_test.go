@@ -735,3 +735,43 @@ func TestPeerElementHintListsEveryIdBounded(t *testing.T) {
 		t.Errorf("a long single word was not clipped by rune: %q", got)
 	}
 }
+
+// TestOwnershipMutualProseSemicolonAndFixQuotesTheClause is the refine
+// session that deleted a cross-pointer: the field's second sentence
+// names a peer after a prose `;` ("…; this field is the record. Also
+// owed to a peer, not an override: cli/NNNN …"), the peer overrides
+// this record back, and the fix text named neither the clause nor the
+// `;`. A reference that does not OPEN its clause is a mention, so the
+// pair is not mutual; and when a pair is, the fix quotes the clause the
+// reference opens and says how to rewrite it.
+func TestOwnershipMutualProseSemicolonAndFixQuotesTheClause(t *testing.T) {
+	a := record(t, "0106",
+		"cli/0103 REQ-38's read arm; cli/0104 REQ-35's set equality → multiset. Both predecessors are Final; this field is the record. Also owed to a peer, not an override: cli/0112 L-3's prose names a spelling I-1 removes.",
+		"cli/0112:L3")
+	b := record(t, "0112",
+		"cli/0103 REQ-40 narrows-only selection; cli/0106 I-4(a) — narrowed to the cohort space.",
+		"cli/0106:A1")
+	docs := pair(t, a, b)
+	for _, d := range docs {
+		if r := Run(d, Options{Corpus: docs}); has(r, "ownership:mutual") {
+			t.Errorf("%s: a mention after a prose semicolon was read as an override: %v", d.Record, find(t, r, "ownership:mutual").Message)
+		}
+	}
+
+	// The same field with the peer LEADING its clause is the cycle, and
+	// the fix says which token was read and what to do with it.
+	x := record(t, "0106",
+		"cli/0103 REQ-38's read arm; cli/0112 L-3's prose names a spelling I-1 removes, not an override.",
+		"cli/0112:L3")
+	f := find(t, Run(x, Options{Corpus: pair(t, x, b)}), "ownership:mutual")
+	for _, want := range []string{
+		"cli/0112 at L",
+		"opens the `;`-clause \"cli/0112 L-3's prose names a spelling I-1 removes, not an override.\"",
+		"if it is a mention, rewrite",
+		"if it is the override, remove the other record's line",
+	} {
+		if !strings.Contains(f.Fix, want) {
+			t.Errorf("fix %q lacks %q", f.Fix, want)
+		}
+	}
+}
