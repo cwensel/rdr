@@ -200,7 +200,7 @@ read from the file **in the same turn** (an exact-replace with a
 one-occurrence check); retyping from an earlier projection is where edits
 fail. Locating an edit anchor with `grep -n` on the file for a phrase just
 projected is sanctioned; window-reading content that way is not. And never
-`2>/dev/null` an `rdr` call — the `stopped:` diagnostics live on stderr. A corpus question
+silence an `rdr` call's stderr — a `stopped:` line is the answer, not noise. A corpus question
 ("who cites this", "what is Draft", "what blocks") goes through
 `index --status` / `--backlinks=NNNN[:elem]` / `--cycles` — a few lines each —
 never bare `index --json` (the whole graph, MB, and nothing to grep it for).
@@ -395,10 +395,9 @@ property of the RDR's on-disk state, which the prompt already inspects.
   handed to a consult leave the parent's list the moment the spawn starts.
   When nothing is owed, end the turn with no tool call: the
   completion notification is the wait (no sleep, no poll, no agent-list check,
-  no filler echo, no dir-watch). Act on the packet — authoring uses its appendix
-  quotes; doubting a packet is a second consult, never a parent re-read. Open
-  the report file only for a finding the packet names as needing the parent's
-  judgment.
+  no filler echo, no dir-watch). Act on the packet; doubting one is a second
+  consult, never a parent re-read. Open the report file only for a finding the
+  packet names as needing the parent's judgment.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
@@ -637,10 +636,9 @@ edit (it surfaces the findings that pre-date this stage — no stash-and-compare
 to tell old from new), and one after the last write (that is the receipt). The
 only reason to lint mid-pass is a `resolution` finding this stage just created.
 Each run is a corpus scan + repo walk, so the run IS the capture:
-`lint <NNNN> | tee "$ITER_DIR/lint.txt"` — every follow-up question (tier
-counts, per-code greps, one finding's text) reads the saved copy. Re-invoking
-lint to re-grep output it already printed is the cadence leak this rule exists
-to stop.
+`lint <NNNN> | tee "${ITER_DIR:-/tmp}/lint.txt"` — every follow-up question
+(tier counts, per-code greps, one finding's text) reads the saved copy, never
+a re-invocation.
 
 ## §amendment-sweep — propagate clause changes at disposition
 
