@@ -175,8 +175,9 @@ over Normative Contracts, not a fact: the row stops with
   lens just run, `--outcome critique` or `--outcome repeatability` reads the
   `Model:` stamps and the `variant:` header (§model-stamp) and answers `none`
   when the lens is finished, or names it again when it is not. Where it names
-  the lens again, `Next:` is this lens — that answer outranks the row's
-  folder-level one, which is what it is for.
+  the lens again, `Next:` is this lens — on a lens the row does not read
+  as stale, that answer outranks the row's folder-level one, which is what
+  it is for; a stale lens stays owed whatever the completion files say.
 - **3amigo | critique | cove** converged → `emit.next` names the next lens:
   `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
   second pass keeps `critique` the first missing item — `Next:` is

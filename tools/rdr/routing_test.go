@@ -691,3 +691,85 @@ func TestLockPreservesJointDecisionQualifier(t *testing.T) {
 		t.Errorf("the emitted edit rewrote the Status line to %q, want %q", out, want)
 	}
 }
+
+// TestCompletionOutcomesReadLensStale pins the status model's critique and
+// repeatability groups to the `lens_stale` fact the lens group already
+// reads: a re-entered Draft keeps every file its Final earned, so a
+// completion row guarding only run/model/file flags would answer "finished"
+// over evidence that never saw the rework — while the lens group, one
+// outcome over, says the same lens is stale and owed. Each done-claiming
+// row must exclude the stale slice, and a dedicated stale row must claim
+// it with an answer that routes back to the lens rather than reading as
+// done.
+//
+// The shared parser collapses `all` and `unless` blocks, and the split is
+// the whole point here, so this test reads the rule chunks directly.
+func TestCompletionOutcomesReadLensStale(t *testing.T) {
+	src, err := os.ReadFile(repoFile(t, filepath.Join("models", routingModelName)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	chunks := map[string]string{}
+	for _, chunk := range strings.Split(string(src), "[[rule]]") {
+		for _, line := range strings.Split(chunk, "\n") {
+			line = strings.TrimSpace(line)
+			if rest, ok := strings.CutPrefix(line, "id = "); ok {
+				chunks[strings.Trim(rest, `"`)] = chunk
+				break
+			}
+		}
+	}
+
+	// The done-claiming rows: every one whose emit reads as the lens being
+	// finished (`none`, or done-with-a-caveat) over on-disk evidence.
+	completion := map[string]string{
+		"critique-large-complete":                     "critique",
+		"critique-large-diffed":                       "critique",
+		"critique-foundational-complete":              "critique",
+		"critique-foundational-single-model-fallback": "critique",
+		"critique-foundational-unstamped":             "critique",
+		"repeatability-lite-complete":                 "repeatability",
+		"repeatability-lite-variant-mismatch":         "repeatability",
+		"repeatability-lite-mismatch-both":            "repeatability",
+		"repeatability-lite-mismatch-run3":            "repeatability",
+		"repeatability-full-complete":                 "repeatability",
+	}
+	for id, lens := range completion {
+		chunk, ok := chunks[id]
+		if !ok {
+			t.Errorf("rule %q is gone; the completion rows are pinned to their stale guard", id)
+			continue
+		}
+		if !strings.Contains(chunk, "[rule.guard.unless.lens_stale]\neq = \""+lens+"\"") {
+			t.Errorf("rule %q does not exclude lens_stale=%q; it can read a pre-demote %s as finished", id, lens, lens)
+		}
+	}
+
+	// The stale rows that claim the excluded slice: they must route back to
+	// the lens and never read as done.
+	stale := map[string]string{
+		"critique-stale":      "critique",
+		"repeatability-stale": "repeatability",
+	}
+	for id, lens := range stale {
+		chunk, ok := chunks[id]
+		if !ok {
+			t.Errorf("no rule %q claims the lens_stale=%q slice the completion rows exclude", id, lens)
+			continue
+		}
+		if !strings.Contains(chunk, "[rule.guard.all.lens_stale]\neq = \""+lens+"\"") {
+			t.Errorf("rule %q does not guard all.lens_stale=%q", id, lens)
+		}
+		_, emit, ok := strings.Cut(chunk, "[rule.emit]")
+		if !ok {
+			t.Errorf("rule %q has no emit block", id)
+			continue
+		}
+		if !strings.Contains(emit, "/rdr-prelock "+lens) {
+			t.Errorf("rule %q must route back to the lens (`/rdr-prelock %s`); its emit is:\n%s", id, lens, emit)
+		}
+		if strings.Contains(strings.ToLower(emit), "complete") {
+			t.Errorf("rule %q answers over a stale lens and must not say complete; its emit is:\n%s", id, emit)
+		}
+	}
+}

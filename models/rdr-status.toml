@@ -1124,7 +1124,7 @@ surface = "the demote date from the qualifier and the lens's newest evidence dat
 # ===========================================================================
 #
 # Dimensions: profile × critique_models × lens_critique_modelb ×
-# lens_critique_diff = 5 × 4 × 2 × 2 = 80.
+# lens_critique_diff × lens_stale = 5 × 4 × 2 × 2 × 6 = 480.
 #
 # This group exists because a FOLDER cannot answer the question. The
 # `lens` group reads `lens_critique` — critique.md is on disk — and
@@ -1187,6 +1187,8 @@ eq = "large"
 eq = "absent"
 [rule.guard.all.lens_critique_modelb]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next = "none"
 why  = "Profile large — critique owes one pass; the dual-model diff is foundational's rule."
@@ -1201,6 +1203,8 @@ eq = "large"
 eq = "true"
 [rule.guard.all.lens_critique_diff]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next    = "/rdr-prelock critique"
 why     = "A second critique pass was written and never diffed — the disagreement is the signal, and it is unread."
@@ -1212,10 +1216,12 @@ id = "critique-large-complete"
 eq = "critique"
 [rule.guard.all.profile]
 eq = "large"
-[rule.guard.unless.lens_critique_modelb]
-eq = "true"
+[rule.guard.all.lens_critique_modelb]
+eq = "false"
 [rule.guard.all.critique_models]
 in = ["differ", "same", "unknown"]
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next = "none"
 why  = "Profile large — critique's pass is written; large does not owe the dual-model diff."
@@ -1230,6 +1236,8 @@ eq = "large"
 eq = "true"
 [rule.guard.all.lens_critique_diff]
 eq = "true"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next = "none"
 why  = "Profile large — a second pass was taken and diffed; nothing is owed."
@@ -1244,6 +1252,8 @@ eq = "critique"
 eq = "foundational"
 [rule.guard.all.lens_critique_modelb]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next    = "/rdr-prelock critique"
 why     = "Profile foundational — critique owes the DUAL-MODEL diff and no second pass exists."
@@ -1259,6 +1269,8 @@ eq = "foundational"
 eq = "true"
 [rule.guard.all.lens_critique_diff]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next    = "/rdr-prelock critique"
 why     = "Both critique passes are written and never diffed — the disagreement between them is the whole signal."
@@ -1277,6 +1289,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.critique_models]
 eq = "differ"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next = "none"
 why  = "Profile foundational — two base models, diffed; the dual-model obligation is discharged."
@@ -1297,6 +1311,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.critique_models]
 eq = "same"
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next    = "none"
 why     = "Profile foundational — diffed, but both passes are the same base model: the recorded single-model fallback."
@@ -1317,10 +1333,32 @@ eq = "true"
 eq = "true"
 [rule.guard.all.critique_models]
 in = ["unknown", "absent"]
+[rule.guard.unless.lens_stale]
+eq = "critique"
 [rule.emit]
 next    = "none"
 why     = "Profile foundational — diffed, but a pass carries no Model: stamp, so the cross-model draw is unproven."
 surface = "the missing §model-stamp: model-unknown is never read as a match"
+
+# --- re-entered: the pass predates the demote ------------------------------
+#
+# A re-entered Draft keeps the critique its Final earned, so the rows
+# above would read a pre-demote pass — or its diff — as finished work.
+# `lens_stale` says the lens's newest evidence predates the demote date;
+# the rows above exclude this slice with `unless`, so each cell is still
+# claimed once, and the answer never reads as done.
+[[rule]]
+id = "critique-stale"
+[rule.match.recognized]
+eq = "critique"
+[rule.guard.all.profile]
+in = ["large", "foundational"]
+[rule.guard.all.lens_stale]
+eq = "critique"
+[rule.emit]
+next    = "/rdr-prelock critique"
+why     = "Re-entered — the pass on disk predates the demote, so the lens is owed a pass for this iteration."
+surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
 # ===========================================================================
 # `repeatability` — is the repeatability lens FINISHED?
@@ -1328,7 +1366,7 @@ surface = "the missing §model-stamp: model-unknown is never read as a match"
 # ===========================================================================
 #
 # Dimensions: profile × repeatability_variant × the three run probes ×
-# the diff = 5 × 3 × 2 × 2 × 2 × 2 = 240.
+# the diff × lens_stale = 5 × 3 × 2 × 2 × 2 × 2 × 6 = 1440.
 #
 # `rdr-prelock:96-125` was this table written as prose: a (profile ×
 # variant × requested-run) product a model re-derived every run. The
@@ -1389,6 +1427,8 @@ eq = "foundational"
 eq = "none"
 [rule.guard.all.lens_repeatability_run1]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability 1"
 why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL."
@@ -1415,6 +1455,8 @@ in = ["mid", "large"]
 eq = "none"
 [rule.guard.all.lens_repeatability_run1]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "stopped:determinacy-trigger-unjudged"
 why     = "Profile mid/large — repeatability is owed only if the Stage-5 Determinacy trigger fires, which is a judgement over Normative Contracts, not a fact."
@@ -1428,12 +1470,14 @@ surface = "the Normative Contracts section: if a locked contract is algorithmic 
 id = "repeatability-unstamped"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "none"
 [rule.guard.all.lens_repeatability_run1]
 eq = "true"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "stopped:repeatability-variant-unstamped"
 why     = "run-1 exists with no `variant:` header — the durable record is missing and the file count must never stand in for it."
@@ -1445,14 +1489,16 @@ surface = "run-1.md's header line, to be written from Profile before any further
 id = "repeatability-lite-diff"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
 eq = "true"
 [rule.guard.all.lens_repeatability_diff]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability diff"
 why     = "Variant lite — run-1 is written and the RDR-vs-run diff is what remains. Never point at run-2."
@@ -1462,12 +1508,14 @@ surface = "that lite stops after run-1: a run-2 request against this header is s
 id = "repeatability-lite-run1-missing"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next = "/rdr-prelock repeatability 1"
 why  = "Variant lite — run-1 is the only run owed and it is missing."
@@ -1480,8 +1528,8 @@ why  = "Variant lite — run-1 is the only run owed and it is missing."
 id = "repeatability-lite-complete"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
@@ -1492,6 +1540,8 @@ eq = "true"
 eq = "false"
 [rule.guard.all.lens_repeatability_run3]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next = "none"
 why  = "Variant lite — run-1 and the diff are written; the lens is complete."
@@ -1500,8 +1550,8 @@ why  = "Variant lite — run-1 and the diff are written; the lens is complete."
 id = "repeatability-lite-variant-mismatch"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
@@ -1512,6 +1562,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability_run3]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "none"
 why     = "Variant lite with a run-2 present — full ran where lite was owed."
@@ -1523,8 +1575,8 @@ surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and a run-2 e
 id = "repeatability-lite-mismatch-both"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
@@ -1535,6 +1587,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability_run3]
 eq = "true"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "none"
 why     = "Variant lite with run-2 and run-3 present — the full variant ran where lite was owed."
@@ -1544,8 +1598,8 @@ surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and all three
 id = "repeatability-lite-mismatch-run3"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "lite"
 [rule.guard.all.lens_repeatability_run1]
@@ -1556,6 +1610,8 @@ eq = "true"
 eq = "false"
 [rule.guard.all.lens_repeatability_run3]
 eq = "true"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "none"
 why     = "Variant lite with a run-3 present — full ran where lite was owed."
@@ -1572,12 +1628,14 @@ surface = "the VARIANT MISMATCH as a Caveat: the header reads lite and a run-3 e
 id = "repeatability-full-run1"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "full"
 [rule.guard.all.lens_repeatability_run1]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next = "/rdr-prelock repeatability 1"
 why  = "Variant full — run-1 is the first of three and is missing."
@@ -1586,14 +1644,16 @@ why  = "Variant full — run-1 is the first of three and is missing."
 id = "repeatability-full-run2"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "full"
 [rule.guard.all.lens_repeatability_run1]
 eq = "true"
 [rule.guard.all.lens_repeatability_run2]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability 2"
 why     = "Variant full — run-2 is the next run owed."
@@ -1603,8 +1663,8 @@ surface = "that the next run needs a FRESH session on the alt model — the cros
 id = "repeatability-full-run3"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "full"
 [rule.guard.all.lens_repeatability_run1]
@@ -1613,6 +1673,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability_run3]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability 3"
 why     = "Variant full — run-3 is the last run owed."
@@ -1622,8 +1684,8 @@ surface = "that the next run needs a FRESH session on the alt model — the cros
 id = "repeatability-full-diff"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "full"
 [rule.guard.all.lens_repeatability_run1]
@@ -1634,6 +1696,8 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability_diff]
 eq = "false"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability diff"
 why     = "Variant full — all three runs are written and the diff is what remains."
@@ -1643,8 +1707,8 @@ surface = "that the diffing context must have written none of the runs"
 id = "repeatability-full-complete"
 [rule.match.recognized]
 eq = "repeatability"
-[rule.guard.unless.profile]
-in = ["small", "none"]
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
 [rule.guard.all.repeatability_variant]
 eq = "full"
 [rule.guard.all.lens_repeatability_run1]
@@ -1655,6 +1719,28 @@ eq = "true"
 eq = "true"
 [rule.guard.all.lens_repeatability_diff]
 eq = "true"
+[rule.guard.unless.lens_stale]
+eq = "repeatability"
 [rule.emit]
 next = "none"
 why  = "Variant full — run-1/2/3 and the diff are written; the lens is complete."
+
+# --- re-entered: the run set predates the demote ---------------------------
+#
+# Same seam as the `lens` group's stale rows: a re-entered Draft keeps
+# the runs its Final earned, and the rows above would read them — and
+# their diff — as finished work. The rows above exclude this slice with
+# `unless`, so each cell is still claimed once, and the answer never
+# reads as done.
+[[rule]]
+id = "repeatability-stale"
+[rule.match.recognized]
+eq = "repeatability"
+[rule.guard.all.profile]
+in = ["mid", "large", "foundational"]
+[rule.guard.all.lens_stale]
+eq = "repeatability"
+[rule.emit]
+next    = "/rdr-prelock repeatability"
+why     = "Re-entered — the run set is written but predates the demote, so the lens is owed a pass for this iteration."
+surface = "the demote date from the qualifier and the runs' newest evidence date; a re-run under iter-N makes it current"
