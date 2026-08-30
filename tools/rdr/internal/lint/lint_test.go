@@ -489,10 +489,25 @@ func TestReentryNearMissFiresOnAMalformedRevisedFrom(t *testing.T) {
 	for name, status := range map[string]string{
 		"canonical":   "Draft [revised from Final 2026-03-04; re-verify A2,A4 — the frame width was never pinned]",
 		"stage token": "Draft [revised from Final 2026-08-29 cluster-reconcile; re-verify none — wording/cross-reference fixes only]",
+		"targeted":    "Draft [revised from Final 2026-08-29; re-verify A15, A17 @refine — a contract edit]",
+		"no reason":   "Draft [revised from Final 2026-08-29; re-verify A2 @refine]",
 		"plain note":  "Draft [unblocked — the predecessor reached Implemented]",
 	} {
 		if r := Run(rec(status), Options{}); has(r, "status:reentry-near-miss") {
 			t.Errorf("%s: near-miss fired on %q (codes: %v)", name, status, codes(r))
+		}
+	}
+
+	// A target outside the stage vocabulary IS a near-miss: `@verify` is
+	// not a stage, and letting it through as a free-text note would route
+	// the record to the resolve fallback as if no target were written.
+	r = Run(rec("Draft [revised from Final 2026-08-29; re-verify A2 @verify — not a stage]"), Options{})
+	if !has(r, "status:reentry-near-miss") {
+		t.Errorf("near-miss did not fire on an off-vocabulary @<stage> (codes: %v)", codes(r))
+	}
+	for _, f := range r.Findings {
+		if f.Code == "status:reentry-near-miss" && !strings.Contains(f.Fix, "@<propose|refine|resolve>") {
+			t.Errorf("fix does not spell the target slot: %q", f.Fix)
 		}
 	}
 }

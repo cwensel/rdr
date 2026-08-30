@@ -185,6 +185,27 @@ path        = "metadata.Status.status.form"
 equals      = "revised-from"
 description = "The Status is a scoped re-entry from Final."
 
+# WHERE the re-entry lands. The 7.1 gate names a target stage (2 propose /
+# 3 refine / 4 resolve) and the `@<stage>` slot of the qualifier —
+# `re-verify A15, A17 @refine — <reason>`, grammar in TEMPLATE.md — is
+# its machine-readable copy; the prose note alone routed every re-entry
+# to /rdr-resolve, and a resolve that cannot close a contract edit is a
+# full pass spent discovering it was Stage 3's. The domain is
+# model.ReentryTargets plus the sentinel.
+#
+# `none` is the ABSENT SENTINEL, not a fourth stage: a qualifier written
+# before the slot existed, or one that omits it, has no target. The fact
+# is absent in plain output (absent ≠ false), `--tags` renders `none`,
+# and the routing table claims that cell with the resolve fallback that
+# tells the human to read the note's TARGET RE-ENTRY STAGE.
+[fact.reentry_target]
+kind        = "enum"
+source      = "field"
+path        = "metadata.Status.status.reentry_target"
+domain      = ["propose", "refine", "resolve", "none"]
+absent      = "none"
+description = "The `@<stage>` a scoped re-entry names; `none` when the qualifier carries no target."
+
 # Parked, not terminal: no post-mortem is owed and no next command is due
 # while the condition holds. A park that nobody re-reads is how a park
 # becomes an abandon by default, so this is a fact and not a footnote.

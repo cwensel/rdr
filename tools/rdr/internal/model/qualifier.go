@@ -80,12 +80,25 @@ var (
 	DemotedTargetGrammar = regexp.MustCompile(`^→\s*(.+)$`)
 
 	// RevisedFromGrammar matches `revised from Final YYYY-MM-DD;
-	// re-verify A2,A4 — <reason>`, capturing the date, the assumption
-	// list and the reason. The re-verify clause is optional: a demotion
-	// that reopens no specific assumption omits it. `re-verify none` is
-	// the sanctioned spelling of that same empty set, so `none` matches
-	// without being captured — a captured `none` would read as an
-	// assumption label and emit a re-verify edge to nothing.
+	// re-verify A2,A4 @refine — <reason>`, capturing the date, the
+	// assumption list, the target re-entry stage and the reason (groups
+	// 1–4). The re-verify clause is optional: a demotion that reopens no
+	// specific assumption omits it. `re-verify none` is the sanctioned
+	// spelling of that same empty set, so `none` matches without being
+	// captured — a captured `none` would read as an assumption label and
+	// emit a re-verify edge to nothing.
+	//
+	// `@<stage>` names the stage the record re-enters at — one of
+	// ReentryTargets, the verb of the skill that runs it — and is what
+	// the navigator routes on. Without it a re-entry routes to the
+	// resolve fallback, which is the historical reading: records written
+	// before the slot existed parse unchanged.
+	//
+	// The `— <reason>` tail is optional too. It is the human half of the
+	// qualifier, and a demote that forgot it must still READ as a
+	// re-entry: the form is what every routing and staleness gate keys
+	// on, and a missing reason degrading the value to a free-text note
+	// would let a stale lock through unrefused.
 	//
 	// Between the date and the semicolon the grammar tolerates a short
 	// run of lowercase stage tokens (`2026-08-29 cluster-reconcile;`):
@@ -93,7 +106,7 @@ var (
 	// rejecting it silently degraded the qualifier to a free-text note
 	// that blinded every re-entry routing rule. The run is capped at two
 	// tokens so the slot stays a stamp, not a sentence.
-	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})(?:\s+[a-z][a-z0-9-]*){0,2}\s*;\s*(?:re-verify\s+(?:none|([A-Za-z0-9,\s]+?))\s*)?[—-]\s*(.+)$`)
+	RevisedFromGrammar = regexp.MustCompile(`^revised from Final\s+(\d{4}-\d{2}-\d{2})(?:\s+[a-z][a-z0-9-]*){0,2}\s*;\s*(?:re-verify\s+(?:none|([A-Za-z0-9,\s]+?))\s*)?(?:@(propose|refine|resolve)\b\s*)?(?:[—-]\s*(.+))?$`)
 
 	// JointDecisionGrammar matches `joint decision → <home §-anchor>:
 	// <question>`, capturing the home anchor and the open question.
@@ -112,6 +125,24 @@ var (
 	// ``main` <sha>`, capturing the branch and the revision.
 	CommitPinGrammar = regexp.MustCompile("^`?([A-Za-z0-9._/-]+)`?\\s+([0-9a-f]{7,40})\\s*$")
 )
+
+// ReentryTargets is the vocabulary of the `@<stage>` slot in
+// RevisedFromGrammar: the front-half stages a demoted record can re-enter
+// at, spelled as the verb of the skill that runs each (Stage 2 propose,
+// Stage 3 refine, Stage 4 resolve). The regexp above and the fact table's
+// `reentry_target` domain both spell this list; this is the one Go copy.
+var ReentryTargets = []string{"propose", "refine", "resolve"}
+
+// ReentryTarget reads the `@<stage>` off a revised-from qualifier, or ""
+// when the qualifier is not that form or names no target. Absent is not
+// a default: the caller decides what an untargeted re-entry means.
+func ReentryTarget(qualifier string) string {
+	m := RevisedFromGrammar.FindStringSubmatch(strings.TrimSpace(qualifier))
+	if m == nil {
+		return ""
+	}
+	return m[3]
+}
 
 // splitQualifier separates a status value's leading label from its
 // qualifier and reports which grammar the qualifier matched.

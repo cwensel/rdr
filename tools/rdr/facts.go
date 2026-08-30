@@ -670,6 +670,14 @@ func (e *FactEnv) lookup(path string) (string, []string, bool) {
 				return "", nil, false
 			}
 			return "", f.Status.OpenJointDecisions, true
+		case "status.reentry_target":
+			// Empty is ABSENT, not a value: a re-entry that names no
+			// target, or any other form, has no answer here. `--tags`
+			// renders the declared sentinel so the routing can claim it.
+			if f.Status == nil || f.Status.ReentryTarget == "" {
+				return "", nil, false
+			}
+			return f.Status.ReentryTarget, nil, true
 		}
 		return "", nil, false
 	case strings.HasPrefix(path, "counts.elements."):

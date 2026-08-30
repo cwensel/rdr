@@ -49,14 +49,16 @@
 # sentinel is an ordinary declared member whose cell a row claims. See
 # `[fact.cluster]`'s `absent` note in rdr-facts.toml.
 #
-# FOUR OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Dimensions
+# FIVE OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Dimensions
 # accumulate over a whole group and the bound is 2048 assignments;
 # `status × profile × ca` alone is 180, leaving room for three booleans
 # against the five lens flags and their completion probes. Splitting the
 # question splits the product: `locate` ranges over the coarse-position
 # dimensions, `lens` over the lens-row ones, and neither pays for the
 # other's. It also matches how the flow asks: prelock/resolve/reconcile
-# close-out needs only `lens`.
+# close-out needs only `lens`. `locate` is AT the bound (1152 × any new
+# dimension overflows), so a re-entry's target stage is `reentry`, a
+# group `locate` chains to with `resolve:reentry` as it chains to `lens`.
 #
 # THE ANSWER IS `emit`. Values are uninterpreted strings compared by
 # bytes — there is no interpolation, so `NNNN` is never spelled here. A
@@ -77,7 +79,7 @@
 # missing, exactly as §stop-packet requires — a skipped check must never
 # read as a passed one.
 
-outcomes = ["locate", "lens", "critique", "repeatability"]
+outcomes = ["locate", "reentry", "lens", "critique", "repeatability"]
 
 [model]
 id          = "rdr-status"
@@ -99,7 +101,7 @@ facts  = "models/rdr-facts.toml"
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["locate", "lens", "critique", "repeatability"]
+domain        = ["locate", "reentry", "lens", "critique", "repeatability"]
 single_valued = true
 required      = true
 
@@ -125,6 +127,17 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+single_valued = true
+required      = true
+
+# The `@<stage>` a re-entry qualifier names. `none` is the ABSENT
+# SENTINEL — a qualifier with no target, which every record written
+# before the slot existed carries — and its cell is the resolve fallback.
+# Only read under `status_form = revised-from`.
+[tags.reentry_target]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["propose", "refine", "resolve", "none"]
 single_valued = true
 required      = true
 
@@ -495,11 +508,14 @@ why  = "Final and not clustered — Stage 7.1 does not apply, so implement is th
 
 # --- Draft ----------------------------------------------------------------
 
-# A re-entry `Draft [revised from Final <date>; re-verify <IDs>]` is a
-# scoped BACKWARD EDGE: next is /rdr-resolve, which self-scopes to the
-# listed IDs. It is still a Draft for every binary gate, so it must be
+# A re-entry `Draft [revised from Final <date>; re-verify <IDs> @<stage>
+# — <reason>]` is a scoped BACKWARD EDGE to the stage the qualifier
+# names. It is still a Draft for every binary gate, so this row must be
 # matched before the front-half rows that read the CA rollup — the
-# evidence would otherwise suggest a stage this record is not at.
+# evidence would otherwise suggest a stage this record is not at. WHICH
+# stage is the `reentry` group's question (below): `locate` is at the
+# product bound, so the target dimension gets its own outcome, chained
+# exactly as `resolve:lens` is.
 [[rule]]
 id = "locate-draft-reentry"
 [rule.match.recognized]
@@ -509,9 +525,8 @@ eq = "Draft"
 [rule.guard.all.status_form]
 eq = "revised-from"
 [rule.emit]
-next    = "/rdr-resolve"
-why     = "A scoped re-entry from Final — /rdr-resolve self-scopes to the listed IDs."
-surface = "the qualifier, so the human knows the run is a delta"
+next = "resolve:reentry"
+why  = "A scoped re-entry from Final — ask the reentry group which stage the qualifier's @<stage> names."
 
 # bare `Draft`, CAs all Pending → Refine is un-run. Refine is the front
 # half's only `~`, and an open `~` IS the next command, not a footnote to
@@ -598,6 +613,67 @@ surface = "the Critical Assumptions section's lines, to be read directly"
 # The consequence to keep in mind when editing: NARROWING a row here can
 # open a real coverage gap, and lint will say so at exit 2. That is the
 # guarantee, not an obstacle.
+
+# ===========================================================================
+# `reentry` — which stage a scoped re-entry lands at
+# ===========================================================================
+#
+# Dimension: reentry_target alone. Reached only through
+# `locate-draft-reentry`'s `resolve:reentry`, so status and form are
+# already settled; guarding them here would re-import `locate`'s product.
+#
+# One row per target, because an INFERRED row is how a stage gets skipped:
+# the 7.1 gate's target was prose-only, every re-entry routed to
+# /rdr-resolve, and a resolve pass that could not close a contract edit
+# was a full pass spent learning it was refine's.
+
+[[rule]]
+id = "reentry-propose"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "propose"
+[rule.emit]
+next    = "/rdr-propose"
+why     = "The qualifier names @propose — the approach is reopened, so Stage 2 re-walks it."
+surface = "the qualifier, so the human knows the run is a delta"
+
+[[rule]]
+id = "reentry-refine"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "refine"
+[rule.emit]
+next    = "/rdr-refine"
+why     = "The qualifier names @refine — the fix is a design-body edit, so Stage 3 lands it before any re-verify."
+surface = "the qualifier, so the human knows the run is a delta"
+
+[[rule]]
+id = "reentry-resolve"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "resolve"
+[rule.emit]
+next    = "/rdr-resolve"
+why     = "The qualifier names @resolve — /rdr-resolve self-scopes to the listed IDs."
+surface = "the qualifier, so the human knows the run is a delta"
+
+# No `@<stage>` in the qualifier: the historical spelling, where the
+# target lives in the prose note only. The answer is the resolve default
+# WITH the instruction to read the note first — a fallback the human can
+# see is one, never a silent guess.
+[[rule]]
+id = "reentry-untargeted"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "none"
+[rule.emit]
+next    = "/rdr-resolve"
+why     = "The qualifier names no @<stage> — /rdr-resolve is the default, not the recorded target."
+surface = "the qualifier, and the TARGET RE-ENTRY STAGE line of the record's `## Refinement Context` note: if it names Stage 2 or 3, run /rdr-propose or /rdr-refine instead"
 
 # ===========================================================================
 # `lens` — the Stage-5 lens row (rdr-common.md §lens-row)

@@ -43,9 +43,16 @@ N/A-bulleted). -->
   - A Draft demoted from Final by the 07.1 cluster gate
     carries a qualifier on the live value:
     `Draft [revised from Final YYYY-MM-DD; re-verify A2,A4
-    — <one-line reason>]`. It is still a `Draft` for every
-    binary Draft/Final gate; only Stage 4 (scoped
-    re-verify) and Stage 7 (re-lock) parse the qualifier.
+    @refine — <one-line reason>]` — the one place this
+    grammar is spelled: the date, `;`, `re-verify <IDs>` or
+    `re-verify none`, then `@<stage>` naming the target
+    re-entry stage (`@propose` = Stage 2, `@refine` = 3,
+    `@resolve` = 4), then `— <reason>`. Every clause after
+    the date is optional; `/rdr-status` routes on `@<stage>`
+    and falls back to `/rdr-resolve` when it is absent. It
+    is still a `Draft` for every binary Draft/Final gate;
+    only Stage 4 (scoped re-verify) and Stage 7 (re-lock)
+    parse the rest of the qualifier.
     The Stage 7 flip to `Final` overwrites the whole value,
     so the qualifier self-clears at re-lock — no separate
     cleanup. This 07.1 "demotion" is a *verb* describing the

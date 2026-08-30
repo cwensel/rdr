@@ -518,6 +518,43 @@ Synthetic.
 	}
 }
 
+// TestReentryTargetIsAbsentUntilWritten: the `@<stage>` slot is a fact
+// only when the qualifier names it. A historical re-entry (no slot) and
+// a bare Draft both leave it ABSENT in plain output — absent ≠ false,
+// nothing was said — and `--tags` renders the declared `none` sentinel
+// so the routing table's fallback row can claim the cell.
+func TestReentryTargetIsAbsentUntilWritten(t *testing.T) {
+	tbl := loadRealTable(t)
+	eval := func(status string) []Fact {
+		doc := scan.Bytes([]byte("# Recommendation 0017: Frame Pad\n\n## Metadata\n\n- **Date**: 2026-01-01\n- **Status**: "+
+			status+"\n\n## Problem Statement\n\nSynthetic.\n"), scan.Options{})
+		return tbl.Evaluate(&FactEnv{Doc: doc, Slug: "0017-frame-pad",
+			Roots: map[string]string{}, readFile: os.ReadFile, statPath: os.Stat})
+	}
+	for status, want := range map[string]string{
+		"Draft [revised from Final 2026-01-01; re-verify A15, A17 @refine — a contract edit]": "refine",
+		"Draft [revised from Final 2026-01-01; re-verify none @propose — approach reopened]":  "propose",
+		"Draft [revised from Final 2026-01-01; @resolve — a narrowed claim]":                  "resolve",
+	} {
+		if got, ok := factValue(eval(status), "reentry_target"); !ok || got != want {
+			t.Errorf("%s: reentry_target = %q/%v, want %q", status, got, ok, want)
+		}
+	}
+	for _, status := range []string{
+		"Draft [revised from Final 2026-01-01; re-verify A1 — a narrowed claim]",
+		"Draft",
+		"Final",
+	} {
+		facts := eval(status)
+		if got, ok := factValue(facts, "reentry_target"); ok {
+			t.Errorf("%s: reentry_target = %q, want absent", status, got)
+		}
+		if got, ok := factValue(withAbsentSentinels(tbl, facts), "reentry_target"); !ok || got != "none" {
+			t.Errorf("%s: --tags reentry_target = %q/%v, want the none sentinel", status, got, ok)
+		}
+	}
+}
+
 // TestABareStatusHasAFormOfNone: the projector omits an absent qualifier,
 // but "this Status carries no qualifier" is a real answer and the routing
 // reads it. Absent here would wrongly mean "nothing looked".
@@ -886,7 +923,8 @@ func modelTags(t *testing.T, path string) map[string]bool {
 // the corpus claim the legacy probe defends.
 var routingFacts = map[string]string{
 	"status_form":           "the qualifier grammar every routing branch reads",
-	"status_reentry":        "Draft [revised from Final …] routes to /rdr-resolve",
+	"status_reentry":        "Draft [revised from Final …] is a scoped re-entry",
+	"reentry_target":        "the @<stage> a re-entry names; none routes to the resolve fallback",
 	"status_parked":         "Deferred [revisit when …] is parked, not terminal",
 	"open_joint_decisions":  "a Final waiting on a joint decision",
 	"profile_raw":           "the Profile caveat line, verbatim",

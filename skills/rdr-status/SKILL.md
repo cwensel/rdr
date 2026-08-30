@@ -60,6 +60,12 @@ question). Every other row answers completely, so a second call adds a duplicate
 "$IS" flow resolve --model "$M" --outcome lens $("$R" status --tags NNNN)
 ```
 
+**Likewise `--outcome reentry` only when `emit.next` is `resolve:reentry`** — a
+`Draft [revised from Final …]`. That group reads the qualifier's `@<stage>`
+(`reentry_target`) and answers /rdr-propose, /rdr-refine or /rdr-resolve; with no
+`@<stage>` it answers /rdr-resolve and its `surface` tells you to read the note's
+TARGET RE-ENTRY STAGE first — print that verbatim, do not skip it.
+
 Keep `$(…)` **inline**. Unquoted is safe — every fact is one shell word and prose
 facts are not rendered — but zsh does not word-split an unquoted *variable*, so
 `T=$(…)` then `$T` sends the whole vector as one argument (`unknown flag:

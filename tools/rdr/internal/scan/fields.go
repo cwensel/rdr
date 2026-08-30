@@ -49,6 +49,10 @@ type Status struct {
 	// Form names the qualifier grammar a lifecycle status matched
 	// (model.QualifierForm); absent for an assumption status.
 	Form string `json:"form,omitempty"`
+	// ReentryTarget is the `@<stage>` of a revised-from qualifier
+	// (model.ReentryTargets); absent for every other form and for a
+	// re-entry that names no target.
+	ReentryTarget string `json:"reentry_target,omitempty"`
 	// Tier is the value's standing in its vocabulary (model.Tier).
 	Tier string `json:"tier"`
 	// Placeholder marks the template legend left unfilled.
@@ -191,6 +195,9 @@ func lifecycleStatus(raw string) *Status {
 	out := &Status{Value: s.Label, Qualifier: s.Qualifier, Tier: s.Tier.String(), Raw: raw}
 	if s.QualifierForm != model.NoQualifier {
 		out.Form = s.QualifierForm.String()
+	}
+	if s.QualifierForm == model.QualifierRevisedFrom {
+		out.ReentryTarget = model.ReentryTarget(s.Qualifier)
 	}
 	out.OpenJointDecisions = openJointDecisions(s)
 	return out

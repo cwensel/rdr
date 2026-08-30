@@ -694,7 +694,7 @@ func reentryNearMiss(d *scan.Document, blocks bool) []Finding {
 		Message:   "the Status qualifier begins `revised from` but does not parse as the re-entry form, so routing reads it as a free-text note and no re-entry rule fires",
 		LineStart: line,
 		LineEnd:   line,
-		Fix:       "spell it `revised from Final YYYY-MM-DD; re-verify <IDs> — <reason>`: the semicolon immediately after the date (at most a short stage token between), `re-verify none` for an empty set",
+		Fix:       "spell it `revised from Final YYYY-MM-DD; re-verify <IDs> @<propose|refine|resolve> — <reason>` (TEMPLATE.md Status): the semicolon immediately after the date (at most a short stage token between), `re-verify none` for an empty set, `@<stage>` the target re-entry stage",
 	}}
 }
 

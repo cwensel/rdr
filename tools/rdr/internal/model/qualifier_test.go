@@ -178,8 +178,11 @@ func TestQualifierGrammarCaptures(t *testing.T) {
 	if m[2] != "A2,A4" {
 		t.Errorf("re-verify capture = %q, want \"A2,A4\"", m[2])
 	}
-	if m[3] != "the frame width was never pinned" {
-		t.Errorf("reason capture = %q", m[3])
+	if m[3] != "" {
+		t.Errorf("target capture = %q, want empty when no @<stage> is written", m[3])
+	}
+	if m[4] != "the frame width was never pinned" {
+		t.Errorf("reason capture = %q", m[4])
 	}
 
 	// The tolerated stage token rides between the date and the semicolon
@@ -197,12 +200,55 @@ func TestQualifierGrammarCaptures(t *testing.T) {
 	if m[2] != "" {
 		t.Errorf("re-verify capture = %q, want empty for `none`", m[2])
 	}
-	if m[3] != "wording/cross-reference fixes only" {
-		t.Errorf("reason capture = %q", m[3])
+	if m[4] != "wording/cross-reference fixes only" {
+		t.Errorf("reason capture = %q", m[4])
 	}
 	if RevisedFromGrammar.MatchString(
 		"revised from Final 2026-08-29 the whole reason written before the semicolon; — drift") {
 		t.Error("the stage-token run is capped at two; a sentence before the semicolon must not match")
+	}
+}
+
+// TestRevisedFromTargetAndTail covers the `@<stage>` slot and the
+// optional reason: the target rides between the ID list and the dash
+// without entering the ID capture, sits on `re-verify none` and on a
+// qualifier with no re-verify clause at all, refuses a word outside
+// ReentryTargets, and a qualifier that forgot its `— <reason>` is still
+// the form (a stale-lock gate keys on the form, not the prose).
+func TestRevisedFromTargetAndTail(t *testing.T) {
+	for _, tc := range []struct {
+		q                   string
+		ids, target, reason string
+		form                QualifierForm
+	}{
+		{"revised from Final 2026-08-29; re-verify A15, A17 @refine — a contract edit", "A15, A17", "refine", "a contract edit", QualifierRevisedFrom},
+		{"revised from Final 2026-08-29 cluster-reconcile; re-verify none @propose — approach changed", "", "propose", "approach changed", QualifierRevisedFrom},
+		{"revised from Final 2026-08-29; @resolve — no assumption reopened", "", "resolve", "no assumption reopened", QualifierRevisedFrom},
+		{"revised from Final 2026-08-29; re-verify A2,A4", "A2,A4", "", "", QualifierRevisedFrom},
+		{"revised from Final 2026-08-29; re-verify A2 @refine", "A2", "refine", "", QualifierRevisedFrom},
+		{"revised from Final 2026-08-29; re-verify A2 @verify — not a stage", "", "", "", QualifierBracketed},
+		{"revised from Final 2026-08-29; re-verify A2 @refinement — not a stage", "", "", "", QualifierBracketed},
+	} {
+		s := ParseStatus("Draft [" + tc.q + "]")
+		if s.QualifierForm != tc.form {
+			t.Errorf("%q: form = %s, want %s", tc.q, s.QualifierForm, tc.form)
+			continue
+		}
+		if got := ReentryTarget(tc.q); got != tc.target {
+			t.Errorf("%q: ReentryTarget = %q, want %q", tc.q, got, tc.target)
+		}
+		if tc.form != QualifierRevisedFrom {
+			continue
+		}
+		m := RevisedFromGrammar.FindStringSubmatch(tc.q)
+		if m[2] != tc.ids || m[4] != tc.reason {
+			t.Errorf("%q: ids=%q reason=%q, want ids=%q reason=%q", tc.q, m[2], m[4], tc.ids, tc.reason)
+		}
+	}
+	for _, want := range ReentryTargets {
+		if ReentryTarget("revised from Final 2026-01-01; @"+want+" — x") != want {
+			t.Errorf("ReentryTargets names %q but the grammar does not accept it", want)
+		}
 	}
 
 	j := JointDecisionGrammar.FindStringSubmatch(
