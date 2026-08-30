@@ -428,6 +428,35 @@ art *before* enumerating — Propose selection, above): the budget bounds that r
 instead of leaving it open-ended. The curate-a-finite-context discipline is the
 same (Anthropic, *Effective context engineering*, §3).
 
+### Exact state tracking — transitions go to the `rdr` binary, not prose
+
+**Drives**: the *Exact state lives in a tool call* doctrine
+([`stages/README.md`](stages/README.md#doctrine-applies-to-every-stage)); the
+`rdr` companion binary's facets (`tools/rdr/`: status/inspect/index/lint,
+`--tags`, `--json --filter`) and the `rdr-common` sections that route every
+count, id lookup, and anchor tally through it (`§rdr-resolve`,
+`§mechanical-gate`) rather than through the model's own text.
+
+- **Guo, Wu & Yiu (2026), *The Deterministic Horizon: When Extended Reasoning
+  Fails and Tool Delegation Becomes Necessary***, arXiv 2606.00376 — on
+  deterministic, exactly-checkable state tracking (permutation puzzles, SWE-Bench
+  state, multi-join SQL, web navigation), a decoder-only model's per-step error
+  rises with depth (the per-step attention bandwidth degrades; total capacity is
+  not the bound), so P(error-free trace) carries a quadratic depth term and
+  falls off a cliff: 50% at d* ∈ [19, 31] across twelve models, ≈2.4 steps at a
+  95% target (GPT-4o). Fine-tuning recovers <3 pp (architectural ceiling).
+  Exact-solver delegation scores 76–94% vs 17–42% for chain-of-thought, wins at
+  every depth bin, and costs ≈6× fewer tokens per instance. Two details the
+  doctrine turns into rules: (i) the tool condition still declines 94→82% with
+  depth because the prompt made the model *re-walk* the solver's answer step by
+  step — residual errors are interface errors (transcription, parsing), so a
+  tool result is consumed as a value, never re-derived; (ii) the tool was exact,
+  so the gap is an upper bound — the doctrine binds only where the facet is
+  itself exact (`rdr`, `intrastate`, grep), which is the case for every count
+  and lookup the flow needs. Scope caveat from the paper: approximate or
+  stochastic tasks need not obey the horizon — this is a rule about *exact*
+  state, not about delegating judgment. <https://arxiv.org/abs/2606.00376>
+
 ### Inter-agent return contract — the fixed return packet
 
 **Drives**: the `§return-packet` in [`skills/rdr-common.md`](skills/rdr-common.md)
@@ -751,6 +780,9 @@ theme; included so an adopter can go deeper and so the provenance is complete.
   self-conditioning failure mode (load-bearing; see §2 instance conditionality).
 - Shi et al. (2023), *Large Language Models Can Be Easily Distracted by Irrelevant
   Context*, ICML — arXiv 2302.00093 (load-bearing; see §2 instance conditionality).
+- Guo, Wu & Yiu (2026), *The Deterministic Horizon: When Extended Reasoning Fails
+  and Tool Delegation Becomes Necessary* — arXiv 2606.00376 (load-bearing; see §2
+  exact state tracking).
 - AgentStop — terminating idle local agents early to cut token/energy overhead;
   evidence behind preferring state/event-driven resume over routine wakeups.
 - Triggerflow — trigger/event-based orchestration of serverless workflows over

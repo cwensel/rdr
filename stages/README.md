@@ -460,6 +460,20 @@ must stand alone — the reader pastes the block, not this README.
   its mechanics. Two copies of one contract drift into self-contradiction — the
   most common internal-defect class — so the cure is deletion, not a lint to keep
   them in sync.
+- **Exact state lives in a tool call, never in prose.** Counting, matching ids,
+  resolving edges, tallying anchors, diffing lists — every step where the model
+  must hold an exact state and apply one operator to it — comes back as a value
+  from `rdr` / `intrastate` / a scoped grep, and is then *used as a value*, never
+  re-walked or re-transcribed step by step. Per-step accuracy on exact state
+  tracking decays with depth, and the chance of an error-free chain collapses
+  quadratically: unaided accuracy crosses 50% at ~19–31 steps and the reliable
+  depth at a 95% target is ~2 (Guo, Wu & Yiu 2026, *The Deterministic Horizon*).
+  Delegation removes those steps from the model rather than slowing the decay,
+  and it was cheaper too (≈6× fewer tokens per instance). So the budget for
+  exact transitions in the model's own text is effectively zero: a stage that
+  needs the model to chain them is a **missing facet**, not a prompt to tighten.
+  This is why `§rdr-resolve`, `§mechanical-gate`, and the `--tags`/`--json`
+  facets exist, and why a sub-agent returns a verdict, not the list it derived it from.
 
 The RDR process is deliberately token-frugal — code is generated last, after
 the design is settled, so tokens aren't spent implementing a design research
