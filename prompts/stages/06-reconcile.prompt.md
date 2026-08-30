@@ -59,6 +59,13 @@ verdict rides the BLOCKER report, and the route-back is the close packet's
 `Next:`, not a user pause. Append the §punt-ledger row (rdr-common) as part
 of the BLOCKER disposition.
 
+A refutation whose repair is fully in hand (the amendment keeps every dependent
+contract total and touches no peer's locked text) is still not the session's to
+accept: consult first, and only a PASS verdict on the repair licenses drafting
+it in place — the accept itself goes to the user as a tiebreaker before the
+verdict line. A consult's NEEDS_DECISION reaches the human as asked; executing
+its next_action instead is the papering-over this rule bans.
+
 HARD RULE — no spike or assumption deferred past lock if the MVV depends on
 it. If it pins the very thing the Minimum Viable Validation proves (byte-parity
 reference, a normative fixture the MVV consumes, the load-bearing external
