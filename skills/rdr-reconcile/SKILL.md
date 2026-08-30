@@ -42,10 +42,11 @@ Claude: /rdr-reconcile <NNNN>
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-
    unrun spikes, the exactness-word delta), forces ONE disposition each, and **writes
    it into the RDR's Critical Assumptions section** (not just a report). Delegate
-   spike runs / corpus reads to a `Task` sub-agent returning verdict + evidence
-   pointer (§return-packet) (rdr-common §delegation).
+   spike runs / corpus reads to a spawned sub-agent returning verdict + evidence
+   pointer (§return-packet) (rdr-common §delegation). While it runs, the parent
+   re-does nothing it delegated and waits by ending the turn (§delegation).
    - **Absorption-audit delegation (mined — recurs verbatim).** To build source 3 +
-     confirm the rounds were folded in, spawn one `Task` sub-agent over the lens
+     confirm the rounds were folded in, spawn one sub-agent over the lens
      output dirs that exist for this slug
      (`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/{3amigo,critique,repeatability,cove}/`,
      rdr-common §evidence — the lens is the LAST segment): "report, per

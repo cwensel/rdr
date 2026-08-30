@@ -92,7 +92,7 @@ Read the Problem Statement and Context, then:
      the shipped-and-failed approach, then confirm the recommendation survives
      it. A failure the chosen approach can't answer → switch. Variant
      `(paragraph)`.
-   - **`large`/`foundational` → hardened critic: ONE `Task` sub-agent
+   - **`large`/`foundational` → hardened critic: ONE spawned sub-agent
      (rdr-common §delegation), queried ONCE** — never more critics or rounds (homogeneous
      debate converges, it doesn't dissent; one hardened critic queried once
      beats it at fewer tokens). The extension past "delegate reads" is honest:

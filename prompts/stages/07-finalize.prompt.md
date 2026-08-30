@@ -4,7 +4,8 @@ and identify exactly what's required to flip it to Final.
 Read {RDR_ENV} for the pre-lock output location ({EVIDENCE_DIR}) and the gate
 record's home ({ARTIFACT_DIR}). If reading those outputs is heavy, delegate to
 a sub-agent that returns a §return-packet (rdr-common) — findings-closed in
-summary_50w, residue in next_action.
+summary_50w, residue in next_action. Re-run none of what you delegated; wait by
+ending the turn (rdr-common §delegation).
 
 FIRST run the mechanical sweep — the Tooling pass: open
 $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on

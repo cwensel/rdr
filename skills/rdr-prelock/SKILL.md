@@ -62,7 +62,8 @@ One invocation runs the full loop for one lens:
    fan out its three persona passes as isolated sub-agents (no cross-persona
    visibility), then consolidate their files mechanically per the prompt.
    Heavy/dual-model → sub-agent returns
-   the findings list, not a re-dump. **This first run's findings are the origin
+   the findings list, not a re-dump; the parent re-runs none of it and waits by
+   ending the turn (rdr-common §delegation). **This first run's findings are the origin
    ledger** for the loop.
 3. **Review gate** (below) — a bad pass is re-run on another model, not resolved.
 4. **Resolve** — run the sibling [`05-prelock-resolve.prompt.md`](05-prelock-resolve.prompt.md);

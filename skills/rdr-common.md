@@ -320,12 +320,12 @@ property of the RDR's on-disk state, which the prompt already inspects.
 
 ## §delegation — who reads, who writes, what spawns
 
-- **Spawn sub-agents with the built-in `Task` tool** (a.k.a. `Agent`). **Not
-  `TaskCreate`** — that is task-list tracking, not a sub-agent spawner. Naming this
-  here saves the ToolSearch round-trip every delegating stage otherwise burns.
+- **Spawn sub-agents with the harness's built-in spawn tool** (`Agent` in Claude
+  Code, a.k.a. `Task`). **Not** a task-list/todo tracker — that tracks items, it
+  spawns nothing. Naming it here saves the tool-lookup round-trip every delegating stage otherwise burns.
 - **Delegate heavy *reads*, author *writes* in the main context.** The read-heavy
   stages (4, 6, 7) and `/rdr-status` push corpus searches, source spelunks, and
-  reading several round-output files to a `Task` sub-agent that returns *verdict +
+  reading several round-output files to a spawned sub-agent that returns *verdict +
   evidence pointer* (file:line, or spike command + output path), never raw hits.
   The **edit to the RDR / evidence file happens in the main agent**, not a
   sub-agent — keep authoring in one context (it also sidesteps any consumer-side
@@ -347,6 +347,12 @@ property of the RDR's on-disk state, which the prompt already inspects.
   sub-agent that owes an evidence file (a lens contract's `findings.md`, a
   persona file) writes it with a Bash heredoc, never the Write tool — some
   harnesses refuse sub-agent Writes and return only text.
+- **After spawning, the parent waits by ending its turn.** It does only items its
+  own list still owes and nothing the brief names — a delegated check is never
+  re-run in the parent. When nothing is owed, end the turn with no tool call: the
+  completion notification is the wait (no sleep, no poll, no filler echo, no
+  dir-watch). Act on the packet; open the report file only for a finding the
+  packet names as needing the parent's judgment.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable

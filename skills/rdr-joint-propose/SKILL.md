@@ -83,7 +83,7 @@ prior, not a promise — the loop corrects it; this pass makes corrections rare.
 
 ## The loop — one proposer at a time
 
-Spawn one proposer per member, sequentially in order (§delegation `Task` tool;
+Spawn one proposer per member, sequentially in order (§delegation spawn;
 model per §model-ceiling). Brief = the bound seam vars + `{RDR_PATH}`, the peer
 roster (NNNN + title — awareness, never solutions; take the ROW lines of
 `rdr status`, not the facts under them — do not widen it), and: run the sibling
