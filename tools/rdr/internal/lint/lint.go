@@ -628,13 +628,8 @@ func peerElementFix(to string, corpus []*scan.Document) string {
 			}
 		}
 		if len(ids) > 0 {
-			more := ""
-			if len(ids) > peerHintIDs {
-				more = ", +" + itoa(len(ids)-peerHintIDs) + " more"
-				ids = ids[:peerHintIDs]
-			}
 			return "cite the element the claim rests on — " + to + " holds " +
-				strings.Join(ids, ", ") + more +
+				Bounded(ids, peerHintIDs) +
 				"; the ids are the C<n>/A<n> the projector mints, not the labels the author wrote (F-1, P-a)" +
 				listed
 		}
@@ -642,6 +637,17 @@ func peerElementFix(to string, corpus []*scan.Document) string {
 	}
 	return "cite the element the claim rests on, as " + to + ":A<n> for an assumption or " +
 		to + ":C<n> for a contract" + listed
+}
+
+// Bounded joins ids with ", ", capping the list at max with a "+N more"
+// tail. It is the one rendering every id-roster hint shares — the peer
+// hint here and the projector's no-such-element stop — so a bounded list
+// reads the same wherever a roster is offered.
+func Bounded(ids []string, max int) string {
+	if len(ids) <= max {
+		return strings.Join(ids, ", ")
+	}
+	return strings.Join(ids[:max], ", ") + ", +" + itoa(len(ids)-max) + " more"
 }
 
 // peerHintIDs bounds the ids a peer hint lists; peerHintLabelWords and

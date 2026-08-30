@@ -26,7 +26,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -186,6 +188,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err := fs.Parse(args[1:]); err != nil {
 			return 2
 		}
+		// Every stopped: line lands on BOTH streams. Sessions habitually
+		// 2>/dev/null a read they expect to succeed, and a stated absence
+		// that lives only on the suppressed stream reads as an empty
+		// success. env is exempt: its stdout is eval'd, and a mirrored
+		// stop would be executed rather than read.
+		if args[0] != "env" {
+			stderr = stopMirror{stderr: stderr, stdout: stdout}
+		}
 		// The schema is TEMPLATE.md, read now rather than restated in Go.
 		// `receipt` is exempt: it reads only the usage log, and §commit
 		// refuses a commit without it, so a missing template must not
@@ -236,10 +246,31 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 }
 
+// stopMirror is the stderr every subcommand but env writes: a chunk that
+// leads with `stopped:` is copied to stdout before it goes to stderr.
+// Each fmt.Fprint* is one Write, so a stop line arrives whole and
+// nothing else is duplicated.
+type stopMirror struct{ stderr, stdout io.Writer }
+
+func (m stopMirror) Write(p []byte) (int, error) {
+	if bytes.HasPrefix(p, []byte("stopped:")) {
+		m.stdout.Write(p)
+	}
+	return m.stderr.Write(p)
+}
+
 // dispatch routes a parsed subcommand to its facet. It is split from run
 // so that every exit path passes through one place that can be measured
 // — a facet that returned directly from the switch would escape the log.
 func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) int {
+	// The flag package stops parsing at the first positional, so a flag
+	// typed after the target arrives here as an argument, and each
+	// subcommand refused it with its own arity line — true, but hiding
+	// the real mistake. Say the rule and echo the corrected call.
+	if msg := misplacedFlags(cmd, fs); msg != "" {
+		fmt.Fprintln(stderr, msg)
+		return 2
+	}
 	switch cmd {
 	case "inspect":
 		return inspect(fs.Args(), f, stdout, stderr)
@@ -292,6 +323,43 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
+}
+
+// misplacedFlags reports a positional that is really a flag typed after
+// the target (`rdr lint 0112 --json`), with the corrected call spelled
+// out. A flag that takes a value keeps its neighbour, so the echo is
+// pasteable as written.
+func misplacedFlags(cmd string, fs *flag.FlagSet) string {
+	args := fs.Args()
+	var moved, targets []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		if !strings.HasPrefix(a, "-") || a == "-" || a == "--" {
+			targets = append(targets, a)
+			continue
+		}
+		moved = append(moved, a)
+		name := strings.TrimLeft(a, "-")
+		if strings.Contains(name, "=") {
+			continue
+		}
+		if fl := fs.Lookup(name); fl != nil && !isBoolFlag(fl) && i+1 < len(args) {
+			i++
+			moved = append(moved, args[i])
+		}
+	}
+	if len(moved) == 0 {
+		return ""
+	}
+	call := append([]string{"rdr", cmd}, append(moved, targets...)...)
+	return "stopped:usage (flags go before the target: " + strings.Join(call, " ") + ")"
+}
+
+// isBoolFlag asks the flag package's own question: a boolean flag never
+// consumes the next argument, any other kind does.
+func isBoolFlag(fl *flag.Flag) bool {
+	b, ok := fl.Value.(interface{ IsBoolFlag() bool })
+	return ok && b.IsBoolFlag()
 }
 
 // flags holds the values of every declared flag; a subcommand reads only
@@ -809,6 +877,12 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 	if len(args) == 1 {
 		r, err := project(args[0], f, stderr)
 		if err != nil {
+			// A select miss is a partial answer, not a refusal: the
+			// resolved selects emit first, then the stop names only the
+			// ids that missed. One bad id used to zero the whole call.
+			if r.value != nil || r.lines != nil {
+				r.render(f, stdout, stderr)
+			}
 			fmt.Fprintln(stderr, err)
 			return 2
 		}
@@ -929,6 +1003,7 @@ func project(arg string, f *flags, stderr io.Writer) (projection, error) {
 
 	var items []any
 	var lines []string
+	var missing []string
 	textual := !*f.json
 	for _, sel := range sels {
 		if v, ok := facetOf(doc, sel); ok {
@@ -948,21 +1023,223 @@ func project(arg string, f *flags, stderr io.Writer) (projection, error) {
 			if why := doc.Ambiguity(sel); why != "" {
 				return projection{}, fmt.Errorf("stopped:ambiguous-element (%s in %s: %s)", sel, doc.Record, why)
 			}
-			return projection{}, fmt.Errorf("stopped:no-such-element (%s in %s)", sel, doc.Record)
+			// An id that names nothing is collected, not returned: the
+			// selects that DID resolve still answer, and the stop then
+			// names only the missing.
+			missing = append(missing, sel)
+			continue
 		}
 		items = append(items, map[string]any{"id": sel, "line_start": start, "line_end": end,
 			"lines": doc.Slice(start, end)})
 		lines = append(lines, doc.Slice(start, end)...)
 	}
-	if len(items) == 1 {
+	if len(sels) == 1 && len(items) == 1 {
 		r.value = items[0]
-	} else {
+	} else if len(items) > 0 {
 		r.value = items
 	}
 	if textual {
 		r.lines = lines
 	}
+	if len(missing) > 0 {
+		return r, noSuchElement(doc, missing)
+	}
 	return r, nil
+}
+
+// noSuchElement is the stop for --select ids the record does not mint.
+// One line however many ids missed — a set's skipped row and a stderr
+// reader both take it whole — and each id carries a bounded hint. When
+// the token stands verbatim in the body, the hint names the minted
+// element whose lines hold it: an authored label like F-1 lives inside
+// a contract that DOES have an id, and "it is right there" deserves the
+// id that reaches it. Otherwise the near misses off the record's own
+// roster: one edit away first, then the same kind prefix, capped as the
+// lint peer hint caps its list.
+func noSuchElement(doc *scan.Document, missing []string) error {
+	var hints []string
+	for _, sel := range missing {
+		if h := missHint(doc, sel, len(missing) > 1); h != "" {
+			hints = append(hints, h)
+		}
+	}
+	msg := fmt.Sprintf("stopped:no-such-element (%s in %s", strings.Join(missing, ", "), doc.Record)
+	if len(hints) > 0 {
+		msg += "; " + strings.Join(hints, "; ")
+	}
+	return errors.New(msg + ")")
+}
+
+// missHintIDs bounds the near-miss list; missHintSpans bounds how many
+// containing elements a verbatim hit names.
+const (
+	missHintIDs   = 8
+	missHintSpans = 3
+)
+
+// missHint explains one missed select. The token is the id's element
+// part as typed; with several ids missing each hint says whose it is.
+func missHint(doc *scan.Document, sel string, several bool) string {
+	token := sel
+	if i := strings.LastIndex(token, ":"); i >= 0 {
+		token = token[i+1:]
+	}
+	if token == "" {
+		return ""
+	}
+	if spans := tokenSpans(doc, token); len(spans) > 0 {
+		return token + " appears inside " + strings.Join(spans, ", ")
+	}
+	ids := nearMisses(doc, token)
+	if len(ids) == 0 {
+		return ""
+	}
+	label := "near misses"
+	if several {
+		label += " for " + token
+	}
+	return label + ": " + lint.Bounded(ids, missHintIDs)
+}
+
+// tokenSpans finds the token standing verbatim in the body and names the
+// smallest minted element whose range holds each hit, with its lines.
+func tokenSpans(doc *scan.Document, token string) []string {
+	seen := map[string]bool{}
+	var out []string
+	for n := 1; n <= doc.Lines && len(out) < missHintSpans; n++ {
+		if !carriesToken(doc.Line(n), token) {
+			continue
+		}
+		e := tightestAt(doc, n)
+		if e == nil || seen[e.ID] {
+			continue
+		}
+		seen[e.ID] = true
+		out = append(out, fmt.Sprintf("%s (%d-%d)", e.ID, e.LineStart, e.LineEnd))
+	}
+	return out
+}
+
+// tightestAt is the smallest element whose range holds the line — the
+// clause over its contract, the contract over nothing.
+func tightestAt(doc *scan.Document, line int) *scan.Element {
+	var best *scan.Element
+	for i := range doc.Elements {
+		e := &doc.Elements[i]
+		if line < e.LineStart || line > e.LineEnd {
+			continue
+		}
+		if best == nil || e.LineEnd-e.LineStart < best.LineEnd-best.LineStart {
+			best = e
+		}
+	}
+	return best
+}
+
+// carriesToken reports the token on its own in the line, bounded by
+// non-alphanumerics, so F-1 is found and F-12 is not.
+func carriesToken(line, token string) bool {
+	for from := 0; ; {
+		j := strings.Index(line[from:], token)
+		if j < 0 {
+			return false
+		}
+		j += from
+		k := j + len(token)
+		if (j == 0 || !wordByte(line[j-1])) && (k == len(line) || !wordByte(line[k])) {
+			return true
+		}
+		from = j + 1
+	}
+}
+
+func wordByte(b byte) bool {
+	return b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
+}
+
+// nearMisses filters the record's own id roster against the token: one
+// edit apart first — the typo class — then ids sharing its kind prefix,
+// in the order Select searches. Nothing is ever invented; every id
+// offered resolves.
+func nearMisses(doc *scan.Document, token string) []string {
+	var dist1, prefixed []string
+	seen := map[string]bool{}
+	pfx := kindPrefix(token)
+	for _, id := range selectableIDs(doc) {
+		if seen[id] {
+			continue
+		}
+		seen[id] = true
+		local := id
+		if i := strings.LastIndex(local, ":"); i >= 0 {
+			local = local[i+1:]
+		}
+		switch {
+		case local == token:
+		case oneEditApart(local, token):
+			dist1 = append(dist1, id)
+		case pfx != "" && kindPrefix(local) == pfx:
+			prefixed = append(prefixed, id)
+		}
+	}
+	return append(dist1, prefixed...)
+}
+
+// selectableIDs is everything Select can resolve, in its search order:
+// elements, then outline sections, then anchors.
+func selectableIDs(doc *scan.Document) []string {
+	var ids []string
+	for _, e := range doc.Elements {
+		ids = append(ids, e.ID)
+	}
+	for _, n := range doc.Outline {
+		ids = append(ids, n.ID)
+	}
+	for _, a := range doc.Anchors {
+		ids = append(ids, a.ID)
+	}
+	return ids
+}
+
+// kindPrefix is the token's leading non-digit run: L- for L-2, JC for
+// JC5, the whole token when no digit follows. Prefixes are compared
+// whole, so A12 neighbours A1 and not ALT2.
+func kindPrefix(token string) string {
+	for i, r := range token {
+		if r >= '0' && r <= '9' {
+			return token[:i]
+		}
+	}
+	return token
+}
+
+// oneEditApart reports edit distance exactly one, byte-wise: the id
+// grammar is ASCII but for §, where a deletion still lines up.
+func oneEditApart(a, b string) bool {
+	if a == b {
+		return false
+	}
+	if len(a) == len(b) {
+		diff := 0
+		for i := 0; i < len(a); i++ {
+			if a[i] != b[i] {
+				diff++
+			}
+		}
+		return diff == 1
+	}
+	long, short := a, b
+	if len(long) < len(short) {
+		long, short = short, long
+	}
+	if len(long) != len(short)+1 {
+		return false
+	}
+	i := 0
+	for i < len(short) && long[i] == short[i] {
+		i++
+	}
+	return long[i+1:] == short[i:]
 }
 
 // facetOf is the named-facet half of --select: the projection's own

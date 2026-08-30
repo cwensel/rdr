@@ -97,8 +97,10 @@ func TestSelectReachesAClause(t *testing.T) {
 	if strings.Contains(out, "clause 0/") {
 		t.Errorf("derived line shows a backlog for a kind that is never derived:\n%s", out)
 	}
+	// The stop carries the record's own near misses — the ids one edit or
+	// one kind away, never invented — so the retry needs no second read.
 	code, _, errb = runCapture(t, "inspect", "--select", "0021:L-2", p)
-	if code != 2 || !strings.Contains(errb, "stopped:no-such-element (0021:L-2 in 0021)") {
+	if code != 2 || !strings.Contains(errb, "stopped:no-such-element (0021:L-2 in 0021; near misses: 0021:L-1, 0021:L-3, 0021:L-4)") {
 		t.Errorf("absent clause: exit %d, stderr %q", code, errb)
 	}
 
@@ -971,8 +973,14 @@ func TestFilterRejectsAnUnknownFacet(t *testing.T) {
 	if !strings.Contains(errb, "elements") {
 		t.Errorf("stderr %q does not list the valid keys", errb)
 	}
-	if strings.TrimSpace(out) != "" {
-		t.Errorf("a rejected filter still emitted %q", out)
+	// The stop reaches stdout too: sessions habitually 2>/dev/null a read
+	// they expect to succeed, and a refusal only stderr carries reads as
+	// an empty success.
+	if !strings.Contains(out, "stopped:no-such-facet") {
+		t.Errorf("stdout %q does not carry the stop", out)
+	}
+	if strings.Contains(out, "\"schema\"") {
+		t.Errorf("a rejected filter still emitted an envelope: %q", out)
 	}
 }
 
@@ -1868,10 +1876,14 @@ func TestRepeatedSelectAccumulates(t *testing.T) {
 		t.Errorf("mixed selects: %v", out)
 	}
 
-	// One select of the pair missing is still a stop, not a partial answer.
-	code, _, errb = runCapture(t, "inspect", "--select", "0004:A1", "--select", "0004:C9", fx)
-	if code != 2 || !strings.Contains(errb, "no-such-element") {
+	// One select of the pair missing is still exit 2, but the resolved
+	// select answers first and the stop names only the missing id.
+	code, out, errb = runCapture(t, "inspect", "--select", "0004:A1", "--select", "0004:C9", fx)
+	if code != 2 || !strings.Contains(errb, "no-such-element (0004:C9 in 0004") {
 		t.Errorf("missing element among several: exit %d, stderr %q", code, errb)
+	}
+	if !strings.Contains(out, "- **A1 [") {
+		t.Errorf("the resolved select was suppressed: %q", out)
 	}
 }
 
@@ -2218,5 +2230,117 @@ func TestAssumptionsFilterIsTheGateProjection(t *testing.T) {
 	}
 	if code, _, _ = runCapture(t, "inspect", "--json", "--select", "assumptions", path); code != 0 {
 		t.Errorf("--select assumptions exit %d", code)
+	}
+}
+
+// TestNoSuchElementHintNamesTheContainingElement: a select for a token
+// the author wrote but the projector never mints (a failure register
+// label cited as `0021:F-1`) used to stop bare, and the session's next
+// turn was a grep to learn the text was right there. When the token
+// stands verbatim in the body, the stop names the minted element whose
+// lines hold it, with the range — the id that actually reaches it.
+func TestNoSuchElementHintNamesTheContainingElement(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "0021-frames.md")
+	body := "# Recommendation 0021: Frames\n\n## Metadata\n\n- **Status**: Draft\n\n" +
+		"## Critical Assumptions\n\n" +
+		"- **A1 [load-bearing]**: The frame parser rejects malformed input.\n" +
+		"  - **Evidence**: The failure register F-1 names the overflow case.\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errb := runCapture(t, "inspect", "--select", "0021:F-1", p)
+	if code != 2 {
+		t.Fatalf("exit %d, want 2", code)
+	}
+	want := "stopped:no-such-element (0021:F-1 in 0021; F-1 appears inside 0021:A1 (9-10))"
+	if !strings.Contains(errb, want) {
+		t.Errorf("stderr %q\nwant it to carry %q", errb, want)
+	}
+	// F-12 is not F-1: the token matches whole, never as a prefix.
+	if err := os.WriteFile(p, []byte(strings.Replace(body, "F-1 ", "F-12 ", 1)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errb = runCapture(t, "inspect", "--select", "0021:F-1", p)
+	if code != 2 || strings.Contains(errb, "appears inside") {
+		t.Errorf("a longer token still hinted: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestMultiSelectAnswersResolvedThenStops: one bad id among several used
+// to zero the whole call, so the good selects' bytes were paid for and
+// thrown away. The resolved selects emit first, the stop names ONLY the
+// missing ids, the exit stays 2 — and the stop line lands on stdout as
+// well as stderr, because sessions habitually 2>/dev/null a read they
+// expect to succeed and a stated absence must survive that.
+func TestMultiSelectAnswersResolvedThenStops(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "0021-layers.md")
+	fence := "```"
+	body := "# Recommendation 0021: Layers\n\n## Metadata\n\n- **Status**: Draft\n\n" +
+		"#### Normative Contracts\n\n**C1**\n\n" +
+		fence + "normative\nL-1  input := owned records\nL-3  one capture per key\n" + fence + "\n"
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := runCapture(t, "inspect", "--select", "0021:L-1", "--select", "0021:L-2", p)
+	if code != 2 {
+		t.Fatalf("exit %d, want 2", code)
+	}
+	if !strings.HasPrefix(out, "L-1  input := owned records\n") {
+		t.Errorf("the resolved select did not answer first: %q", out)
+	}
+	stop := "stopped:no-such-element (0021:L-2 in 0021; near misses: 0021:L-1, 0021:L-3)"
+	if !strings.Contains(errb, stop) {
+		t.Errorf("stderr %q\nwant %q", errb, stop)
+	}
+	if !strings.Contains(out, stop) {
+		t.Errorf("stdout %q does not carry the stop", out)
+	}
+	if strings.Contains(errb, "0021:L-1 in") {
+		t.Errorf("the stop names a select that resolved: %q", errb)
+	}
+	// All missing: no partial output, one stop line, each id hinted.
+	code, out, _ = runCapture(t, "inspect", "--select", "0021:L-2", "--select", "0021:L-9", p)
+	if code != 2 || !strings.HasPrefix(out, "stopped:no-such-element (0021:L-2, 0021:L-9 in 0021; near misses for L-2:") {
+		t.Errorf("all missing: exit %d, stdout %q", code, out)
+	}
+}
+
+// TestStopsLandOnStdoutToo: every stopped: diagnostic reaches stdout as
+// well as stderr, for every subcommand but env — env's stdout is eval'd,
+// so a mirrored stop would be executed rather than read.
+func TestStopsLandOnStdoutToo(t *testing.T) {
+	if code, out, _ := runCapture(t, "lint", "x.md"); code != 2 || !strings.Contains(out, "stopped:unreadable") {
+		t.Errorf("lint: exit %d, stdout %q does not carry the stop", code, out)
+	}
+	if code, out, _ := runCapture(t, "status", "--tags", "--records", t.TempDir()); code != 2 || !strings.Contains(out, "stopped:usage") {
+		t.Errorf("status: exit %d, stdout %q does not carry the stop", code, out)
+	}
+}
+
+// TestTrailingFlagsNameTheRealMistake: `rdr lint 0112 --json` used to
+// stop with the subcommand's arity line — true, but hiding that the flag
+// was merely typed after the target. When a rejected positional starts
+// with `-`, the stop says the rule and echoes the corrected call,
+// value-taking flags keeping their operand.
+func TestTrailingFlagsNameTheRealMistake(t *testing.T) {
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"lint", "0112", "--json"}, "rdr lint --json 0112"},
+		{[]string{"inspect", "0112", "--records", "docs"}, "rdr inspect --records docs 0112"},
+		{[]string{"status", "0112", "--tags"}, "rdr status --tags 0112"},
+		{[]string{"paths", "0112", "--next-iter"}, "rdr paths --next-iter 0112"},
+	} {
+		code, out, errb := runCapture(t, c.args...)
+		want := "stopped:usage (flags go before the target: " + c.want + ")"
+		if code != 2 || !strings.Contains(errb, want) {
+			t.Errorf("%v: exit %d, stderr %q\nwant %q", c.args, code, errb, want)
+		}
+		if !strings.Contains(out, want) {
+			t.Errorf("%v: stdout %q does not carry the stop", c.args, out)
+		}
 	}
 }
