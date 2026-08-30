@@ -493,6 +493,9 @@ func citationFindings(d *scan.Document) []Finding {
 		if !strings.Contains(e.To, ":") || strings.Contains(e.Evidence, ":") {
 			continue // names a whole record, or is already the colon form
 		}
+		if e.Quoted {
+			continue // a verbatim quotation is not the author's to restyle
+		}
 		// SECTION AND ANCHOR CITATIONS ARE NOT REWRITTEN. A `§Name`
 		// citation is a bounded FRAGMENT of the target's heading or bold
 		// lead — the grammar reads at most six words (edge.sectionName) —

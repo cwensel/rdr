@@ -529,6 +529,13 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 	// cites `cli/0112:A11` and goes on to say `cli/0112 is Draft` has
 	// named what it rests on, and the bare mention is prose. Only a peer
 	// with no element cite anywhere in the assumption is reported.
+	//
+	// A SELF-REFERENCE IS NEVER A PEER. Quoted peer text that names the
+	// host record mints an edge back to the record itself, and demanding
+	// an element cite for the record the reader is already in helps
+	// nobody — the rule guards against a PEER being reorganised. The same
+	// number under another dir prefix (a lens file, a spike dir) is the
+	// record's own family and is skipped for the same reason.
 	elementCited := map[string]bool{}
 	for _, e := range d.Edges {
 		if e.Kind == edge.PeerEvidence && !ident.IsRecord(e.To) {
@@ -538,6 +545,9 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 	}
 	for _, e := range d.Edges {
 		if e.Kind != edge.PeerEvidence || !ident.IsRecord(e.To) || elementCited[e.From+" "+e.To] {
+			continue
+		}
+		if refRecord(e.To) == d.Record {
 			continue
 		}
 		out = append(out, Finding{

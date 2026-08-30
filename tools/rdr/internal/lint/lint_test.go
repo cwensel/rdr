@@ -790,3 +790,53 @@ func TestOwnershipMutualProseSemicolonAndFixQuotesTheClause(t *testing.T) {
 		}
 	}
 }
+
+// TestPeerEvidenceSelfCiteIsNotAPeer: a self-reference is never a peer.
+// The quoted form is the corpus's shape — the Evidence quotes the peer's
+// text verbatim and the peer's prose names the HOST record — and the bare
+// form is skipped by the check itself, because demanding an element cite
+// for the record the reader is already in guards against nothing. A
+// genuine peer with no element cite in the same Evidence still fires.
+func TestPeerEvidenceSelfCiteIsNotAPeer(t *testing.T) {
+	quoted := record(t, "0113", "",
+		"the peer's own text reads \"cli/0113 rests on the fold\" verbatim.")
+	if r := Run(quoted, Options{}); has(r, "peer-evidence:no-element") {
+		t.Errorf("a quoted self-cite fired: %v", codes(r))
+	}
+
+	bare := record(t, "0113", "", "cli/0113 restates its own scope here.")
+	if r := Run(bare, Options{}); has(r, "peer-evidence:no-element") {
+		t.Errorf("a bare self-cite fired: %v", codes(r))
+	}
+
+	mixed := record(t, "0113", "",
+		"cli/0113 frames the claim, and cli/0092 is the authority with no element named.")
+	r := Run(mixed, Options{})
+	var fired []string
+	for _, f := range r.Findings {
+		if f.Code == "peer-evidence:no-element" {
+			fired = append(fired, f.Message)
+		}
+	}
+	if len(fired) != 1 || !strings.Contains(fired[0], "cli/0092") {
+		t.Errorf("a self-cite must not shield a genuine elementless peer: %v", fired)
+	}
+}
+
+// TestQuotedPeerTokenIsExemptNotSilenced: a peer token inside a closed
+// quotation is the peer speaking, so it draws no no-element finding — but
+// the exemption reads QUOTES, not the rule away: the same token after an
+// unclosed stray mark is this record's own citation and still fires.
+func TestQuotedPeerTokenIsExemptNotSilenced(t *testing.T) {
+	quoted := record(t, "0113", "",
+		"the peer states \"cli/0092 owns the purpose rungs\" and the claim reads it whole.")
+	if r := Run(quoted, Options{}); has(r, "peer-evidence:no-element") {
+		t.Errorf("a quoted peer token fired: %v", codes(r))
+	}
+
+	stray := record(t, "0113", "",
+		"a stray \" mark precedes; cli/0092 is cited with no element.")
+	if r := Run(stray, Options{}); !has(r, "peer-evidence:no-element") {
+		t.Errorf("an unclosed quote silenced a genuine elementless peer cite: %v", codes(r))
+	}
+}

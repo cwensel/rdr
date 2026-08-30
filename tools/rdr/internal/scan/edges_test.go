@@ -275,3 +275,43 @@ func equalStrings(a, b []string) bool {
 	}
 	return true
 }
+
+// TestQuotedPeerCitationIsAMention pins the quotation exemption: a record
+// token inside a closed double-quote pair of a Peer-RDR Evidence is the
+// peer speaking, so it mints a quoted mention, not peer-evidence. Straight
+// and curly pairs both count; an unclosed quote claims nothing, so the
+// citation after a stray mark keeps its peer-evidence kind.
+func TestQuotedPeerCitationIsAMention(t *testing.T) {
+	src := "# Recommendation 0113: Quoted spans\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-29\n- **Status**: Draft\n\n" +
+		"## Critical Assumptions\n\n- **A1 [Load-bearing]**: the peer holds.\n" +
+		"  - **Status**: Verified\n  - **Method**: Peer RDR\n" +
+		"  - **Evidence**: cli/0112:A3 states the bound — \"the fold admits cli/0092 once\" —\n" +
+		"    and “cli/0081 owns the rows” is the peer's phrase; a stray \" leaves cli/0055 a citation.\n"
+	d := Bytes([]byte(src), Options{Project: "cli"})
+	want := map[string]struct {
+		kind   edge.Kind
+		quoted bool
+	}{
+		"cli/0112:A3": {edge.PeerEvidence, false},
+		"cli/0092":    {edge.Mentions, true},
+		"cli/0081":    {edge.Mentions, true},
+		"cli/0055":    {edge.PeerEvidence, false},
+	}
+	seen := map[string]bool{}
+	for _, e := range d.Edges {
+		w, ok := want[e.To]
+		if !ok || e.Field != "Evidence" {
+			continue
+		}
+		seen[e.To] = true
+		if e.Kind != w.kind || e.Quoted != w.quoted {
+			t.Errorf("%s: kind=%s quoted=%v, want kind=%s quoted=%v", e.To, e.Kind, e.Quoted, w.kind, w.quoted)
+		}
+	}
+	for to := range want {
+		if !seen[to] {
+			t.Errorf("no Evidence edge minted to %s", to)
+		}
+	}
+}

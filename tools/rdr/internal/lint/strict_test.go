@@ -1071,3 +1071,33 @@ Responses: 0032-pointer/artifacts/gate.md (Gate PASS 2026-08-26)
 		t.Error("0032:G-cross-cutting was not projected; a retained bullet must stay citable")
 	}
 }
+
+// TestQuotedCitationIsNotRestyled: citation:form migrates the author's own
+// spelling to the colon id, and a citation inside a closed quotation is
+// not the author's — it is the peer's text verbatim, which a lint pass
+// must never ask a record to rewrite. The unquoted cite on the same line
+// keeps its finding, so the skip is the quotation's, not the field's.
+func TestQuotedCitationIsNotRestyled(t *testing.T) {
+	target := "# Recommendation 0091: The Target\n\n## Metadata\n\n" +
+		"- **Status**: Implemented\n- **Date**: 2026-08-01\n\n" +
+		"## Critical Assumptions\n\n- **A1 First.**\n- **A2 Second.**\n"
+	src := "# Recommendation 0090: Quoted Citation\n\n## Metadata\n\n" +
+		"- **Status**: Implemented\n- **Date**: 2026-08-01\n\n" +
+		"## Critical Assumptions\n\n- **A1 [Load-bearing]**: the peer holds.\n" +
+		"  - **Status**: Verified\n  - **Method**: Peer RDR\n" +
+		"  - **Evidence**: cli/0091 A2 stands, and the peer says \"cli/0091 A1 admits it once\".\n"
+	d := scan.Bytes([]byte(src), scan.Options{Project: "cli"})
+	td := scan.Bytes([]byte(target), scan.Options{Project: "cli"})
+	docs := []*scan.Document{d, td}
+	scan.NewResolver(docs, "").ResolveAll(docs)
+
+	var msgs []string
+	for _, f := range Run(d, Options{}).Findings {
+		if f.Code == "citation:form" {
+			msgs = append(msgs, f.Message)
+		}
+	}
+	if len(msgs) != 1 || !strings.Contains(msgs[0], "cli/0091:A2") {
+		t.Errorf("want one citation:form finding on the unquoted cite alone, got: %v", msgs)
+	}
+}

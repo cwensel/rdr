@@ -56,6 +56,12 @@ type Edge struct {
 	// Field is the label of the field the edge came from (`Predecessors`,
 	// `Evidence`, `Status`), or "" when it was read from prose.
 	Field string `json:"field,omitempty"`
+	// Quoted marks a reference read inside a closed double-quote pair: the
+	// text is a verbatim quotation, so the reference is someone else's
+	// words rather than this record's own citation. A quoted reference is
+	// recorded weakly (see assumptionEdges) and no rule may ask the author
+	// to rewrite it — a quotation is not the author's to restyle.
+	Quoted bool `json:"quoted,omitempty"`
 	// Slug is the filename slug the author wrote alongside the number, so
 	// the resolver can report a reference whose number and slug name two
 	// different records.
@@ -404,6 +410,17 @@ func (d *Document) demotedEdge(target string, line int, evidence string, claimed
 // `Source Search` is a mention. Source anchors and artifact paths are
 // read under every method, because an Evidence line naming a symbol is a
 // code edge whatever the method label says.
+//
+// A QUOTED TOKEN IS THE PEER SPEAKING, NOT THIS RECORD CITING. Evidence
+// under `Peer RDR` quotes the peer's text verbatim, and the peer's own
+// prose is full of record references — including the host record's own
+// id. Promoting those to peer-evidence asserts a support relation the
+// author never wrote, and the no-element rule then demands an element
+// cite inside a quotation the author may not alter. So a reference whose
+// whole span sits inside a closed double-quote pair stays a mention. The
+// exemption never drops an edge — the relation is still recorded, weakly
+// — and an unclosed quote exempts nothing, so a stray mark cannot
+// silence the field behind it.
 func (d *Document) assumptionEdges(claimed map[int][][2]int) {
 	for i := range d.Elements {
 		el := &d.Elements[i]
@@ -425,17 +442,65 @@ func (d *Document) assumptionEdges(claimed map[int][][2]int) {
 				continue
 			}
 			kind := edge.Mentions
+			var quoted [][2]int
 			if peer && f.Canonical != "If wrong" {
 				kind = edge.PeerEvidence
+				quoted = quotedSpans(f.Value)
 			}
 			for _, r := range edge.FindRefs(f.Value, false) {
-				d.addEdge(Edge{From: el.ID, To: d.target(r), Kind: kind, Line: f.LineStart, LineEnd: f.LineEnd,
-					Evidence: r.Raw, Field: f.Canonical, Slug: r.Slug}, claimed, [2]int{r.Start, r.End})
+				k, q := kind, false
+				if k == edge.PeerEvidence && inQuotes(quoted, r.Start, r.End) {
+					k, q = edge.Mentions, true
+				}
+				d.addEdge(Edge{From: el.ID, To: d.target(r), Kind: k, Line: f.LineStart, LineEnd: f.LineEnd,
+					Evidence: r.Raw, Field: f.Canonical, Slug: r.Slug, Quoted: q}, claimed, [2]int{r.Start, r.End})
 			}
 			d.anchorsIn(el.ID, f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
 			d.issueEdges(el.ID, f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
 		}
 	}
+}
+
+// quotedSpans is the byte ranges of s enclosed in double quotes: straight
+// pairs, matched left to right, and the curly `“ ”` pair, which carries
+// its own direction. Only a CLOSED pair is a span — an opening quote the
+// field never closes claims nothing. Single quotes are not read: in prose
+// they are apostrophes far more often than quotation.
+func quotedSpans(s string) [][2]int {
+	var out [][2]int
+	straight, curly := -1, -1
+	for i, r := range s {
+		switch r {
+		case '"':
+			if straight < 0 {
+				straight = i
+			} else {
+				out = append(out, [2]int{straight, i + 1})
+				straight = -1
+			}
+		case '“':
+			if curly < 0 {
+				curly = i
+			}
+		case '”':
+			if curly >= 0 {
+				out = append(out, [2]int{curly, i + len("”")})
+				curly = -1
+			}
+		}
+	}
+	return out
+}
+
+// inQuotes reports whether the span [start,end) lies wholly inside one of
+// the quoted spans.
+func inQuotes(spans [][2]int, start, end int) bool {
+	for _, sp := range spans {
+		if start >= sp[0] && end <= sp[1] {
+			return true
+		}
+	}
+	return false
 }
 
 // --- contracts ----------------------------------------------------------
