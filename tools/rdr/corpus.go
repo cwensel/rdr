@@ -114,7 +114,7 @@ func indexGraph(f *flags, stdout, stderr io.Writer) int {
 		// ~106x smaller. Same flag, same semantics and the same shared
 		// projection as inspect's, so a caller learns the idiom once.
 		if f.filter != nil && *f.filter != "" {
-			out, err := filterKeys(g, *f.filter, graphIdentityKeys)
+			out, err := filterKeys(g, *f.filter, graphIdentityKeys, nil)
 			if err != nil {
 				fmt.Fprintln(stderr, err)
 				return 2

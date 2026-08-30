@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -2096,5 +2097,126 @@ func TestSummaryClipsLongLabels(t *testing.T) {
 	}
 	if !strings.Contains(out, long) {
 		t.Errorf("JSON elements should carry the whole label")
+	}
+}
+
+// TestLintHeaderCarriesTierCounts: the record's verdict line says how
+// many findings block, how many are resolution tier, how many are a
+// surviving placeholder and how many are advisory — the four numbers a
+// gate used to re-run lint under three greps to learn. They are checked
+// against the JSON findings, so the header cannot drift from the list.
+func TestLintHeaderCarriesTierCounts(t *testing.T) {
+	path := fixturePath("legacy-shape.md")
+	code, jsonOut, errb := runCapture(t, "lint", "--json", path)
+	if code > 1 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var rep struct {
+		Findings []struct {
+			Tier     string `json:"tier"`
+			Code     string `json:"code"`
+			Blocking bool   `json:"blocking"`
+		} `json:"findings"`
+	}
+	if err := json.Unmarshal([]byte(jsonOut), &rep); err != nil {
+		t.Fatal(err)
+	}
+	if len(rep.Findings) == 0 {
+		t.Fatal("the fixture lints clean; the counts need findings to count")
+	}
+	var blocking, resolution, placeholder int
+	for _, fd := range rep.Findings {
+		if fd.Blocking {
+			blocking++
+		}
+		if fd.Tier == "resolution" {
+			resolution++
+		}
+		if fd.Code == "placeholder:survived" {
+			placeholder++
+		}
+	}
+	want := fmt.Sprintf("blocking=%d resolution=%d placeholder=%d advisory=%d",
+		blocking, resolution, placeholder, len(rep.Findings)-blocking)
+
+	_, text, _ := runCapture(t, "lint", path)
+	header := strings.SplitN(text, "\n", 2)[0]
+	if !strings.HasSuffix(header, want) {
+		t.Errorf("header %q does not end with %q", header, want)
+	}
+	if strings.Count(header, "  ") < 4 {
+		t.Errorf("header %q lost the record/status/state/verdict columns", header)
+	}
+}
+
+// TestAssumptionsFilterIsTheGateProjection: `--filter assumptions` is
+// the per-assumption view the exit gates read — id, Status, Method
+// members and off-vocabulary, the Evidence span and its anchors — and
+// nothing else, so it is a fraction of the elements facet it replaces.
+// `resolved` on an anchor is three-valued: absent unless edges were
+// resolved in the same call.
+func TestAssumptionsFilterIsTheGateProjection(t *testing.T) {
+	path := fixturePath("current-shape.md")
+	code, out, errb := runCapture(t, "inspect", "--json", "--filter", "assumptions", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var got struct {
+		Record      string `json:"record"`
+		Assumptions []struct {
+			ID     string `json:"id"`
+			Status *struct {
+				Value string `json:"value"`
+			} `json:"status"`
+			Method *struct {
+				Members       []string `json:"members"`
+				OffVocabulary []string `json:"off_vocabulary"`
+			} `json:"method"`
+			Evidence *struct {
+				LineStart int `json:"line_start"`
+				Anchors   []struct {
+					To       string `json:"to"`
+					Resolved *bool  `json:"resolved"`
+				} `json:"anchors"`
+			} `json:"evidence"`
+		} `json:"assumptions"`
+	}
+	if err := json.Unmarshal([]byte(out), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Record != "0004" || len(got.Assumptions) != 3 {
+		t.Fatalf("record %q with %d assumptions; want 0004 with 3", got.Record, len(got.Assumptions))
+	}
+	a2, a3 := got.Assumptions[1], got.Assumptions[2]
+	if a2.ID != "0004:A2" || a2.Status == nil || a2.Status.Value != "Verified" {
+		t.Errorf("A2 = %+v; want id 0004:A2 at Verified", a2)
+	}
+	if a2.Evidence == nil || a2.Evidence.LineStart == 0 || len(a2.Evidence.Anchors) == 0 || a2.Evidence.Anchors[0].To != "hash::Sum32" {
+		t.Errorf("A2 evidence = %+v; want its span and the hash::Sum32 anchor", a2.Evidence)
+	}
+	if a2.Evidence != nil && len(a2.Evidence.Anchors) > 0 && a2.Evidence.Anchors[0].Resolved != nil {
+		t.Error("an anchor carries a verdict though nothing looked; resolved must be absent")
+	}
+	if a3.Method == nil || strings.Join(a3.Method.Members, "+") != "Peer RDR+Source Search" || len(a3.Method.OffVocabulary) != 0 {
+		t.Errorf("A3 method = %+v; want the compound split into its two sanctioned members", a3.Method)
+	}
+
+	_, elements, _ := runCapture(t, "inspect", "--json", "--filter", "elements", path)
+	if len(out)*4 > len(elements) {
+		t.Errorf("assumptions is %d bytes against %d for elements; the saving is the point", len(out), len(elements))
+	}
+
+	// With edges in the same call the anchors carry the edge's verdict —
+	// here false, against an empty source root.
+	repo := t.TempDir()
+	code, out, errb = runCapture(t, "inspect", "--json", "--repo", repo, "--filter", "assumptions,edges", path)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, `"to": "hash::Sum32",`) || !strings.Contains(out, `"resolved": false`) {
+		t.Errorf("with edges resolved the anchor should carry resolved=false:\n%s", out)
+	}
+	if code, _, _ = runCapture(t, "inspect", "--json", "--select", "assumptions", path); code != 0 {
+		t.Errorf("--select assumptions exit %d", code)
 	}
 }

@@ -20,10 +20,12 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/model"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
@@ -852,7 +854,9 @@ var stageFacts = map[string][]string{
 	"1 Seed":    {"status"},
 	"2 Propose": {"ca_total", "premortem_line", "ground_sweep_line", "joint_checks", "propose_premortem"},
 	"3 Refine":  {"ca", "ca_verified", "spikes"},
-	"4 Resolve": {"ca", "ca_pending", "ca_verified", "ca_other_terminal", "spikes"},
+	// WHICH assumptions are open, and which a re-entry reopened: the
+	// gate questions the tallies alone could not answer.
+	"4 Resolve": {"ca", "ca_pending", "ca_pending_ids", "reverify", "ca_verified", "ca_other_terminal", "spikes"},
 	"5+6 Pre-Lock (review+resolve)": {
 		"profile", "contracts",
 		"lens_grounding", "lens_3amigo", "lens_critique", "lens_repeatability", "lens_cove",
@@ -866,7 +870,10 @@ var stageFacts = map[string][]string{
 		"critique_models", "repeatability_variant",
 	},
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
-	"7 Finalize":  {"status", "gate_written", "gate_stale"},
+	// The anchor and peer-evidence tallies are §mechanical-gate's
+	// numbers; three-valued, so unlooked travels with total.
+	"7 Finalize": {"status", "gate_written", "gate_stale",
+		"anchors_total", "anchors_unresolved", "anchors_unlooked", "peer_evidence_unresolved"},
 	// 7.1 Cluster reads three different things, and all are facts.
 	// `cluster` is what the record DECLARES, which is what the tandem
 	// barrier reads and what the row surfaces; `clustered` is that
@@ -931,6 +938,7 @@ var routingFacts = map[string]string{
 	"ca_unverified":         "an Unverified assumption is open, like a Pending one",
 	"ca_placeholder":        "an unfilled legend is not a Pending assumption",
 	"ca_off_vocabulary":     "a Status in no vocabulary certifies nothing",
+	"ca_off_vocabulary_ids": "which assumptions carry that Status, so the gate names them",
 	"legacy_evidence_shape": "pre-migration evidence must never read as lens un-run",
 	"critique_model_a":      "the stamp the critique dual-model comparison reads",
 	"critique_model_b":      "the stamp the critique dual-model comparison reads",
@@ -1607,4 +1615,120 @@ func TestStaleLensDatesEvidenceAgainstTheDemote(t *testing.T) {
 			}
 		}
 	})
+}
+
+// --- gate facts -------------------------------------------------------------
+
+func factMembers(facts []Fact, name string) ([]string, bool) {
+	for _, f := range facts {
+		if f.Name == name {
+			return f.Members, true
+		}
+	}
+	return nil, false
+}
+
+// TestGateFactsNameTheAssumptions: the id sets carry exactly the members
+// the tallies count, and the re-verify set is ABSENT off a re-entry
+// rather than empty — an empty set would read "nothing to re-verify" on
+// a record that was never revised.
+func TestGateFactsNameTheAssumptions(t *testing.T) {
+	recs, _, _ := statusFixture(t)
+	tbl := loadRealTable(t)
+	facts := func(rec string) []Fact {
+		t.Helper()
+		doc, err := scan.File(filepath.Join(recs, rec), scan.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tbl.Evaluate(NewFactEnv(tbl, doc, strings.TrimSuffix(rec, ".md")))
+	}
+
+	all := facts("0020-cache-eviction-policy.md")
+	if got, _ := factMembers(all, "ca_pending_ids"); strings.Join(got, ",") != "0020:A1,0020:A2" {
+		t.Errorf("ca_pending_ids = %v, want both Pending assumptions", got)
+	}
+	if n, _ := factValue(all, "ca_pending"); n != "2" {
+		t.Errorf("ca_pending = %q; the ids and the count must agree", n)
+	}
+	if _, ok := factMembers(all, "reverify"); ok {
+		t.Error("reverify answered on a bare Draft; no re-entry means no set, not an empty one")
+	}
+	if got, _ := factMembers(all, "ca_off_vocabulary_ids"); len(got) != 0 {
+		t.Errorf("ca_off_vocabulary_ids = %v on a clean list", got)
+	}
+
+	re := facts("0022-cache-metrics-surface.md")
+	if got, ok := factMembers(re, "reverify"); !ok || strings.Join(got, ",") != "0022:A1,0022:A2" {
+		t.Errorf("reverify = %v (%v); want the qualifier's re-verify list as ids", got, ok)
+	}
+	if got, _ := factMembers(re, "ca_pending_ids"); len(got) != 0 {
+		t.Errorf("ca_pending_ids = %v on a record whose assumptions are Refuted/Verified", got)
+	}
+}
+
+// TestEdgeTalliesAreThreeValued: with nothing looked for every anchor is
+// unlooked and the peer-evidence count is absent; once the caller's hook
+// decides the edges, the same facts report what was found. The hook is
+// asked once, and only when a tally is evaluated.
+func TestEdgeTalliesAreThreeValued(t *testing.T) {
+	tbl := loadRealTable(t)
+	doc, err := scan.File(fixturePath("current-shape.md"), scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	anchors, peers := 0, 0
+	for _, e := range doc.Edges {
+		switch e.Kind {
+		case edge.SourceAnchor:
+			anchors++
+		case edge.PeerEvidence:
+			peers++
+		}
+	}
+	if anchors == 0 || peers == 0 {
+		t.Fatalf("fixture carries %d anchors and %d peer citations; the test needs both", anchors, peers)
+	}
+
+	unlooked := tbl.Evaluate(NewFactEnv(tbl, doc, "current-shape"))
+	if v, _ := factValue(unlooked, "anchors_total"); v != strconv.Itoa(anchors) {
+		t.Errorf("anchors_total = %q, want %d", v, anchors)
+	}
+	if v, _ := factValue(unlooked, "anchors_unlooked"); v != strconv.Itoa(anchors) {
+		t.Errorf("anchors_unlooked = %q with no hook, want every anchor", v)
+	}
+	if v, _ := factValue(unlooked, "anchors_unresolved"); v != "0" {
+		t.Errorf("anchors_unresolved = %q with nothing looked", v)
+	}
+	if _, ok := factValue(unlooked, "peer_evidence_unresolved"); ok {
+		t.Error("peer_evidence_unresolved answered while the peer edges are undecided")
+	}
+
+	calls := 0
+	env := NewFactEnv(tbl, doc, "current-shape")
+	env.ResolveEdges = func() {
+		calls++
+		no := false
+		for i := range doc.Edges {
+			doc.Edges[i].Resolved = &no
+		}
+	}
+	env.Want = map[string]bool{"status": true}
+	if tbl.Evaluate(env); calls != 0 {
+		t.Errorf("a call filtered to the cheap facts resolved edges %d times", calls)
+	}
+	env.Want = nil
+	looked := tbl.Evaluate(env)
+	if calls != 1 {
+		t.Errorf("the hook ran %d times for four tallies, want once", calls)
+	}
+	if v, _ := factValue(looked, "anchors_unresolved"); v != strconv.Itoa(anchors) {
+		t.Errorf("anchors_unresolved = %q after every anchor resolved false, want %d", v, anchors)
+	}
+	if v, _ := factValue(looked, "anchors_unlooked"); v != "0" {
+		t.Errorf("anchors_unlooked = %q after resolution", v)
+	}
+	if v, ok := factValue(looked, "peer_evidence_unresolved"); !ok || v != strconv.Itoa(peers) {
+		t.Errorf("peer_evidence_unresolved = %q (%v), want %d", v, ok, peers)
+	}
 }

@@ -41,6 +41,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/model"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
@@ -201,6 +202,8 @@ var factSources = map[string]bool{
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true,
+	// the gate facts, evaluated in the block at the end of this file
+	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -417,6 +420,10 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Root == "" || d.Path == "" || d.Kind != "bool" {
 			return d, fmt.Errorf("fact %q: a stale-path is a bool naming a root and a path", name)
 		}
+	case "assumption-ids", "edge-tally":
+		if d.Select == "" {
+			return d, fmt.Errorf("fact %q: a %s names a select", name, d.Source)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
 		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
@@ -495,6 +502,16 @@ type FactEnv struct {
 	readFile func(string) ([]byte, error)
 	statPath func(string) (os.FileInfo, error)
 	readDir  func(string) ([]os.DirEntry, error)
+	// Want, when set, names the facts to evaluate and the rest are
+	// skipped before they cost anything: `--filter` applied at
+	// evaluation rather than after it, so a call asking only for the
+	// cheap facts never pays the edge resolution the tallies need.
+	Want map[string]bool
+	// ResolveEdges decides the record's edges on first need (edgeTally),
+	// or is nil when the caller bound no corpus — then every anchor is
+	// unlooked, which is the honest answer.
+	ResolveEdges  func()
+	edgesResolved bool
 }
 
 // NewFactEnv binds the roots a table declares from the seam.
@@ -535,6 +552,9 @@ func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 func (t *FactTable) Evaluate(e *FactEnv) []Fact {
 	out := []Fact{}
 	for _, d := range t.Facts {
+		if e.Want != nil && !e.Want[d.Name] {
+			continue
+		}
 		if f, ok := t.evaluate(d, e); ok {
 			out = append(out, f)
 		}
@@ -574,6 +594,12 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.staleLens(d)
 	case "stale-path":
 		return e.stalePath(d)
+	case "assumption-ids":
+		return e.assumptionIDs(d)
+	case "reverify-ids":
+		return e.reverifyIDs(d)
+	case "edge-tally":
+		return e.edgeTally(d)
 	}
 	return Fact{}, false
 }
@@ -1659,4 +1685,135 @@ func emitFacts(facts []Fact, record string, stdout, stderr interface{ Write([]by
 		return 2
 	}
 	return 0
+}
+
+// --- gate facts ------------------------------------------------------------
+//
+// The questions a stage asks at its exit gate — WHICH assumptions are
+// still Pending, WHICH ones a re-entry reopened, how many anchors were
+// looked for and not found — used to be answerable only by pulling the
+// elements or edges facet (100KB+ on a large record) and walking it by
+// hand. The tallies above say how many; these say which, and count the
+// edges the tallies never read.
+
+// assumptionIDs names the assumptions in one tally bucket, as the ids the
+// projector cites (`NNNN:A3`). The buckets are tallyAssumptions's, read
+// through the same switch, so `ca_pending_ids` has `ca_pending` members.
+func (e *FactEnv) assumptionIDs(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	var ids []string
+	for _, el := range e.Doc.Elements {
+		if el.Kind != ident.Assumption {
+			continue
+		}
+		for _, f := range el.Fields {
+			if f.Canonical == "Status" && f.Status != nil && assumptionBucket(f.Status) == d.Select {
+				ids = append(ids, el.ID)
+			}
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(ids)}, true
+}
+
+// assumptionBucket is tallyAssumptions's classification, so the ids and
+// the counts cannot disagree about where a status falls.
+func assumptionBucket(s *scan.Status) string {
+	switch {
+	case s.Placeholder:
+		return "placeholder"
+	case observedTerminal[s.Value]:
+		return "observed-terminal"
+	case s.Tier == model.OffVocabulary.String():
+		return "off-vocabulary"
+	case s.Value == "Verified" || s.Value == "Pending" || s.Value == "Unverified":
+		return s.Value
+	}
+	return "off-vocabulary"
+}
+
+// reverifyIDs is the re-verify set a `Draft [revised from Final …;
+// re-verify A2,A4 — …]` qualifier names, read off the projection's
+// `reverify` self-edges — the list a scoped Resolve works through.
+// ABSENT unless the Status is in that form: a record with no re-entry
+// has no re-verify set, which is not an empty one (`re-verify none` is a
+// real answer and projects `[]`).
+func (e *FactEnv) reverifyIDs(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	f := metadataField(e.Doc, "Status")
+	if f == nil || f.Status == nil || f.Status.Form != model.QualifierRevisedFrom.String() {
+		return Fact{}, false
+	}
+	var ids []string
+	for _, ed := range e.Doc.Edges {
+		if ed.Kind == edge.Reverify {
+			ids = append(ids, ed.To)
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(ids)}, true
+}
+
+// edgeTally counts the record's typed edges by verdict — the numbers
+// §mechanical-gate used to pull the whole edges facet for.
+//
+// `resolved` is three-valued and the tallies keep it so: `anchors-total`
+// is every source anchor, `anchors-unresolved` those looked for and not
+// found, `anchors-unlooked` those nothing looked for (no source root, or
+// no corpus to decide against). The three travel together, so unlooked
+// never reads as passed. `peer-evidence-unresolved` has no unlooked
+// twin, so it goes ABSENT while any peer-evidence edge is undecided
+// rather than reporting a zero nothing checked.
+//
+// Resolution is on demand: the first tally asks the caller's hook, so a
+// call that filters these facts out never pays the corpus scan and repo
+// walk they cost.
+func (e *FactEnv) edgeTally(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	if e.ResolveEdges != nil && !e.edgesResolved {
+		e.edgesResolved = true
+		e.ResolveEdges()
+	}
+	var total, unresolved, unlooked, peerUnresolved int
+	peerUnlooked := false
+	for _, ed := range e.Doc.Edges {
+		switch ed.Kind {
+		case edge.SourceAnchor:
+			total++
+			switch {
+			case ed.Resolved == nil:
+				unlooked++
+			case !*ed.Resolved:
+				unresolved++
+			}
+		case edge.PeerEvidence:
+			switch {
+			case ed.Resolved == nil:
+				peerUnlooked = true
+			case !*ed.Resolved:
+				peerUnresolved++
+			}
+		}
+	}
+	var n int
+	switch d.Select {
+	case "anchors-total":
+		n = total
+	case "anchors-unresolved":
+		n = unresolved
+	case "anchors-unlooked":
+		n = unlooked
+	case "peer-evidence-unresolved":
+		if peerUnlooked {
+			return Fact{}, false
+		}
+		n = peerUnresolved
+	default:
+		return Fact{}, false
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(n)}, true
 }

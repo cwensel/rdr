@@ -1034,3 +1034,69 @@ path        = "README.md"
 domain      = ["unindexed", "none", "Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
 absent      = "unindexed"
 description = "The Status cell of this record's README index row, or `none` when it has no row."
+
+# ===========================================================================
+# Gate facts — which assumptions, which re-verify set, how many anchors
+# ===========================================================================
+#
+# The tallies above say HOW MANY assumptions are Pending; a stage's exit
+# gate asks WHICH, and a Resolve re-entry asks which ones the qualifier
+# reopened. Without these the answer was a 100KB+ facet pull and a
+# hand-written walker per stage. Each set renders as a compact JSON
+# array of ids (`["0106:A3","0106:A7"]`), one shell word, so `--tags`
+# carries it as any other set.
+
+[fact.ca_pending_ids]
+kind        = "set"
+source      = "assumption-ids"
+select      = "Pending"
+description = "The assumptions at Pending, by id — the members ca_pending counts."
+
+[fact.ca_off_vocabulary_ids]
+kind        = "set"
+source      = "assumption-ids"
+select      = "off-vocabulary"
+description = "The assumptions whose Status matches no vocabulary label, by id."
+
+# The re-verify set of a `Draft [revised from Final …; re-verify A2,A4 —
+# …]` qualifier, read off the projection's reverify self-edges. ABSENT
+# unless the Status is in that form: no re-entry means no set, which is
+# not an empty one — `re-verify none` is a real answer and reads `[]`.
+[fact.reverify]
+kind        = "set"
+source      = "reverify-ids"
+description = "The assumption ids a scoped re-entry must re-verify; absent when the Status is not a revised-from."
+
+# Source-anchor edges by verdict. `resolved` is three-valued and so are
+# these: total, looked-for-and-missing, and never-looked (no source root
+# bound). The three are read together — an `unlooked` equal to `total`
+# says the check did not run, which is neither pass nor fail.
+[fact.anchors_total]
+kind        = "int"
+source      = "edge-tally"
+select      = "anchors-total"
+min         = 0
+description = "Source anchors (`path::Symbol`) the record cites."
+
+[fact.anchors_unresolved]
+kind        = "int"
+source      = "edge-tally"
+select      = "anchors-unresolved"
+min         = 0
+description = "Source anchors looked for in the source root and not found."
+
+[fact.anchors_unlooked]
+kind        = "int"
+source      = "edge-tally"
+select      = "anchors-unlooked"
+min         = 0
+description = "Source anchors nothing looked for — no source root was bound."
+
+# Absent while any peer-evidence edge is undecided (no records dir to
+# check against), so a zero here always means looked and found.
+[fact.peer_evidence_unresolved]
+kind        = "int"
+source      = "edge-tally"
+select      = "peer-evidence-unresolved"
+min         = 0
+description = "Peer-RDR Evidence citations whose element was looked for and not found; absent while unchecked."

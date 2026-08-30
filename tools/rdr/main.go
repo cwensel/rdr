@@ -86,7 +86,12 @@ identity keys always included — one call where --select would need several.
 Only edges[] carries "resolved", and deciding it scans the records dir and
 walks --repo: the whole envelope, --select edges, --filter …edges and lint
 pay that (~1.5s on a large corpus); every other facet answers from the
-record alone (~20ms).
+record alone (~20ms). --filter assumptions is a derived facet — one row per
+Critical Assumption: id, status.{value,tier}, method.{members,
+off_vocabulary}, evidence.{line_start,line_end,anchors[]} — the gate
+questions in ~10KB where elements is ~140KB; an anchor's "resolved" is
+present only when edges were resolved in the same call
+(--filter assumptions,edges).
 inspect with no flag is the summary: one line per section and element, id,
 line range and a label capped at 100 runes — the cheap read plan (~100-200
 lines, under 20KB on the largest records); --select elements is every
@@ -342,7 +347,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
-		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|<element-id>; repeat for several, answered in order")
+		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|assumptions|<element-id>; repeat for several, answered in order")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
@@ -500,7 +505,80 @@ var identityKeys = []string{"schema", "record", "path"}
 // consumer that asked for `elments` must be told, not handed `{}` and
 // left to conclude the record has none.
 func filterEnvelope(doc *scan.Document, filter string) (map[string]json.RawMessage, error) {
-	return filterKeys(doc, filter, identityKeys)
+	return filterKeys(doc, filter, identityKeys, map[string]any{"assumptions": assumptionsFacet(doc)})
+}
+
+// assumptionRow is one Critical Assumption as the exit gates read it:
+// the id, its Status as classified, its Method members and the ones in
+// no vocabulary, and the Evidence field's span with the source anchors
+// it cites. Nothing else — the whole list is ~3KB on a record whose
+// `elements` facet is 140KB, and every gate check that walked elements
+// for these four fields reads this instead. A field the element lacks is
+// omitted, which is the finding (an Evidence Record with no Method).
+type assumptionRow struct {
+	ID       string         `json:"id"`
+	Status   *statusBrief   `json:"status,omitempty"`
+	Method   *methodBrief   `json:"method,omitempty"`
+	Evidence *evidenceBrief `json:"evidence,omitempty"`
+}
+
+type statusBrief struct {
+	Value       string `json:"value"`
+	Tier        string `json:"tier"`
+	Placeholder bool   `json:"placeholder,omitempty"`
+}
+
+type methodBrief struct {
+	Members       []string `json:"members"`
+	OffVocabulary []string `json:"off_vocabulary,omitempty"`
+}
+
+type evidenceBrief struct {
+	LineStart int         `json:"line_start"`
+	LineEnd   int         `json:"line_end"`
+	Anchors   []anchorRef `json:"anchors,omitempty"`
+}
+
+// anchorRef is a source-anchor edge cut to its symbol and verdict. The
+// verdict is three-valued exactly as on the edge: absent unless the
+// call also resolved edges (`--filter assumptions,edges`).
+type anchorRef struct {
+	To       string `json:"to"`
+	Resolved *bool  `json:"resolved,omitempty"`
+}
+
+func assumptionsFacet(doc *scan.Document) []assumptionRow {
+	rows := []assumptionRow{}
+	for _, el := range doc.Elements {
+		if el.Kind != ident.Assumption {
+			continue
+		}
+		row := assumptionRow{ID: el.ID}
+		for i := range el.Fields {
+			f := &el.Fields[i]
+			switch f.Canonical {
+			case "Status":
+				if f.Status != nil {
+					row.Status = &statusBrief{Value: f.Status.Value, Tier: f.Status.Tier, Placeholder: f.Status.Placeholder}
+				}
+			case "Method":
+				if f.Method != nil {
+					row.Method = &methodBrief{Members: f.Method.Members, OffVocabulary: f.Method.OffVocabulary}
+				}
+			case "Evidence":
+				ev := &evidenceBrief{LineStart: f.LineStart, LineEnd: f.LineEnd}
+				for _, e := range doc.Edges {
+					if e.Kind == edge.SourceAnchor && e.From == el.ID &&
+						e.Line >= f.LineStart && e.Line <= f.LineEnd {
+						ev.Anchors = append(ev.Anchors, anchorRef{To: e.To, Resolved: e.Resolved})
+					}
+				}
+				row.Evidence = ev
+			}
+		}
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 // filterKeys is the projection both --filter flags share: marshal, keep
@@ -512,7 +590,7 @@ func filterEnvelope(doc *scan.Document, filter string) (map[string]json.RawMessa
 // question is the same ("give me these keys and not the rest") and so is
 // the failure that matters: a filter naming a key that does not exist
 // must be told, not handed an empty object it will read as an answer.
-func filterKeys(v any, filter string, identity []string) (map[string]json.RawMessage, error) {
+func filterKeys(v any, filter string, identity []string, derived map[string]any) (map[string]json.RawMessage, error) {
 	raw, err := json.Marshal(v)
 	if err != nil {
 		return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
@@ -520,6 +598,15 @@ func filterKeys(v any, filter string, identity []string) (map[string]json.RawMes
 	var full map[string]json.RawMessage
 	if err := json.Unmarshal(raw, &full); err != nil {
 		return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
+	}
+	// A derived facet (`assumptions`) is a view over the envelope rather
+	// than a key of it; it is offered under the same rules as the rest.
+	for k, d := range derived {
+		b, err := json.Marshal(d)
+		if err != nil {
+			return nil, fmt.Errorf("stopped:unprojectable (%v)", err)
+		}
+		full[k] = b
 	}
 
 	out := map[string]json.RawMessage{}
@@ -896,6 +983,8 @@ func facetOf(doc *scan.Document, sel string) (any, bool) {
 		return doc.Fields, true
 	case "anchors":
 		return doc.Anchors, true
+	case "assumptions":
+		return assumptionsFacet(doc), true
 	}
 	return nil, false
 }
@@ -1618,7 +1707,23 @@ func lintText(reports []lint.Report, w io.Writer) {
 		if r.Terminal {
 			state = "terminal"
 		}
-		fmt.Fprintf(w, "%s  %s  %s  %s\n", r.Record, r.Status, state, r.Verdict)
+		// The header carries the tier counts so a gate reads the verdict
+		// AND its shape from one line, instead of re-running lint under
+		// three greps. `advisory` is every finding that does not block.
+		var blocking, resolution, placeholder int
+		for _, fd := range r.Findings {
+			if fd.Blocking {
+				blocking++
+			}
+			if fd.Tier == lint.TierResolution {
+				resolution++
+			}
+			if fd.Code == "placeholder:survived" {
+				placeholder++
+			}
+		}
+		fmt.Fprintf(w, "%s  %s  %s  %s  blocking=%d resolution=%d placeholder=%d advisory=%d\n",
+			r.Record, r.Status, state, r.Verdict, blocking, resolution, placeholder, len(r.Findings)-blocking)
 		for _, fd := range r.Findings {
 			mark := " "
 			if fd.Blocking {

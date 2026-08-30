@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
@@ -83,7 +84,10 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 		fmt.Fprintln(stderr, "stopped:no-record-number (neither the title nor the filename carries NNNN)")
 		return 2
 	}
-	facts := tbl.Evaluate(NewFactEnv(tbl, doc, recordSlug(path)))
+	env := NewFactEnv(tbl, doc, recordSlug(path))
+	env.Want = wantedFacts(f)
+	env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
+	facts := tbl.Evaluate(env)
 	if facts, err = filterFacts(tbl, facts, f); err != nil {
 		fmt.Fprintln(stderr, err)
 		return 2
@@ -139,7 +143,10 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 				"why": "no-record-number (neither the title nor the filename carries NNNN)"})
 			continue
 		}
-		facts := tbl.Evaluate(NewFactEnv(tbl, doc, recordSlug(path)))
+		env := NewFactEnv(tbl, doc, recordSlug(path))
+		env.Want = wantedFacts(f)
+		env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
+		facts := tbl.Evaluate(env)
 		facts, err = filterFacts(tbl, facts, f)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
@@ -185,16 +192,32 @@ func filterFacts(tbl *FactTable, facts []Fact, f *flags) ([]Fact, error) {
 	if f.filter == nil || *f.filter == "" {
 		return facts, nil
 	}
+	// A --tags call still renders every declared sentinel, so the filter
+	// narrows what is EVALUATED (FactEnv.Want) as well as what is kept.
+	return filterFactsBy(tbl, facts, wantedFacts(f))
+}
+
+// wantedFacts is the --filter list as a set, or nil when there is none —
+// nil meaning "everything", which is what FactEnv.Want reads it as.
+func wantedFacts(f *flags) map[string]bool {
+	if f.filter == nil || *f.filter == "" {
+		return nil
+	}
+	keep := map[string]bool{}
+	for _, name := range strings.Split(*f.filter, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			keep[name] = true
+		}
+	}
+	return keep
+}
+
+func filterFactsBy(tbl *FactTable, facts []Fact, keep map[string]bool) ([]Fact, error) {
 	declared := make(map[string]bool, len(tbl.Facts))
 	for _, d := range tbl.Facts {
 		declared[d.Name] = true
 	}
-	keep := map[string]bool{}
-	for _, name := range strings.Split(*f.filter, ",") {
-		name = strings.TrimSpace(name)
-		if name == "" {
-			continue
-		}
+	for name := range keep {
 		if !declared[name] {
 			names := make([]string, 0, len(tbl.Facts))
 			for _, d := range tbl.Facts {
@@ -203,7 +226,6 @@ func filterFacts(tbl *FactTable, facts []Fact, f *flags) ([]Fact, error) {
 			sort.Strings(names)
 			return nil, fmt.Errorf("stopped:no-such-fact (%s; have %s)", name, strings.Join(names, " "))
 		}
-		keep[name] = true
 	}
 	out := make([]Fact, 0, len(keep))
 	for _, fact := range facts {
@@ -235,13 +257,23 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 	if code != 0 {
 		return code
 	}
+	// The whole corpus is in hand, so the edge tallies resolve against it
+	// in ONE primed pass, on the first row that asks — as `index` does —
+	// rather than one scan per record.
+	var resolveOnce sync.Once
+	resolveAll := func() {
+		resolveOnce.Do(func() { scan.NewResolver(docs, *f.repo).ResolveAll(docs) })
+	}
 	rows := []statusRow{}
 	for _, d := range docs {
 		s := scan.Summarize(d)
 		if !s.InFlight {
 			continue
 		}
-		facts, err := filterFacts(tbl, tbl.Evaluate(NewFactEnv(tbl, d, recordSlug(s.Path))), f)
+		env := NewFactEnv(tbl, d, recordSlug(s.Path))
+		env.Want = wantedFacts(f)
+		env.ResolveEdges = resolveAll
+		facts, err := filterFacts(tbl, tbl.Evaluate(env), f)
 		if err != nil {
 			fmt.Fprintln(stderr, err)
 			return 2

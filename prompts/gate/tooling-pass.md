@@ -19,11 +19,16 @@ C3, C4 and C9 remain judgment on a narrowed read.
 
 ```bash
 "$RDR_HOME/bin/rdr" lint --locking {RDR_NUMBER} > "$ITER_DIR/lint.txt"; echo "lint exit $?"
-"$RDR_HOME/bin/rdr" inspect --json --filter outline,elements,edges,metadata {RDR_NUMBER}
+"$RDR_HOME/bin/rdr" inspect --json --filter outline,assumptions,edges,metadata {RDR_NUMBER}
 ```
 
-`lint` exit 1 = at least one blocking finding (printed with a leading `!`).
+`lint` exit 1 = at least one blocking finding (printed with a leading `!`); its
+header line carries the tier counts (`blocking=N resolution=N placeholder=N
+advisory=N`) — read them there, never by re-running lint under a grep.
 Exit 0 with findings = advisory only. Read the findings; do not re-derive them.
+`assumptions[]` is the per-assumption view CHECK 2/3/4/6 read — `id`,
+`status.value`, `method.{members,off_vocabulary}`, `evidence.{line_start,
+line_end,anchors[]}` — a tenth of `elements`, which no CHECK needs.
 Run it ONCE: every CHECK below greps `$ITER_DIR/lint.txt` (`grep '^!'` for the
 blocking set), never re-runs `lint`; re-run only after an edit to the record.
 A spawned sweep gets that path in its brief, not a "lint already ran" note.
@@ -59,19 +64,20 @@ and its fix text names where the prior text lives — report it, do not
 investigate it. List every hollow and missing section by name.
 
 CHECK 2 — Method label vocabulary
-For each element field with `label == "Method"`, read `method.off_vocabulary[]`:
+For each `assumptions[]` row, read `method.off_vocabulary[]`:
 non-empty means an unsanctioned member, and it names itself. Gloss is already
 stripped and `+` already split (`Spike (repro)` → members `["Spike"]`), so gloss
 is never a finding. Flag only the off-vocabulary member, by name. An Evidence
-Record with NO Method field is a finding too — the field is simply absent from
-that element's `fields[]`. Watch for records ADDED or relabeled during the
+Record with NO Method field is a finding too — the row simply has no `method`
+key. Watch for records ADDED or relabeled during the
 rounds. (The eight labels are asserted against README.md §Verifying load-bearing
 claims by the model's own tests; do not restate them.)
 
 CHECK 3 — Source Search self-reference  (rare; verify, don't hunt)
-The projection narrows the read only: `method.members` containing `Source
-Search` names WHICH records to look at; whether the Evidence path is
-self-referential stays judgment. Resolve each Evidence path — if it resolves to
+The projection narrows the read only: the `assumptions[]` rows whose
+`method.members` contain `Source Search` name WHICH records to look at
+(`evidence.anchors[].to` and the `evidence` line span are the paths); whether
+one is self-referential stays judgment. Resolve each Evidence path — if it resolves to
 {RDR_PATH} itself or any path under this RDR's artifact directory, it is
 self-reference and not Verified. List offenders. NOTE: this has not fired since
 the structured Evidence Record and the Resolve stage landed — a hit means an
@@ -80,9 +86,10 @@ Read it NARROWLY — the record file itself. Paths into this RDR's own
 spike/evidence dir are where a Spike belongs, not self-reference.
 
 CHECK 4 — Docs Only on load-bearing claims
-Same shape: `method.members == ["Docs Only"]` names the candidates; whether the
-claim is load-bearing is judgment that stays prose. List every Docs Only record
-whose Evidence line lacks a Spike or Source Search plan. These block lock per
+Same shape: the `assumptions[]` rows with `method.members == ["Docs Only"]` are
+the candidates; whether the claim is load-bearing is judgment that stays prose.
+List every Docs Only record whose Evidence span (`evidence.line_start`–
+`line_end`) lacks a Spike or Source Search plan. These block lock per
 the Finalization Gate — and are a common artifact of a fix-pass that added a
 claim without verifying it.
 
@@ -100,7 +107,7 @@ Corpus-wide: `rdr index --unresolved`.
 
 CHECK 6 — Status consistency  (projection-narrowed)
 `metadata[]` Status carries `status.{value,qualifier,form,tier}`; each
-assumption's Status field carries `status.value` — read those, never re-parse
+`assumptions[]` row carries its `status.value` — read those, never re-parse
 the markdown. Then judge: list any assumption whose `status.value` is `Pending`
 or `Unverified` whose property is then relied on as a settled fact in prose
 elsewhere in the RDR. Also flag any place a checklist box and the Finalization
