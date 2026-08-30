@@ -210,12 +210,12 @@ by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 ```sh
 # §rdr-write — one call. $RDR_HOME comes from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-"$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" \
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
   --outcome <claim|readme|lock|demote> $("$RDR_HOME/bin/rdr" status --tags NNNN)
 ```
 
-`emit` is the answer: `op` (the operation), `target`, `edit` (the exact
-expression), `why`, `surface` (show verbatim). **Apply `edit` as handed** — it is
+`emit` is the answer (`--plan-only` drops the fact echo; the plan is unchanged): `op`
+(the operation), `target`, `edit` (the exact expression), `why`, `surface` (show verbatim). **Apply `edit` as handed** — it is
 data, not a description; retyping it makes the guarantee prose again. Two `op`
 values are not edits: `none` (the state already holds — every op is idempotent)
 and `stopped:*` (a shape the table refuses rather than guesses; surface per

@@ -233,6 +233,15 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     else
       warn "12 no routing models found under $RDR_HOME/models - the navigator has nothing to resolve against"
     fi
+    # 12b - the answer surface the skills now call. §rdr-write, rdr-status's chained
+    # `lens` call and rdr-draft-to-lock's `reentry` call pass --plan-only (intrastate
+    # RDR 0023); a binary that predates it refuses the flag, so every chained
+    # resolve stops. A stale install is the failure mode, not a missing one.
+    if "$IS" flow resolve --help 2>&1 | grep -q -- '--plan-only'; then
+      pass "12b intrastate accepts flow resolve --plan-only (the chained-call surface the skills cite)"
+    else
+      fail "12b intrastate at $IS predates --plan-only (RDR 0023) - the chained resolves in §rdr-write, rdr-status and rdr-draft-to-lock will refuse; reinstall intrastate from HEAD (make install in its repo)"
+    fi
   elif [ -z "$RDR_INTRASTATE" ]; then
     # Only when nothing was configured: a bad RDR_INTRASTATE already FAILed, and
     # repeating it would read as a second, separate finding.

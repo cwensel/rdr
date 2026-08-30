@@ -75,7 +75,7 @@ records commit unchecked.
 routing. A missing binary is a **FAIL** — it is a dependency (rdr-common
 §intrastate), and without it every stage's next-step answer stops. A failing
 lint is a **WARN**: the model still answers, just without the coverage proof.
-Closed-by-escape warns too — closed is not proved.
+Closed-by-escape warns too — closed is not proved. **12b** FAILs when that binary predates `flow resolve --plan-only` (RDR 0023), which the chained calls now pass.
 
 ## Review gate
 

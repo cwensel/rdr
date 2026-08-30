@@ -57,7 +57,7 @@ question). Every other row answers completely, so a second call adds a duplicate
 48-fact echo and nothing else.
 
 ```sh
-"$IS" flow resolve --model "$M" --outcome lens $("$R" status --tags NNNN)
+"$IS" flow resolve --model "$M" --outcome lens --plan-only $("$R" status --tags NNNN)   # --plan-only: the facts were echoed by the first call
 ```
 
 **Likewise `--outcome reentry` only when `emit.next` is `resolve:reentry`** — a

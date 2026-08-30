@@ -66,31 +66,36 @@ A **first** run enters at Stage 3 — refine always runs, so the cascade starts 
 its head rather than mid-way on an assumption; a re-invocation enters where the
 router says (Re-entry below). Stage 8 is out of scope (`launch.md` owns it).
 
-**A demoted Draft carries its own re-entry scope — honor it, don't re-derive it.**
-`.status.form == "revised-from"` means 7.1 (or a Stage-8 spec defect) sent it back
-with a scope the report already sized (`$RDR_HOME/stages/07.1-cluster-reconcile.md`).
-The scope word is in `.status.qualifier`; the delta set is `edges[]` where
-`kind=="reverify"` — each `to` is one of this record's own `NNNN:A*` assumptions,
-already split out and resolved. `resolved:false` is a **reportable** finding (the
-qualifier names an assumption that does not exist); `resolved` **absent** means
-nothing looked — never read it as either. Only one scope is this skill's:
+**A demoted Draft carries its own re-entry scope — ask the router, never
+re-derive it.** `.status.form == "revised-from"` means 7.1 (or a Stage-8 spec
+defect) sent it back with a scope the report already sized
+(`$RDR_HOME/stages/07.1-cluster-reconcile.md`) and wrote as the qualifier's
+`@<stage>`. The `reentry` group of `models/rdr-status.toml` owns the mapping
+from that target to a scope; `intrastate lint` proves every target has a row.
+One chained call answers it — the same facts, no second projection:
 
-| Scope | Prescribed re-walk | Here |
+```sh
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-status.toml"
+T=$("$RDR_HOME/bin/rdr" status --tags NNNN)
+"$IS" flow resolve --model "$M" --outcome locate  --plan-only $T   # emit.next == resolve:reentry on a demoted Draft
+"$IS" flow resolve --model "$M" --outcome reentry --plan-only $T
+```
+
+Read `emit.next` and `rule` as values. Only one scope is this skill's:
+
+| `reentry` answer | Scope | Here |
 | --- | --- | --- |
-| RE-LOCK-ONLY | the fix, then Stage 7 re-locks | `stopped:scope-relock-only:<NNNN>` → `/rdr-finalize NNNN` |
-| STAGE-SCOPED | re-enter at 3 or 4, forward to 7 | **run it** — enter at the named stage, the `reverify` targets are the delta |
-| FULL-FLOW | the full 2 → 7 cascade | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
+| `/rdr-finalize` | RE-LOCK-ONLY | `stopped:scope-relock-only:<NNNN>` → `/rdr-finalize NNNN` |
+| `/rdr-refine` or `/rdr-resolve`, rule ≠ `reentry-untargeted` | STAGE-SCOPED | **run it** — enter at that stage; the delta is `edges[]` where `kind=="reverify"` (add `edges` to the precondition's `--filter`); `resolved:false` is a reportable finding, `resolved` absent means nothing looked |
+| `/rdr-propose` | FULL-FLOW | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
+| rule `reentry-untargeted` | unstated | `stopped:scope-unstated:<NNNN>` — the row's fallback is "read the note's target line"; this orchestrator reads no body, so it stops rather than guessing from the `reverify` set |
 
 Scope picks *which stages* re-walk; it never edits the lens row. A STAGE-SCOPED
-demotion to Stage 3 therefore keeps the profile's whole row — what shrinks is
-each pass (delta-scoped to the `reverify` targets), not the sequence. Don't drop
-lenses to make a re-entry cheaper; that is what RE-LOCK-ONLY exists for, and 7.1
-already chose.
-
-Running the wrong one is not a slow path but a wrong one: RE-LOCK-ONLY re-walks
-gates the defect never touched (cost, not defect yield), and FULL-FLOW skips the
-approach rework that voided the lock. If the qualifier names no scope, stop
-(`stopped:scope-unstated:<NNNN>`) — don't guess it from the `reverify` set.
+re-entry keeps the profile's whole row — what shrinks is each pass (delta-scoped
+to the `reverify` targets), not the sequence; RE-LOCK-ONLY is the cheap path, and
+7.1 already chose. The answer is applied as handed: re-deriving the scope from
+the qualifier's words, or checking the row's answer against the `reverify` set,
+makes the guarantee prose again.
 
 ## Posture — delegate everything, hold only the ledger
 
