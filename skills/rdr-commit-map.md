@@ -15,7 +15,7 @@ grammar — match the subject grammar already in the consumer's log.
 | resolve | `docs(rdr): resolve cli/NNNN — <summary>` | `chore(rdr): cli/NNNN spike evidence` (if a spike wrote) |
 | prelock (non-repeatability lens) | `docs(rdr): prelock cli/NNNN — <lens> pass` | `chore(rdr): cli/NNNN <lens> evidence` |
 | reconcile | `docs(rdr): reconcile cli/NNNN — <summary>` | `chore(rdr): cli/NNNN reconcile evidence` |
-| finalize | `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` | — |
+| finalize | `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` | `chore(rdr): cli/NNNN tooling-pass evidence` (`$ITER_DIR/tooling-pass.md` the sweep wrote) |
 | cluster-reconcile | (commits at finalize) | `chore(rdr): cli/NNNN cluster-reconcile <cluster>` |
 | implement | (code-repo `feat(...)` commit — its own contract) | artifact files only, if gated on |
 

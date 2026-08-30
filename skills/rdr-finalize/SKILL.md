@@ -28,12 +28,15 @@ Claude: /rdr-finalize <NNNN>
    Finalization Gate's judgement responses to `{ARTIFACT_DIR}/gate.md`, then
    acts on the verdict:
    - **READY** → write responses 1, 2, 3 and 5 to `{ARTIFACT_DIR}/gate.md`
-     (overwrite on re-lock), replace those four sub-sections with the one-line
-     pointer to gate.md — `### Cross-Cutting Concerns` STAYS in the record,
-     because peers cite it as `cli/NNNN:G-cross-cutting` — set Status → Final,
-     and **flip this RDR's README index row to Final** (seed created the row at
-     Draft; finalize updates that same row in place — add it only if a pre-seed
-     RDR has none). Then, if the autocommit gate is on (§commit), run
+     (overwrite on re-lock), then run rdr-common **§rdr-write** twice and apply
+     each `emit.edit` as handed — never retype the edits as prose:
+     `--outcome lock` replaces those four sub-sections with the one-line
+     pointer to gate.md and sets Status → Final (`### Cross-Cutting Concerns`
+     STAYS in the record, because peers cite it as `cli/NNNN:G-cross-cutting`);
+     `--outcome readme` **flips this RDR's README index row to Final** in place
+     (add it only if a pre-seed RDR has none). A `stopped:gate-stale` from a
+     probe run before gate.md was (re)written is not the lock — re-run after.
+     Then, if the autocommit gate is on (§commit), run
      **§commit** with subject `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` over
      `$RDR_PATH` + `$RDR_RECORDS/README.md` + `{ARTIFACT_DIR}/gate.md` — a
      **standalone** commit, never a `fixup!`

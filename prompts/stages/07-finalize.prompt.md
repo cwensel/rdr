@@ -70,7 +70,9 @@ not a human pause:
   lock's record). Then run rdr-common §rdr-write twice: `--outcome lock` moves
   those four sub-sections out behind the pointer line and flips Status to Final,
   and `--outcome readme` brings the index row with it (adding one if this is a
-  pre-seed RDR that has none). **`### Cross-Cutting Concerns` STAYS in the
+  pre-seed RDR that has none). Apply each `emit.edit` as handed. A
+  `stopped:gate-stale` probe before gate.md exists is not the lock — re-run
+  after gate.md is written. **`### Cross-Cutting Concerns` STAYS in the
   record**, below the pointer: it is the one gate item written to be cited BY
   OTHER RDRs (this prompt's own item 4 says "which peer RDR owns the policy"),
   so it stays projected and addressable as `cli/NNNN:G-cross-cutting`. The
