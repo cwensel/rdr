@@ -576,11 +576,17 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 // no element. The command it prints is one the projector accepts VERBATIM
 // — `rdr inspect cli/0112` resolves since the citation spelling became a
 // record name — and the ids it offers are read off the peer's actual
-// elements, never invented: the first assumption and contract it holds,
-// spelled with the citation's own prefix. An earlier form printed
-// `NNNN:A3, NNNN:C4` as placeholders that looked real, and a refine pass
-// seeded them into three sub-agent prompts before anyone checked. When
-// the peer is not in hand the hint names the FORM and no id.
+// elements, never invented: every contract and assumption it holds,
+// spelled with the citation's own prefix and tagged with the author's
+// handle so the reader can pick without opening the peer. An earlier
+// form printed `NNNN:A3, NNNN:C4` as placeholders that looked real, and
+// a refine pass seeded them into three sub-agent prompts before anyone
+// checked; a later form named only the first A and first C "among
+// others", and a refine pass then guessed the peer's authored contract
+// label (`F-1`) as an element id, which the projector never mints — so
+// the hint now says so. The list is bounded (peerHintIDs) and each
+// handle clipped (peerHintLabel) to keep the line readable. When the
+// peer is not in hand the hint names the FORM and no id.
 func peerElementFix(to string, corpus []*scan.Document) string {
 	prefix, _, _ := strings.Cut(to, "/")
 	if !strings.Contains(to, "/") {
@@ -592,27 +598,70 @@ func peerElementFix(to string, corpus []*scan.Document) string {
 		if p.Record != target {
 			continue
 		}
+		// Contracts first: their authored handles are the ones mistaken
+		// for ids; assumptions read as prose and are never confused.
 		var ids []string
-		seen := map[ident.Kind]bool{}
-		for _, el := range p.Elements {
-			if el.Kind != ident.Assumption && el.Kind != ident.Contract || seen[el.Kind] {
-				continue
+		for _, kind := range []ident.Kind{ident.Contract, ident.Assumption} {
+			for _, el := range p.Elements {
+				if el.Kind != kind {
+					continue
+				}
+				id, err := ident.Parse(el.ID)
+				if err != nil {
+					continue
+				}
+				entry := id.Qualified(prefix)
+				if l := peerHintLabel(el.Label); l != "" {
+					entry += " " + l
+				}
+				ids = append(ids, entry)
 			}
-			id, err := ident.Parse(el.ID)
-			if err != nil {
-				continue
-			}
-			seen[el.Kind] = true
-			ids = append(ids, id.Qualified(prefix))
 		}
 		if len(ids) > 0 {
+			more := ""
+			if len(ids) > peerHintIDs {
+				more = ", +" + itoa(len(ids)-peerHintIDs) + " more"
+				ids = ids[:peerHintIDs]
+			}
 			return "cite the element the claim rests on — " + to + " holds " +
-				strings.Join(ids, ", ") + " among others" + listed
+				strings.Join(ids, ", ") + more +
+				"; the ids are the C<n>/A<n> the projector mints, not the labels the author wrote (F-1, P-a)" +
+				listed
 		}
 		break
 	}
 	return "cite the element the claim rests on, as " + to + ":A<n> for an assumption or " +
 		to + ":C<n> for a contract" + listed
+}
+
+// peerHintIDs bounds the ids a peer hint lists; peerHintLabelWords and
+// peerHintLabelRunes bound each id's handle.
+const (
+	peerHintIDs        = 12
+	peerHintLabelWords = 5
+	peerHintLabelRunes = 40
+)
+
+// peerHintLabel clips an element's authored handle to its first words,
+// quoted, or returns "" when there is nothing to show.
+func peerHintLabel(label string) string {
+	words := strings.Fields(label)
+	if len(words) == 0 {
+		return ""
+	}
+	clipped := len(words) > peerHintLabelWords
+	if clipped {
+		words = words[:peerHintLabelWords]
+	}
+	l := strings.Join(words, " ")
+	if r := []rune(l); len(r) > peerHintLabelRunes {
+		l = strings.TrimSpace(string(r[:peerHintLabelRunes]))
+		clipped = true
+	}
+	if clipped {
+		l += "…"
+	}
+	return "\"" + l + "\""
 }
 
 // reentryNearMiss reports a bracketed Status qualifier that begins

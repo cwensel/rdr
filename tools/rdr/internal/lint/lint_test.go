@@ -523,10 +523,14 @@ func TestPeerElementHintNamesRealElements(t *testing.T) {
 		return ""
 	}
 	withPeer := fix(Options{Corpus: []*scan.Document{corpus(t)["0010"]}})
-	for _, want := range []string{"cli/0010:A1", "cli/0010:C1", "`rdr inspect cli/0010`"} {
+	for _, want := range []string{"cli/0010:C1 \"", "cli/0010:C2 \"", "cli/0010:A1 \"The reader tolerates no reordering.\"",
+		"not the labels the author wrote", "`rdr inspect cli/0010`"} {
 		if !strings.Contains(withPeer, want) {
 			t.Errorf("hint with the peer in hand lacks %q: %s", want, withPeer)
 		}
+	}
+	if strings.Contains(withPeer, "among others") {
+		t.Errorf("hint still elides the peer's elements: %s", withPeer)
 	}
 	alone := fix(Options{})
 	if strings.Contains(alone, ":A1") || strings.Contains(alone, ":A3") || strings.Contains(alone, ":C4") {
@@ -676,5 +680,54 @@ func TestOwnershipMutualIsCorroboratedFromBothFields(t *testing.T) {
 	}
 	if r := Run(x, Options{Corpus: []*scan.Document{x}}); has(r, "ownership:mutual") {
 		t.Error("mutual asserted with the peer out of hand")
+	}
+}
+
+// TestPeerElementHintListsEveryIdBounded: a refine pass read a hint that
+// named only the first A and first C "among others", then guessed the
+// peer's authored contract label as an element id. The hint now lists
+// every contract and assumption with its handle clipped to a few words,
+// contracts first, caps the list with a "+N more" tail, and says the
+// authored handles are not ids.
+func TestPeerElementHintListsEveryIdBounded(t *testing.T) {
+	var b strings.Builder
+	b.WriteString("# Recommendation 0142: Peer\n\n## Metadata\n\n- **Status**: Draft\n\n## Critical Assumptions\n\n")
+	for i := 1; i <= 14; i++ {
+		b.WriteString("- **A" + itoa(i) + " assumption number " + itoa(i) + " holds in every case we checked so far.**\n")
+		b.WriteString("  - **Status**: Verified\n  - **Method**: Code inspection\n  - **Evidence**: seen.\n  - **If wrong**: no.\n")
+	}
+	b.WriteString("\n## Normative Contracts\n\n**C1**\n\n```normative\nF-1 (the retirement floor): a retired flag names its successor.\n```\n")
+	peer := scan.Bytes([]byte(b.String()), scan.Options{})
+	d := record(t, "0143", "", "cli/0142 settles the floor.")
+	var hint string
+	for _, f := range Run(d, Options{Corpus: pair(t, d, peer)}).Findings {
+		if f.Code == "peer-evidence:no-element" {
+			hint = f.Fix
+		}
+	}
+	if hint == "" {
+		t.Fatal("the bare peer citation raised no finding")
+	}
+	for _, want := range []string{
+		"holds cli/0142:C1 \"F-1 (the retirement floor): a\u2026\", cli/0142:A1 \"assumption number 1 holds in\u2026\"",
+		"cli/0142:A11 \"", ", +3 more;", "not the labels the author wrote (F-1, P-a)", "`rdr inspect cli/0142`",
+	} {
+		if !strings.Contains(hint, want) {
+			t.Errorf("hint lacks %q: %s", want, hint)
+		}
+	}
+	for _, bad := range []string{"cli/0142:A12", "cli/0142:F-1", "among others"} {
+		if strings.Contains(hint, bad) {
+			t.Errorf("hint carries %q: %s", bad, hint)
+		}
+	}
+	if n := strings.Count(hint, "cli/0142:"); n != peerHintIDs {
+		t.Errorf("hint lists %d ids, want %d: %s", n, peerHintIDs, hint)
+	}
+	if got := peerHintLabel("  "); got != "" {
+		t.Errorf("an empty handle rendered as %q", got)
+	}
+	if got := peerHintLabel("averyveryverylongsinglewordthatoverrunsthefortyrunebound"); got != "\"averyveryverylongsinglewordthatoverrunst\u2026\"" {
+		t.Errorf("a long single word was not clipped by rune: %q", got)
 	}
 }
