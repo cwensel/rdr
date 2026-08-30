@@ -364,16 +364,27 @@ property of the RDR's on-disk state, which the prompt already inspects.
   copy is fine; the ban is on the record file. **A grounding or cove spawn's
   FIRST call** is `inspect --json --filter edges,elements NNNN`, kept to the
   edges whose `resolved` is false or absent — that list is its worklist, not a
-  hand sweep of every anchor. And a sub-agent that owes an evidence file (a
+  hand sweep of every anchor. **An outsized single element is never pulled
+  whole** (a contracts section runs tens of KB) — check its § row's line range
+  first and split. A spawn working lint findings gets the captured
+  `$ITER_DIR/lint.txt` path, not a fresh lint; text it drafts for the record
+  cites colon ids (`NNNN:ID`), never `NNNN ID`. Delegate the *other*-repo
+  reads — the host record's own clauses stay with the authoring parent.
+  And a sub-agent that owes an evidence file (a
   lens contract's `findings.md`, a persona file) writes it with a Bash heredoc,
   never the Write tool — some harnesses refuse sub-agent Writes and return
   only text.
 - **After spawning, the parent waits by ending its turn.** It does only items its
   own list still owes and nothing the brief names — a delegated check is never
-  re-run in the parent. When nothing is owed, end the turn with no tool call: the
-  completion notification is the wait (no sleep, no poll, no filler echo, no
-  dir-watch). Act on the packet; open the report file only for a finding the
-  packet names as needing the parent's judgment.
+  re-run in the parent, and a useful-looking side read on the delegated question
+  is a re-run too: the round ledgers, the peer-clause reads, and any question
+  handed to a consult leave the parent's list the moment the spawn starts.
+  When nothing is owed, end the turn with no tool call: the
+  completion notification is the wait (no sleep, no poll, no agent-list check,
+  no filler echo, no dir-watch). Act on the packet — authoring uses its appendix
+  quotes; doubting a packet is a second consult, never a parent re-read. Open
+  the report file only for a finding the packet names as needing the parent's
+  judgment.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
@@ -399,6 +410,10 @@ next_action: <imperative the parent runs, or "none">
 summary_50w: <≤50 words; the verdict's reason, not a transcript>
 appendix: <optional, last; verbatim quotes / query log the parent files as evidence>
 ```
+
+On `NEEDS_DECISION`, `next_action` is the **question to put to the human**,
+never an action — a runnable repair beside that verdict is a contradiction the
+parent rejects like any malformed packet (the decision is the human's; §strong-consult).
 
 `appendix:` is the one optional field, only when the brief asks for it, and it is
 never the parent's read — the six fields above decide; the appendix is copied into
