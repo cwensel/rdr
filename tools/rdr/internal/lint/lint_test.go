@@ -225,10 +225,14 @@ func TestParseWarningsAlwaysSurface(t *testing.T) {
 // pointer, lock replaces
 // the Finalization Gate body with a pointer to gate.md. Advising a record
 // to restore the five gate subsections would be advising it to undo the
-// current process.
+// current process. The one the template retains is a different rule's
+// (`gate:cross-cutting-missing`), never a missing-section finding.
 func TestGatePointerSubsectionsAreNotMissing(t *testing.T) {
 	r := report(t, "0010", Options{})
 	for _, f := range r.Findings {
+		if f.Code != "template:missing-section" {
+			continue
+		}
 		for _, s := range []string{"Contradiction Check", "Assumption Verification",
 			"Scope Verification", "Cross-Cutting Concerns", "Proportionality"} {
 			if strings.Contains(f.Message, s) {

@@ -145,6 +145,10 @@ A round-trip test per field.
 
 See `gate.md`.
 
+### Cross-Cutting Concerns
+
+- **Character encoding**: header field names are ASCII-only.
+
 ## References
 
 - 0011-frame-header-unlabelled

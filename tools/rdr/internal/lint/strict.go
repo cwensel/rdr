@@ -843,7 +843,8 @@ func gateFindings(d *scan.Document) []Finding {
 		if n.Canonical != "Finalization Gate" {
 			continue
 		}
-		if hasGatePointer(d, n) {
+		if ptr := gatePointerLine(d, n); ptr > 0 {
+			out = append(out, gateRetainedFindings(d, n, ptr)...)
 			continue
 		}
 		if !hasGateElements(d, n) {
@@ -862,20 +863,85 @@ func gateFindings(d *scan.Document) []Finding {
 	return out
 }
 
-// hasGatePointer reports whether the gate body is already the pointer:
-// the first non-blank line under the heading, before any sub-heading.
-func hasGatePointer(d *scan.Document, n scan.Node) bool {
+// gateRetainedFindings report a pointer-form gate that has lost the item
+// the template RETAINS at lock. Lock once moved all five responses to
+// gate.md; the template now keeps the one item peers cite in the record,
+// so a record locked under the earlier rule holds the pointer and nothing
+// beneath it. Nothing mechanical said so, and the finalize stage spent
+// turns proving the section "was never written" before re-authoring it.
+//
+// CONFORMANCE, NO PATCH. The Gate re-answers the item on re-lock anyway,
+// so the repair is that answer, not a copy: the finding says which item
+// is owed and where the prior text lives (the file the pointer names,
+// under the item's own heading), and stops. When the rule landed it hit
+// 24 of 135 pointer gates, most of them terminal; blocking would have put
+// every one in a blocking state with no lock in sight, and the tier that
+// never blocks is the one written for exactly that migration advice.
+//
+// Which item is retained, and whether there is one, is the template's to
+// say (`model.GateItems`); a template that retains nothing makes this
+// rule silent rather than wrong.
+func gateRetainedFindings(d *scan.Document, gate scan.Node, ptr int) []Finding {
+	under := map[string]bool{gate.ID: true}
+	for _, n := range d.Outline {
+		if n.Parent == gate.ID {
+			under[n.ID] = true
+		}
+	}
+	present := map[string]bool{}
+	for _, e := range d.Elements {
+		if e.Kind == ident.Gate && under[e.Section] {
+			present[e.Key] = true
+		}
+	}
+	where := "the record's artifacts/gate.md"
+	if p := gatePointerPath(d.Line(ptr)); p != "" {
+		where = p
+	}
+	var out []Finding
+	for _, g := range model.GateItems() {
+		if !g.Retained || present[g.Key] {
+			continue
+		}
+		out = append(out, Finding{
+			Tier:      TierConformance,
+			Code:      "gate:cross-cutting-missing",
+			Element:   gate.ID,
+			Message:   fmt.Sprintf("the gate is a pointer without `### %s`, which a locked record keeps because peers cite it", g.Section),
+			LineStart: ptr,
+			LineEnd:   ptr,
+			Fix:       fmt.Sprintf("re-answer the %s item at the Gate and keep it under the pointer; the prior text is at %s §%s (a re-answer, not a copy; no patch)", g.Section, where, g.Section),
+		})
+	}
+	return out
+}
+
+// gatePointerPath extracts the gate.md path the pointer line names, or "".
+func gatePointerPath(line string) string {
+	for _, w := range strings.Fields(line) {
+		w = strings.Trim(w, "`'\"(),;")
+		if model.GatePointer.MatchString(w) {
+			return w
+		}
+	}
+	return ""
+}
+
+// gatePointerLine returns the line of the gate.md pointer — the first
+// non-blank line under the heading, before any sub-heading — or 0, which
+// is what an inlined gate reports.
+func gatePointerLine(d *scan.Document, n scan.Node) int {
 	for i := n.LineStart + 1; i <= n.LineEnd; i++ {
 		l := strings.TrimSpace(d.Line(i))
 		if l == "" {
 			continue
 		}
-		if model.Heading.MatchString(l) {
-			return false
+		if model.Heading.MatchString(l) || !model.GatePointer.MatchString(l) {
+			return 0
 		}
-		return model.GatePointer.MatchString(l)
+		return i
 	}
-	return false
+	return 0
 }
 
 // hasGateElements reports whether the projector read gate responses under

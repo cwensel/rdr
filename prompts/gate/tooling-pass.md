@@ -53,10 +53,10 @@ a surviving template bracket in a non-Draft (non-locking) RDR is a BLOCK.
 What stays prose: walk `outline[]` and read the ranges for the classes no rule
 decides — TBD, "see above," a single-sentence stand-in. A surviving `this is a
 seed skeleton` header is an automatic Present-hollow on the Finalization Gate
-section — name it. (At/after lock that section holds the pointer line to gate.md
-plus `### Cross-Cutting Concerns`, which stays in the record because peers cite
-it — that is the record, not a hollow section.) List every hollow and missing
-section by name.
+section — name it. A pointer-form gate is the record, not a hollow section;
+`gate:cross-cutting-missing` is lint's word that the one retained item is owed,
+and its fix text names where the prior text lives — report it, do not
+investigate it. List every hollow and missing section by name.
 
 CHECK 2 — Method label vocabulary
 For each element field with `label == "Method"`, read `method.off_vocabulary[]`:

@@ -368,7 +368,8 @@ separately missing, and a gate subsection under a `gate.md` pointer is not
 missing at all — at lock those responses move out of the
 record on purpose. Cross-Cutting Concerns is the exception it keeps: it
 states a policy peer RDRs cite, so a locked gate holds the pointer AND
-that one subsection.
+that one subsection; a pointer without it — a record locked before the
+template retained it — is `gate:cross-cutting-missing`.
 
 **resolution** judges what a record EMITS: every typed edge resolves, every
 `Method: Peer RDR` Evidence names an element, and contracts are labelled on
@@ -409,6 +410,7 @@ read by a script; this tool writes no record.
 | `citation:form` | the line, every citation on it at once | the target is a section, the text is fenced or repeats in range |
 | `section:legacy-name` | never | always — see below |
 | `gate:inline` | never | always — a cross-file move |
+| `gate:cross-cutting-missing` | never | always — the Gate re-answers the retained item; the fix names the gate.md holding the prior text |
 | `placeholder:survived` | never | always — a block above authored content and one standing in for missing content need different repairs, and telling them apart is judgment |
 
 **The patch set is a fixpoint, applied bottom-up.** A second pass over

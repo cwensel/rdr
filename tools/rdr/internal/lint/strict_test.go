@@ -300,6 +300,7 @@ func TestJudgmentFindingsCarryNoPatch(t *testing.T) {
 		"ownership:mutual": true, "peer-evidence:no-element": true,
 		"label:contracts": true, "label:contracts-required": true,
 		"template:missing-section": true, "gate:inline": true,
+		"gate:cross-cutting-missing": true,
 	}
 	for _, p := range fixtures(t) {
 		raw, err := os.ReadFile(p)
@@ -791,6 +792,104 @@ Responses: 0031-split-gate/artifacts/gate.md (Gate PASS 2026-08-26)
 	}
 	if !found {
 		t.Error("0031:G-cross-cutting is not projected; peers cite it by that id")
+	}
+}
+
+// TestGateCrossCuttingMissingOnBarePointer: a record locked before the
+// template retained Cross-Cutting Concerns holds the pointer and nothing
+// under it. The section is owed on re-lock, and the finding is what says
+// so — pointing at the pointer line, naming the item, and naming the
+// gate.md the pointer names as where the prior text lives. It is
+// conformance, so it never blocks, and it is quiet the moment the item is
+// back, as a heading or as a bullet.
+func TestGateCrossCuttingMissingOnBarePointer(t *testing.T) {
+	const bare = `# Recommendation 0033: Bare pointer
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+Responses: ` + "`0033-bare-pointer/artifacts/gate.md`" + ` (Gate PASS 2026-08-11)
+
+## Consequences
+
+- none
+`
+	d := scan.Bytes([]byte(bare), scan.Options{})
+	r := Run(d, Options{Locking: true})
+	f := find(t, r, "gate:cross-cutting-missing")
+	if f.Tier != TierConformance || f.Blocking {
+		t.Errorf("tier %q blocking %v, want conformance and non-blocking", f.Tier, f.Blocking)
+	}
+	if !strings.HasSuffix(f.Element, ":§finalization-gate") {
+		t.Errorf("element = %q, want the gate section", f.Element)
+	}
+	if f.LineStart != 9 || f.LineEnd != 9 {
+		t.Errorf("spans %d-%d, want the pointer line 9", f.LineStart, f.LineEnd)
+	}
+	if !strings.Contains(f.Message, "Cross-Cutting Concerns") {
+		t.Errorf("message does not name the retained item: %q", f.Message)
+	}
+	if !strings.Contains(f.Fix, "0033-bare-pointer/artifacts/gate.md §Cross-Cutting Concerns") {
+		t.Errorf("fix does not say where the prior text lives: %q", f.Fix)
+	}
+	if f.Patch != nil {
+		t.Errorf("a re-answer was patched: %+v", f.Patch)
+	}
+	if r.Verdict != "PASS" {
+		t.Errorf("verdict %q on a locking record whose only finding is conformance", r.Verdict)
+	}
+
+	for _, tc := range []struct{ name, rec string }{
+		{"heading", `# Recommendation 0034: Kept
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+Responses: 0034-kept/artifacts/gate.md (Gate PASS 2026-08-26)
+
+### Cross-Cutting Concerns
+
+- **Character encoding**: ASCII-only.
+`},
+		{"bullet", `# Recommendation 0035: Kept as bullet
+
+## Metadata
+
+- **Status**: Final
+
+## Finalization Gate
+
+Responses: 0035-kept/artifacts/gate.md (Gate PASS 2026-08-26)
+
+- **Cross-Cutting**: ASCII-only.
+`},
+		{"inlined", `# Recommendation 0036: Inlined
+
+## Metadata
+
+- **Status**: Draft
+
+## Finalization Gate
+
+### Contradiction Check
+
+- none
+
+### Scope Verification
+
+- none
+`},
+	} {
+		d := scan.Bytes([]byte(tc.rec), scan.Options{})
+		if r := Run(d, Options{}); has(r, "gate:cross-cutting-missing") {
+			t.Errorf("%s: gate:cross-cutting-missing fired (codes: %v)", tc.name, codes(r))
+		}
 	}
 }
 

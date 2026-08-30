@@ -121,6 +121,10 @@ One masking test.
 
 See `gate.md`.
 
+### Cross-Cutting Concerns
+
+- **Character encoding**: header field names are ASCII-only.
+
 ## References
 
 - 0010-frame-header-labelled
