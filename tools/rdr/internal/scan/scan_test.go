@@ -1145,3 +1145,76 @@ func TestAuthoredContractStillProjects(t *testing.T) {
 		t.Errorf("an authored contract projected %d elements, want 1", n)
 	}
 }
+
+// TestAlignedClauseListMintsWideLabels: in a column-aligned clause list
+// the two-space separator collapses to one once the label's digits reach
+// two (`R-9  determinism:` but `R-10 cascade guard.`); the wide label is
+// still a definition — accepted because a same-prefix sibling in the
+// fence defined at two spaces — so R-10 and R-11 mint and R-9's range
+// ends where R-10 begins. A wide label whose prefix has no aligned
+// sibling in its fence (Q-12, E-12) stays prose, and a single-digit
+// label opening a prose line (X-2 is …) never becomes a definition.
+func TestAlignedClauseListMintsWideLabels(t *testing.T) {
+	raw := []byte(`# Recommendation 0031: Ledger
+
+## Metadata
+
+- **Status**: Draft
+
+#### Normative Contracts
+
+**C1**
+
+` + "```normative" + `
+R-1  admission := the gate reads each row once.
+R-2  ordering: rows land in ledger order.
+R-3  replay guard.
+R-4  idempotence.
+R-5  checksum.
+R-6  fan-out cap.
+R-7  retry budget.
+R-8  quiet close.
+R-9  determinism: two runs over one ledger agree
+     byte for byte; R-2 is what the agreement rests on.
+R-10 cascade guard. A refused row refuses its
+     dependants in the same pass.
+Q-12 stays prose despite its width — no aligned Q sibling.
+R-11 audit line. Every refusal writes one line.
+X-2 is refuted by the audit line, not minted by the scanner.
+` + "```" + `
+
+**C2**
+
+` + "```normative" + `
+E-1: the counter never skips.
+E-12 references E-1, but this fence's E style is the colon, not columns.
+` + "```" + `
+`)
+	doc := Bytes(raw, Options{})
+	want := map[string][2]int{ // id → line range
+		"0031:R-9":  {20, 21},
+		"0031:R-10": {22, 24}, // Q-12 is prose inside R-10's span
+		"0031:R-11": {25, 26}, // X-2 is prose inside R-11's span
+		"0031:E-1":  {32, 33}, // E-12 is prose inside E-1's span
+	}
+	for id, r := range want {
+		e := element(t, doc, id)
+		if e.Kind != ident.Clause || e.LineStart != r[0] || e.LineEnd != r[1] {
+			t.Errorf("%s spans %d-%d, want %d-%d", id, e.LineStart, e.LineEnd, r[0], r[1])
+		}
+	}
+	for _, e := range doc.Elements {
+		if e.Kind == ident.Clause && (e.Key == "Q-12" || e.Key == "E-12" || e.Key == "X-2") {
+			t.Errorf("prose opening with a label was minted: %+v", e)
+		}
+	}
+	if n := doc.Counts.Elements[ident.Clause]; n != 12 { // R-1..R-11 and E-1
+		t.Errorf("clause count = %d, want 12", n)
+	}
+	if len(doc.Warnings) != 0 {
+		t.Errorf("warnings = %+v, want none", doc.Warnings)
+	}
+	if s, e, ok := doc.Select("0031:R-10"); !ok || s != 22 || e != 24 {
+		t.Errorf("Select(R-10) = %d-%d %v", s, e, ok)
+	}
+}

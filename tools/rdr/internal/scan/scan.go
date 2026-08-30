@@ -1074,6 +1074,29 @@ func (d *Document) contracts() {
 // the rule.
 var clauseDef = regexp.MustCompile(`^(?:\*\*)?([A-Z]{1,3}-\d+[a-z]?)(?:\*\*|\s{2,}|\s\(|:)`)
 
+// clauseDefWide matches the alignment casualty the two-space arm creates:
+// once a label's digits reach two, a column-aligned list closes the gap to
+// a single space (`R-9  determinism:` but `R-10 cascade guard.`), and the
+// strict grammar reads R-10's lines as R-9's. Alone this would also match
+// prose that opens a line with a wide label, so clauses() accepts it only
+// inside a fence where a sibling with the same letter prefix already
+// defined at two or more spaces — the alignment the collapsed gap is
+// evidence of. No bold form: bold labels are not column-aligned.
+var clauseDefWide = regexp.MustCompile(`^([A-Z]{1,3}-\d{2,}[a-z]?) `)
+
+// clauseAligned captures the letter prefix of a definition written in the
+// aligned style — clauseDef's two-or-more-space separator arm.
+var clauseAligned = regexp.MustCompile(`^(?:\*\*)?([A-Z]{1,3})-\d+[a-z]?\s{2,}`)
+
+// clauseKeyAt is the label token opening a definition line found by
+// clauseDef or, failing that, clauseDefWide.
+func clauseKeyAt(line string) string {
+	if m := clauseDef.FindStringSubmatch(line); m != nil {
+		return m[1]
+	}
+	return clauseDefWide.FindStringSubmatch(line)[1]
+}
+
 // clauses reads the labelled clauses inside every contract fence, in
 // document order, and mints each as an element whose Parent is the
 // contract. A contract is the projector's grain; the corpus cites one
@@ -1105,10 +1128,28 @@ func (d *Document) clauses() {
 		// labelled contract starts on its label line, and the fence
 		// opener is inside the range either way.
 		var defs []int
+		aligned := map[string]bool{}
 		for i := c.LineStart; i <= c.LineEnd; i++ {
 			if d.fenced[i-1] && !model.NormativeFenceOpen.MatchString(d.lines[i-1]) && clauseDef.MatchString(d.lines[i-1]) {
 				defs = append(defs, i)
+				if m := clauseAligned.FindStringSubmatch(d.lines[i-1]); m != nil {
+					aligned[m[1]] = true
+				}
 			}
+		}
+		// The second pass admits the alignment casualty: a wide label
+		// whose single space is the collapsed two-space gap, accepted
+		// only where a same-prefix sibling proved the aligned style.
+		if len(aligned) > 0 {
+			for i := c.LineStart; i <= c.LineEnd; i++ {
+				if !d.fenced[i-1] || model.NormativeFenceOpen.MatchString(d.lines[i-1]) || clauseDef.MatchString(d.lines[i-1]) {
+					continue
+				}
+				if m := clauseDefWide.FindStringSubmatch(d.lines[i-1]); m != nil && aligned[strings.SplitN(m[1], "-", 2)[0]] {
+					defs = append(defs, i)
+				}
+			}
+			sort.Ints(defs)
 		}
 		for j, start := range defs {
 			end := c.LineEnd - 1 // the line before the closing delimiter
@@ -1121,15 +1162,15 @@ func (d *Document) clauses() {
 			// The label is the rest of the definition line after the
 			// token: the separator stays, since `(chain state)` is the
 			// author's title and the parenthesis is part of it.
-			m := clauseDef.FindStringSubmatch(d.lines[start-1])
-			label := d.lines[start-1][strings.Index(d.lines[start-1], m[1])+len(m[1]):]
+			key := clauseKeyAt(d.lines[start-1])
+			label := d.lines[start-1][strings.Index(d.lines[start-1], key)+len(key):]
 			label = strings.TrimSpace(strings.TrimLeft(strings.ReplaceAll(label, "**", ""), ":—–- "))
-			e := Element{Kind: ident.Clause, Key: m[1], Label: label, Section: c.Section,
+			e := Element{Kind: ident.Clause, Key: key, Label: label, Section: c.Section,
 				Parent: c.ID, LineStart: start, LineEnd: end}
-			if _, seen := byKey[m[1]]; !seen {
-				order = append(order, m[1])
+			if _, seen := byKey[key]; !seen {
+				order = append(order, key)
 			}
-			byKey[m[1]] = append(byKey[m[1]], cand{e, fmt.Sprintf("%s %d-%d", c.ID, start, end)})
+			byKey[key] = append(byKey[key], cand{e, fmt.Sprintf("%s %d-%d", c.ID, start, end)})
 		}
 	}
 	for _, key := range order {
