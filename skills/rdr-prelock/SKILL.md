@@ -55,21 +55,25 @@ One invocation runs the full loop for one lens:
    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
    `$EVIDENCE_DIR`, `$ITER`, `$ITER_DIR` (write to `$ITER_DIR`; at `ITER=1` it
    *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
-   Final …; re-verify <IDs>]` qualifier delta-scopes the pass to `<IDs>`.
-   `re-verify none` with `lens_stale` naming this lens (`status --tags`) →
-   scope = the elements whose lines the rework touched: hunk starts of
+   Final …; re-verify <IDs>]` qualifier names the scope's floor, not its ceiling —
+   after a rework, real defects land outside the listed ids. Whenever `lens_stale`
+   names this lens (`status --tags`), scope = `<IDs>` ∪ the elements whose lines
+   the rework touched: hunk starts of
    `git -C "$RDR_RECORDS" diff -U0 <demote-base> HEAD -- "$RDR_PATH" | grep '^@@'`
    (demote-base = the last `finalize` commit on the path) intersected with
-   `inspect <NNNN>`'s line-range rows. Compute it once, here; a spawn brief
-   carries the id list, never the diff command.
+   `inspect <NNNN>`'s line-range rows; `re-verify none` → the hunk set alone.
+   Compute it once, here, saving the diff to `$ITER_DIR`; a spawn brief carries
+   the id list and that file's path — never the diff command.
 2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
    `2-critique.md` · `4-cove.md`)
    → it writes element files to `{EVIDENCE_DIR}`. `3amigo` is not one prompt run:
    fan out its three persona passes as isolated sub-agents (no cross-persona
    visibility), then consolidate their files mechanically per the prompt.
    Heavy/dual-model → sub-agent returns
-   the findings list, not a re-dump; the parent re-runs none of it and waits by
-   ending the turn (rdr-common §delegation). **This first run's findings are the origin
+   the findings list, not a re-dump. Anything still on the parent's own list
+   (baseline lint, the mini-check cue read) runs **before** the spawn; after it,
+   end the turn — a read taken while a spawn runs is a re-run of its brief
+   (rdr-common §delegation). **This first run's findings are the origin
    ledger** for the loop.
 3. **Review gate** (below) — a bad pass is re-run on another model, not resolved.
 4. **Resolve** — run the sibling [`05-prelock-resolve.prompt.md`](05-prelock-resolve.prompt.md);
@@ -98,8 +102,9 @@ generation prompt reads the RDR anyway). Separate sessions (below) and `--auto`'
 parallel spawns (§auto-fanout) both satisfy that. **Commit cadence is the §commit
 exception**: each run session commits only its own `run-<N>.md` (`chore(rdr):
 cli/NNNN repeatability run-N`); the doc commit defers to the diff session — see
-rdr-common §commit. Under `--auto` the orchestrator commits the run set once the
-barrier clears, then the diff as usual.
+rdr-common §commit. Under `--auto` the same deferral holds: the diff session's
+whole-dir sweep (rdr-commit-map) is the run-set commit — the orchestrator adds
+none of its own at the barrier.
 
 ### §repeatability-variant — resolve the variant from profile before writing any run
 

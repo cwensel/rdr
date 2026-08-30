@@ -19,11 +19,13 @@ From the arg header above, bind for this session:
     Read the findings from `$ITER_DIR` — the pass that just ran wrote there
     (`$ITER_FOUND` names the iterations on disk; at `ITER=1` it is the base).
 
-For the RDR at {RDR_PATH}, resolve each finding one by one. Read the findings
-from {EVIDENCE_DIR} — its consolidation / findings / diff file (e.g.
+For the RDR at {RDR_PATH}, resolve each finding one by one. If you were handed
+the findings inline (a return packet's ledger — the norm under `--auto`), that
+IS the origin ledger: work from it, and open the file below only for the
+adjudication prose behind a row. Otherwise read the findings from
+{EVIDENCE_DIR} — its consolidation / findings / diff file (e.g.
 <slug>/evidence/3amigo/consolidation.md, <slug>/evidence/cove/findings.md,
-<slug>/evidence/repeatability/diff.md). If you were handed findings inline
-instead, use those.
+<slug>/evidence/repeatability/diff.md).
 
 CRITIQUE LEDGER (when <lens> = critique): `critique.md` opens with a `C-N` ledger —
 use it as the origin ledger as-is, don't rebuild one. Each row's **Origin**
