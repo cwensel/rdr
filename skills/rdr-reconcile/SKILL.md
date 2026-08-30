@@ -21,8 +21,13 @@ Claude: /rdr-reconcile <NNNN>
 
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**
-   to bind `$RDR_RESOURCES`, `$RDR_ENV`, `RDR_PATH`, `{SPIKE_DIR}`. Have the Pre-Lock
-   needs-verification list(s) ready to paste.
+   to bind `$RDR_RESOURCES`, `$RDR_ENV`, `RDR_PATH`. Bind the report dir and the spikes
+   tree in two calls (§evidence — ask for the dir, never compose one):
+   `eval "$("$RDR_HOME/bin/rdr" paths --lens reconcile --next-iter <NNNN>)"` →
+   write the report to `$ITER_DIR` (at `ITER=1` it *is* the base; re-runs land in
+   `iter-N/`; `ITER_FOUND`/`ITER_NOTE` say what was on disk), and
+   `eval "$("$RDR_HOME/bin/rdr" paths --tree spikes <NNNN>)"` → `$EVIDENCE_DIR` is
+   `{SPIKE_DIR}`. Have the Pre-Lock needs-verification list(s) ready to paste.
    - **Preflight Stage 5 completeness before reconciling** — run **§lens-row**'s
      call; don't re-read the row.
 
@@ -47,9 +52,9 @@ Claude: /rdr-reconcile <NNNN>
    re-does nothing it delegated and waits by ending the turn (§delegation).
    - **Absorption-audit delegation (mined — recurs verbatim).** To build source 3 +
      confirm the rounds were folded in, spawn one sub-agent over the lens
-     output dirs that exist for this slug
-     (`<RDR_EVIDENCE>/<RDR_SLUG>/evidence/{3amigo,critique,repeatability,cove}/`,
-     rdr-common §evidence — the lens is the LAST segment): "report, per
+     output dirs that exist for this slug — `rdr paths --lens <lens> <NNNN>` for
+     `3amigo`, `critique`, `repeatability`, `cove` (rdr-common §evidence; `ls`
+     the answer, skip a lens whose dir is absent): "report, per
      round, whether every finding was absorbed into the current RDR or survives as
      residue; list each unabsorbed finding + the spike/assumption it implies." It
      returns the residue list, not the round files. The main agent writes the

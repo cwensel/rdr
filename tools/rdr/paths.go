@@ -241,8 +241,11 @@ func nextIteration(base string, it Iteration) (next int, found []int, note strin
 	if len(found) == 0 {
 		if loose > 0 {
 			// Loose files ARE iteration 1 (rdr-common §evidence), so the
-			// next pass is 2.
-			return 2, found, ""
+			// next pass is 2. Say so: an ITER=2 with nothing under
+			// ITER_FOUND/ITER_NOTE reads as a hidden gap, and a caller
+			// then lists the dir by hand to learn why.
+			return 2, found, fmt.Sprintf("loose files are iteration 1 (%d on disk, no %s segments)",
+				loose, strings.ReplaceAll(it.Segment, "{n}", "N"))
 		}
 		return 1, found, "empty: nothing written yet"
 	}

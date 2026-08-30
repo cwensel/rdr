@@ -118,15 +118,17 @@ func TestNextIterReadsTheTreeRatherThanGuessing(t *testing.T) {
 		args  []string
 		next  int
 		found []int
+		note  string
 		why   string
 	}{
-		{"contiguous segments", []string{"--lens", "critique"}, 5, []int{2, 3, 4},
+		{"contiguous segments", []string{"--lens", "critique"}, 5, []int{2, 3, 4}, "",
 			"1 + the highest segment on disk"},
 		{"loose files are iteration 1", []string{"--lens", "3amigo"}, 2, nil,
-			"rdr-common §evidence: the loose set IS iteration 1, so the next pass is 2"},
-		{"empty dir", []string{"--lens", "cove"}, 1, nil,
+			"loose files are iteration 1",
+			"rdr-common §evidence: the loose set IS iteration 1, so the next pass is 2 — and the note says why, so the caller need not list the dir"},
+		{"empty dir", []string{"--lens", "cove"}, 1, nil, "empty",
 			"the directory exists and holds nothing, so the next pass is the first"},
-		{"no dir at all", []string{"--lens", "grounding"}, 1, nil,
+		{"no dir at all", []string{"--lens", "grounding"}, 1, nil, "no such directory",
 			"nothing was ever written here"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -136,6 +138,9 @@ func TestNextIterReadsTheTreeRatherThanGuessing(t *testing.T) {
 			}
 			if len(a.Found) != len(c.found) {
 				t.Errorf("found = %v, want %v", a.Found, c.found)
+			}
+			if !strings.Contains(a.Note, c.note) {
+				t.Errorf("note = %q, want it to say %q — ITER_FOUND/ITER_NOTE say what was on disk; a gap is named, not hidden", a.Note, c.note)
 			}
 		})
 	}

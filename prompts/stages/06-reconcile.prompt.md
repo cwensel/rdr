@@ -1,6 +1,8 @@
 For the RDR at {RDR_PATH}, reconcile every open spike and every assumption
 the review rounds disturbed, before this RDR can lock. Read {RDR_RESOURCES} for
-the corpora and design docs, and {RDR_ENV} for the spike location ({SPIKE_DIR}).
+the corpora and design docs. Spikes live under {SPIKE_DIR} and this report is
+written to {ITER_DIR} — both bound by `rdr paths` in the skill's step 1, never
+composed by hand.
 Pre-Lock needs-verification list(s):
 <paste the list(s)>
 
