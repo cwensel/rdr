@@ -277,6 +277,7 @@ navigator checks cannot drift apart:
 
 ```sh
 eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"
+mkdir -p "$ITER_DIR"   # the projector names, it never creates
 # EVIDENCE_DIR the lens dir · ITER/ITER_DIR where this pass writes
 # ITER_FOUND/ITER_NOTE what was on disk (a gap is named, not hidden)
 ```
@@ -285,7 +286,9 @@ eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"
 structure, omit `--next-iter` for the base alone. `--next-iter` LISTS the dir:
 loose files are iteration 1, so a first pass gets the base and a re-entry
 `iter-N/`. Unbound `$RDR_EVIDENCE` → exit 1 and a stated absence, never a
-fabricated path; it creates nothing.
+fabricated path; it creates nothing — hence the `mkdir`. **Eval once per pass**
+and reuse `$ITER_DIR`: after the `mkdir`, a second `--next-iter` names the
+NEXT iteration, splitting one pass across two dirs.
 
 The existence of the lens dir is the disk signal that that lens ran — this is
 what `/rdr-status` reads. **Not every stage leaves a disk signal:** Stage 4

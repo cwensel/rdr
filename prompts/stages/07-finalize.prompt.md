@@ -12,9 +12,10 @@ $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
 every RDR as a post-mutation regression check, since the rounds and the Stage 6
 reconcile just rewrote this draft. Bind the report dir in one call
 (rdr-common §evidence — ask for the dir, never compose one):
-`eval "$("$RDR_HOME/bin/rdr" paths --lens tooling-pass --next-iter <NNNN>)"` →
-write `tooling-pass.md` to `$ITER_DIR` (at `ITER=1` it *is* the base; re-runs
-land in `iter-N/`). Lint once to `$ITER_DIR/lint.txt` (the sweep's "Run first");
+`eval "$("$RDR_HOME/bin/rdr" paths --lens tooling-pass --next-iter <NNNN>)"`;
+`mkdir -p "$ITER_DIR"` → write `tooling-pass.md` there (at `ITER=1` it *is*
+the base; re-runs land in `iter-N/`). One eval per pass — after the `mkdir`,
+a re-eval names the NEXT iteration and splits the pass across two dirs. Lint once to `$ITER_DIR/lint.txt` (the sweep's "Run first");
 a sweep you spawn gets that path in its brief. On BLOCK, split the findings:
 
 - MECHANICAL — fix in this pass, re-run the sweep: a hollow/bracketed section
@@ -40,7 +41,11 @@ one chokepoint every re-entry path (2/3/4) shares, so a surviving note is NOT
 READY: the cross-RDR defect that demoted this RDR was never closed. On a
 `@finalize` re-entry (RE-LOCK-ONLY, `re-verify none`) the note's listed
 defects ARE this stage's content fix: apply each in place first, by `--select`
-id, then run the sweep and delete the note.
+id, then run the sweep and delete the note. On a stage-scoped re-entry whose
+target pass has already run (the note names refine/resolve and that stage
+closed), the listed defects should be closed in live text: verify each there
+(delegate the read), then delete the note at lock — NOT READY only if one is
+still open.
 
 ALSO scan `Profile` + `Normative Contracts`: for a `mid`/`large` RDR whose
 contract names step-ordering, parse/deparse, import/export, compose/decompose,
@@ -50,8 +55,10 @@ fidelity, require `evidence/repeatability/run-1.md` + `diff.md` or a written
 Stage 5 repeatability-lite.
 
 Then run the Finalization Gate from the template as written responses (not
-checkboxes), written to {ARTIFACT_DIR}/gate.md — a short header (RDR id/slug,
-date, verdict), then one H2 section per item — not into the RDR:
+checkboxes): items 1, 2, 3 and 5 go to {ARTIFACT_DIR}/gate.md — a short header
+(RDR id/slug, date, verdict), then one H2 section per item — not into the RDR.
+Item 4 (Cross-Cutting) is authored ONCE, in the record at the Gate's item,
+where the lock keeps it citable; gate.md never carries a second copy to drift:
 1. Contradiction Check — conflicts between Research Findings and Proposed
    Solution; planned features vs stated principles.
 2. Assumption Verification — every Critical Assumption record internally
