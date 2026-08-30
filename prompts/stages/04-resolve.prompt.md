@@ -19,11 +19,12 @@ spelunk, delegate to a sub-agent that returns the verdict + evidence pointer
 (file:line, or spike command + output path) as a §return-packet (rdr-common) — NOT raw hits or whole files.
 Hold only the verdicts here.
 
-**Per-assumption search budget (in the sub-agent brief).** Each delegated search
-is bounded: ≤4 corpus queries per assumption, ≤6 opened hits; stop on the first
-hit that verifies or falsifies — sufficiency, not exhaustiveness, is the bar.
-Invoke `arc search semantic --corpus <C> --limit N --json "<q>"` (flag is
-`--corpus`; an obsolete-flag retry counts against the budget). The sub-agent
+**Per-assumption search budget — paste this line into EVERY Source Search brief,
+whatever the method (corpus search, own-code `rg`/code search, spike):** ≤4
+queries per assumption, ≤6 opened hits, stop on the first hit that verifies or
+falsifies — sufficiency, not exhaustiveness, is the bar; a retry of a wrong flag
+or regex counts against it. For a corpus the call is `arc search semantic
+--corpus <C> --limit N --json "<q>"` (flag is `--corpus`). The sub-agent
 returns query strings + accepted evidence pointers in its §return-packet
 (rdr-common) — do not define a competing shape — and a `negative: <assumption> —
 no corpus evidence in <corpora>` line when nothing lands. Persist accepted

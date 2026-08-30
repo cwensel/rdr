@@ -174,12 +174,19 @@ RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identit
 `sed -n`/`grep` on the file. `inspect NNNN` first: its `§` rows are the sections
 with line ranges, then every element — the whole read plan in ~150 lines (not
 `--filter outline`, ~800, nor `--select elements`, 25× larger). Then read by id:
-`--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:ALT5` — each `§`
-row is a selector, and ids survive edits where line numbers shift.
+`--select NNNN:§critical-assumptions NNNN` / `NNNN:A3` / `NNNN:ALT5` / a contract
+clause `NNNN:S-1`, `NNNN:L-3` (the label as written inside the fence; never pull
+the whole `§normative-contracts`, tens of KB, to reach one clause) — each `§` row
+is a selector, and ids survive edits where line numbers shift. In JSON
+(`--json --filter elements`, or `--select` with `--json`) an element's Status /
+Method / Evidence are `fields[]{label,value}` rows, not top-level keys.
 `--json --filter metadata,counts` for the status line. Those cost ~20ms; `edges`,
 bare `--json` and `lint` pay a corpus scan + repo walk (~1.5s). A stage that must
 rewrite the file reads it whole, in one call; if that exceeds one call's output,
-chunk by `--select NNNN:§section`, never `sed -n` windows.
+chunk by `--select NNNN:§section`, never `sed -n` windows. A corpus question
+("who cites this", "what is Draft", "what blocks") goes through
+`index --status` / `--backlinks=NNNN[:elem]` / `--cycles` — a few lines each —
+never bare `index --json` (the whole graph, MB, and nothing to grep it for).
 
 Pass `$arg` through as the user typed it: a number with or without leading zeros,
 a slug, or a full path all resolve. `--filter path` keeps the answer to a few
@@ -341,12 +348,20 @@ property of the RDR's on-disk state, which the prompt already inspects.
   with "never `sed`/`grep` the record". The spawn prompt also carries the shell
   rule: output separators are `---`, never `===` — zsh aborts an unquoted
   `=`-leading word (`=== not found`), poisoning the turn and skipping every
-  chained call. Two more lines for the brief: cap each Bash call's expected
-  output — batch selects only up to a few KB, split anything larger (an
-  overflow past the ~30KB cap costs a file + read-back round-trip); and a
-  sub-agent that owes an evidence file (a lens contract's `findings.md`, a
-  persona file) writes it with a Bash heredoc, never the Write tool — some
-  harnesses refuse sub-agent Writes and return only text.
+  chained call. Paste these read rules too, each a turn saved: **batch
+  `--select`s by summed line range** — the ranges in `inspect NNNN` add up, ~250
+  lines is ~25 KB, one call; past that split, since an overflow past the ~30 KB
+  cap costs a file + read-back round-trip. **Read an element once and keep it**
+  — never re-select the same id with a different grep. **A big section or a
+  corpus-scanning facet (`edges`, `index --backlinks`) is saved once** to a
+  scratch file (`> /tmp/…`) and sliced there — `sed`/`grep` on the scratch
+  copy is fine; the ban is on the record file. **A grounding or cove spawn's
+  FIRST call** is `inspect --json --filter edges,elements NNNN`, kept to the
+  edges whose `resolved` is false or absent — that list is its worklist, not a
+  hand sweep of every anchor. And a sub-agent that owes an evidence file (a
+  lens contract's `findings.md`, a persona file) writes it with a Bash heredoc,
+  never the Write tool — some harnesses refuse sub-agent Writes and return
+  only text.
 - **After spawning, the parent waits by ending its turn.** It does only items its
   own list still owes and nothing the brief names — a delegated check is never
   re-run in the parent. When nothing is owed, end the turn with no tool call: the
@@ -376,10 +391,14 @@ evidence_paths: [file:line | spike-cmd→output-path, ...]
 changed_paths: [path, ...]        # files the subagent wrote, or []
 next_action: <imperative the parent runs, or "none">
 summary_50w: <≤50 words; the verdict's reason, not a transcript>
+appendix: <optional, last; verbatim quotes / query log the parent files as evidence>
 ```
 
-The parent **rejects a malformed packet** (missing/extra field, unlisted verdict
-value) and asks ONLY for a corrected packet — never a fresh analysis pass. Do
+`appendix:` is the one optional field, only when the brief asks for it, and it is
+never the parent's read — the six fields above decide; the appendix is copied into
+the evidence file. The parent **rejects a malformed packet** (missing/extra field,
+unlisted verdict value) and asks ONLY for a corrected packet — never a fresh
+analysis pass. Do
 **not** fetch the full subagent transcript unless the packet's evidence_paths
 cite a conflict the parent must adjudicate.
 

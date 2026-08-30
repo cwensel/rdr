@@ -99,7 +99,9 @@ carries identity per row.
 element ids (README §identifiers):
   NNNN:A3 assumption · NNNN:C4 contract · NNNN:D-identity decision · NNNN:RT1
   invariant · NNNN:ALT2 alternative · NNNN:BR3 briefly rejected · NNNN:S5
-  scenario (list item or T-5 table row) · NNNN:MVV · NNNN:F2 failure mode ·
+  scenario (list item or T-5 table row) · NNNN:S-1 / NNNN:L-3 contract
+  clause (the label as written inside a normative fence) · NNNN:MVV ·
+  NNNN:F2 failure mode ·
   NNNN:JC2 Joint-check line (joint.open says whether it is ruled) · NNNN:G-scope gate response ·
   NNNN:§approach section · cli/NNNN:C4 across records dirs
 
