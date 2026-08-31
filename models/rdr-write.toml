@@ -35,13 +35,17 @@
 # lint failure here rather than a wrong answer to an agent months from
 # now. That is a stronger guarantee than a per-op refuse test.
 #
-# THE EDIT IS DATA. `[rule.emit]` carries the exact `sed` expression, not
-# a description of one. Emit values are uninterpreted strings compared by
-# bytes — there is no interpolation — so `NNNN` and slugs are never
-# spelled here; the caller appends what it already holds. This is also
-# what makes the file forward-compatible: when intrastate ships a write
-# accessor that INVOKES a declared command (intrastate#v0hb), the same
-# declaration becomes that accessor's command and no row changes.
+# THE EDIT IS DATA — TRANSITIONALLY. `[rule.emit]` carries the exact `sed`
+# expression, not a description of one, and the caller applies it as
+# handed. That is a stop-gap, not the design: intrastate RDR 0025's write
+# binding takes planned OWNED tags on a state-machine, and a decision
+# table owns nothing (RDR 0010), so no shipped binding can consume these
+# emits. The end state is a successor intrastate RDR pair (a declared,
+# in-process edit writer; `set-state --plan`) after which this file becomes
+# a state-machine over a command reader and the `edit`/`sections` emits
+# are deleted — the rows' guards and `op` answers survive, the shell
+# strings do not. Until then: no interpolation, so `NNNN` and slugs are
+# never spelled here; the caller appends what it already holds.
 #
 # ---------------------------------------------------------------------
 # THE COUPLING IS THE FACT NAMES, AND NOTHING ELSE
