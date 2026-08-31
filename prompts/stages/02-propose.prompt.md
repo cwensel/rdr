@@ -21,15 +21,14 @@ Read the Problem Statement and Context, then:
    rewrite in place). If this invalidates the Problem Statement itself, stop and
    flag it — don't propose onto a false premise.
 
-0.5 **Accretion gate.** Read the `Seam Lineage` field (filled at Seed from
-   `kata-scope-review` — do not re-derive). If it carries ≥2 closed prior
-   point-fixes at this locus, this is a *missing design decision, not a missing
-   patch*: before proposing any mechanism, write one sentence naming the
-   **undecided contract** the prior point-fixes all danced around, and set
-   Profile to `foundational` (the cove lens then runs — it subsumes grounding as
-   its Step 0). Enumerate approaches
-   as answers to that contract question, not as the next patch. (Escape only via
-   a written accretion disposition in `Seam Lineage`; count <2 → skip this step.)
+0.5 **Accretion gate.** Run rdr-common §lens-row's call, `--outcome floor`
+   (it reads the `Seam Lineage` field's facts — do not re-read or count it).
+   `foundational` → this is a *missing design decision, not a missing patch*:
+   before proposing any mechanism, write one sentence naming the **undecided
+   contract** the prior point-fixes all danced around, and set Profile to
+   `foundational` (the cove lens then runs — it subsumes grounding as its Step
+   0). Enumerate approaches as answers to that contract question, not as the
+   next patch. `none` → skip this step; a `stopped:*` → surface it (§stop-packet).
 
 1. **Read prior art FIRST — before naming any approach.** An LLM that enumerates
    first anchors on its training prior and won't reliably self-correct, so read
@@ -86,8 +85,8 @@ Read the Problem Statement and Context, then:
    `Premortem: survived | hardened | switched (paragraph | hardened)` — closed
    vocabulary, variant named (the repeatability `variant:` precedent); that
    one greppable line is what makes per-form miss rates computable later.
-   (Profile is the *current* value here — the accretion gate above may have
-   floored it to `foundational` in-flight.)
+   (Profile is the *current* value here — step 0.5 may have set it to
+   `foundational` in-flight.)
    - **`small`/`mid` → one paragraph.** Write the one-paragraph post-mortem of
      the shipped-and-failed approach, then confirm the recommendation survives
      it. A failure the chosen approach can't answer → switch. Variant

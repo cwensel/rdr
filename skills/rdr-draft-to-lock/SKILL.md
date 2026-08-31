@@ -148,7 +148,7 @@ where the run got to. **Never a position**: that is derived (Re-entry below).
 
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
-(count, then the accretion floor), so **re-ask the model after resolve
+(count, then `floor`), so **re-ask the model after resolve
 returns** — the same call as above, which reads the rewritten field itself.
 Any stage can move the field, so re-ask every hop and **rewrite the plan when
 the answer diverges** — a durable state you don't update is a stale one you

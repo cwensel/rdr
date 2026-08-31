@@ -12,6 +12,8 @@
 - **Profile**: foundational — locks the warm-up contract across both
   readers and the metrics surface
 - **Priority**: High
+- **Seam Lineage**: `cache::Warm` — 3rd point-fix; trail: a1b2c3d +
+  tracker#204, tracker#331, tracker#402.
 - **Cluster**: 0020-cache-eviction-policy, 0022-cache-metrics-surface
 
 ## Problem Statement

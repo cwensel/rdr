@@ -352,10 +352,11 @@ self-referential review cannot see.
 
 ### Accretion floor & blast-radius profile sizing
 
-**Drives**: the **Seam Lineage** Metadata field and the accretion-floor Profile
-rule in [`TEMPLATE.md`](TEMPLATE.md); the deterministic floor in the
-[Stage 5 matrix](stages/05-prelock.md) and [README matrix](README.md); the Seed
-fill ([`prompts/stages/01-seed.prompt.md`](prompts/stages/01-seed.prompt.md)) and the
+**Drives**: the **Seam Lineage** Metadata field in [`TEMPLATE.md`](TEMPLATE.md);
+the accretion floor as the `floor` group of
+[`models/rdr-status.toml`](models/rdr-status.toml) over the field's projected
+facts (`models/rdr-facts.toml`); the Seed fill
+([`prompts/stages/01-seed.prompt.md`](prompts/stages/01-seed.prompt.md)) and the
 Propose accretion gate ([`prompts/stages/02-propose.prompt.md`](prompts/stages/02-propose.prompt.md)).
 Profile sized by contract count alone lets an RDR self-scope to one contract and
 under-gate a seam that already carries prior point-fixes; the accretion axis floors

@@ -543,10 +543,21 @@ IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
   --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
+  --outcome floor $("$RDR_HOME/bin/rdr" status --tags "$NNNN")   # the accretion floor on Profile
 ```
 
 (`--plan-only` drops the ~50-line `observed.*` echo of the tags — the one
 idiom for that, here as in §rdr-write; no grep filter.)
+
+**`--outcome floor` is the accretion floor**, resolved from the Seam Lineage
+facts (`seam_lineage`, `accretion_disposition`) by the model's `floor` group —
+the rule lives there, not here. `emit.floor` is the value Profile must carry
+(`foundational`, or `none`): apply it as a value wherever a stage writes
+Profile. `stopped:profile-below-floor` means the recorded field is below it
+and outranks the lens answer; `stopped:seam-lineage-count-unread` names a
+field whose count must be written in TEMPLATE.md's form before the floor can
+be resolved.
 
 Substitute `--tags` inline as written — never capture it into a variable
 first: zsh does not word-split an unquoted `$TAGS`, so intrastate receives one
@@ -703,9 +714,9 @@ model costs more per token, not more tokens — profile-gating is the efficient
 shape; never run a whole cohort at the ceiling "to be safe." A harness without
 per-spawn model control runs at session model and notes it in the report.
 
-**Model-adequacy fork (heavy RDRs, before any authoring).** Heavy = `Profile`
-`large`/`foundational`, or `Seam Lineage` ≥2 (the accretion floor Stage 2 will
-apply). The authoring model is a design input; decide it *before* tokens are
+**Model-adequacy fork (heavy RDRs, before any authoring).** Heavy = `profile`
+`large`/`foundational`, or `seam_lineage=2+` in `rdr status --tags` (the `floor`
+row Stage 2 applies). The authoring model is a design input; decide it *before* tokens are
 spent — at stage start nothing is written, so cancel is free. Resolve:
 
 - Ceiling set, session model is the ceiling → proceed silently.

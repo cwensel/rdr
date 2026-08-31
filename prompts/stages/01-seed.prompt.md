@@ -27,9 +27,9 @@ For the **Profile** Metadata field, write a one-line provisional estimate from
 the same design shape you judged to seed this as one RDR (`rdr/stages/README.md`
 matrix: one internal contract → small; user-facing or locks a contract → mid;
 locks an enum/hash/format/grammar/destructive-op → large; cross-RDR / spans
-modules → foundational). **Floor it: if Seam Lineage carries ≥2 prior
-point-fixes, the profile is `foundational` regardless** (the accretion floor —
-escapable only by a written accretion disposition in Seam Lineage). It is an
+modules → foundational). **Then the floor**: `--outcome floor` (rdr-common
+§lens-row's call — run it in the same block as the README row below) answering
+`foundational` IS the Profile, whatever you estimated. It is an
 early budget signal, provisional because the RDR is `Draft`; Stage 4 (Resolve)
 overwrites it from the verified count. Don't labor over it. ≥2 independent
 contracts across separate seams → flag a split, don't pick a profile.

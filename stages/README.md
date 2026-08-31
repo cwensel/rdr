@@ -232,10 +232,9 @@ RDR's `Profile` Metadata field, sized by **blast radius, not word count** — th
 max of two axes: the *contract* axis (the count of independent load-bearing
 contracts the RDR is sole author of — the Normative Contracts section is the seam
 detector; ≥2 across separate seams is a split signal, not a profile) and the
-*accretion* axis (the **Seam Lineage** field's prior-point-fix count: ≥2 floors
-the profile at `foundational`, a deterministic gate escapable only by a written
-accretion disposition). The accretion floor is what stops a "one contract → mid"
-sizing from under-gating an accreting seam. Its lifecycle is three-tier, with
+*accretion* axis (the **Seam Lineage** floor, resolved by the `floor` group of
+`models/rdr-status.toml` from the field's projected count and disposition — the
+rule's one home). Its lifecycle is three-tier, with
 provenance
 carried by `Status` rather than any qualifier: **Seed** writes a provisional
 estimate (an early budget signal — trust it only as a hint); **Resolve** (Stage

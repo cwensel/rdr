@@ -343,8 +343,8 @@ a surface; Repeatability runs on foundational work, and `mid`/`large` add repeat
 fires. The Tooling-pass sweep runs on every RDR as the Gate's mechanical pre-step.
 
 The profile is the RDR's `Profile` Metadata field, sized by **blast radius** (the max of the contract axis and the
-accretion axis) rather than contract count alone: a `Seam Lineage` carrying ≥2 closed prior point-fixes floors the
-profile at Foundational (a deterministic count, escapable only by a written accretion disposition in that field). Seed
+accretion axis) rather than contract count alone: the accretion floor over `Seam Lineage` is resolved by the routing
+model (`models/rdr-status.toml`, the `floor` group) from the field's projected count and disposition. Seed
 estimates it, Resolve overwrites it from the verified count, the Gate re-validates it. See the
 [flow README](stages/README.md#applicability--which-stages-a-given-rdr-needs) for the field's lifecycle.
 

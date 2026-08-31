@@ -40,6 +40,27 @@ type Field struct {
 	Status *Status `json:"status,omitempty"`
 	// Method is the parsed form of an Evidence Record Method value.
 	Method *Method `json:"method,omitempty"`
+	// Seam is the parsed form of the Metadata Seam Lineage value.
+	Seam *SeamLineage `json:"seam,omitempty"`
+}
+
+// SeamLineage is a Seam Lineage value read against the template's form
+// (model.SeamLineageCount): the point-fix count, the spelling that
+// carried it, and whether the written accretion disposition is present.
+// It exists so the accretion floor is two facts a table routes on rather
+// than a count a reader re-derives at four stages.
+type SeamLineage struct {
+	// Count is the point-fix count the field carries. Nil when the value
+	// spells no count the grammar reads (Form `unread`) or is a
+	// placeholder — nil is "not read", never zero.
+	Count *int `json:"count,omitempty"`
+	// Form names the spelling: ordinal (`3rd point-fix`), prior-count
+	// (`4 prior point-fixes`), count-eq (`Count = 5`), none-declared
+	// (`no prior accretion`), placeholder, or unread.
+	Form string `json:"form"`
+	// Disposition is true when an `Accretion disposition:` line is
+	// written, in the value or as a nested bullet under the field.
+	Disposition bool `json:"disposition"`
 }
 
 // Status is a Status value normalised to {value, qualifier, raw}.
@@ -193,6 +214,41 @@ func (d *Document) metadataField(f *Field) {
 			f.Status.ReentryTarget = d.noteReentryTarget()
 		}
 	}
+	if f.Canonical == "Seam Lineage" {
+		f.Seam = d.seamLineage(f)
+	}
+}
+
+// seamLineage reads the Seam Lineage field's count and disposition.
+//
+// The value is the field's first paragraph (model.ValueContinues cuts a
+// nested bullet off), but the template writes the disposition as a nested
+// bullet and the corpus writes it both ways, so the field's indented tail
+// — every indented, non-blank line after the value up to the next
+// column-zero line — is read for it as well, bullet by bullet. Only a
+// line that OPENS with the label counts, which is what keeps an author's
+// copy of the template guidance (`… of the form: \`Accretion disposition:
+// …\“) from reading as a disposition.
+func (d *Document) seamLineage(f *Field) *SeamLineage {
+	out := &SeamLineage{}
+	if placeholderValue(f.Value) {
+		out.Form = "placeholder"
+		return out
+	}
+	if n, form, ok := model.SeamLineageCount(f.Value); ok {
+		out.Count, out.Form = &n, form
+	} else {
+		out.Form = "unread"
+	}
+	out.Disposition = model.AccretionDispositionLine(f.Value)
+	for j := f.LineEnd + 1; j <= len(d.lines) && !out.Disposition; j++ {
+		ln := d.lines[j-1]
+		if strings.TrimSpace(ln) == "" || len(strings.TrimLeft(ln, " \t")) == len(ln) {
+			break // the block, or the field's tail, is over
+		}
+		out.Disposition = model.AccretionDispositionLine(ln)
+	}
+	return out
 }
 
 func lifecycleStatus(raw string) *Status {

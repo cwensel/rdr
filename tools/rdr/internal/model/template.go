@@ -24,6 +24,7 @@ package model
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -125,6 +126,68 @@ var EvidenceFieldBullet = regexp.MustCompile(`^\s*-\s+\*\*([^*]+)\*\*:\s*(.*)$`)
 // label and the first line of its value. Metadata bullets sit at column
 // zero; the Evidence Record's are indented under their assumption.
 var MetadataFieldBullet = regexp.MustCompile(`^- \*\*([^*]+)\*\*:\s*(.*)$`)
+
+// --- Seam Lineage ------------------------------------------------------
+//
+// TEMPLATE.md fixes the field's form: `<seam> — Nth point-fix; trail: …`,
+// or "no prior accretion", with an optional `Accretion disposition: …`
+// line as the floor's only escape. The count and the disposition are the
+// two facts the accretion floor routes on (rdr-status.toml `floor`), so
+// the grammar that reads them lives here, once, beside the wrap rule.
+//
+// A count is READ, never inferred: the spellings below are the ones the
+// corpus writes unambiguously, each anchored on the literal `point-fix`
+// (or the template's own `no prior accretion`). Anything else — `Nth
+// point-fix (N≥3)`, `would be point-fixes #3–#5` — is UNREAD, which the
+// scanner reports as such rather than guessing a number. The first form
+// to match wins, in this order, so a disposition sentence quoting "the 3
+// point-fixes" never outranks the field's own `3rd point-fix`.
+var seamLineageCounts = []struct {
+	form string
+	re   *regexp.Regexp
+}{
+	{"ordinal", regexp.MustCompile(`(?i)\b(\d+)(?:st|nd|rd|th)\+?\s+point-fix`)},
+	{"prior-count", regexp.MustCompile(`(?i)\b(\d+)\s+prior\s+(?:closed\s+)?(?:code\s+)?point-fix`)},
+	{"count-eq", regexp.MustCompile(`(?i)\bcount\s*=\s*(\d+)\b`)},
+	{"none-declared", regexp.MustCompile(`(?i)\bno prior (?:closed )?(?:accretion|point-fix)`)},
+}
+
+// SeamLineageCount reads the point-fix count out of a Seam Lineage value.
+// It returns the count, the form that carried it, and false when no
+// declared form is present (the value is unread, not zero).
+func SeamLineageCount(value string) (n int, form string, ok bool) {
+	for _, c := range seamLineageCounts {
+		m := c.re.FindStringSubmatch(value)
+		if m == nil {
+			continue
+		}
+		if c.form == "none-declared" {
+			return 0, c.form, true
+		}
+		n, err := strconv.Atoi(m[1])
+		if err != nil {
+			continue
+		}
+		return n, c.form, true
+	}
+	return 0, "", false
+}
+
+// accretionDisposition matches the escape line where the template puts
+// it — opening a sentence or a nested bullet, optionally bold, with the
+// colon optional (`**Accretion disposition (written):**` is written). It
+// does NOT match the template's own guidance when an author copies it
+// into the field (`… of the form: \`Accretion disposition: the N …`),
+// because there the label sits mid-sentence after a colon.
+var accretionDisposition = regexp.MustCompile(`(?i)(?:^|[.;!?]\s+|^\s*-\s+)[*_]*accretion disposition\b`)
+
+// AccretionDispositionLine reports whether text carries the written
+// accretion disposition. Callers pass the field's value and each of its
+// nested bullets separately — the value's wrap rule cuts a nested bullet
+// off, and the corpus writes the disposition both ways.
+func AccretionDispositionLine(text string) bool {
+	return accretionDisposition.MatchString(text)
+}
 
 // ValueContinues reports whether next is a continuation of the metadata or
 // Evidence Record field value whose first line has already been consumed.

@@ -62,15 +62,11 @@ verdict (02-propose step 7.5) means the proposal's anchors are already
 source-checked — grounding (and cove's Step 0) delta-scopes to claims added or
 edited since propose; no verdict line → full sweep.
 
-**Accretion floor (deterministic).** Profile is blast-radius, not local diff
-size. If the RDR's `Seam Lineage` (Metadata) carries **≥2 closed prior
-point-fixes** at the locus, the profile is floored at **Foundational** — a seam
-with prior point-fixes is the matrix's `cross-RDR` trigger. This is a mechanical
-count read from the field (filled at Seed from `kata-scope-review`), not a
-judgment; the only escape is the written accretion disposition in that field. It
-is the lever that pulls an accreting `small`/`mid` RDR up to the foundational
-row — so its first lens becomes **cove**, not `grounding`. Stage 4 re-applies
-the floor when it overwrites the field; the floor outranks the contract count.
+**Accretion floor.** Resolved, never re-read here: §lens-row's call,
+`--outcome floor`, answers it from the `Seam Lineage` facts (the model's
+`floor` group is the rule's one home). Its `stopped:profile-below-floor`
+outranks the lens answer — the field is a recorded latch, and Stage 4 owns the
+write.
 
 **Determinacy trigger (repeatability-lite).** A second gate, read from the
 RDR's **Normative Contracts** — the fenced ` ```normative ` block, not the

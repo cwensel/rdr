@@ -37,8 +37,8 @@ Draft, **plus a Draft row for it in the RDR home's README index**.
   template and smuggles in the neighbor's solution — send it back.
 - **Metadata is honest**: Status Draft; Type/Priority set; Predecessors listed
   if the kata names dependencies; **Seam Lineage** copied from
-  `kata-scope-review` (count + trail, or "no prior accretion"), and the Profile
-  floored to `foundational` if that count is ≥2.
+  `kata-scope-review` in TEMPLATE.md's form (the projector reads its count), and
+  the Profile agreeing with `--outcome floor` (rdr-common §lens-row).
 - **README index row added.** A Draft row for this RDR exists in the RDR home's
   index table, Title/Priority matching its H1/Metadata (a Demoted seed adds none).
 - **Is it RDR-shaped at all?** If the {IDEA} carries no real design fork —

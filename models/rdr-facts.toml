@@ -265,6 +265,55 @@ path        = "metadata.Profile.value"
 prose       = true
 description = "Profile verbatim, rationale tail included, for the caveat line."
 
+# --- the accretion floor's inputs ------------------------------------------
+#
+# The Seam Lineage field carries a point-fix count and, when the author
+# escapes the floor, an `Accretion disposition:` line. The floor — a
+# count of two or more with no disposition floors Profile at foundational
+# — was a mechanical count a reader re-derived at four stages; it is now
+# the `floor` outcome of rdr-status.toml, and these three facts are what
+# its rows read. NOTHING here compares the count to two: the row does.
+#
+# The projector reads the count against the template's form
+# (model.SeamLineageCount): `Nth point-fix`, `N prior point-fixes`,
+# `Count = N`, or `no prior accretion` as zero. A field that spells its
+# count some other way is UNREAD — a real value of the bucket, and a
+# stop in the table, because a count the grammar did not read is one a
+# reader would have to guess. Measured on the reference corpus: 84
+# records carry the field, 73 read, 10 unread (all terminal), 1 a seed
+# placeholder.
+#
+# `seam_lineage_count` is the number, for the reader and the caveat
+# line; it routes nothing directly and goes absent with the field, like
+# `contracts`. `seam_lineage` is the bucket the rows guard on — `0`,
+# `1`, `2+`, `unread` — with `none` as the ABSENT SENTINEL for a record
+# that carries no field, which every record older than the field is.
+# `accretion_disposition` is whether the escape line is written, in the
+# value or as the template's nested bullet; a field without one answers
+# false, and a record without the field takes the sentinel `false` —
+# the rows never read it under `seam_lineage = none` anyway.
+[fact.seam_lineage_count]
+kind        = "int"
+source      = "seam-lineage"
+select      = "count"
+min         = 0
+description = "The point-fix count Seam Lineage carries; absent when there is no field or no readable count."
+
+[fact.seam_lineage]
+kind        = "enum"
+source      = "seam-lineage"
+select      = "bucket"
+domain      = ["0", "1", "2+", "unread", "none"]
+absent      = "none"
+description = "seam_lineage_count bucketed for the floor rows; `unread` is a written count in no declared form, `none` is no field."
+
+[fact.accretion_disposition]
+kind        = "bool"
+source      = "seam-lineage"
+select      = "disposition"
+absent      = "false"
+description = "An `Accretion disposition:` line is written in Seam Lineage, inline or as its nested bullet."
+
 # The Stage-5 Determinacy trigger reads the labelled contract count. A
 # ZERO does not skip the trigger — contracts written as prose are
 # unaddressable and count zero, so on an older record zero means

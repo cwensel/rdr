@@ -91,15 +91,9 @@ N/A-bulleted). -->
   surface OR locks a contract; large = locks an enum/hash/
   format/grammar/destructive-op; foundational = cross-RDR
   producer / spans modules.
-  (2) accretion axis (HARD floor): if `Seam Lineage` below
-  carries ≥2 closed prior point-fixes at this locus, Profile
-  is floored at FOUNDATIONAL regardless of the contract axis
-  — a seam with prior point-fixes is never small/mid (it
-  spans the prior RDRs/patches = the matrix's cross-RDR
-  trigger). The only escape is a written accretion disposition
-  in the Seam Lineage field. This floor is what stops a
-  "one contract → mid" sizing from under-gating an accreting
-  seam.
+  (2) accretion axis (HARD floor): resolved from `Seam
+  Lineage` below by the routing model (rdr-status.toml's
+  `floor` group — the rule's one home), never re-read here.
   Matrix: rdr/stages/README.md. Seed estimates from the design
   shape; Resolve overwrites from the verified count; Stage 8
   Gate locks it at Draft → Final. Never skip lenses off a
@@ -123,15 +117,14 @@ N/A-bulleted). -->
   `<seam> — Nth point-fix; trail: <sha> + <kata-ids>`. If the
   seam has no prior closed point-fixes, state "no prior
   accretion" and omit the rest.
-  - If the count is ≥2 the Profile is floored at
-    `foundational` (see Profile). The floor is a HARD gate;
-    the only escape is an **accretion disposition** written
-    here, of the form: `Accretion disposition: the N
-    point-fixes at <seam> are NOT one missing design decision
-    because <one-sentence reason>; cite: <kata-id/RDR-id
-    establishing the distinct seams>.` Absent that line, the
-    floor stands. Co-locating count and escape keeps the
-    override reviewable beside its evidence.]
+  - The routing model reads this count (the form above is
+    the grammar it reads — keep it). The floor's only escape
+    is an **accretion disposition** written here, of the
+    form: `Accretion disposition: the N point-fixes at <seam>
+    are NOT one missing design decision because <one-sentence
+    reason>; cite: <kata-id/RDR-id establishing the distinct
+    seams>.` Co-locating count and escape keeps the override
+    reviewable beside its evidence.]
 - **Cluster**: [Optional — omit if this RDR stands alone.
   Comma-separated `NNNN-slug` of sibling RDRs deliberately
   proposed in tandem; declare the same set in every member.

@@ -208,7 +208,7 @@ var factSources = map[string]bool{
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
-	"stale-lens": true, "stale-path": true,
+	"stale-lens": true, "stale-path": true, "seam-lineage": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
 }
@@ -437,6 +437,14 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Select == "" {
 			return d, fmt.Errorf("fact %q: a %s names a select", name, d.Source)
 		}
+	case "seam-lineage":
+		// The three selects are the three shapes the floor reads, and an
+		// unknown one would evaluate to nothing while reading as declared.
+		switch d.Select {
+		case "count", "bucket", "disposition":
+		default:
+			return d, fmt.Errorf("fact %q: a seam-lineage selects count, bucket or disposition, got %q", name, d.Select)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
 		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
@@ -608,6 +616,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.sectionProse(d)
 	case "readme-row":
 		return e.readmeRow(d)
+	case "seam-lineage":
+		return e.seamLineage(d)
 	case "stale-lens":
 		return e.staleLens(d)
 	case "stale-path":
@@ -733,6 +743,57 @@ func (e *FactEnv) lookup(path string) (string, []string, bool) {
 		return strconv.Itoa(n), nil, true
 	}
 	return "", nil, false
+}
+
+// seamLineage answers the accretion floor's inputs off the projected
+// Seam Lineage field (scan.SeamLineage): the count, the count bucketed
+// for routing, or whether the written disposition is present. The floor
+// itself — count >= 2 with no disposition — is a ROW in rdr-status.toml,
+// not a comparison made here; this only publishes what the row reads.
+//
+//	count        the int, absent when there is no field or no readable
+//	             count — like `contracts`, nothing routes on it directly
+//	bucket       0 | 1 | 2+ | unread; absent when there is no field, so
+//	             the table's `none` sentinel claims that cell. `unread`
+//	             is a REAL value: the field is written and its count is
+//	             in no declared form, which is a stop, not a zero.
+//	disposition  true when an `Accretion disposition:` line is written;
+//	             false when the field is present without one; absent
+//	             when there is no field (the table's sentinel is false).
+func (e *FactEnv) seamLineage(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	f := metadataField(e.Doc, "Seam Lineage")
+	if f == nil || f.Seam == nil {
+		return Fact{}, false
+	}
+	sl := f.Seam
+	switch d.Select {
+	case "count":
+		if sl.Count == nil {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(*sl.Count)}, true
+	case "bucket":
+		if sl.Form == "placeholder" {
+			return Fact{}, false // an unfilled seed has no field to read
+		}
+		if sl.Count == nil {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: "unread"}, true
+		}
+		v := strconv.Itoa(*sl.Count)
+		if *sl.Count >= 2 {
+			v = "2+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	case "disposition":
+		if sl.Form == "placeholder" {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(sl.Disposition)}, true
+	}
+	return Fact{}, false
 }
 
 func metadataField(doc *scan.Document, label string) *scan.Field {

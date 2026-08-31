@@ -6,6 +6,9 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    mid
 profile_raw                  scalar  mid — one contract plus the eviction metrics surface
+seam_lineage_count           int     2
+seam_lineage                 enum    2+
+accretion_disposition        bool    true
 contracts                    int     0
 ca_total                     int     2
 ca_verified                  int     0
@@ -58,6 +61,9 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    foundational
 profile_raw                  scalar  foundational — locks the warm-up contract across both readers and the metrics surface
+seam_lineage_count           int     3
+seam_lineage                 enum    2+
+accretion_disposition        bool    false
 contracts                    int     1
 cluster                      set     ["0020","0022"]
 clustered                    bool    true
@@ -114,6 +120,9 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+seam_lineage_count           int     0
+seam_lineage                 enum    0
+accretion_disposition        bool    false
 contracts                    int     0
 ca_total                     int     2
 ca_verified                  int     1

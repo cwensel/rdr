@@ -86,16 +86,21 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 		want   map[string]string
 		why    string
 	}{
-		{"0020", map[string]string{"status": "Draft", "ca": "all-pending", "profile": "mid"},
-			"the front-half Draft whose CAs are all Pending: Refine is the open ~"},
+		{"0020", map[string]string{"status": "Draft", "ca": "all-pending", "profile": "mid",
+			"seam_lineage_count": "2", "seam_lineage": "2+", "accretion_disposition": "true"},
+			"the front-half Draft whose CAs are all Pending: Refine is the open ~; and the " +
+				"accretion floor's ESCAPED cell — two prior point-fixes with the disposition " +
+				"written as the template's nested bullet, so a mid Profile stands"},
 		{"0021", map[string]string{"status": "Final", "status_form": "joint-decision",
 			"profile": "foundational", "contracts": "1", "lens_cove": "true",
 			"lens_3amigo": "true", "lens_critique_single": "true",
-			"lens_critique_modelb": "false", "gate_written": "true"},
-			"foundational mid-row: critique is single-model, so the dual-model diff is still owed"},
+			"lens_critique_modelb": "false", "gate_written": "true",
+			"seam_lineage_count": "3", "seam_lineage": "2+", "accretion_disposition": "false"},
+			"foundational mid-row: critique is single-model, so the dual-model diff is still owed; " +
+				"the floor HOLDS (three prior point-fixes, no disposition) and the field is at it"},
 		{"0022", map[string]string{"status": "Draft", "status_form": "revised-from",
 			"status_reentry": "true", "impl_capsule": "true", "impl_state": "IN-PROGRESS",
-			"cluster_reconciled": "true"},
+			"cluster_reconciled": "true", "seam_lineage_count": "0", "seam_lineage": "0"},
 			"the scoped backward edge, with a capsule header that states its own state; " +
 				"it is also in TWO cluster dirs (0021-0022 and 0021-0022-0023), which is a " +
 				"widened re-run rather than an ambiguity — nested overlap still answers true"},
@@ -175,7 +180,8 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 	for _, f := range env.Facts {
 		present[f.Name] = true
 	}
-	for _, name := range []string{"profile", "profile_raw", "cluster", "clustered", "joint_checks"} {
+	for _, name := range []string{"profile", "profile_raw", "cluster", "clustered", "joint_checks",
+		"seam_lineage_count", "seam_lineage", "accretion_disposition"} {
 		if present[name] {
 			t.Errorf("0025 carries no such field, but --json reports %q; absence must survive "+
 				"the JSON rendering even though --tags substitutes a sentinel there", name)

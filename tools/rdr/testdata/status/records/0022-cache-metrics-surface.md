@@ -11,6 +11,7 @@
 - **Type**: Architecture
 - **Profile**: small
 - **Priority**: Medium
+- **Seam Lineage**: `metrics::HitRate` — no prior accretion.
 
 ## Problem Statement
 

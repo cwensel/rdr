@@ -10,6 +10,11 @@
 - **Type**: Architecture
 - **Profile**: mid — one contract plus the eviction metrics surface
 - **Priority**: High
+- **Seam Lineage**: `cache::Evict` — 2nd point-fix; trail: a1b2c3d +
+  tracker#204, tracker#331.
+  - Accretion disposition: the 2 point-fixes at `cache::Evict` are NOT one
+    missing design decision — each fixed a distinct call site's assumption;
+    cite: 0023-cache-shard-count.
 
 ## Problem Statement
 

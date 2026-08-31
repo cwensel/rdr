@@ -868,6 +868,10 @@ var stageFacts = map[string][]string{
 		// critique's two passes, and which variant run-1 declares. The
 		// `critique` and `repeatability` outcome groups route on these.
 		"critique_models", "repeatability_variant",
+		// The accretion floor's inputs. The floor itself is the `floor`
+		// outcome's row over the bucket and the disposition; the count is
+		// published for the reader and routes nothing directly.
+		"seam_lineage_count", "seam_lineage", "accretion_disposition",
 	},
 	"6 Reconcile": {"reconcile", "reconcile_report", "reconcile_report_alt", "reconcile_report_alt2", "ca"},
 	// The anchor and peer-evidence tallies are §mechanical-gate's
@@ -1767,5 +1771,78 @@ func TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels(t *testing.T) {
 				t.Errorf("%s: set fact %q rides the --tags vector but is not declared [tags.%s] kind = \"set\"; intrastate refuses the whole call", model, f.Name, f.Name)
 			}
 		}
+	}
+}
+
+// --- the accretion floor's facts -------------------------------------------
+
+// seamRecord writes a record whose Seam Lineage field is `field` (or none
+// when empty) and returns its facts.
+func seamRecord(t *testing.T, field string) []Fact {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "0031-frame-seam.md")
+	doc := "# Recommendation 0031: Frame seam\n\n## Metadata\n\n- **Date**: 2026-08-30\n- **Status**: Draft\n- **Profile**: mid\n"
+	if field != "" {
+		doc += "- **Seam Lineage**: " + field + "\n"
+	}
+	doc += "\n## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(path, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := scan.File(path, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl := loadRealTable(t)
+	return tbl.Evaluate(NewFactEnv(tbl, d, "0031-frame-seam"))
+}
+
+// TestSeamLineageFactsBucketTheCount: the count is published raw, the
+// bucket is what the `floor` rows read (0, 1, 2+), and a field whose
+// count the grammar cannot read is `unread` — a value, not an absence,
+// because the field IS written and the floor cannot be resolved off it.
+func TestSeamLineageFactsBucketTheCount(t *testing.T) {
+	for _, c := range []struct {
+		name, field, count, bucket, disp string
+	}{
+		{"none declared", "`area:x` — no prior accretion.", "0", "0", "false"},
+		{"one", "`a::B` — 1st point-fix; trail: k1.", "1", "1", "false"},
+		{"two", "`a::B` — 2nd point-fix; trail: k1 + k2.", "2", "2+", "false"},
+		{"many, escaped", "`a::B` — 5 prior point-fixes; trail: k1. Accretion disposition: five siting fixes; cite: 0004.", "5", "2+", "true"},
+		{"unread", "`a::B` — Nth point-fix (N≥3); trail: k1.", "", "unread", "false"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			facts := seamRecord(t, c.field)
+			if got, ok := factValue(facts, "seam_lineage_count"); got != c.count || ok != (c.count != "") {
+				t.Errorf("seam_lineage_count = %q (present %v), want %q", got, ok, c.count)
+			}
+			if got, _ := factValue(facts, "seam_lineage"); got != c.bucket {
+				t.Errorf("seam_lineage = %q, want %q", got, c.bucket)
+			}
+			if got, _ := factValue(facts, "accretion_disposition"); got != c.disp {
+				t.Errorf("accretion_disposition = %q, want %q", got, c.disp)
+			}
+		})
+	}
+}
+
+// TestSeamLineageFactsAreAbsentWithoutTheField: no field, and a seed's
+// placeholder, evaluate to NOTHING — `--json` omits all three and `--tags`
+// renders the declared sentinels (`none`, `false`), which is the half
+// TestRoutingSentinelsRenderOnlyAsTags holds for every sentinel fact.
+func TestSeamLineageFactsAreAbsentWithoutTheField(t *testing.T) {
+	for _, c := range []struct{ name, field string }{
+		{"no field", ""},
+		{"placeholder", "[seed placeholder — populate at propose]"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			facts := seamRecord(t, c.field)
+			for _, name := range []string{"seam_lineage_count", "seam_lineage", "accretion_disposition"} {
+				if v, ok := factValue(facts, name); ok {
+					t.Errorf("%s = %q; with no readable field the fact must be absent, not defaulted", name, v)
+				}
+			}
+		})
 	}
 }

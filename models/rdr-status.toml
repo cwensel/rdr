@@ -79,7 +79,7 @@
 # missing, exactly as §stop-packet requires — a skipped check must never
 # read as a passed one.
 
-outcomes = ["locate", "reentry", "lens", "critique", "repeatability"]
+outcomes = ["locate", "reentry", "lens", "critique", "repeatability", "floor"]
 
 [model]
 id          = "rdr-status"
@@ -92,6 +92,41 @@ owner  = "rdr"
 source = "skills/rdr-status/SKILL.md"
 facts  = "models/rdr-facts.toml"
 
+# ---------------------------------------------------------------------
+# THE EMIT VOCABULARY IS DECLARED (intrastate RDR 0024). With these
+# declarations present, lint refuses a rule emitting a key not declared
+# here or a `next` outside its domain — so a typo'd key or a misspelt
+# stop token is a load failure, not a value a skill reads as a stage.
+# The dispositions are the caller's contract: `route` is a command the
+# caller appends the record number to, `chain` is the model's own
+# instruction to resolve a second outcome, `none` is "nothing to run",
+# and `stop` is a §stop-packet token naming what is missing. The
+# resolver surfaces the disposition of the selected row's `next` in the
+# payload's `dispositions`, so a caller branches on a proven token
+# rather than on a string prefix.
+[emit.next]
+kind = "enum"
+[emit.next.domain]
+route = ["/rdr-cluster-reconcile", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability 1", "/rdr-prelock repeatability 2", "/rdr-prelock repeatability 3", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
+chain = ["resolve:lens", "resolve:reentry"]
+none  = ["none"]
+stop  = ["stopped:assumption-list-unreadable", "stopped:check-the-joint-decision-home", "stopped:deferred-without-condition", "stopped:determinacy-trigger-unjudged", "stopped:no-profile", "stopped:profile-below-floor", "stopped:repeatability-variant-unstamped", "stopped:seam-lineage-count-unread"]
+
+[emit.why]
+kind = "scalar"
+
+[emit.surface]
+kind = "scalar"
+
+[emit.next_arg]
+kind   = "enum"
+domain = ["cluster"]
+
+# The `floor` group's answer: the value Profile must carry, or `none`.
+[emit.floor]
+kind   = "enum"
+domain = ["foundational", "none"]
+
 # --- the recognized outcome ------------------------------------------------
 #
 # `locate` asks the coarse-position question (§How it decides next step
@@ -101,7 +136,7 @@ facts  = "models/rdr-facts.toml"
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["locate", "reentry", "lens", "critique", "repeatability"]
+domain        = ["locate", "reentry", "lens", "critique", "repeatability", "floor"]
 single_valued = true
 required      = true
 
@@ -184,6 +219,26 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["small", "mid", "large", "foundational", "none"]
+single_valued = true
+required      = true
+
+# The accretion floor's two inputs, read only by the `floor` group. The
+# bucket is the count the Seam Lineage field carries, folded to the three
+# values the floor tells apart, plus `unread` (a written count in no form
+# the projector reads — a stop, never a zero) and `none`, the ABSENT
+# SENTINEL for a record with no field. The disposition is whether the
+# escape line is written; its sentinel is `false`, and no row reads it
+# under `seam_lineage = none`.
+[tags.seam_lineage]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1", "2+", "unread", "none"]
+single_valued = true
+required      = true
+
+[tags.accretion_disposition]
+provenance    = "observed"
+kind          = "bool"
 single_valued = true
 required      = true
 
@@ -700,6 +755,130 @@ eq = "none"
 next    = "/rdr-resolve"
 why     = "The qualifier names no @<stage> — /rdr-resolve is the default, not the recorded target."
 surface = "the qualifier, and the TARGET RE-ENTRY STAGE line of the record's `## Refinement Context` note: if it names Stage 2, 3 or a fix-and-lock, run /rdr-propose, /rdr-refine or /rdr-finalize instead"
+
+# ===========================================================================
+# `floor` — the accretion floor on Profile (TEMPLATE.md, Seam Lineage)
+# ===========================================================================
+#
+# Dimensions: profile × seam_lineage × accretion_disposition = 5 × 5 × 2 = 50.
+#
+# Profile is sized by blast radius, and a seam that already carries two or
+# more prior point-fixes is the matrix's cross-RDR trigger whatever the
+# contract axis says: the floor is `foundational`, and the only escape is
+# the written `Accretion disposition:` line in the same field. That rule
+# was prose at nine sites and a count a reader re-derived at Seed,
+# Propose, Resolve and Pre-Lock — three chained exact steps, four times
+# per record. It is this group now, and the sites cite it.
+#
+# THIS GROUP IS ITS OWN OUTCOME, NOT TWO DIMENSIONS ON `lens`: the lens
+# product is 960 and the bound is 2048 per group, so folding the bucket
+# and the disposition in would take it to 9,600. Split, the floor is 50
+# cells and `lens` is untouched — which also matches how the flow asks:
+# a stage writing Profile asks "what must it be", and reads `floor`.
+#
+# THE ANSWER IS `floor`: the value Profile must carry (`foundational`),
+# or `none` when no floor applies. `next` is `none` when the field agrees
+# with the floor and a `stopped:` token when it does not — the field is
+# a recorded latch (stages/README.md), and a latch below its floor is
+# surfaced, never silently routed around. The caller applies `floor` as
+# a value; writing the field is the stage's edit, as today.
+
+# --- no field, or a count the grammar does not read -------------------------
+#
+# A record older than the field has no floor recorded, which is a
+# caveat and not a stop: nothing was skipped, the field did not exist.
+# A field that IS written, in a form the projector cannot read, is
+# different — a count was recorded and cannot be resolved off, so the
+# row stops and names the fix rather than guessing the number.
+[[rule]]
+id = "floor-no-field"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+eq = "none"
+[rule.emit]
+floor   = "none"
+next    = "none"
+why     = "No Seam Lineage field — the record predates it, so no floor was recorded."
+surface = "that the accretion floor was not read: the record carries no Seam Lineage field"
+
+[[rule]]
+id = "floor-count-unread"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+eq = "unread"
+[rule.emit]
+floor   = "none"
+next    = "stopped:seam-lineage-count-unread"
+why     = "Seam Lineage is written but spells no count the projector reads."
+surface = "the Seam Lineage field: write its count as `Nth point-fix` (or `no prior accretion`), then re-run this call"
+
+# --- fewer than two ---------------------------------------------------------
+[[rule]]
+id = "floor-below-two"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+in = ["0", "1"]
+[rule.emit]
+floor = "none"
+next  = "none"
+why   = "Fewer than two prior point-fixes at the locus — the floor does not apply."
+
+# --- two or more, escaped ---------------------------------------------------
+#
+# The disposition is the author's reviewable reason the fixes are not one
+# missing decision. It is co-located with the count on purpose, and the
+# row surfaces it so the reader sees the escape beside its evidence.
+[[rule]]
+id = "floor-escaped"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+eq = "2+"
+[rule.guard.all.accretion_disposition]
+eq = "true"
+[rule.emit]
+floor   = "none"
+next    = "none"
+why     = "Two or more prior point-fixes, escaped by the written accretion disposition."
+surface = "the Accretion disposition line, verbatim"
+
+# --- two or more, no escape: the floor holds --------------------------------
+[[rule]]
+id = "floor-holds"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+eq = "2+"
+[rule.guard.all.accretion_disposition]
+eq = "false"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.emit]
+floor = "foundational"
+next  = "none"
+why   = "Two or more prior point-fixes and no disposition floor Profile at foundational; the field is at it."
+
+# A `none` Profile is below the floor too: the field is absent, and the
+# floor says what it must be written as, which is more than the `lens`
+# group's no-profile stop can say.
+[[rule]]
+id = "floor-below"
+[rule.match.recognized]
+eq = "floor"
+[rule.guard.all.seam_lineage]
+eq = "2+"
+[rule.guard.all.accretion_disposition]
+eq = "false"
+[rule.guard.all.profile]
+in = ["small", "mid", "large", "none"]
+[rule.emit]
+floor   = "foundational"
+next    = "stopped:profile-below-floor"
+why     = "Two or more prior point-fixes and no disposition floor Profile at foundational; the field reads below it."
+surface = "write Profile `foundational` (Stage 4 owns the write); cove then leads the lens row"
 
 # ===========================================================================
 # `lens` — the Stage-5 lens row (rdr-common.md §lens-row)
