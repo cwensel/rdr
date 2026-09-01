@@ -100,9 +100,9 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
   inconsistency: <detail>") and halt.
 - Predecessors: run
-  `"$RDR_HOME/bin/rdr" inspect --json --filter edges,metadata,lines {RDR_PATH}`
+  `"$RDR_HOME/bin/rdr" inspect --json --filter edges {RDR_PATH}`
   and take `edges[]` where `kind=="predecessor"` — each carries `to`, `slug`,
-  `resolved`, `line` (`metadata`/`lines` serve the size gate below).
+  `resolved`, `line`.
   `resolved:false` is a dangling predecessor — the cited record does not
   exist — and halts first: INCOMPLETE("predecessor <to> unresolved at line
   <line>"). `--records` defaults to `$RDR_RECORDS`; without a records dir
@@ -125,30 +125,26 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   `Cargo.toml`, …) and existing test files in the source tree. Pick
   the dominant one and record it. Only escalate as a user question
   if there is no detectable framework at all.
-- Size gate (route Phase 0–3): the **delegated** orchestrator below is the
-  default. Take the **inline fast-path** (run the phases in this session,
-  no sub-agent spawn) ONLY when ALL hold: `Profile` (Metadata) is `small`;
-  RDR ≤ 400 lines; ≤ 10 `REQ-N`; ≤ 3 source files touched; the test suite is
-  quick (≤ ~200 lines output). The first two come from the same
-  `inspect --json` the Predecessors gate ran — `metadata[]` where
-  `label=="Profile"` → `.value` (its leading word), and top-level `lines`. The
-  REQ count is NOT a projector field (`REQ-N` names no element — Phase 0 mints
-  them per run): count them in
-  `<art>/req-list.md` once Phase 0 has written it, estimate before. `Profile`
-  is the gate latch — the same `small` field that already skips prelock; any
-  non-`small` profile stays delegated, no exceptions. Print the decision:
-  `STAGE-8 ROUTE: inline fast-path — profile=small, <N> lines, ~<R> REQ, <F> files`
-  or `STAGE-8 ROUTE: delegated — <first failing signal>`.
-  FALLBACK (the inline path stays armed): if mid-run the work touches a 4th
-  source file, req-list exceeds 10 REQ-N, a suite run exceeds the output cap,
-  or context pressure approaches the orchestrator limit — do **not** unwind.
-  Keep every artifact already written and the `status.md` capsule, print
-  `STAGE-8 ESCALATE: fast-path aborted at <cause> — resuming delegated from <phase>`,
-  and re-enter delegated from the next phase via the Resume precheck above.
-  The fast-path writes the same five artifacts and passes the same completion
-  gate; it is "the delegated phases run inline until a cap trips, then handed
-  off on disk." Foundational/large/mid never qualify — they hit the 1M-context
-  blowup the delegation exists to prevent.
+- Size gate (route Phase 0–3): one call, the answer applied as a value. The
+  `size` group of `$RDR_HOME/models/rdr-launch.toml` owns the caps (profile ×
+  lines × req_count × files × suite × pressure; `intrastate lint` proves every
+  cell):
+  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome size --plan-only \
+    $("$RDR_HOME/bin/rdr" status --tags --filter profile,lines,req_count <slug>) \
+    --tag files=<0-3|4+> --tag suite=<quick|long> --tag pressure=<true|false>
+  The three `--tag`s are what this run has observed, never estimated: source
+  files in the packets' changed_paths so far; a suite run over ~200 lines of
+  output; context nearing the orchestrator limit (at PRECHECKS: `0-3`, `quick`,
+  `false`). `emit.next` = `inline` → run the phases in this session, no
+  sub-agent spawn; `delegated` → spawn. Print `STAGE-8 ROUTE: <next> — <why>`.
+  FALLBACK: while inline, re-ask at every phase boundary with the tags
+  re-observed (Phase 0 writes req-list.md, so `req_count` becomes real). A
+  `delegated` answer mid-run: do **not** unwind — keep every artifact already
+  written and the `status.md` capsule, print `STAGE-8 ESCALATE: <why> —
+  resuming delegated from <phase>`, and re-enter delegated from the next phase
+  via the Resume precheck above. The fast-path writes the same five artifacts
+  and passes the same completion gate.
 
 PHASE 0 — Spec audit [DELEGATE to sub-agent: "Phase 0 auditor"]
 Brief the sub-agent with:
@@ -221,8 +217,8 @@ Brief the sub-agent with:
   - `{RDR_RESOURCES}` — the evidence index to ground any apparent
     defect against (Source Search the corpora, check the design docs)
     before escalating.
-  - Authority to write/update `<art>/deviations.md` for any
-    classified deviation it encounters.
+  - Authority to write `<art>/deviations.md` (always, even empty) and
+    update it for any classified deviation it encounters.
 Sub-agent's task: write the minimum code to turn the tests green. No
 features, validation, error handling, or abstractions no REQ-N
 demands. Owns its own write/test/iterate loop until either all tests
@@ -316,17 +312,14 @@ green. New deviations follow Phase 2's classification rules
 Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lists defects fixed, regression tests added, green yes/no, any new deviations needing author decision).
 Apply the same escalation rule as Phase 2 if needed.
 
-COMPLETION GATE (orchestrator runs directly)
-Read the headers of `<art>/coverage.md`, `<art>/verification.md`,
-and `<art>/deviations.md` — do not re-read full files. Write
-`<art>/status.md` as exactly one of:
-
-  COMPLETE — every REQ-N has ≥1 green test, coverage.md has no orphans
-  either direction, REQ-MVV output is recorded, and deviations.md has
-  no open needs-author-decision entries (entries are closed,
-  mechanical translation, or accepted by author).
-
-  INCOMPLETE — <one-line named blocker, citing the failing condition>.
+COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
+  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome complete --plan-only \
+    $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded <slug>) \
+    --tag suite_green=<true|false>    # the last packet's verdict: PASS → true
+The `complete` group proves every cell — green tests, no orphans either way,
+REQ-MVV output recorded, no open needs-author-decision line — and an unread
+ledger file is a named stop, never a pass. Write `<art>/status.md` state from
+`emit.next` as a value: `COMPLETE`, or `INCOMPLETE — <stopped:token>: <why>`.
 
 Do not declare success on INCOMPLETE.
 
@@ -418,8 +411,8 @@ prompt only needs to know which predecessors to gate on.
   brief-scoping at spawn time.
 - **Hard COMPLETE/INCOMPLETE gate** makes "done" computable from disk,
   which is what manual sequencing across long gaps requires. The
-  orchestrator computes the gate from artifact headers only, not by
-  re-reading content.
+  orchestrator computes the gate from the `complete` row over the ledger
+  facts, not by re-reading content.
 - **Escalation to the user is for design decisions, not continuation.**
   Spec ambiguity that no reading resolves, and contract-level
   deviations (spec defect, deferred-scope), surface as user questions.
@@ -427,9 +420,10 @@ prompt only needs to know which predecessors to gate on.
   resolution, and precondition failures (which become INCOMPLETE
   halts) never ask.
 - **Inline fast-path for small RDRs** is the PRECHECKS **Size gate**
-  above — a thresholded route (profile=`small` + hard caps), not an
-  ad-hoc "trivial surface" judgment, and it falls back to delegated on
-  any cap breach. The red-before-green gate still applies inline.
+  above — the `size` row of `$RDR_HOME/models/rdr-launch.toml`
+  (profile=`small` + hard caps), not an ad-hoc "trivial surface" judgment,
+  and it falls back to delegated on any cap breach. The red-before-green
+  gate still applies inline.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
   DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
   taxonomy the RDR process uses for post-mortem drift classification

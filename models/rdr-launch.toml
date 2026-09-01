@@ -1,0 +1,406 @@
+# rdr-launch.toml — the launch prompt's two gates, as proven rows.
+#
+# `prompts/implementation/launch.md` routed Stage 8 by two AND-gates in
+# prose: the SIZE gate (five caps deciding inline fast-path vs delegated,
+# plus four mid-run FALLBACK triggers) and the COMPLETION gate (four
+# conditions deciding COMPLETE vs INCOMPLETE). This table is both;
+# `intrastate lint --model` proves every cell of each.
+#
+# DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
+# accessors. The caller acts on `emit`; nothing here writes.
+#
+# WHERE EVERY DIMENSION COMES FROM. Facts are rendered by `rdr status
+# --tags --filter …` and declared in rdr-facts.toml, whose names are the
+# contract (`profile`, `lines`, `req_count`, `impl_orphans`,
+# `impl_open_decisions`, `impl_mvv_recorded`); each is total by a declared
+# sentinel or by construction. The rest are CALLER-SUPPLIED `observed`
+# tags the orchestrator binds from what it has already seen this run —
+# never estimated — and passes as `--tag k=v`: `files` (source files in
+# the packets' changed_paths so far), `suite` (whether any suite run has
+# exceeded the output cap), `pressure` (context nearing the orchestrator
+# limit), `suite_green` (the last packet's verdict). At PRECHECKS nothing
+# has happened, so the three size tags are their floor values and
+# `req_count` is `none`: the row for that cell is what makes the inline
+# path honest rather than a guess. `tools/rdr/routing_test.go` names
+# these caller tags in its allowlist.
+#
+# THE FALLBACK IS THE SAME ROW, RE-ASKED. The prose armed four mid-run
+# triggers (a 4th file, >10 REQ, a long suite run, context pressure); each
+# is a dimension here, and the inline path re-asks `size` at every phase
+# boundary with the tags re-observed. A `delegated` answer mid-run IS the
+# fallback — there is no second table for it.
+#
+# UNDEFINED CELLS, DECIDED. Profile `none` is not `small`, so it delegates
+# (the prose: any non-small stays delegated, no exceptions). `req_count`
+# `none` with every other cap clear runs inline — Phase 0 writes the list
+# and the re-ask reads it — and the row says so in `why`. An unread ledger
+# file (`impl_orphans`/`impl_open_decisions` = `none`) is a NAMED STOP,
+# never a pass: §stop-packet, a skipped check must not read as a passed
+# one. Where more than one condition fails, the first in the prose's own
+# order wins — that is the "first failing signal" the ROUTE line printed.
+#
+# THE ANSWER IS `emit.next`, applied as a value. `size`: `inline` runs
+# the phases in this session, `delegated` spawns them (or, mid-run, hands
+# off on disk). `complete`: `COMPLETE` is the capsule's state word; a
+# `stopped:*` member is the INCOMPLETE blocker, named. `why` is the line
+# the caller prints beside it. No interpolation: the record number, the
+# phase and the file names are the caller's.
+
+outcomes = ["size", "complete"]
+
+[model]
+id          = "rdr-launch"
+version     = 1
+class       = "decision-table"
+description = "Stage-8 launch: the size gate's route and the completion gate's verdict, from facts plus what the run has observed."
+
+[model.metadata]
+owner  = "rdr"
+source = "prompts/implementation/launch.md"
+facts  = "models/rdr-facts.toml"
+
+[emit.next]
+kind = "enum"
+[emit.next.domain]
+route = ["inline", "delegated"]
+done  = ["COMPLETE"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions"]
+
+[emit.why]
+kind = "scalar"
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["size", "complete"]
+single_valued = true
+required      = true
+
+# --- facts, rendered by `rdr status --tags --filter …` -----------------------
+
+# `none` is the fact's declared absent sentinel: no Profile field.
+[tags.profile]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["small", "mid", "large", "foundational", "none"]
+single_valued = true
+required      = true
+
+# The record's own length at the cap; never absent.
+[tags.lines]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0-400", "401+"]
+single_valued = true
+required      = true
+
+# Distinct REQ-N in req-list.md at the cap; `none` until Phase 0 writes it.
+[tags.req_count]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0-10", "11+", "none"]
+single_valued = true
+required      = true
+
+# REQ ids vs coverage rows, both ways; `none` when either file is unread.
+[tags.impl_orphans]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
+single_valued = true
+required      = true
+
+# `Status:` lines still reading needs author decision; `none` when unread.
+[tags.impl_open_decisions]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
+single_valued = true
+required      = true
+
+# A `## REQ-MVV output` heading in coverage.md; the sentinel is `false`.
+[tags.impl_mvv_recorded]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# --- caller-supplied, observed so far this run -------------------------------
+
+# Source files touched, from the packets' changed_paths; `0-3` at PRECHECKS.
+[tags.files]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0-3", "4+"]
+single_valued = true
+required      = true
+
+# `long` once any suite run has exceeded ~200 lines of output; `quick` before.
+[tags.suite]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["quick", "long"]
+single_valued = true
+required      = true
+
+# Context approaching the orchestrator limit; `false` at PRECHECKS.
+[tags.pressure]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# The last §return-packet's verdict — Phase 2's, or Phase 3c's when it ran:
+# PASS is `true`, anything else `false`.
+[tags.suite_green]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# ===========================================================================
+# size — inline fast-path or delegated
+# ===========================================================================
+#
+# profile x lines x req_count x files x suite x pressure = 240 cells. The
+# rows are the prose's caps in the prose's order: Profile is the latch,
+# then the line cap, the REQ cap, the file cap, the suite cap, and the
+# pressure trigger. Two cells run inline: every cap clear with the REQ
+# count read, and every cap clear with it not yet written.
+
+[[rule]]
+id = "size-not-small"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.unless.profile]
+eq = "small"
+[rule.emit]
+next = "delegated"
+why  = "Profile is not small: the latch holds, no exceptions — mid, large and foundational are the 1M-context blowup the delegation exists to prevent."
+
+[[rule]]
+id = "size-lines"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "401+"
+[rule.emit]
+next = "delegated"
+why  = "Over 400 lines: a small Profile on a long record is not a small read."
+
+[[rule]]
+id = "size-req"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+eq = "11+"
+[rule.emit]
+next = "delegated"
+why  = "More than 10 REQ-N: the ledger is too wide to hold inline."
+
+[[rule]]
+id = "size-files"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+in = ["0-10", "none"]
+[rule.guard.all.files]
+eq = "4+"
+[rule.emit]
+next = "delegated"
+why  = "A 4th source file: the surface is wider than the fast-path holds."
+
+[[rule]]
+id = "size-suite"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+in = ["0-10", "none"]
+[rule.guard.all.files]
+eq = "0-3"
+[rule.guard.all.suite]
+eq = "long"
+[rule.emit]
+next = "delegated"
+why  = "A suite run exceeded the output cap: its output would accumulate in this context."
+
+[[rule]]
+id = "size-pressure"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+in = ["0-10", "none"]
+[rule.guard.all.files]
+eq = "0-3"
+[rule.guard.all.suite]
+eq = "quick"
+[rule.guard.all.pressure]
+eq = "true"
+[rule.emit]
+next = "delegated"
+why  = "Context pressure: hand off on disk before the limit, not after."
+
+[[rule]]
+id = "size-inline"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+eq = "0-10"
+[rule.guard.all.files]
+eq = "0-3"
+[rule.guard.all.suite]
+eq = "quick"
+[rule.guard.all.pressure]
+eq = "false"
+[rule.emit]
+next = "inline"
+why  = "Every cap holds: run the phases in this session."
+
+[[rule]]
+id = "size-inline-uncounted"
+[rule.match.recognized]
+eq = "size"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.lines]
+eq = "0-400"
+[rule.guard.all.req_count]
+eq = "none"
+[rule.guard.all.files]
+eq = "0-3"
+[rule.guard.all.suite]
+eq = "quick"
+[rule.guard.all.pressure]
+eq = "false"
+[rule.emit]
+next = "inline"
+why  = "Every cap holds and the REQ count is not yet written: run inline; Phase 0 writes req-list.md and the next re-ask reads it."
+
+# ===========================================================================
+# complete — the capsule's verdict
+# ===========================================================================
+#
+# impl_orphans x impl_mvv_recorded x impl_open_decisions x suite_green =
+# 36 cells. An unread ledger file stops first (nothing looked is not
+# nothing wrong); then the prose's four conditions in its order: green
+# tests, no orphans, MVV recorded, no open decisions. One cell completes.
+
+[[rule]]
+id = "complete-coverage-unread"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "none"
+[rule.emit]
+next = "stopped:coverage-unread"
+why  = "req-list.md or coverage.md was not read: the orphan check did not run, and a check that did not run is not a pass."
+
+[[rule]]
+id = "complete-deviations-unread"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+in = ["0", "1+"]
+[rule.guard.all.impl_open_decisions]
+eq = "none"
+[rule.emit]
+next = "stopped:deviations-unread"
+why  = "deviations.md was not read: Phase 2 writes it even when empty, so an unread one is a missing artifact."
+
+[[rule]]
+id = "complete-suite-red"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+in = ["0", "1+"]
+[rule.guard.all.impl_open_decisions]
+in = ["0", "1+"]
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.emit]
+next = "stopped:suite-red"
+why  = "The last packet did not pass: no REQ-N has a green test until the suite is green."
+
+[[rule]]
+id = "complete-orphans"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "1+"
+[rule.guard.all.impl_open_decisions]
+in = ["0", "1+"]
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.emit]
+next = "stopped:req-orphans"
+why  = "coverage.md has an orphan: a REQ-N with no test, or a test with no REQ-N."
+
+[[rule]]
+id = "complete-mvv"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "0"
+[rule.guard.all.impl_mvv_recorded]
+eq = "false"
+[rule.guard.all.impl_open_decisions]
+in = ["0", "1+"]
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.emit]
+next = "stopped:mvv-unrecorded"
+why  = "coverage.md carries no `## REQ-MVV output`: the end-to-end run is not recorded."
+
+[[rule]]
+id = "complete-open-decisions"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "0"
+[rule.guard.all.impl_mvv_recorded]
+eq = "true"
+[rule.guard.all.impl_open_decisions]
+eq = "1+"
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.emit]
+next = "stopped:open-decisions"
+why  = "deviations.md still has a `Status: needs author decision` line not rewritten to RESOLVED."
+
+[[rule]]
+id = "complete"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "0"
+[rule.guard.all.impl_mvv_recorded]
+eq = "true"
+[rule.guard.all.impl_open_decisions]
+eq = "0"
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.emit]
+next = "COMPLETE"
+why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output recorded, no open decisions."

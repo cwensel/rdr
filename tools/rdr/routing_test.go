@@ -34,7 +34,7 @@ const routingModelName = "rdr-status.toml"
 // binary calls the other, so a check that covered only the first would
 // leave the second free to drift — and the write model carries its own
 // copy of the status vocabulary plus `readme_status`'s.
-var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml"}
+var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml"}
 
 // callerTags names, per model, the observed tags a caller supplies by hand
 // (an orchestrator's own packet fields and Ledger, never an `rdr status`
@@ -44,6 +44,10 @@ var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-casca
 // `posture` group `rdr-cascade.toml` will grow.
 var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
+	// The launch orchestrator's own observations this run: source files
+	// touched, a suite run over the output cap, context pressure, and the
+	// last packet's verdict. Its six other tags are facts and stay policed.
+	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true},
 }
 
 // routingModel is the parsed model, reduced to what the seam needs: the
@@ -395,7 +399,7 @@ func TestRoutingDimensionsAreAlwaysRendered(t *testing.T) {
 // routingFixtures are the `status` fixture records, which span the shapes
 // the routing tells apart — including the sparse Draft whose optional
 // fields are simply not written.
-var routingFixtures = []string{"0020", "0021", "0022", "0023", "0024", "0025"}
+var routingFixtures = []string{"0020", "0021", "0022", "0023", "0024", "0025", "0030"}
 
 // fixtureTags renders one fixture's `--tags` argv into a key/value map,
 // asserting the argv shape on the way through.
@@ -784,5 +788,195 @@ func TestCompletionOutcomesReadLensStale(t *testing.T) {
 		if strings.Contains(strings.ToLower(emit), "complete") {
 			t.Errorf("rule %q answers over a stale lens and must not say complete; its emit is:\n%s", id, emit)
 		}
+	}
+}
+
+// launchModelName is the Stage-8 launch table: the size gate's route and
+// the completion gate's verdict.
+const launchModelName = "rdr-launch.toml"
+
+// emitNextDomain reads a model's `[emit.next.domain]` partitions —
+// disposition name to members — with the same local, line-oriented
+// reading loadRoutingModelNamed uses, and for the same reason.
+func emitNextDomain(t *testing.T, name string) map[string][]string {
+	t.Helper()
+	src, err := os.ReadFile(repoFile(t, filepath.Join("models", name)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string][]string{}
+	in := false
+	for _, raw := range strings.Split(string(src), "\n") {
+		line := strings.TrimSpace(raw)
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "[") {
+			in = line == "[emit.next.domain]"
+			continue
+		}
+		if !in {
+			continue
+		}
+		key, rest, ok := strings.Cut(line, "=")
+		if !ok {
+			t.Fatalf("[emit.next.domain] line is not key = list: %q", line)
+		}
+		out[strings.TrimSpace(key)] = splitTOMLList(strings.TrimSpace(rest))
+	}
+	if len(out) == 0 {
+		t.Fatalf("%s declares no [emit.next.domain]; the dispositions are the caller's contract", name)
+	}
+	return out
+}
+
+// TestLaunchEmitsAreDeclaredDispositions pins the launch table's answer
+// surface both ways. Forward: every row's `next` is a member of a declared
+// partition, so the caller branches on a proven disposition — `route` is
+// applied as inline-or-delegated, `done` is the capsule's state word, and
+// `stop` is the INCOMPLETE blocker — never on a string it has to
+// recognise. Backward: every declared member is emitted by some row, so
+// the domain carries no stop token nothing can ever produce. And the two
+// gates keep their own vocabularies: a size row never stops (the prose
+// gate routed, it did not halt) and a completion row never routes.
+func TestLaunchEmitsAreDeclaredDispositions(t *testing.T) {
+	m := loadRoutingModelNamed(t, launchModelName)
+	domain := emitNextDomain(t, launchModelName)
+	for _, part := range []string{"route", "done", "stop"} {
+		if len(domain[part]) == 0 {
+			t.Errorf("[emit.next.domain] declares no %q partition", part)
+		}
+	}
+	member := map[string]string{}
+	for part, vals := range domain {
+		for _, v := range vals {
+			member[v] = part
+		}
+	}
+
+	// Which group a rule belongs to is its `recognized` match atom; the
+	// parser keeps guard atoms only, so read the id prefix the file uses.
+	emitted := map[string]bool{}
+	for _, id := range m.RuleIDs {
+		next := m.Emits[id]["next"]
+		part, ok := member[next]
+		if !ok {
+			t.Errorf("rule %q emits next %q, which no [emit.next.domain] partition declares", id, next)
+			continue
+		}
+		emitted[next] = true
+		switch {
+		case strings.HasPrefix(id, "size"):
+			if part != "route" {
+				t.Errorf("size row %q emits %q (%s); the size gate routes and never stops or completes", id, next, part)
+			}
+		case strings.HasPrefix(id, "complete"):
+			if part == "route" {
+				t.Errorf("completion row %q emits %q; the completion gate verdicts, it does not route", id, next)
+			}
+		default:
+			t.Errorf("rule %q belongs to neither the size nor the complete group by id", id)
+		}
+	}
+	for v := range member {
+		if !emitted[v] {
+			t.Errorf("[emit.next.domain] declares %q and no row emits it; a member nothing produces is a caller branch nothing reaches", v)
+		}
+	}
+	for _, id := range m.RuleIDs {
+		if strings.TrimSpace(m.Emits[id]["why"]) == "" {
+			t.Errorf("rule %q emits no why; the ROUTE and INCOMPLETE lines print it", id)
+		}
+	}
+}
+
+// intrastateBinary resolves the routing binary the way the skills and
+// rdr-doctor 12 do — $RDR_INTRASTATE, else PATH — or skips, saying what
+// went unchecked. A skip that read as a pass is the failure the flow's
+// own rules warn about.
+func intrastateBinary(t *testing.T) string {
+	t.Helper()
+	if bin := os.Getenv("RDR_INTRASTATE"); bin != "" {
+		return bin
+	}
+	found, err := exec.LookPath("intrastate")
+	if err != nil {
+		t.Skip("intrastate resolves neither from $RDR_INTRASTATE nor on PATH; the live resolve went UNCHECKED here")
+	}
+	return found
+}
+
+// filteredTagArgv renders one fixture's `--tags --filter` argv as the
+// resolver receives it, asserting the pair shape on the way through.
+func filteredTagArgv(t *testing.T, table, rec, filter string) []string {
+	t.Helper()
+	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", "--filter", filter, rec)
+	if code != 0 {
+		t.Fatalf("%s: --tags exit %d: %s", rec, code, errb)
+	}
+	var argv []string
+	for _, ln := range strings.Split(strings.TrimSpace(out), "\n") {
+		argv = append(argv, strings.TrimSpace(ln))
+	}
+	if len(argv)%2 != 0 {
+		t.Fatalf("%s: --tags argv is not --tag/value pairs: %q", rec, argv)
+	}
+	return argv
+}
+
+// TestLaunchModelResolvesTheFixture is the seam end to end, once per
+// gate: `rdr status --tags --filter …` renders the facts, the launch
+// prompt adds what it observed, and `intrastate flow resolve --plan-only`
+// selects one row. Fixture 0030 is the table's one COMPLETE cell on disk
+// and, being small and short, its inline cell at PRECHECKS — where the
+// REQ list is already written, so the counted inline row fires rather
+// than the uncounted one. Neither binary calls the other; this test is
+// the composition the prompt performs in one Bash call.
+func TestLaunchModelResolvesTheFixture(t *testing.T) {
+	bin := intrastateBinary(t)
+	_, table := bindStatusFixture(t)
+	model := repoFile(t, filepath.Join("models", launchModelName))
+
+	resolve := func(outcome string, argv []string, extra ...string) (rule, next string) {
+		t.Helper()
+		args := append([]string{"flow", "resolve", "--model", model, "--outcome", outcome, "--plan-only", "--as", "json"}, argv...)
+		for i := 0; i+1 < len(extra); i += 2 {
+			args = append(args, "--tag", extra[i]+"="+extra[i+1])
+		}
+		out, err := exec.Command(bin, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("intrastate refused the %s resolve: %v\n%s", outcome, err, out)
+		}
+		var env struct {
+			Data struct {
+				Rule string            `json:"rule"`
+				Emit map[string]string `json:"emit"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(out, &env); err != nil {
+			t.Fatalf("%s: unreadable plan: %v\n%s", outcome, err, out)
+		}
+		return env.Data.Rule, env.Data.Emit["next"]
+	}
+
+	argv := filteredTagArgv(t, table, "0030", "profile,lines,req_count")
+	if rule, next := resolve("size", argv, "files", "0-3", "suite", "quick", "pressure", "false"); rule != "size-inline" || next != "inline" {
+		t.Errorf("size gate on 0030 at PRECHECKS: rule %q next %q, want size-inline/inline", rule, next)
+	}
+	// The same record with a 4th file touched mid-run is the fallback:
+	// the same row re-asked, answering delegated.
+	if rule, next := resolve("size", argv, "files", "4+", "suite", "quick", "pressure", "false"); rule != "size-files" || next != "delegated" {
+		t.Errorf("size gate on 0030 with a 4th file: rule %q next %q, want size-files/delegated", rule, next)
+	}
+
+	argv = filteredTagArgv(t, table, "0030", "impl_orphans,impl_open_decisions,impl_mvv_recorded")
+	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete" || next != "COMPLETE" {
+		t.Errorf("completion gate on 0030: rule %q next %q, want complete/COMPLETE", rule, next)
+	}
+	// 0021 has no ledger at all: every impl fact renders its sentinel and
+	// the gate names the unread file rather than passing a check it never ran.
+	argv = filteredTagArgv(t, table, "0021", "impl_orphans,impl_open_decisions,impl_mvv_recorded")
+	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete-coverage-unread" || next != "stopped:coverage-unread" {
+		t.Errorf("completion gate on 0021 (no ledger): rule %q next %q, want complete-coverage-unread", rule, next)
 	}
 }

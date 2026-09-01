@@ -1014,7 +1014,7 @@ func TestEveryStageRowIsExpressedAsFacts(t *testing.T) {
 	// Both are checked, so a fact that moved from one table to the other
 	// stays covered and one that left both is reported.
 	routedByModel := map[string]bool{}
-	for _, m := range []string{"rdr-status.toml", "rdr-write.toml"} {
+	for _, m := range routingModelNames {
 		for k := range modelTags(t, filepath.Join("..", "..", "models", m)) {
 			routedByModel[k] = true
 		}
