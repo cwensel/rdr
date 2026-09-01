@@ -7,17 +7,20 @@
 # DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
 # accessors. The caller acts on `emit`; nothing here writes.
 #
-# THE TAGS ARE CALLER-SUPPLIED, NOT FACTS. No `rdr status --tags` vector
-# renders them: the orchestrator binds each from the packet it holds
-# (`verdict:`, `blocking:`, `next_action:`) and its own Ledger (`retry`),
-# and passes them as `--tag k=v` — the `observed` provenance's declared
-# shape. `action` classifies `next_action` lexically; a stage stop and a
-# named return stage share the packet's one imperative slot, so the
-# route-back is a member of that dimension, never a second one. Every
+# THE `packet` GROUP'S TAGS ARE CALLER-SUPPLIED, NOT FACTS. No `rdr status
+# --tags` vector renders them: the orchestrator binds each from the packet
+# it holds (`verdict:`, `blocking:`, `next_action:`) and its own Ledger
+# (`retry`), and passes them as `--tag k=v` — the `observed` provenance's
+# declared shape. `action` classifies `next_action` lexically; a stage
+# stop and a named return stage share the packet's one imperative slot, so
+# the route-back is a member of that dimension, never a second one. Every
 # dimension is required + single_valued; absence is a declared member
-# (`retry=0`, `action=none`). A sibling group (`posture`) will join this
-# file, and `tools/rdr/routing_test.go` names this model's caller tags in
-# an allowlist.
+# (`retry=0`, `action=none`). `tools/rdr/routing_test.go` names this
+# model's caller tags in an allowlist.
+#
+# The sibling `posture` group below reads two real facts (`profile`,
+# `status`, rendered by `rdr status --tags`) plus one more caller-supplied
+# tag (`ask_each`, the `--ask-each` flag) — see its own banner.
 #
 # THE ANSWER IS `emit`: `next` is the disposition; `stage` says what
 # `Next:` names. Values are uninterpreted — the stage's own `stopped:*`
@@ -25,7 +28,7 @@
 # verbatim (as NNNN is appended by the caller in rdr-status.toml). The
 # blocker-class -> return-stage mapping is not this table's.
 
-outcomes = ["packet"]
+outcomes = ["packet", "posture"]
 
 [model]
 id          = "rdr-cascade"
@@ -47,10 +50,19 @@ domain = ["router", "same", "named"]
 [emit.why]
 kind = "scalar"
 
+[emit.confirm_upfront]
+kind = "bool"
+
+[emit.confirm_each]
+kind = "bool"
+
+[emit.confirm_finalize]
+kind = "bool"
+
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["packet"]
+domain        = ["packet", "posture"]
 single_valued = true
 required      = true
 
@@ -85,6 +97,31 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["none", "imperative", "stop", "stage"]
+single_valued = true
+required      = true
+
+# Rendered by `rdr status --tags --filter profile,status`; `none` is the
+# fact's declared absent sentinel.
+[tags.profile]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["small", "mid", "large", "foundational", "none"]
+single_valued = true
+required      = true
+
+# Rendered by `rdr status --tags --filter profile,status`.
+[tags.status]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — the `--ask-each` flag, passed `true|false` on every
+# call (never omitted).
+[tags.ask_each]
+provenance    = "observed"
+kind          = "bool"
 single_valued = true
 required      = true
 
@@ -207,3 +244,122 @@ in = ["none", "imperative"]
 next = "park"
 stage = "same"
 why  = "A block or a decision is the human's; park and stop advancing this RDR."
+
+# ===========================================================================
+# posture — where the cascade stops to confirm
+# ===========================================================================
+#
+# profile x status x ask_each = 90 cells. `profile` and `status` are
+# facts; `ask_each` is the caller's flag, never absent. An unearned
+# `small` reads as `mid` BY CELL — a Draft Profile is provisional, and
+# Stage 4 is what earns it — and nothing here reads lower than its field:
+# `--ask-each` only ever raises the answer, never lowers it. Once the
+# lens restatement is out (the `lens` group of `rdr-status.toml` already
+# owns "small = no lens"), `small` and `mid` emit identical confirms
+# here; the remap differs only in `why`.
+
+[[rule]]
+id = "posture-ask-each"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "true"
+[rule.emit]
+confirm_upfront  = "true"
+confirm_each     = "true"
+confirm_finalize = "true"
+why = "--ask-each: confirm before every stage; nothing overrides it downward."
+
+[[rule]]
+id = "posture-draft-small-reads-mid"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.profile]
+eq = "small"
+[rule.emit]
+confirm_upfront  = "false"
+confirm_each     = "false"
+confirm_finalize = "false"
+why = "Profile small is provisional while Draft — read as mid: hands-off through the row, forks batched at the stop."
+
+[[rule]]
+id = "posture-draft-mid"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.emit]
+confirm_upfront  = "false"
+confirm_each     = "false"
+confirm_finalize = "false"
+why = "Hands-off through the lens row; forks batched at the end."
+
+[[rule]]
+id = "posture-draft-large"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.profile]
+eq = "large"
+[rule.emit]
+confirm_upfront  = "false"
+confirm_each     = "false"
+confirm_finalize = "true"
+why = "Hands-off, but confirm once before finalize — the lock is the irreversible step."
+
+[[rule]]
+id = "posture-draft-foundational"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.emit]
+confirm_upfront  = "true"
+confirm_each     = "false"
+confirm_finalize = "true"
+why = "Confirm the lens plan up front and before finalize; cross-RDR blast radius earns two interruptions."
+
+[[rule]]
+id = "posture-draft-no-profile"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.profile]
+eq = "none"
+[rule.emit]
+confirm_upfront  = "true"
+confirm_each     = "false"
+confirm_finalize = "true"
+why = "No Profile yet: posture never drops below what the field would earn, so the foundational row holds until Stage 4 writes it."
+
+[[rule]]
+id = "posture-not-draft"
+[rule.match.recognized]
+eq = "posture"
+[rule.guard.all.ask_each]
+eq = "false"
+[rule.guard.unless.status]
+eq = "Draft"
+[rule.emit]
+confirm_upfront  = "true"
+confirm_each     = "true"
+confirm_finalize = "true"
+why = "Not a Draft: the cascade does not drive this record; if asked anyway, confirm everything — a skipped precondition must never read as hands-off."

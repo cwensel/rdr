@@ -35,8 +35,8 @@ Claude: /rdr-draft-to-lock <NNNN> [--to reconcile] [--ask-each]
 
 `--to <stage>` stops after that stage (`refine|resolve|prelock|reconcile|finalize`;
 default `finalize`). `--ask-each` confirms before every stage — the training-wheels
-mode; use it the first few runs. `--commit`/`--no-commit` passes through to every
-spawn (§commit).
+mode; use it the first few runs (the `posture` row's `confirm_each`).
+`--commit`/`--no-commit` passes through to every spawn (§commit).
 
 **No model flag.** Stages spawn at the session model. §model-ceiling is a *bump*
 for authoring sub-agents and forbids spawning below the session model, so it
@@ -127,6 +127,7 @@ opens by saying so — never where the RDR stands, which is derived (Re-entry be
 
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
+posture: upfront=<v> each=<v> finalize=<v>   (the posture row's answer; re-asked with the lens row)
 lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
                                              (critique/repeatability run --auto)
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
@@ -240,29 +241,32 @@ and resumes the lens is a fourth pass in a different hat. Hard stop, like the
 author's round — the user picks. Having read no evidence, this context cannot judge that a
 consult legitimately collapsed a fork: advisory here, never dispositive.
 
-## Autonomy by profile — bias to hands-off where the blast radius is small
+## Autonomy by profile — the `posture` row decides it
 
-Risk is already sized: `Profile` is the blast-radius latch. Use it, don't invent
-a second scale.
+Risk is already sized: `Profile` is the blast-radius latch and `--ask-each`
+only raises it. The `posture` group of `$RDR_HOME/models/rdr-cascade.toml`
+owns the table (profile × status × ask_each; `intrastate lint` proves every
+cell — a provisional `small` on a Draft reads as `mid` by cell, and nothing
+reads lower than its field). Ask it where §lens-row is asked — Phase 0, and
+every re-ask after a stage returns:
 
-| Profile | Posture |
-| --- | --- |
-| `small` | Hands-off `3 → 4 → 6 → 7`. No lens. Report at Final. |
-| `mid` | Hands-off through the lens row; forks batched at the end. |
-| `large` | Hands-off, but confirm once before `/rdr-finalize` (lock is the irreversible step). |
-| `foundational` | Confirm the lens plan up front; confirm before finalize. Cross-RDR blast radius earns two interruptions. |
+```sh
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+"$IS" flow resolve --model "$RDR_HOME/models/rdr-cascade.toml" --outcome posture --plan-only \
+  $("$RDR_HOME/bin/rdr" status --tags --filter profile,status NNNN) --tag ask_each=<true|false>
+```
+
+Apply the three emits as values, each at its one site: `confirm_upfront` —
+put the plan to the user before Stage 3 spawns; `confirm_each` — before every
+stage spawn; `confirm_finalize` — before `/rdr-finalize` (the lock is the
+irreversible step). Write them on the plan's `posture:` line and rewrite it
+when a re-ask diverges.
 
 The up-front confirm asks about **cost and posture** — the lens row's span and
 `stop-after` — never "is the row right?", which §lens-row already decided from
 the Profile and the human cannot answer better. State the row, its
 `iter-N`/delta bracket when demoted, and that `critique`/`repeatability` fan out
 under `--auto`: that span and that fan-out are where the cost lands.
-
-`--ask-each` overrides the table upward (confirm everywhere); nothing overrides
-it downward — a `foundational` run cannot be made silent. A **`Draft` Profile is
-provisional** (Resolve earns it), so posture never *drops* on an unearned field:
-read an unearned `small` as `mid`, and keep an unearned `large`/`foundational` at
-its own row until Stage 4 writes the field.
 
 ## Review gate
 
@@ -276,6 +280,8 @@ its own row until Stage 4 writes the field.
 - Every parked fork is in the close packet — a fork dropped to reach Final is
   the failure mode this skill must not have.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.
+- Posture came from the `posture` row's current answer, never from the Profile
+  read directly; the plan's `posture:` line matches the last re-ask.
 - On a re-entry the resume point came from the router, never from the plan file.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
 - `critique`/`repeatability` were spawned with `--auto`; a park on either names
