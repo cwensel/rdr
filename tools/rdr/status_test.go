@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -204,8 +204,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 	}
 	for _, want := range []string{"0020-cache-eviction-policy", "0021-cache-warmup-order",
 		"0022-cache-metrics-surface", "0025-cache-key-encoding",
-		"0026-cache-hash-identity",
-		"total 5 in flight over 7 records"} {
+		"0026-cache-hash-identity", "0028-cache-flush-hook", "0029-cache-size-report",
+		"total 7 in flight over 10 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -427,7 +427,7 @@ func TestShippedTableRendersEveryRecordAsTags(t *testing.T) {
 	if _, err := os.Stat(shipped); err != nil {
 		t.Skipf("shipped table not beside the tool: %v", err)
 	}
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0026"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0026", "0027", "0028", "0029"} {
 		code, out, errb := runCapture(t, "status", "--tags", "--facts", shipped, n)
 		if code != 0 {
 			t.Errorf("%s: --tags exit %d (%s) — a fact the shipped table declares "+

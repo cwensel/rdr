@@ -102,6 +102,10 @@ type FactRoot struct {
 	// Suffix is appended to the var's value, with `{slug}` replaced by
 	// the record's slug.
 	Suffix string
+	// Legacy is a second suffix read only where a path is missing under
+	// Suffix — a retained tolerance for records laid out before the
+	// current shape, dropped when they migrate. Empty means none.
+	Legacy string
 }
 
 // FactDecl is one declared fact.
@@ -248,7 +252,7 @@ func LoadFactTable(path string) (*FactTable, error) {
 			t.Description = tbl.Str("description")
 		case strings.HasPrefix(tbl.Name, "root."):
 			name := strings.TrimPrefix(tbl.Name, "root.")
-			r := FactRoot{Name: name, Var: tbl.Str("var"), Suffix: tbl.Str("suffix")}
+			r := FactRoot{Name: name, Var: tbl.Str("var"), Suffix: tbl.Str("suffix"), Legacy: tbl.Str("legacy")}
 			if r.Var == "" {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: root %q names no var)", path, name)
 			}
@@ -565,6 +569,9 @@ type FactEnv struct {
 	// Roots maps a root name to its resolved directory, absent when the
 	// var behind it is unbound.
 	Roots map[string]string
+	// Legacy maps a root name to its second, pre-migration directory,
+	// present only for a root that declares one. `under` reads it.
+	Legacy map[string]string
 	// readFile is the file reader, injectable so a test drives a
 	// synthetic tree without reaching for the real corpus.
 	readFile func(string) ([]byte, error)
@@ -603,7 +610,7 @@ type FactEnv struct {
 func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 	e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
 		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
-	for name, r := range t.Roots {
+	for _, r := range t.Roots {
 		base := strings.TrimSpace(envOrSeam(r.Var))
 		if base == "" {
 			continue
@@ -611,9 +618,49 @@ func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 		if fi, err := os.Stat(base); err != nil || !fi.IsDir() {
 			continue
 		}
-		e.Roots[name] = filepath.Join(base, strings.ReplaceAll(r.Suffix, "{slug}", slug))
+		e.bindRoot(r, base)
 	}
 	return e
+}
+
+// bindRoot resolves one root's directories for this record. Tests bind
+// through it too, so a test can never bind a root differently from the
+// seam.
+func (e *FactEnv) bindRoot(r FactRoot, base string) {
+	e.Roots[r.Name] = filepath.Join(base, strings.ReplaceAll(r.Suffix, "{slug}", e.Slug))
+	if r.Legacy != "" {
+		if e.Legacy == nil {
+			e.Legacy = map[string]string{}
+		}
+		e.Legacy[r.Name] = filepath.Join(base, strings.ReplaceAll(r.Legacy, "{slug}", e.Slug))
+	}
+}
+
+// under resolves a relative path beneath a bound root, PER PATH: the
+// canonical directory when the path is there or the root declares no
+// legacy leg; the legacy directory when the path is missing under the
+// canonical one and present under the legacy one; the canonical path
+// otherwise, so a file missing from both keeps reading false or absent
+// exactly as it did with one root. Canonical first is the point — a
+// record carrying both reads the current one — and the legacy leg is
+// looked at only for the path in hand, because the two layouts can
+// share a record (a gate written under the current tree beside a
+// capsule written under the old one). False means the root is unbound.
+func (e *FactEnv) under(root, rel string) (string, bool) {
+	base, ok := e.Roots[root]
+	if !ok {
+		return "", false
+	}
+	p := filepath.Join(base, filepath.FromSlash(rel))
+	if old, ok := e.Legacy[root]; ok {
+		if _, err := e.statPath(p); err != nil {
+			q := filepath.Join(old, filepath.FromSlash(rel))
+			if _, err := e.statPath(q); err == nil {
+				return q, true
+			}
+		}
+	}
+	return p, true
 }
 
 // Evaluate answers every fact the table declares, in declaration order.
@@ -682,15 +729,15 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 // returns two values: "no evidence root is configured" and "the lens did
 // not run" are different answers, and only one of them should route.
 func (e *FactEnv) probe(d FactDecl, paths []string) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
-	if !ok {
+	if _, ok := e.Roots[d.Root]; !ok {
 		return Fact{}, false
 	}
 	for _, p := range paths {
 		// `{slug}` appears only where a path is keyed by the record's slug
 		// at the top of a root rather than under the record's own folder.
 		p = strings.ReplaceAll(p, "{slug}", e.Slug)
-		if _, err := e.statPath(filepath.Join(base, filepath.FromSlash(p))); err == nil {
+		full, _ := e.under(d.Root, p)
+		if _, err := e.statPath(full); err == nil {
 			return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
 		}
 	}
@@ -984,11 +1031,11 @@ func (e *FactEnv) verdictLine(d FactDecl) (Fact, bool) {
 // authoritative resume read precisely because it is written down;
 // inferring a state from the tree instead is what it replaced.
 func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots["artifacts"]
+	full, ok := e.under("artifacts", d.Path)
 	if !ok {
 		return Fact{}, false
 	}
-	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	raw, err := e.readFile(full)
 	if err != nil {
 		return Fact{}, false
 	}
@@ -1029,12 +1076,12 @@ var implArtifactMembers = map[string][]string{
 // `false` for the bool) is the --tags sentinel a launch table's row can
 // claim positively — never a guess this file exists.
 func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
-	if !ok {
+	if _, ok := e.Roots[d.Root]; !ok {
 		return Fact{}, false
 	}
 	read := func(i int) ([]byte, bool) {
-		raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Paths[i])))
+		full, _ := e.under(d.Root, d.Paths[i])
+		raw, err := e.readFile(full)
 		if err != nil {
 			return nil, false
 		}
@@ -1276,11 +1323,11 @@ func labelledLine(raw []byte, label string) bool {
 // appearing in a later narrative paragraph must not answer for a header
 // the author wrote at the top.
 func (e *FactEnv) headerField(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
+	full, ok := e.under(d.Root, d.Path)
 	if !ok {
 		return Fact{}, false
 	}
-	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	raw, err := e.readFile(full)
 	if err != nil {
 		return Fact{}, false
 	}
@@ -1359,11 +1406,11 @@ func (e *FactEnv) modelCompare(d FactDecl) (Fact, bool) {
 // one case that must tell "no second pass" from "a second pass with no
 // stamp": both leave headerField absent, and they are different states.
 func (e *FactEnv) exists(root, path string) bool {
-	base, ok := e.Roots[root]
+	full, ok := e.under(root, path)
 	if !ok {
 		return false
 	}
-	_, err := e.statPath(filepath.Join(base, filepath.FromSlash(path)))
+	_, err := e.statPath(full)
 	return err == nil
 }
 
@@ -1395,11 +1442,11 @@ func (e *FactEnv) exists(root, path string) bool {
 // The row's own presence is reported as the `none` member of the
 // declared domain, which is why the domain must name it.
 func (e *FactEnv) readmeRow(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
+	full, ok := e.under(d.Root, d.Path)
 	if !ok {
 		return Fact{}, false
 	}
-	raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Path)))
+	raw, err := e.readFile(full)
 	if err != nil {
 		return Fact{}, false
 	}
@@ -1609,7 +1656,7 @@ var numericClusterKey = regexp.MustCompile(`^\d{4}(?:-\d{4})+$`)
 // whole-set critique and no pairwise scan, the two artifacts that define
 // the stage, and predates `stages/07.1-cluster-reconcile.md` outright.
 func (e *FactEnv) clusterMember(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
+	full, ok := e.under(d.Root, d.Path)
 	if !ok {
 		return Fact{}, false
 	}
@@ -1617,7 +1664,7 @@ func (e *FactEnv) clusterMember(d FactDecl) (Fact, bool) {
 	if number == "" || e.readDir == nil {
 		return Fact{}, false
 	}
-	entries, err := e.readDir(filepath.Join(base, filepath.FromSlash(d.Path)))
+	entries, err := e.readDir(full)
 	if err != nil {
 		// The tree has no cluster-reconcile directory at all. That is a
 		// real answer — no cluster has ever been reconciled here — and
@@ -1662,7 +1709,7 @@ func (e *FactEnv) clusterMember(d FactDecl) (Fact, bool) {
 // `cluster_reconciled` carries the routing half. Declaring it prose also
 // keeps it out of `--tags`, where a resolver's argv has no use for it.
 func (e *FactEnv) clusterKey(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
+	full, ok := e.under(d.Root, d.Path)
 	if !ok {
 		return Fact{}, false
 	}
@@ -1670,7 +1717,7 @@ func (e *FactEnv) clusterKey(d FactDecl) (Fact, bool) {
 	if number == "" || e.readDir == nil {
 		return Fact{}, false
 	}
-	entries, err := e.readDir(filepath.Join(base, filepath.FromSlash(d.Path)))
+	entries, err := e.readDir(full)
 	if err != nil {
 		// No cluster-reconcile tree at all. `cluster-member` calls that
 		// false; here there is simply no key to name, and an absent fact
@@ -1764,8 +1811,7 @@ func (e *FactEnv) demoteDate() string {
 // when the evidence root is unbound, like any probe: "no evidence root"
 // is not "nothing is stale".
 func (e *FactEnv) staleLens(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
-	if !ok {
+	if _, ok := e.Roots[d.Root]; !ok {
 		return Fact{}, false
 	}
 	demoted := e.demoteDate()
@@ -1773,7 +1819,8 @@ func (e *FactEnv) staleLens(d FactDecl) (Fact, bool) {
 		return Fact{Name: d.Name, Kind: d.Kind, Value: "none"}, true
 	}
 	for _, p := range d.Paths {
-		newest := e.newestDate(filepath.Join(base, filepath.FromSlash(p)))
+		full, _ := e.under(d.Root, p)
+		newest := e.newestDate(full)
 		if newest != "" && newest < demoted {
 			return Fact{Name: d.Name, Kind: d.Kind, Value: p}, true
 		}
@@ -1785,7 +1832,7 @@ func (e *FactEnv) staleLens(d FactDecl) (Fact, bool) {
 // missing file is not stale — the existence probe beside it says
 // "unwritten", and this must not say "old" about nothing.
 func (e *FactEnv) stalePath(d FactDecl) (Fact, bool) {
-	base, ok := e.Roots[d.Root]
+	full, ok := e.under(d.Root, d.Path)
 	if !ok {
 		return Fact{}, false
 	}
@@ -1793,7 +1840,7 @@ func (e *FactEnv) stalePath(d FactDecl) (Fact, bool) {
 	if demoted == "" {
 		return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
 	}
-	dated := e.fileDate(filepath.Join(base, filepath.FromSlash(d.Path)))
+	dated := e.fileDate(full)
 	return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(dated != "" && dated < demoted)}, true
 }
 

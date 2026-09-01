@@ -34,7 +34,8 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 ```text
 <rdr-dir>/
 ├── NNNN-slug.md                 # locked RDR (input)
-├── NNNN-slug/                   # implementation artifacts (output)
+├── NNNN-slug/artifacts/         # implementation artifacts (output)
+│   ├── gate.md                  # Finalization Gate responses (already there)
 │   ├── req-list.md              # REQ-N quotes + ASSUMPTIONs
 │   ├── coverage.md              # REQ-N × test-name + REQ-MVV output
 │   ├── verification.md          # Phase 3 CoVe + adversarial findings
@@ -43,11 +44,11 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 └── NNNN-slug-postmortem.md      # post-mortem (added after close)
 ```
 
-This `NNNN-slug/` directory is the RDR flow's `{ARTIFACT_DIR}` (defined under
+This `NNNN-slug/artifacts/` directory is the RDR flow's `{ARTIFACT_DIR}` (defined under
 *Output staging* in the flow's path map, `{RDR_ENV}` — resolved via the
 workspace marker, see the flow README *Where the seam lives*). The prompt
-derives the path itself — `<art>` = the directory next to the RDR named after
-its basename — so it stays standalone-pasteable; the flow simply gives that
+derives the path itself — `<art>` = `artifacts/` under the directory next to
+the RDR named after its basename — so it stays standalone-pasteable; the flow simply gives that
 same location a name. These implementation artifacts stay tracked beside the
 RDR; the flow's pre-lock evidence (`{SPIKE_DIR}`/`{EVIDENCE_DIR}`) is separate, and
 its location is whatever `{RDR_ENV}` defines (a tracked evidence tree where the
@@ -75,8 +76,8 @@ phase summaries. The on-disk artifacts (`<art>/*.md`) are the
 authoritative record; if you and the artifacts disagree, the
 artifacts are right.
 
-`<art>` = directory next to the RDR named after its basename without `.md`.
-Create if missing. The sub-agents write/update inside it: req-list.md,
+`<art>` = `artifacts/` under the directory next to the RDR named after its
+basename without `.md`. Create if missing. The sub-agents write/update inside it: req-list.md,
 coverage.md, verification.md, deviations.md, status.md.
 
 ESCALATION RULE

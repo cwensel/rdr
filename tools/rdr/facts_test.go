@@ -447,7 +447,7 @@ func TestLegacyEvidenceShapeIsProbed(t *testing.T) {
 func testEnv(t *testing.T, tbl *FactTable, slug, evidence, records string) *FactEnv {
 	t.Helper()
 	e := &FactEnv{Slug: slug, Roots: map[string]string{}, readFile: os.ReadFile, statPath: os.Stat}
-	for name, r := range tbl.Roots {
+	for _, r := range tbl.Roots {
 		var base string
 		switch r.Var {
 		case "RDR_EVIDENCE":
@@ -458,7 +458,7 @@ func testEnv(t *testing.T, tbl *FactTable, slug, evidence, records string) *Fact
 		if base == "" {
 			continue
 		}
-		e.Roots[name] = filepath.Join(base, strings.ReplaceAll(r.Suffix, "{slug}", slug))
+		e.bindRoot(r, base)
 	}
 	return e
 }
@@ -1864,7 +1864,7 @@ func implArtifactEnv(t *testing.T, tbl *FactTable, files map[string]string) *Fac
 	slug := "0099-synthetic-artifact-record"
 	base := t.TempDir()
 	records := filepath.Join(base, "records")
-	dir := filepath.Join(records, slug)
+	dir := filepath.Join(records, slug, "artifacts")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -2054,4 +2054,66 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 			}
 		}
 	})
+}
+
+// TestArtifactRootNeverDoublesTheFolder: the artifact root already ends
+// in `artifacts/`, so every fact under it is spelled from inside that
+// folder. A path still reading `artifacts/gate.md` would probe
+// `<slug>/artifacts/artifacts/gate.md`, miss, and then the legacy leg
+// would find the real file under the flat folder — true for the wrong
+// reason, and false the day the legacy leg drops.
+func TestArtifactRootNeverDoublesTheFolder(t *testing.T) {
+	slug := "0010-frame-header"
+	_, records := newEvidenceTree(t, slug, nil, []string{"artifacts/gate.md"})
+	tbl := loadRealTable(t)
+	env := testEnv(t, tbl, slug, "", records)
+
+	want := filepath.Join(records, slug, "artifacts")
+	if got := env.Roots["artifacts"]; got != want {
+		t.Fatalf("artifacts root = %q, want %q", got, want)
+	}
+	if got := env.Legacy["artifacts"]; got != filepath.Join(records, slug) {
+		t.Errorf("legacy leg = %q, want the flat record folder", got)
+	}
+	for _, d := range tbl.Facts {
+		if d.Root != "artifacts" && !(d.Source == "capsule-state") {
+			continue
+		}
+		for _, p := range append([]string{d.Path}, d.Paths...) {
+			if p == "" {
+				continue
+			}
+			if strings.HasPrefix(p, "artifacts/") {
+				t.Errorf("%s: path %q is spelled from outside the artifact root", d.Name, p)
+			}
+			full, ok := env.under("artifacts", p)
+			if !ok || strings.Contains(filepath.ToSlash(full), "artifacts/artifacts") {
+				t.Errorf("%s: %q resolves to %q", d.Name, p, full)
+			}
+		}
+	}
+	if v, ok := factValue(tbl.Evaluate(env), "gate_written"); !ok || v != "true" {
+		t.Errorf("gate_written = %q/%v; the gate sits under the canonical root", v, ok)
+	}
+}
+
+// TestUnboundRecordsRootLeavesTheArtifactFactsAbsent is the artifact
+// half of TestUnboundRootLeavesTheFactAbsent: with no records root bound
+// nothing under the artifact root was looked at, and a legacy leg is a
+// second place to look, never a reason to answer.
+func TestUnboundRecordsRootLeavesTheArtifactFactsAbsent(t *testing.T) {
+	slug := "0010-frame-header"
+	evidence, _ := newEvidenceTree(t, slug, []string{"grounding/findings.md"}, nil)
+	tbl := loadRealTable(t)
+	facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, ""))
+
+	for _, name := range []string{"gate_written", "gate_stale", "impl_capsule", "impl_state",
+		"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded"} {
+		if v, ok := factValue(facts, name); ok {
+			t.Errorf("%s = %q with no records root bound; want the fact absent", name, v)
+		}
+	}
+	if v, ok := factValue(facts, "lens_grounding"); !ok || v != "true" {
+		t.Errorf("lens_grounding = %q/%v; the evidence root is bound and still decides", v, ok)
+	}
 }

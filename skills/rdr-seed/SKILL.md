@@ -45,7 +45,7 @@ remaining members.
    place (H1 number/title, Metadata, Problem Statement, Context), leaving every other
    section as the template ships it. **Do not copy a neighbor RDR for style** — that
    drifts the template and leaks its solution. Then `git mv` to `<rdr-dir>/NNNN-slug.md`
-   once the slug is known (the artifact dir `<rdr-dir>/NNNN-slug/` is its sibling).
+   once the slug is known (the artifact dir `<rdr-dir>/NNNN-slug/artifacts/` is its sibling).
    Finally **add the new RDR's row to the README index** (`$RDR_RECORDS/README.md`,
    the authoritative Status table) at `Draft` — the prompt spells out the format;
    finalize later flips this same row to `Final`.

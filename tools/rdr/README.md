@@ -1053,7 +1053,8 @@ A fact is a **probe** or a **field**.
 
 A probe asks whether an exact path exists, under one of two roots: the
 per-RDR evidence tree (`$RDR_EVIDENCE/<slug>/evidence/`) or the record's
-artifact folder (`$RDR_RECORDS/<slug>/`). It names ONE path. No globs, no
+artifact folder (`$RDR_RECORDS/<slug>/artifacts/`, with the flat `<slug>/`
+read second, per path, while pre-move records remain). It names ONE path. No globs, no
 patterns, no first match — a load error, not a path that quietly matches
 nothing. The reason is the one this whole tool is built on: a lens that
 ran, read as un-run, sends a consumer to redo work that is already done,

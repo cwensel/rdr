@@ -43,13 +43,21 @@ description = "rdr-status's signals: what the record says, and what is on disk."
 # (rdr-common §evidence), where a lens folder's existence is the signal
 # that the lens ran.
 #
-# `artifacts` is $RDR_RECORDS/<slug>/ — the per-RDR artifact folder that
-# sits beside the record. It is NOT read from $RDR_ENV: that file's
+# `artifacts` is $RDR_RECORDS/<slug>/artifacts/ — the per-RDR artifact
+# folder that sits beside the record, `{ARTIFACT_DIR}` as rdr-common
+# §seam-bind states it. It is NOT read from $RDR_ENV: that file's
 # `{ARTIFACT_DIR}` row is a cwd-relative string a consumer writes for a
 # human, rdr-common says never to parse it, and on the reference consumer
 # its value disagrees with where gate.md actually sits. A probe spells the
-# whole remainder instead, so `artifacts/gate.md` and `status.md` are each
-# exactly what they say.
+# whole remainder instead, so `gate.md` and `status.md` are each exactly
+# what they say.
+#
+# `legacy` is the flat `<slug>/` the capsule and ledger were written to
+# before `{ARTIFACT_DIR}` moved under `artifacts/`. It is read PER PATH
+# and only where the path is missing under `suffix` — canonical first, so
+# a record carrying both reads the current one, and a gate under the new
+# tree beside a capsule under the old one still reads whole. A retained
+# tolerance: drop it once the pre-move records are migrated.
 
 [root.evidence]
 var    = "RDR_EVIDENCE"
@@ -57,7 +65,8 @@ suffix = "{slug}/evidence"
 
 [root.artifacts]
 var    = "RDR_RECORDS"
-suffix = "{slug}"
+suffix = "{slug}/artifacts"
+legacy = "{slug}"
 
 # `records` is $RDR_RECORDS itself — the directory, not a per-RDR subtree.
 # It exists for the index README, which is the one shared document the
@@ -879,7 +888,7 @@ description = "The first lens whose evidence predates the re-entry's demote date
 kind        = "bool"
 source      = "stale-path"
 root        = "artifacts"
-path        = "artifacts/gate.md"
+path        = "gate.md"
 absent      = "false"
 description = "artifacts/gate.md predates the re-entry's demote date."
 
@@ -893,7 +902,7 @@ description = "artifacts/gate.md predates the re-entry's demote date."
 kind = "bool"
 source = "probe"
 root = "artifacts"
-path = "artifacts/gate.md"
+path = "gate.md"
 description = "The Finalization Gate's responses are written out of the record."
 
 # Stage 9's capsule. Its header is the single authoritative resume read —
@@ -1056,7 +1065,7 @@ description = "The Stage 7.1 directory that reconciled this record's set; its na
 # command is none.
 #
 # The gate's CONTENTS are not declared, and this is a decision rather than
-# a gap. `gate_written` is an exact-path probe: `artifacts/gate.md` exists.
+# a gap. `gate_written` is an exact-path probe: `gate.md` exists under the artifact root.
 # Whether the gate PASSED, which items were answered, and whether any
 # response is a deferral all live inside that file, which the projector
 # does not open — it reads records, and gate.md is not one.

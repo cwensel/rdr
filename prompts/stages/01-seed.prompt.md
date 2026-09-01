@@ -2,7 +2,7 @@ Seed a new RDR from: {IDEA}. See the rdr README for what an RDR is.
 
 Read {RDR_ENV} for the project's RDR directory — the parent of {ARTIFACT_DIR}
 (the RDR file and its artifact dir are siblings: file `<rdr-dir>/NNNN-slug.md`,
-artifacts `<rdr-dir>/NNNN-slug/`). If {RDR_ENV} names no RDR directory yet, ask me
+artifacts `<rdr-dir>/NNNN-slug/artifacts/`). If {RDR_ENV} names no RDR directory yet, ask me
 before writing.
 
 **Stay on the current branch** — never `git branch`/`switch -c`/`checkout -b` or a

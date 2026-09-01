@@ -46,7 +46,7 @@ conformant record whose tally the scanner tests pin by hand.
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
 | `addressable-text.md` | bold paragraph leads a `§` citation can name, and mid-paragraph emphasis that is not one; a `### Load-Bearing Decisions` heading with author-numbered `**D1**` / `**D6**` bullets |
 
-`status/` is a five-record corpus for the fact table and `rdr status`,
+`status/` is a ten-record corpus for the fact table and `rdr status`,
 and it is the only fixture tree that ships more than records: the facts
 are exact-path PROBES, so the paths have to exist. `records/` holds the
 records and each one's artifact folder; `evidence/` is a synthetic
@@ -62,9 +62,12 @@ absent, and would publish that repo's content into this public one.
 | --- | --- | --- |
 | `0020-cache-eviction-policy.md` | front-half Draft | CAs all `Pending` (`ca=all-pending`, Refine is the open `~`); a `Profile` with a rationale tail — the PROSE case `--tags` refuses to render; a `Seam Lineage` at `2nd point-fix` escaped by a nested-bullet `Accretion disposition:` (`seam_lineage=2+`, `accretion_disposition=true` — the floor's escaped cell) |
 | `0021-cache-warmup-order.md` | foundational, mid-row | `cove` and `3amigo` done, `critique` single-model only, so the dual-model diff is still owed; a labelled `**C1**`; a joint-decision Status; a declared `Cluster`; `artifacts/gate.md` written; a `Seam Lineage` at `3rd point-fix` with no disposition — the floor holds and Profile is at it |
-| `0022-cache-metrics-surface.md` | scoped re-entry | `Draft [revised from Final …; re-verify …]`; a `Refuted` assumption beside a `Verified` one; a Stage-9 `status.md` capsule header stating `IN-PROGRESS`; `Seam Lineage: no prior accretion` (`seam_lineage=0`) |
+| `0022-cache-metrics-surface.md` | scoped re-entry | `Draft [revised from Final …; re-verify …]`; a `Refuted` assumption beside a `Verified` one; a Stage-9 `artifacts/status.md` capsule header stating `IN-PROGRESS` (the current layout); `Seam Lineage: no prior accretion` (`seam_lineage=0`) |
 | `0023-cache-shard-count.md` | terminal, legacy evidence | `Implemented`, with its 3amigo output still in the pre-migration FILE shape (`evidence/3amigo/<slug>.md`) — the warning probe's case, without which the record reads as never lensed |
 | `0024-cache-persistence.md` | parked | `Deferred [revisit when …]` — neither in flight nor terminal |
+| `0027-cache-tier-labels.md` | legacy artifact layout | capsule and `req-list.md` flat under `<slug>/`, `gate.md` under `<slug>/artifacts/` — the pre-move shape; one vector reads `gate_written=true` AND `impl_capsule=true`, so the legacy leg is per path, not per folder |
+| `0028-cache-flush-hook.md` | both layouts | a `COMPLETE` capsule and a 1-REQ ledger under `artifacts/` beside an `INCOMPLETE` capsule and a 12-REQ ledger flat — reads `COMPLETE` and `0-10`: canonical wins |
+| `0029-cache-size-report.md` | neither | only `artifacts/gate.md` — `impl_capsule=false`, `impl_state` and the ledger facts absent, `gate_written=true` |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it
