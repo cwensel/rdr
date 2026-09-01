@@ -1759,10 +1759,17 @@ func TestEdgeTalliesAreThreeValued(t *testing.T) {
 // so one undeclared set fact refuses EVERY call over the corpus (exit 2:
 // "flow-tag-invalid … not set-valued"). A set fact that is always on must
 // therefore be declared `[tags.<name>] kind = "set"` in every routing
-// model; an on-demand or prose fact never reaches the vector unasked.
+// model that receives that vector; an on-demand or prose fact never
+// reaches the vector unasked. A model listed in `callerTags` never sees
+// the vector at all — its tags are hand-bound by the caller from a packet
+// and a Ledger (`rdr-cascade.toml`), never `rdr status --tags` argv — so
+// it carries none of this invariant and is skipped here.
 func TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels(t *testing.T) {
 	tbl := loadRealTable(t)
 	for _, model := range routingModelNames {
+		if callerTags[model] != nil {
+			continue
+		}
 		tags := modelTags(t, repoFile(t, filepath.Join("models", model)))
 		for _, f := range tbl.Facts {
 			if f.Kind != "set" || f.OnDemand || f.Prose {

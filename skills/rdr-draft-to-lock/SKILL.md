@@ -188,27 +188,30 @@ and stamps `auto: unavailable (harness) — manual relaunch`, which parks exactl
 as before. Passing the flag never makes the run worse; withholding it
 guarantees the park.
 
-Then, per packet:
+Then resolve each packet — one call, the answer applied as a value. The
+`packet` group of `$RDR_HOME/models/rdr-cascade.toml` owns the ladder;
+`intrastate lint` proves every verdict × blocking × retry × action cell.
 
-- `PASS` **with `blocking: no`** → next stage. After `resolve`, re-derive the
-  lens row first (above). `blocking:` is a separate field from `verdict:` — a
-  `PASS` that sets `blocking: yes` is a passed gate carrying an open item, and
-  it **parks**; never advance on the verdict alone.
-- `INCOMPLETE` → re-run the **same** stage once with the packet's `next_action`
-  appended. Twice incomplete → park as a fork; never a third silent re-run.
-- `BLOCK` / `NEEDS_DECISION` → **park and stop advancing this RDR** (below).
-- A stage's own `stopped:*` → carry the code **verbatim** (the codes are the
-  stages', and it must not translate them). Verbatim is about wording, not
-  timing: whether it asks now or parks is the fork rule below, and ask-now wins
-  whenever the stop blocks the next stage.
+```sh
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-cascade.toml"
+# verdict, blocking: as the packet says. retry: INCOMPLETE packets this stage already
+# returned this run (Ledger; cap 2). action: next_action classified — `none`; begins
+# `stopped:` → stop; names an /rdr- command → stage; else imperative.
+"$IS" flow resolve --model "$M" --outcome packet --plan-only \
+  --tag verdict=<v> --tag blocking=<yes|no> --tag retry=<0|1|2> --tag action=<none|imperative|stop|stage>
+```
 
-**Route-backs are the orchestrator's hard boundary.** A reconcile `NOT
-RECONCILED`, a finalize `NOT READY`, or a prelock refutation names an *earlier*
-stage. This skill **never drives backward** — park the verdict with its named
-return stage and stop; re-opening a settled stage is the human's decision. The
-§punt-ledger row is **not** theirs to remember: the route-back brief tells the
-stage sub-agent to append it (before refine collapses the history) and
-`changed_paths` must show it. Report `Next: /rdr-<named-stage> NNNN`.
+Read `emit.next` and `emit.stage` as values:
+
+| `emit.next` | Do |
+| --- | --- |
+| `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first) |
+| `rerun` | spawn the same stage again, the packet's `next_action` appended to its brief |
+| `park` | Ledger the verdict and stop advancing this RDR. `Next:` is this stage (`same`) or the packet's named command (`named` — a reconcile `NOT RECONCILED`, a finalize `NOT READY`, a prelock refutation naming an earlier stage) — never run it: re-opening a settled stage is the human's decision. On `named`, the route-back brief tells the stage sub-agent to append the §punt-ledger row (before refine collapses the history) and `changed_paths` must show it |
+| `stopped:stage-stop` | relay the stage's own `stopped:*` line verbatim — the codes are the stages' and are never translated |
+
+`park` and `stopped:stage-stop` are forks: §fork-disposition decides ask-now or
+park, and ask-now wins whenever the stop blocks the next stage.
 
 ## Forks — schedule them, never answer them
 

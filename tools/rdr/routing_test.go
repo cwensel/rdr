@@ -34,7 +34,17 @@ const routingModelName = "rdr-status.toml"
 // binary calls the other, so a check that covered only the first would
 // leave the second free to drift — and the write model carries its own
 // copy of the status vocabulary plus `readme_status`'s.
-var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml"}
+var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml"}
+
+// callerTags names, per model, the observed tags a caller supplies by hand
+// (an orchestrator's own packet fields and Ledger, never an `rdr status`
+// fact) rather than reading a fact `rdr-facts.toml` declares. The model
+// header is the contract for these, not the fact table, so the fact-match
+// checks below skip them. `ask_each` is declared now for the sibling
+// `posture` group `rdr-cascade.toml` will grow.
+var callerTags = map[string]map[string]bool{
+	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
+}
 
 // routingModel is the parsed model, reduced to what the seam needs: the
 // observed tags it declares and the atoms its rules compare.
@@ -287,6 +297,9 @@ func TestRoutingTagsMatchFactKindAndDomain(t *testing.T) {
 	for _, name := range routingModelNames {
 		m := loadRoutingModelNamed(t, name)
 		for tag, modelDomain := range m.Tags {
+			if callerTags[name][tag] {
+				continue
+			}
 			f, ok := decl[tag]
 			if !ok {
 				// The name check is TestRoutingModelMatchesTheFactTable's

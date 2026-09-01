@@ -1,0 +1,209 @@
+# rdr-cascade.toml — a stage's return packet, as one cascade move.
+#
+# `skills/rdr-draft-to-lock` walks 5-8 §return-packets per run and decided
+# each by a prose ladder over verdict x blocking x retry x next_action.
+# This table is that ladder; `intrastate lint --model` proves all 96 cells.
+#
+# DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
+# accessors. The caller acts on `emit`; nothing here writes.
+#
+# THE TAGS ARE CALLER-SUPPLIED, NOT FACTS. No `rdr status --tags` vector
+# renders them: the orchestrator binds each from the packet it holds
+# (`verdict:`, `blocking:`, `next_action:`) and its own Ledger (`retry`),
+# and passes them as `--tag k=v` — the `observed` provenance's declared
+# shape. `action` classifies `next_action` lexically; a stage stop and a
+# named return stage share the packet's one imperative slot, so the
+# route-back is a member of that dimension, never a second one. Every
+# dimension is required + single_valued; absence is a declared member
+# (`retry=0`, `action=none`). A sibling group (`posture`) will join this
+# file, and `tools/rdr/routing_test.go` names this model's caller tags in
+# an allowlist.
+#
+# THE ANSWER IS `emit`: `next` is the disposition; `stage` says what
+# `Next:` names. Values are uninterpreted — the stage's own `stopped:*`
+# line and the named `/rdr-<stage>` command are relayed by the caller
+# verbatim (as NNNN is appended by the caller in rdr-status.toml). The
+# blocker-class -> return-stage mapping is not this table's.
+
+outcomes = ["packet"]
+
+[model]
+id          = "rdr-cascade"
+version     = 1
+class       = "decision-table"
+description = "Draft-to-lock cascade: one stage's return packet to the orchestrator's next move."
+
+[emit.next]
+kind = "enum"
+[emit.next.domain]
+run  = ["advance", "rerun"]
+park = ["park"]
+stop = ["stopped:stage-stop"]
+
+[emit.stage]
+kind   = "enum"
+domain = ["router", "same", "named"]
+
+[emit.why]
+kind = "scalar"
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["packet"]
+single_valued = true
+required      = true
+
+# The packet's own `verdict:` field.
+[tags.verdict]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["PASS", "BLOCK", "INCOMPLETE", "NEEDS_DECISION"]
+single_valued = true
+required      = true
+
+# The packet's own `blocking:` field.
+[tags.blocking]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["yes", "no"]
+single_valued = true
+required      = true
+
+# Prior INCOMPLETE returns of this stage this run, from the orchestrator's
+# Ledger; 2 saturates (a third silent re-run never happens).
+[tags.retry]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1", "2"]
+single_valued = true
+required      = true
+
+# The packet's `next_action` classified: absent -> `none`; begins
+# `stopped:` -> `stop`; names an `/rdr-` command -> `stage`; else `imperative`.
+[tags.action]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "imperative", "stop", "stage"]
+single_valued = true
+required      = true
+
+# ===========================================================================
+# packet — one return packet to one cascade move
+# ===========================================================================
+
+[[rule]]
+id = "stage-stop"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.action]
+eq = "stop"
+[rule.emit]
+next = "stopped:stage-stop"
+stage = "same"
+why  = "The stage stopped on its own code; relay the line verbatim — nothing advances past a stop."
+
+[[rule]]
+id = "route-back"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.action]
+eq = "stage"
+[rule.guard.all.verdict]
+in = ["BLOCK", "NEEDS_DECISION", "INCOMPLETE"]
+[rule.emit]
+next = "park"
+stage = "named"
+why  = "The packet names another stage: a route-back. Park; this skill never drives backward."
+
+[[rule]]
+id = "pass-advance"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+eq = "PASS"
+[rule.guard.all.blocking]
+eq = "no"
+[rule.guard.all.action]
+in = ["none", "imperative", "stage"]
+[rule.emit]
+next = "advance"
+stage = "router"
+why  = "A clean pass; the router names the next stage."
+
+[[rule]]
+id = "pass-open-item"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+eq = "PASS"
+[rule.guard.all.blocking]
+eq = "yes"
+[rule.guard.all.action]
+in = ["none", "imperative", "stage"]
+[rule.emit]
+next = "park"
+stage = "same"
+why  = "A passed gate carrying an open item parks; never advance on the verdict alone."
+
+[[rule]]
+id = "incomplete-rerun"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+eq = "INCOMPLETE"
+[rule.guard.all.blocking]
+eq = "no"
+[rule.guard.all.retry]
+eq = "0"
+[rule.guard.all.action]
+in = ["none", "imperative"]
+[rule.emit]
+next = "rerun"
+stage = "same"
+why  = "First INCOMPLETE: re-run the same stage once with next_action appended."
+
+[[rule]]
+id = "incomplete-capped"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+eq = "INCOMPLETE"
+[rule.guard.all.blocking]
+eq = "no"
+[rule.guard.all.retry]
+in = ["1", "2"]
+[rule.guard.all.action]
+in = ["none", "imperative"]
+[rule.emit]
+next = "park"
+stage = "same"
+why  = "Twice incomplete: park as a fork; never a third silent re-run."
+
+[[rule]]
+id = "incomplete-open"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+eq = "INCOMPLETE"
+[rule.guard.all.blocking]
+eq = "yes"
+[rule.guard.all.action]
+in = ["none", "imperative"]
+[rule.emit]
+next = "park"
+stage = "same"
+why  = "An open blocking item is not cleared by a re-run; park."
+
+[[rule]]
+id = "fork"
+[rule.match.recognized]
+eq = "packet"
+[rule.guard.all.verdict]
+in = ["BLOCK", "NEEDS_DECISION"]
+[rule.guard.all.action]
+in = ["none", "imperative"]
+[rule.emit]
+next = "park"
+stage = "same"
+why  = "A block or a decision is the human's; park and stop advancing this RDR."
