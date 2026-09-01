@@ -209,6 +209,7 @@ var factSources = map[string]bool{
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "seam-lineage": true,
+	"impl-artifact": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
 }
@@ -221,7 +222,7 @@ var factSources = map[string]bool{
 var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
 	"cluster-key": true, "header-field": true, "readme-row": true,
-	"stale-lens": true, "stale-path": true,
+	"stale-lens": true, "stale-path": true, "impl-artifact": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -437,6 +438,47 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Select == "" {
 			return d, fmt.Errorf("fact %q: a %s names a select", name, d.Source)
 		}
+	case "impl-artifact":
+		// The four selects are the four ledger reads; an unknown one
+		// would evaluate to nothing while reading as declared, the same
+		// failure seam-lineage's select guards against.
+		switch d.Select {
+		case "req-count", "orphans", "open-decisions", "mvv-recorded":
+		default:
+			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions or mvv-recorded, got %q", name, d.Select)
+		}
+		if d.Root == "" {
+			return d, fmt.Errorf("fact %q: an impl-artifact names a root", name)
+		}
+		switch d.Select {
+		case "orphans":
+			if len(d.Paths) != 2 {
+				return d, fmt.Errorf("fact %q: orphans names exactly two paths (req-list, coverage)", name)
+			}
+		default:
+			if len(d.Paths) != 1 {
+				return d, fmt.Errorf("fact %q: a %s impl-artifact names one path", name, d.Select)
+			}
+		}
+		if d.Select == "open-decisions" || d.Select == "mvv-recorded" {
+			if d.Label == "" {
+				return d, fmt.Errorf("fact %q: a %s impl-artifact names a label", name, d.Select)
+			}
+		}
+		if d.Select == "mvv-recorded" {
+			if d.Kind != "bool" {
+				return d, fmt.Errorf("fact %q: mvv-recorded is a bool", name)
+			}
+		} else {
+			if d.Kind != "enum" {
+				return d, fmt.Errorf("fact %q: %s is an enum", name, d.Select)
+			}
+			for _, m := range implArtifactMembers[d.Select] {
+				if !slices.Contains(d.Domain, m) {
+					return d, fmt.Errorf("fact %q: domain does not declare %q, which %s can emit", name, m, d.Select)
+				}
+			}
+		}
 	case "seam-lineage":
 		// The three selects are the three shapes the floor reads, and an
 		// unknown one would evaluate to nothing while reading as declared.
@@ -628,6 +670,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.reverifyIDs(d)
 	case "edge-tally":
 		return e.edgeTally(d)
+	case "impl-artifact":
+		return e.implArtifact(d)
 	}
 	return Fact{}, false
 }
@@ -966,6 +1010,241 @@ func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
 		}
 	}
 	return Fact{}, false
+}
+
+// implArtifactMembers are the values each impl-artifact select can emit,
+// checked against the declared domain at load — the same closed-domain
+// discipline stale-lens applies to its own paths.
+var implArtifactMembers = map[string][]string{
+	"req-count":      {"0-10", "11+"},
+	"orphans":        {"0", "1+"},
+	"open-decisions": {"0", "1+"},
+}
+
+// implArtifact answers the Stage-8 launch-gate signals, read from the
+// artifact ledger a launch prompt writes beside the capsule.
+//
+// Absent for the reason every other artifact-root fact is absent: an
+// unbound root or a missing file means nothing was read, and `none` (or
+// `false` for the bool) is the --tags sentinel a launch table's row can
+// claim positively — never a guess this file exists.
+func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	read := func(i int) ([]byte, bool) {
+		raw, err := e.readFile(filepath.Join(base, filepath.FromSlash(d.Paths[i])))
+		if err != nil {
+			return nil, false
+		}
+		return raw, true
+	}
+	switch d.Select {
+	case "req-count":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		n := len(reqIDs(raw))
+		v := "0-10"
+		if n > 10 {
+			v = "11+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	case "orphans":
+		reqRaw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		covRaw, ok := read(1)
+		if !ok {
+			return Fact{}, false
+		}
+		reqs := reqIDs(reqRaw)
+		covered, emptyCell := coverageRows(covRaw)
+		n := 0
+		for id := range reqs {
+			if !covered[id] {
+				n++
+			}
+		}
+		for id := range covered {
+			if !reqs[id] {
+				n++
+			}
+		}
+		for id := range emptyCell {
+			if reqs[id] && covered[id] {
+				n++
+			}
+		}
+		v := "0"
+		if n > 0 {
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	case "open-decisions":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		n := openDecisions(raw, d.Label)
+		v := "0"
+		if n > 0 {
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	case "mvv-recorded":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(labelledLine(raw, d.Label))}, true
+	}
+	return Fact{}, false
+}
+
+// stripLead strips the markup an author's list item or header carries in
+// front of the content the parsers below match on: bullet markers, bold,
+// backticks and heading hashes, repeatedly — `- **[REQ-1]**` and
+// `#### **REQ-MVV output**` both reduce to their bare content.
+func stripLead(s string) string {
+	s = strings.TrimSpace(s)
+	for {
+		trimmed := s
+		trimmed = strings.TrimPrefix(trimmed, "- ")
+		trimmed = strings.TrimPrefix(trimmed, "* ")
+		trimmed = strings.TrimPrefix(trimmed, "**")
+		trimmed = strings.TrimPrefix(trimmed, "`")
+		trimmed = strings.TrimLeft(trimmed, "#")
+		trimmed = strings.TrimSpace(trimmed)
+		if trimmed == s {
+			return s
+		}
+		s = trimmed
+	}
+}
+
+// reqLineID matches a leading `[REQ-<id>]` once the line's markup is
+// stripped — the ledger's one authoring form, never guessed from prose
+// elsewhere on the line.
+var reqLineID = regexp.MustCompile(`^\[(REQ-[A-Za-z0-9.]+)\]`)
+
+// reqIDs collects the DISTINCT [REQ-<id>] ids a req-list.md declares,
+// excluding REQ-MVV — the size gate counts requirements, not the MVV
+// acceptance line that travels beside them.
+func reqIDs(raw []byte) map[string]bool {
+	out := map[string]bool{}
+	for _, ln := range strings.Split(string(raw), "\n") {
+		bare := stripLead(ln)
+		m := reqLineID.FindStringSubmatch(bare)
+		if m == nil {
+			continue
+		}
+		id := m[1]
+		if strings.HasPrefix(id, "REQ-MVV") {
+			continue
+		}
+		out[id] = true
+	}
+	return out
+}
+
+// reqCellID matches a markdown table cell's leading REQ id, emphasis and
+// backticks stripped — coverage.md's first column.
+var reqCellID = regexp.MustCompile(`^(REQ-[A-Za-z0-9.]+)`)
+
+// coverageRows reads coverage.md's table: the REQ ids its rows cover, and
+// which of those rows carry an empty second (test) cell — a row present
+// without a test is an orphan by this table's own reading, not a parse
+// failure.
+//
+// The header row, a literal `REQ-N` placeholder row and `---` separator
+// rows are skipped by shape: `REQ-N` is the template's own example id,
+// never a real one the ledger would emit, and neither carries a real
+// cell to read.
+func coverageRows(raw []byte) (ids map[string]bool, emptyCell map[string]bool) {
+	ids = map[string]bool{}
+	emptyCell = map[string]bool{}
+	for _, ln := range strings.Split(string(raw), "\n") {
+		t := strings.TrimSpace(ln)
+		if !strings.HasPrefix(t, "|") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(t, "|"), "|")
+		if len(cells) == 0 {
+			continue
+		}
+		first := strings.TrimSpace(stripLead(strings.TrimSpace(cells[0])))
+		first = strings.Trim(first, "*`")
+		if strings.Trim(first, "-: ") == "" {
+			continue // the --- separator row
+		}
+		m := reqCellID.FindStringSubmatch(first)
+		if m == nil {
+			continue // the header row, or any non-REQ lead
+		}
+		id := m[1]
+		if id == "REQ-N" {
+			continue // the template's own placeholder row
+		}
+		if strings.HasPrefix(id, "REQ-MVV") {
+			continue
+		}
+		ids[id] = true
+		if len(cells) < 2 || strings.TrimSpace(cells[1]) == "" {
+			emptyCell[id] = true
+		}
+	}
+	return ids, emptyCell
+}
+
+// decisionCut are the marks that close a Status line's leading phrase —
+// never `→`, because `needs author decision → RESOLVED (…)` is a
+// rewritten, CLOSED line and the arrow is what carries that rewrite; a
+// cut there would read the closed line as still open.
+var decisionCut = []string{"(", ".", ";", "—"}
+
+// openDecisions counts deviations.md's `Status:` lines whose leading
+// phrase still reads the open label, case-insensitively.
+func openDecisions(raw []byte, label string) int {
+	n := 0
+	for _, ln := range strings.Split(string(raw), "\n") {
+		bare := stripLead(ln)
+		if !strings.HasPrefix(strings.ToLower(bare), "status:") {
+			continue
+		}
+		val := strings.TrimSpace(bare[len("status:"):])
+		cut := len(val)
+		for _, mark := range decisionCut {
+			if i := strings.Index(val, mark); i >= 0 && i < cut {
+				cut = i
+			}
+		}
+		phrase := strings.TrimSpace(val[:cut])
+		if strings.EqualFold(phrase, label) {
+			n++
+		}
+	}
+	return n
+}
+
+// labelledLine reports whether any line's stripped lead starts with
+// label, case-insensitively — coverage.md's `REQ-MVV output` heading or
+// bullet, never its `REQ-MVV runner` sibling, which does not share the
+// prefix.
+func labelledLine(raw []byte, label string) bool {
+	for _, ln := range strings.Split(string(raw), "\n") {
+		bare := stripLead(ln)
+		if len(bare) < len(label) {
+			continue
+		}
+		if strings.EqualFold(bare[:len(label)], label) {
+			return true
+		}
+	}
+	return false
 }
 
 // headerField reads a labelled header line from a file under a root.

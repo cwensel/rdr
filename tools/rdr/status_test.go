@@ -100,10 +100,13 @@ func TestStatusFixturesKeepTheirShapeSignals(t *testing.T) {
 				"the floor HOLDS (three prior point-fixes, no disposition) and the field is at it"},
 		{"0022", map[string]string{"status": "Draft", "status_form": "revised-from",
 			"status_reentry": "true", "impl_capsule": "true", "impl_state": "IN-PROGRESS",
-			"cluster_reconciled": "true", "seam_lineage_count": "0", "seam_lineage": "0"},
+			"cluster_reconciled": "true", "seam_lineage_count": "0", "seam_lineage": "0",
+			"req_count": "0-10", "impl_orphans": "0", "impl_open_decisions": "0",
+			"impl_mvv_recorded": "true"},
 			"the scoped backward edge, with a capsule header that states its own state; " +
 				"it is also in TWO cluster dirs (0021-0022 and 0021-0022-0023), which is a " +
-				"widened re-run rather than an ambiguity — nested overlap still answers true"},
+				"widened re-run rather than an ambiguity — nested overlap still answers true; " +
+				"and the Stage-8 launch-gate ledger (req-list, coverage, deviations) all read clean"},
 		{"0023", map[string]string{"status": "Implemented", "lens_3amigo": "false",
 			"legacy_evidence_shape": "true", "cluster_reconciled": "true"},
 			"the warning case: 3amigo DID run, in the pre-migration file shape — " +

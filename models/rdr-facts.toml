@@ -916,6 +916,51 @@ path        = "status.md"
 domain      = ["COMPLETE", "INCOMPLETE", "IN-PROGRESS"]
 description = "The Stage-9 capsule header's state word."
 
+# The Stage-8 completion gate's inputs, read from the artifact ledger the
+# launch prompt writes beside the capsule. Same absence rule as
+# impl_state: no root, no dir or no file is ABSENT — `none`/`false` is
+# the --tags sentinel, so a launch table can hold every dimension required.
+[fact.req_count]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "req-count"
+root        = "artifacts"
+paths       = ["req-list.md"]
+domain      = ["0-10", "11+", "none"]
+absent      = "none"
+description = "Distinct [REQ-N] lines in req-list.md, bucketed at the size gate's cap; REQ-MVV is not counted."
+
+[fact.impl_orphans]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "orphans"
+root        = "artifacts"
+paths       = ["req-list.md", "coverage.md"]
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "REQ ids in req-list.md vs REQ rows in coverage.md, diffed both ways; an empty test cell is an orphan."
+
+[fact.impl_open_decisions]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "open-decisions"
+root        = "artifacts"
+paths       = ["deviations.md"]
+label       = "needs author decision"
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "Status: lines in deviations.md still reading needs author decision; a rewritten line is closed."
+
+[fact.impl_mvv_recorded]
+kind        = "bool"
+source      = "impl-artifact"
+select      = "mvv-recorded"
+root        = "artifacts"
+paths       = ["coverage.md"]
+label       = "REQ-MVV output"
+absent      = "false"
+description = "coverage.md carries a REQ-MVV output line; a runner line alone is not a recording."
+
 # --- Stage 7.1, the cluster half ------------------------------------------
 #
 # 7.1's output is the one stage that does not live under the record. It is

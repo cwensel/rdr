@@ -898,7 +898,8 @@ var stageFacts = map[string][]string{
 	// argument a re-entering 7.1 run is invoked with — the membership
 	// read back from the tree rather than re-derived from a claim.
 	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
-	"8 Implement": {"impl_capsule", "impl_state"},
+	"8 Implement": {"impl_capsule", "impl_state", "req_count", "impl_orphans",
+		"impl_open_decisions", "impl_mvv_recorded"},
 }
 
 // modelTags reads the `[tags.<name>]` keys a routing model declares.
@@ -1845,4 +1846,205 @@ func TestSeamLineageFactsAreAbsentWithoutTheField(t *testing.T) {
 			}
 		})
 	}
+}
+
+// implArtifactEnv writes the named files under a synthetic slug directory
+// and binds a FactEnv at it, the same shape TestCapsuleStateReadsTheHeader
+// uses for the Stage-9 capsule: a temp records root, no evidence root, no
+// seam var reached.
+func implArtifactEnv(t *testing.T, tbl *FactTable, files map[string]string) *FactEnv {
+	t.Helper()
+	slug := "0099-synthetic-artifact-record"
+	base := t.TempDir()
+	records := filepath.Join(base, "records")
+	dir := filepath.Join(records, slug)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return testEnv(t, tbl, slug, "", records)
+}
+
+// TestImplArtifactFactsReadTheLedger is the Stage-8 launch gate's four
+// facts, read from the artifact ledger a launch prompt writes beside the
+// capsule — req-list.md, coverage.md, deviations.md — never from the
+// record itself.
+func TestImplArtifactFactsReadTheLedger(t *testing.T) {
+	tbl := loadRealTable(t)
+	names := []string{"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded"}
+
+	t.Run("happy path", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"req-list.md": "- **[REQ-1]** \"first.\"\n" +
+				"- **[REQ-2]** \"second.\"\n" +
+				"- **[REQ-3]** \"third.\"\n" +
+				"- [REQ-MVV] \"acceptance.\"\n",
+			"coverage.md": "| Requirement | Test |\n" +
+				"| --- | --- |\n" +
+				"| `REQ-1` | `TestOne` |\n" +
+				"| `REQ-2` | `TestTwo` |\n" +
+				"| `REQ-3` | `TestThree` |\n" +
+				"\n## REQ-MVV output (recorded)\n\nA caller saw it work.\n",
+			"deviations.md": "- **Status: mechanical translation** — a rename, nothing more.\n",
+		})
+		facts := tbl.Evaluate(e)
+		want := map[string]string{
+			"req_count": "0-10", "impl_orphans": "0",
+			"impl_open_decisions": "0", "impl_mvv_recorded": "true",
+		}
+		for name, w := range want {
+			if got, ok := factValue(facts, name); !ok || got != w {
+				t.Errorf("%s = %q (ok %v), want %q", name, got, ok, w)
+			}
+		}
+	})
+
+	t.Run("artifact dir absent", func(t *testing.T) {
+		slug := "0099-synthetic-artifact-record"
+		base := t.TempDir()
+		records := filepath.Join(base, "records")
+		if err := os.MkdirAll(records, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		e := testEnv(t, tbl, slug, "", records)
+		facts := tbl.Evaluate(e)
+		for _, name := range names {
+			if v, ok := factValue(facts, name); ok {
+				t.Errorf("%s = %q; with no artifact dir the fact must be absent", name, v)
+			}
+		}
+	})
+
+	t.Run("req-list absent, coverage present", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"coverage.md": "| Requirement | Test |\n| --- | --- |\n" +
+				"| `REQ-9` | `TestNine` |\n\n## REQ-MVV output (recorded)\n\nSeen.\n",
+		})
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "req_count"); ok {
+			t.Errorf("req_count = %q; no req-list.md means absent", v)
+		}
+		if v, ok := factValue(facts, "impl_orphans"); ok {
+			t.Errorf("impl_orphans = %q; orphans needs both files", v)
+		}
+		if got, _ := factValue(facts, "impl_mvv_recorded"); got != "true" {
+			t.Errorf("impl_mvv_recorded = %q, want true — it reads coverage.md alone", got)
+		}
+	})
+
+	t.Run("orphan in req-list only", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"req-list.md": "- **[REQ-3]** \"uncovered.\"\n",
+			"coverage.md": "| Requirement | Test |\n| --- | --- |\n" +
+				"| `REQ-3` | |\n",
+		})
+		facts := tbl.Evaluate(e)
+		if got, _ := factValue(facts, "impl_orphans"); got != "1+" {
+			t.Errorf("impl_orphans = %q, want 1+ — a listed REQ with an empty test cell is an orphan", got)
+		}
+	})
+
+	t.Run("orphan in coverage only", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"req-list.md": "- **[REQ-1]** \"covered.\"\n",
+			"coverage.md": "| Requirement | Test |\n| --- | --- |\n" +
+				"| `REQ-1` | `TestOne` |\n" +
+				"| `REQ-9` | `TestNine` |\n",
+		})
+		facts := tbl.Evaluate(e)
+		if got, _ := factValue(facts, "impl_orphans"); got != "1+" {
+			t.Errorf("impl_orphans = %q, want 1+ — REQ-9 is in coverage.md but not req-list.md", got)
+		}
+	})
+
+	t.Run("eleven-plus, MVV and duplicates excluded", func(t *testing.T) {
+		var b strings.Builder
+		for i := 1; i <= 12; i++ {
+			b.WriteString("- **[REQ-" + strconv.Itoa(i) + "]** \"n.\"\n")
+		}
+		b.WriteString("- [REQ-MVV] \"acceptance.\"\n")
+		b.WriteString("- **[REQ-1]** \"duplicate of REQ-1.\"\n")
+		e := implArtifactEnv(t, tbl, map[string]string{"req-list.md": b.String()})
+		if got, _ := factValue(tbl.Evaluate(e), "req_count"); got != "11+" {
+			t.Errorf("req_count = %q, want 11+ — 12 distinct ids, MVV and the dup do not add to the count", got)
+		}
+
+		var b2 strings.Builder
+		for i := 1; i <= 10; i++ {
+			b2.WriteString("- **[REQ-" + strconv.Itoa(i) + "]** \"n.\"\n")
+		}
+		b2.WriteString("- [REQ-MVV] \"acceptance.\"\n")
+		b2.WriteString("- **[REQ-1]** \"duplicate of REQ-1.\"\n")
+		e2 := implArtifactEnv(t, tbl, map[string]string{"req-list.md": b2.String()})
+		if got, _ := factValue(tbl.Evaluate(e2), "req_count"); got != "0-10" {
+			t.Errorf("req_count = %q, want 0-10 — 10 distinct ids, MVV and the dup do not add to the count", got)
+		}
+	})
+
+	t.Run("open decisions", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "- **Status: needs author decision (recorded, run continued)**\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_open_decisions"); got != "1+" {
+			t.Errorf("impl_open_decisions = %q, want 1+ — the leading phrase is still open", got)
+		}
+
+		e2 := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "- **Status: needs author decision → RESOLVED (author picked option B).**\n" +
+				"- **Status: accepted.**\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e2), "impl_open_decisions"); got != "0" {
+			t.Errorf("impl_open_decisions = %q, want 0 — a rewritten line closes, and the arrow must not cut it early", got)
+		}
+
+		e3 := implArtifactEnv(t, tbl, map[string]string{})
+		if v, ok := factValue(tbl.Evaluate(e3), "impl_open_decisions"); ok {
+			t.Errorf("impl_open_decisions = %q; with no deviations.md the fact must be absent", v)
+		}
+	})
+
+	t.Run("mvv recorded", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{"coverage.md": "## REQ-MVV runner\n\nHow to run it.\n"})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_mvv_recorded"); got != "false" {
+			t.Errorf("impl_mvv_recorded = %q, want false — a runner heading is not a recording", got)
+		}
+
+		e2 := implArtifactEnv(t, tbl, map[string]string{
+			"coverage.md": "**REQ-MVV output (recorded after Phase 2):**\n\nIt worked.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e2), "impl_mvv_recorded"); got != "true" {
+			t.Errorf("impl_mvv_recorded = %q, want true", got)
+		}
+	})
+
+	t.Run("--tags renders the sentinels", func(t *testing.T) {
+		slug := "0099-synthetic-artifact-record"
+		base := t.TempDir()
+		records := filepath.Join(base, "records")
+		if err := os.MkdirAll(records, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		e := testEnv(t, tbl, slug, "", records)
+		facts := tbl.Evaluate(e)
+		want := map[string]bool{"req_count": true, "impl_orphans": true,
+			"impl_open_decisions": true, "impl_mvv_recorded": true}
+		tagged := withAbsentSentinels(tbl, facts, want)
+		got := map[string]string{}
+		for _, f := range tagged {
+			got[f.Name] = f.Value
+		}
+		wantVals := map[string]string{
+			"req_count": "none", "impl_orphans": "none",
+			"impl_open_decisions": "none", "impl_mvv_recorded": "false",
+		}
+		for name, w := range wantVals {
+			if got[name] != w {
+				t.Errorf("--tags %s = %q, want sentinel %q", name, got[name], w)
+			}
+		}
+	})
 }

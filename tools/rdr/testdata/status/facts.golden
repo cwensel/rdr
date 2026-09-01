@@ -163,6 +163,10 @@ gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    true
 impl_state                   enum    IN-PROGRESS
+req_count                    enum    0-10
+impl_orphans                 enum    0
+impl_open_decisions          enum    0
+impl_mvv_recorded            bool    true
 cluster_reconciled           bool    true
 cluster_key                  scalar  0021-0022-0023
 contracts_prose              bool    false
