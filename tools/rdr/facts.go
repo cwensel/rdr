@@ -213,7 +213,7 @@ var factSources = map[string]bool{
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "seam-lineage": true,
-	"impl-artifact": true,
+	"impl-artifact": true, "record-lines": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
 }
@@ -483,6 +483,19 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				}
 			}
 		}
+	case "record-lines":
+		// The bucket's members are fixed by the evaluator, so the domain
+		// must declare them — the same closed-domain check impl-artifact
+		// makes, for the same reason: a member the domain does not name
+		// is a value no routing row can claim.
+		if d.Kind != "enum" {
+			return d, fmt.Errorf("fact %q: a record-lines is an enum", name)
+		}
+		for _, m := range recordLinesMembers {
+			if !slices.Contains(d.Domain, m) {
+				return d, fmt.Errorf("fact %q: domain does not declare %q, which record-lines can emit", name, m)
+			}
+		}
 	case "seam-lineage":
 		// The three selects are the three shapes the floor reads, and an
 		// unknown one would evaluate to nothing while reading as declared.
@@ -719,6 +732,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.edgeTally(d)
 	case "impl-artifact":
 		return e.implArtifact(d)
+	case "record-lines":
+		return e.recordLines(d)
 	}
 	return Fact{}, false
 }
@@ -1150,6 +1165,32 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(labelledLine(raw, d.Label))}, true
 	}
 	return Fact{}, false
+}
+
+// recordLinesCap is the size gate's line cap: a record at or under it is
+// `0-400`, above it `401+`. The cap lives here beside req-count's 10 for
+// the same reason — the bucket IS the fact, and a routing row compares
+// against a member, never against a number it would have to bucket
+// itself.
+const recordLinesCap = 400
+
+// recordLinesMembers are the two values record-lines can emit, checked
+// against the declared domain at load.
+var recordLinesMembers = []string{"0-400", "401+"}
+
+// recordLines buckets the record's own line count — the same number
+// `inspect` reports as top-level `lines` — so the size gate reads its cap
+// as a tag rather than comparing a count in prose. Absent only when there
+// is no document at all; every record has a length.
+func (e *FactEnv) recordLines(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	v := recordLinesMembers[0]
+	if e.Doc.Lines > recordLinesCap {
+		v = recordLinesMembers[1]
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
 }
 
 // stripLead strips the markup an author's list item or header carries in

@@ -274,6 +274,17 @@ path        = "metadata.Profile.value"
 prose       = true
 description = "Profile verbatim, rationale tail included, for the caveat line."
 
+# The record's own length, bucketed at the Stage-8 size gate's cap. It is
+# the number `inspect` reports as top-level `lines`; the gate used to read
+# that projection and compare it in prose, and a routing row cannot — a
+# dimension is a member, never an inequality. Every record has a length,
+# so this is never absent and declares no sentinel.
+[fact.lines]
+kind        = "enum"
+source      = "record-lines"
+domain      = ["0-400", "401+"]
+description = "The record's line count, bucketed at the size gate's 400-line cap."
+
 # --- the accretion floor's inputs ------------------------------------------
 #
 # The Seam Lineage field carries a point-fix count and, when the author

@@ -898,7 +898,7 @@ var stageFacts = map[string][]string{
 	// argument a re-entering 7.1 run is invoked with — the membership
 	// read back from the tree rather than re-derived from a claim.
 	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
-	"8 Implement": {"impl_capsule", "impl_state", "req_count", "impl_orphans",
+	"8 Implement": {"impl_capsule", "impl_state", "lines", "req_count", "impl_orphans",
 		"impl_open_decisions", "impl_mvv_recorded"},
 }
 
@@ -2115,5 +2115,47 @@ func TestUnboundRecordsRootLeavesTheArtifactFactsAbsent(t *testing.T) {
 	}
 	if v, ok := factValue(facts, "lens_grounding"); !ok || v != "true" {
 		t.Errorf("lens_grounding = %q/%v; the evidence root is bound and still decides", v, ok)
+	}
+}
+
+// TestLinesFactBucketsTheRecord is the size gate's line cap as a fact:
+// the record's own length — the number `inspect` prints as `lines` — read
+// as `0-400` or `401+`, so a routing row compares a member and nobody
+// compares a count in prose. The boundary is pinned on both sides,
+// because a cap that reads 400 as over is the off-by-one no golden
+// fixture would ever show.
+func TestLinesFactBucketsTheRecord(t *testing.T) {
+	tbl := loadRealTable(t)
+	head := "# Recommendation 0031: Frame Length\n\n## Metadata\n\n- **Status**: Draft\n- **Profile**: small\n\n## Problem Statement\n\n"
+	for _, c := range []struct {
+		lines int
+		want  string
+	}{
+		{lines: 52, want: "0-400"},
+		{lines: 400, want: "0-400"},
+		{lines: 401, want: "401+"},
+		{lines: 997, want: "401+"},
+	} {
+		body := head + strings.Repeat("filler\n", c.lines-strings.Count(head, "\n")-1) + "end"
+		doc := scan.Bytes([]byte(body), scan.Options{})
+		if doc.Lines != c.lines {
+			t.Fatalf("fixture of %d lines scanned as %d; the case is not testing the boundary it names", c.lines, doc.Lines)
+		}
+		facts := tbl.Evaluate(&FactEnv{Doc: doc, Slug: "0031-frame-length", Roots: map[string]string{},
+			readFile: os.ReadFile, statPath: os.Stat})
+		if got, ok := factValue(facts, "lines"); !ok || got != c.want {
+			t.Errorf("%d lines: lines = %q (ok %v), want %q", c.lines, got, ok, c.want)
+		}
+	}
+
+	// A table declaring the bucket without one of its members is refused
+	// at load, exactly as an impl-artifact domain is.
+	dir := t.TempDir()
+	bad := filepath.Join(dir, "facts.toml")
+	if err := os.WriteFile(bad, []byte("[fact.lines]\nkind = \"enum\"\nsource = \"record-lines\"\ndomain = [\"0-400\"]\ndescription = \"half a bucket\"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFactTable(bad); err == nil || !strings.Contains(err.Error(), "401+") {
+		t.Errorf("a record-lines domain missing 401+ loaded (err %v); the member check is what keeps the row claimable", err)
 	}
 }

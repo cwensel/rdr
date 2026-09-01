@@ -6,6 +6,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    mid
 profile_raw                  scalar  mid — one contract plus the eviction metrics surface
+lines                        enum    0-400
 seam_lineage_count           int     2
 seam_lineage                 enum    2+
 accretion_disposition        bool    true
@@ -61,6 +62,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    foundational
 profile_raw                  scalar  foundational — locks the warm-up contract across both readers and the metrics surface
+lines                        enum    0-400
 seam_lineage_count           int     3
 seam_lineage                 enum    2+
 accretion_disposition        bool    false
@@ -120,6 +122,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+lines                        enum    0-400
 seam_lineage_count           int     0
 seam_lineage                 enum    0
 accretion_disposition        bool    false
@@ -182,6 +185,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     1
@@ -235,6 +239,7 @@ status_parked                bool    true
 open_joint_decisions         set     []
 profile                      enum    mid
 profile_raw                  scalar  mid
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     0
@@ -285,6 +290,7 @@ status_form                  enum    none
 status_reentry               bool    false
 status_parked                bool    false
 open_joint_decisions         set     []
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     0
@@ -337,6 +343,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     1
@@ -391,6 +398,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     1
@@ -445,6 +453,7 @@ status_parked                bool    false
 open_joint_decisions         set     []
 profile                      enum    small
 profile_raw                  scalar  small
+lines                        enum    0-400
 contracts                    int     0
 ca_total                     int     1
 ca_verified                  int     1
