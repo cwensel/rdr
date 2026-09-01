@@ -201,8 +201,11 @@ future change broke that clause. Each test:
 After writing the tests, the sub-agent runs the suite and confirms
 ALL new tests FAIL (red). Any test green against a missing/stub
 implementation is tautological — the sub-agent rewrites it before
-returning. The sub-agent writes `<art>/coverage.md` (REQ-N × test
-name, orphans flagged both ways).
+returning. The sub-agent writes `<art>/coverage.md` as a table —
+column 1 the REQ id, column 2 the test name; an uncovered REQ-N keeps
+its row with column 2 EMPTY (that empty cell is the orphan mark — never
+"—", "none" or prose), and a test with no REQ gets a row under its own
+REQ id.
 Sub-agent returns a §return-packet; verdict=INCOMPLETE if red-confirmed is
 no, evidence_paths list test files + REQ-MVV runner, changed_paths the
 coverage.md. If red-confirmed is
@@ -261,14 +264,20 @@ not.)
 Do not record ordinary implementation choices unless they affect
 contract, validation, or future interpretation. After the suite is
 green, it runs REQ-MVV end-to-end and records the actual output in
-`<art>/coverage.md`.
+`<art>/coverage.md` under a heading spelled exactly `## REQ-MVV output`
+(a runner/command line, if kept, sits under a separate
+`## REQ-MVV runner`).
 Sub-agent returns a §return-packet; verdict=NEEDS_DECISION if any
 needs-author-decision deviation, summary_50w gives green,
 evidence_paths cite each open deviation.
 If needs-author-decision deviations are non-empty, the orchestrator
 asks the user one consolidated question listing each gap with the
-sub-agent's recommendation, records the resolutions back to
-`deviations.md`, and re-briefs the implementer with the decisions.
+sub-agent's recommendation, records each resolution by REWRITING that
+entry's `Status:` line in place — the open form is the plain line
+`Status: needs author decision` (qualifiers only inside a trailing
+parenthesis); closed is `Status: needs author decision → RESOLVED
+(<decision>)` — never a note appended below it — and re-briefs the
+implementer with the decisions.
 Otherwise advance.
 
 PHASE 3 — Self-verification (two sub-agents in parallel, then fixup if needed)
