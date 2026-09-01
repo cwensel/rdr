@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/cwensel/rdr/tools/rdr/internal/model"
 )
 
 // The routing table (`models/rdr-status.toml`) is the other half of what
@@ -41,13 +43,16 @@ var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-casca
 // fact) rather than reading a fact `rdr-facts.toml` declares. The model
 // header is the contract for these, not the fact table, so the fact-match
 // checks below skip them. `ask_each` is declared now for the sibling
-// `posture` group `rdr-cascade.toml` will grow.
+// `posture` group `rdr-cascade.toml` will grow. The write model's four
+// are Resolve's two Profile judgements, rdr-status's `emit.floor` passed
+// through, and the verdict packet's blocker class.
 var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
 	// The launch orchestrator's own observations this run: source files
 	// touched, a suite run over the output cap, context pressure, and the
 	// last packet's verdict. Its six other tags are facts and stay policed.
 	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true},
+	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true},
 }
 
 // routingModel is the parsed model, reduced to what the seam needs: the
@@ -66,6 +71,9 @@ type routingModel struct {
 	RuleIDs []string
 	// Emits maps a rule id to its emit block.
 	Emits map[string]map[string]string
+	// EmitDomains maps a declared `[emit.<key>]` to its domain — the
+	// union of its partitions, and each partition under `<key>.<part>`.
+	EmitDomains map[string][]string
 }
 
 // routingAtom is one `[rule.guard.*.<key>]` comparison.
@@ -102,9 +110,10 @@ func loadRoutingModelNamed(t *testing.T, name string) *routingModel {
 	}
 
 	m := &routingModel{
-		Tags:  map[string][]string{},
-		Kinds: map[string]string{},
-		Emits: map[string]map[string]string{},
+		Tags:        map[string][]string{},
+		Kinds:       map[string]string{},
+		Emits:       map[string]map[string]string{},
+		EmitDomains: map[string][]string{},
 	}
 	section, rule := "", ""
 	pending := map[string]string{} // the open [tags.*] table's keys
@@ -181,6 +190,17 @@ func loadRoutingModelNamed(t *testing.T, name string) *routingModel {
 				m.Emits[rule] = map[string]string{}
 			}
 			m.Emits[rule][key] = val
+		case strings.HasPrefix(section, "emit."):
+			name := strings.TrimPrefix(section, "emit.")
+			switch {
+			case strings.HasSuffix(name, ".domain"):
+				name = strings.TrimSuffix(name, ".domain")
+				vals := splitTOMLList(strings.TrimSpace(rest))
+				m.EmitDomains[name] = append(m.EmitDomains[name], vals...)
+				m.EmitDomains[name+"."+key] = vals
+			case key == "domain":
+				m.EmitDomains[name] = splitTOMLList(strings.TrimSpace(rest))
+			}
 		}
 	}
 	flush()
@@ -978,5 +998,111 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 	argv = filteredTagArgv(t, table, "0021", "impl_orphans,impl_open_decisions,impl_mvv_recorded")
 	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete-coverage-unread" || next != "stopped:coverage-unread" {
 		t.Errorf("completion gate on 0021 (no ledger): rule %q next %q, want complete-coverage-unread", rule, next)
+	}
+}
+
+// TestWriteDemoteWritesTheQualifierTarget: every `demote` edit carries the
+// `@<stage>` token the row's `stage` names, and that token is one the
+// qualifier grammar accepts (model.ReentryTargets). The class -> stage
+// mapping is the row's; a token the grammar cannot read would degrade
+// the qualifier to a free-text note and blind every re-entry rule.
+func TestWriteDemoteWritesTheQualifierTarget(t *testing.T) {
+	m := loadRoutingModelNamed(t, "rdr-write.toml")
+	seen := 0
+	for _, id := range m.RuleIDs {
+		em := m.Emits[id]
+		if !strings.HasPrefix(id, "demote-") || em["op"] != "demote" {
+			continue
+		}
+		seen++
+		stage := em["stage"]
+		if !containsString(model.ReentryTargets, stage) {
+			t.Errorf("rule %q emits stage %q, which the qualifier grammar does not accept (%v)", id, stage, model.ReentryTargets)
+		}
+		if !strings.Contains(em["edit"], "@"+stage+" ") {
+			t.Errorf("rule %q emits stage %q but its edit does not write `@%s `:\n%s", id, stage, stage, em["edit"])
+		}
+	}
+	if seen == 0 {
+		t.Fatal("rdr-write.toml has no demote row emitting op=demote; the parse moved and this test is blind")
+	}
+	for _, want := range model.ReentryTargets {
+		if !containsString(m.EmitDomains["stage"], want) {
+			t.Errorf("[emit.stage] does not declare %q, which the qualifier grammar accepts", want)
+		}
+	}
+}
+
+// TestWriteReturnStaysInTheStatusRouteDomain polices the one duplication
+// the `return` group carries: its `next_action` values are commands the
+// navigator (rdr-status.toml) already declares as `route`. A return
+// stage the navigator cannot route to is a packet the cascade relays to
+// nowhere.
+func TestWriteReturnStaysInTheStatusRouteDomain(t *testing.T) {
+	w := loadRoutingModelNamed(t, "rdr-write.toml")
+	st := loadRoutingModelNamed(t, "rdr-status.toml")
+	route := st.EmitDomains["next.route"]
+	if len(route) == 0 {
+		t.Fatal("rdr-status.toml declares no [emit.next.domain] route partition; the parse moved")
+	}
+	for _, v := range w.EmitDomains["next_action"] {
+		if !containsString(route, v) {
+			t.Errorf("[emit.next_action] admits %q, which rdr-status.toml's route domain does not (%v)", v, route)
+		}
+	}
+	seen := 0
+	for _, id := range w.RuleIDs {
+		em := w.Emits[id]
+		if !strings.HasPrefix(id, "return-") || em["op"] != "return" {
+			continue
+		}
+		seen++
+		if !containsString(w.EmitDomains["next_action"], em["next_action"]) {
+			t.Errorf("rule %q emits next_action %q outside [emit.next_action]", id, em["next_action"])
+		}
+		if !containsString(w.EmitDomains["stage"], em["stage"]) {
+			t.Errorf("rule %q emits stage %q outside [emit.stage]", id, em["stage"])
+		}
+	}
+	if seen == 0 {
+		t.Fatal("rdr-write.toml has no return row emitting op=return; the parse moved and this test is blind")
+	}
+}
+
+// TestWriteProfileEmitMatchesTheProfileFact: what the `profile` group can
+// write is exactly what the `profile` fact can read back, minus the
+// absent sentinel — a value the table emits and the projector cannot
+// render would route nothing at the next stage.
+func TestWriteProfileEmitMatchesTheProfileFact(t *testing.T) {
+	w := loadRoutingModelNamed(t, "rdr-write.toml")
+	tbl := loadRealTable(t)
+	var fact []string
+	for _, f := range tbl.Facts {
+		if f.Name == "profile" {
+			for _, v := range f.Domain {
+				if v != f.Absent {
+					fact = append(fact, v)
+				}
+			}
+		}
+	}
+	if len(fact) == 0 {
+		t.Fatal("the fact table declares no enum `profile`")
+	}
+	emit := w.EmitDomains["profile"]
+	for _, v := range fact {
+		if !containsString(emit, v) {
+			t.Errorf("fact profile can carry %q, which [emit.profile] does not declare (%v)", v, emit)
+		}
+	}
+	for _, v := range emit {
+		if !containsString(fact, v) {
+			t.Errorf("[emit.profile] declares %q, which fact profile cannot carry (%v)", v, fact)
+		}
+	}
+	for _, id := range w.RuleIDs {
+		if em := w.Emits[id]; em["op"] == "profile" && !containsString(emit, em["profile"]) {
+			t.Errorf("rule %q emits profile %q outside [emit.profile]", id, em["profile"])
+		}
 	}
 }

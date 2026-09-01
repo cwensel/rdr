@@ -38,8 +38,9 @@ they consume — state it once, here:
   TEMPLATE's Predecessors field names; launch.md's PRECHECKS enforce it and
   halt otherwise.
 
-If any of these is not true, the RDR is not ready to implement — return to
-Stage 7 (lock) or Stage 6 (an unreconciled assumption), not into this stage.
+If any of these is not true, the RDR is not ready to implement — an unlocked
+record goes where `/rdr-status` routes it, and an unreconciled assumption is a
+classed blocker (rdr-common §rdr-write `--outcome return`), not this stage's.
 
 ## Paste this
 
@@ -75,8 +76,8 @@ from artifact headers, not a re-read.
   re-enter the stage; the resume logic picks up at the next phase.
 - **A contract-level deviation** (`SPEC-DEFECT`, or a `SPEC-UNDER` no reading
   resolves) means the locked RDR is wrong. **Do not edit the RDR.** Abandon
-  implementation and iterate the RDR — re-enter the flow at Stage 2/3/4 as the
-  defect dictates, re-lock (Stage 7), then re-run this stage. This is the
+  implementation and iterate the RDR — re-enter at the stage the defect's class
+  names (rdr-common §rdr-write `--outcome return`), re-lock (Stage 7), then re-run this stage. This is the
   flow's only backward edge out of Final, and it is deliberate: the spec is the
   source of truth, so a spec defect is fixed in the spec, never in the code.
   (Deviation Types — SPEC-DEFECT / SPEC-UNDER / DEPENDENCY-LIMIT /

@@ -11,6 +11,8 @@ seam_lineage_count           int     2
 seam_lineage                 enum    2+
 accretion_disposition        bool    true
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     2
 ca_verified                  int     0
 ca_pending                   int     2
@@ -67,6 +69,8 @@ seam_lineage_count           int     3
 seam_lineage                 enum    2+
 accretion_disposition        bool    false
 contracts                    int     1
+contracts_transient          int     0
+contracts_durable            enum    1
 cluster                      set     ["0020","0022"]
 clustered                    bool    true
 ca_total                     int     1
@@ -127,6 +131,8 @@ seam_lineage_count           int     0
 seam_lineage                 enum    0
 accretion_disposition        bool    false
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     2
 ca_verified                  int     1
 ca_pending                   int     0
@@ -187,6 +193,8 @@ profile                      enum    small
 profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
 ca_pending                   int     0
@@ -241,6 +249,8 @@ profile                      enum    mid
 profile_raw                  scalar  mid
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     0
 ca_pending                   int     1
@@ -292,6 +302,8 @@ status_parked                bool    false
 open_joint_decisions         set     []
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     0
 ca_pending                   int     0
@@ -345,6 +357,8 @@ profile                      enum    small
 profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
 ca_pending                   int     0
@@ -400,6 +414,8 @@ profile                      enum    small
 profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
 ca_pending                   int     0
@@ -455,6 +471,8 @@ profile                      enum    small
 profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
 ca_pending                   int     0
@@ -508,6 +526,8 @@ profile                      enum    small
 profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
+contracts_transient          int     0
+contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
 ca_pending                   int     0

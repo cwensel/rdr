@@ -25,8 +25,8 @@ a sweep you spawn gets that path in its brief. On BLOCK, split the findings:
   anchor rewrites. Never route these to Refine: conformance is outside its
   contract, so the finding returns unchanged.
 - SUBSTANTIVE — NOT READY: needs new evidence or a design call (disturbed/
-  refuted assumption, section unfillable from what the RDR carries). Name the
-  stage whose prompt owns the fix.
+  refuted assumption, section unfillable from what the RDR carries). Class it
+  (`blocker_class`, rdr-common §rdr-write) — `--outcome return` names the stage.
 
 LOOP-BREAKER: before any NOT-READY return pointer, read the prior reports
 under the same eval's `$EVIDENCE_DIR` (`$ITER_FOUND` names the iterations on
@@ -51,8 +51,8 @@ ALSO scan `Profile` + `Normative Contracts`: for a `mid`/`large` RDR whose
 contract names step-ordering, parse/deparse, import/export, compose/decompose,
 hashing, identity, migration, ambiguous field ownership, or multi-step MVV
 fidelity, require `evidence/repeatability/run-1.md` + `diff.md` or a written
-`determinacy: n/a - <reason>` disposition. If absent, NOT READY; return to
-Stage 5 repeatability-lite.
+`determinacy: n/a - <reason>` disposition. If absent, NOT READY, class
+`determinacy`.
 
 Then run the Finalization Gate from the template as written responses (not
 checkboxes): items 1, 2, 3 and 5 go to {ARTIFACT_DIR}/gate.md — a short header
@@ -74,8 +74,8 @@ where the lock keeps it citable; gate.md never carries a second copy to drift:
 Verdict the gate, then act on it in this same pass — the verdict is the gate,
 not a human pause:
 
-- NOT READY (any blocker) — report the named blockers and the stage each
-  returns to. Flip NOTHING. Stop here.
+- NOT READY (any blocker) — report the named blockers, each with its class and
+  the `next_action` that `--outcome return` emits. Flip NOTHING. Stop here.
 - READY — lock immediately. First write responses 1, 2, 3 and 5 to
   {ARTIFACT_DIR}/gate.md (on a re-lock, overwrite it — gate.md is the current
   lock's record). Then run rdr-common §rdr-write twice: `--outcome lock` moves

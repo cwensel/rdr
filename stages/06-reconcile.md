@@ -73,7 +73,8 @@ having this gate, not abstract caution:
   forced a
   normative rewrite. Without a forced gate the temptation is to "adjust the
   wording" and lock anyway; that papers over a design that is now wrong. So a
-  refutation is a BLOCKER that re-opens the RDR (Stage 2/3/4), never a checkbox.
+  refutation is a BLOCKER that re-opens the RDR at the stage its class names
+  (rdr-common §rdr-write `--outcome return`), never a checkbox.
 - **An MVV-critical spike or assumption can't defer.** A spike that pins the
   very thing the Minimum Viable Validation proves once nearly slipped past lock
   as a "post-lock follow-up." If the MVV's fidelity bar rests on it, deferring

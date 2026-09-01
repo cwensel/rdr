@@ -213,8 +213,9 @@ hundred bytes instead of the whole envelope.
 
 ## §rdr-write — the structural edits, resolved not described
 
-The four structural edits (claim a number, add/flip the README row, lock, route
-back) are **resolved from a linted decision table**, not restated per site.
+The structural edits (claim a number, add/flip the README row, lock, route
+back, size the Profile) and a blocker's return stage are **resolved from a
+linted decision table**, not restated per site.
 `intrastate lint --model` proves every cell of `models/rdr-write.toml` is claimed
 by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 
@@ -222,7 +223,8 @@ by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 # §rdr-write — one call. $RDR_HOME comes from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
-  --outcome <claim|readme|lock|demote> $("$RDR_HOME/bin/rdr" status --tags NNNN)
+  --outcome <claim|readme|lock|demote|profile|return> [--tag k=v …] \
+  $("$RDR_HOME/bin/rdr" status --tags NNNN)
 ```
 
 `emit` is the answer (`--plan-only` drops the fact echo; the plan is unchanged): `op`
@@ -232,8 +234,16 @@ values are not edits: `none` (the state already holds — every op is idempotent
 and `stopped:*` (a shape the table refuses rather than guesses; surface per
 §stop-packet).
 
-The table routes structure and status, never judgement: the gate verdict and the
-demotion call arrive as your `--outcome`. `rdr` stays read-only — it renders the
+Four tags are the caller's, not facts, and only the rows that read them demand
+them: `profile` takes `floor` (§lens-row's `emit.floor`, passed through as a
+value), `user_facing=<yes|no|unknown>` and `locks=<none|contract|format|cross-rdr|unknown>`
+— Resolve's two judgements; `demote` and `return` take
+`blocker_class=<approach|contradiction|contract|assumption-gap|assumption-disturbed|spike|determinacy|wording|none>`.
+`unknown` and `none` are declared members that stop by name — never default them.
+
+The table routes structure and status, never judgement: the gate verdict, the
+demotion call and the Profile's two dispositions arrive as your `--outcome` and
+tags. `rdr` stays read-only — it renders the
 facts, the table decides, you apply the edit with `sed`/`git mv`. A write re-arms
 the lint receipt (§commit).
 

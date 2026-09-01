@@ -212,7 +212,7 @@ var factSources = map[string]bool{
 	"ca-rollup": true, "verdict-line": true, "capsule-state": true,
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
-	"stale-lens": true, "stale-path": true, "seam-lineage": true,
+	"stale-lens": true, "stale-path": true, "seam-lineage": true, "contracts": true,
 	"impl-artifact": true, "record-lines": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
@@ -504,6 +504,14 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		default:
 			return d, fmt.Errorf("fact %q: a seam-lineage selects count, bucket or disposition, got %q", name, d.Select)
 		}
+	case "contracts":
+		// Two selects: the Transient-marked count, and the durable bucket
+		// the `profile` rows read. The subtraction happens here, once.
+		switch d.Select {
+		case "transient", "durable":
+		default:
+			return d, fmt.Errorf("fact %q: a contracts selects transient or durable, got %q", name, d.Select)
+		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
 		if rootedSource[d.Source] && strings.ContainsAny(p, "*?[") {
@@ -720,6 +728,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.readmeRow(d)
 	case "seam-lineage":
 		return e.seamLineage(d)
+	case "contracts":
+		return e.contractCounts(d)
 	case "stale-lens":
 		return e.staleLens(d)
 	case "stale-path":
@@ -898,6 +908,46 @@ func (e *FactEnv) seamLineage(d FactDecl) (Fact, bool) {
 			return Fact{}, false
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(sl.Disposition)}, true
+	}
+	return Fact{}, false
+}
+
+// contractCounts answers the Profile sizing's contract axis off the
+// projected contract elements: how many carry the Transient marker
+// (scan.Element.Transient), and the DURABLE count — labelled minus
+// Transient — bucketed for routing. TEMPLATE.md's Normative Contracts
+// says a Transient-marked contract "counts toward neither the Profile
+// contract axis nor the split signal"; that subtraction is made here,
+// once, so the `profile` rows in rdr-write.toml never do arithmetic.
+//
+//	transient  the int; absent only when there is no document
+//	durable    0 | 1 | 2+ over labelled − transient. A record whose
+//	           contracts are prose has no labelled elements and reads
+//	           0 — `contracts_prose` is what tells that apart from an
+//	           empty section, and the rows read both.
+func (e *FactEnv) contractCounts(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	total, transient := 0, 0
+	for _, el := range e.Doc.Elements {
+		if el.Kind != ident.Contract {
+			continue
+		}
+		total++
+		if el.Transient {
+			transient++
+		}
+	}
+	switch d.Select {
+	case "transient":
+		return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(transient)}, true
+	case "durable":
+		v := strconv.Itoa(total - transient)
+		if total-transient >= 2 {
+			v = "2+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
 	}
 	return Fact{}, false
 }

@@ -62,8 +62,8 @@ Claude: /rdr-resolve <NNNN>
 - Research refuted the approach or surfaced existing capability → **back** to
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
-  field** (the routing latch) from the contract count, floored by
-  `--outcome floor`'s answer, which outranks it (the prompt owns both). Then **run
+  field** (the routing latch) via §rdr-write `--outcome profile`, fed
+  `--outcome floor`'s answer, which outranks the count (the prompt owns the call). Then **run
   §lens-row's call** for the next pointer — it reads the field this stage just
   wrote, and the first lens is profile-dependent (`foundational` leads with
   `cove`, not `grounding`), so an inferred row is how a lens gets skipped.

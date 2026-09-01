@@ -949,6 +949,8 @@ var routingFacts = map[string]string{
 	"critique_model_a":      "the stamp the critique dual-model comparison reads",
 	"critique_model_b":      "the stamp the critique dual-model comparison reads",
 	"contracts_prose":       "the Determinacy trigger's input: contracts written as prose, which a zero C count cannot see",
+	"contracts_transient":   "how many labelled contracts the Transient marker excludes from the Profile axis",
+	"contracts_durable":     "the Profile contract axis: labelled minus Transient, bucketed, subtracted by the projector",
 }
 
 // TestEveryStageRowIsExpressedAsFacts is the issue's acceptance criterion,
@@ -1375,6 +1377,46 @@ func TestContractsProseSeparatesTemplateFromAuthored(t *testing.T) {
 			env := NewFactEnv(tbl, d, "0010-frame-header")
 			if got, _ := factValue(tbl.Evaluate(env), "contracts_prose"); got != c.want {
 				t.Errorf("contracts_prose = %q, want %q, for:\n%s", got, c.want, c.body)
+			}
+		})
+	}
+}
+
+// TestContractFactsSubtractTransient: the Profile contract axis excludes
+// Transient-marked contracts (TEMPLATE.md), and the subtraction is the
+// projector's — the durable bucket arrives computed, so the `profile`
+// rows compare and never count.
+func TestContractFactsSubtractTransient(t *testing.T) {
+	fence := func(label, body string) string {
+		return "**" + label + "**\n\n```normative\n" + body + "\n```\n\n"
+	}
+	transient := "Transient — scheduled deletion by 0032-frame-bridge, phase 2; bridge only"
+	for _, c := range []struct {
+		name, body, transientN, durable string
+	}{
+		{"prose only", "Composite fields are author-ordered in the wire.\n", "0", "0"},
+		{"one durable", fence("C1", "func Encode(f Frame) []byte"), "0", "1"},
+		{"one durable, one transient", fence("C1", "func Encode(f Frame) []byte") + fence("C2", "func EncodeLegacy(f Frame) []byte\n"+transient), "1", "1"},
+		{"two durable, one transient", fence("C1", "a") + fence("C2", "b") + fence("C3", "c\n"+transient), "1", "2+"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "0011-frame-codec.md")
+			doc := "# Recommendation 0011: Frame codec\n\n## Normative Contracts\n\n" + c.body
+			if err := os.WriteFile(path, []byte(doc), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			d, err := scan.File(path, scan.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tbl := loadRealTable(t)
+			facts := tbl.Evaluate(NewFactEnv(tbl, d, "0011-frame-codec"))
+			if got, _ := factValue(facts, "contracts_transient"); got != c.transientN {
+				t.Errorf("contracts_transient = %q, want %q", got, c.transientN)
+			}
+			if got, _ := factValue(facts, "contracts_durable"); got != c.durable {
+				t.Errorf("contracts_durable = %q, want %q", got, c.durable)
 			}
 		})
 	}

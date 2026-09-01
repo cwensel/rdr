@@ -24,10 +24,10 @@ not re-derive (a re-derived count drifts). If the seam has no prior closed
 point-fixes, write "no prior accretion".
 
 For the **Profile** Metadata field, write a one-line provisional estimate from
-the same design shape you judged to seed this as one RDR (`rdr/stages/README.md`
-matrix: one internal contract → small; user-facing or locks a contract → mid;
-locks an enum/hash/format/grammar/destructive-op → large; cross-RDR / spans
-modules → foundational). **Then the floor**: `--outcome floor` (rdr-common
+the same design shape you judged to seed this as one RDR (the axes of
+`models/rdr-write.toml`'s `profile` rows: is the surface user-facing, and does
+the contract lock nothing, a contract, a format, or other RDRs). **Then the
+floor**: `--outcome floor` (rdr-common
 §lens-row's call — run it in the same block as the README row below) answering
 `foundational` IS the Profile, whatever you estimated. It is an
 early budget signal, provisional because the RDR is `Draft`; Stage 4 (Resolve)

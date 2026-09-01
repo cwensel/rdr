@@ -98,20 +98,20 @@ and the flow ends by handing to step 7 (Close — post-mortem).
                                           │ all lenses done
                                           ▼
                           [6 Reconcile Spikes & Assumptions]
-                                          │ RECONCILED (else → 2/3/4)
+                                          │ RECONCILED (else → the blocker's class names the stage)
                                           ▼
                                    [7 Finalize] → Final
                                           │
             (cluster only) ──────────────┤ ≥2 related RDRs Final, none impl.
                                           ▼
                           [7.1 Cluster Reconcile]  cross-RDR drift
-                                          │ RECONCILED (else → 2/3/4 at scoped
+                                          │ RECONCILED (else → demote by class, at scoped
                                           │ depth: re-lock-only/stage/full-flow)
                                           ▼  (hours/days later)
                      [8 Implement] (../prompts/implementation/launch.md)
                           │  ◄── resume across gaps from status.md
         spec defect ──────┤
-        → 2/3/4, re-lock  │ COMPLETE
+        → class, re-lock  │ COMPLETE
                           ▼
                    Close (step 7): post-mortem
 ```

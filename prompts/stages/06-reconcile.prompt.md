@@ -52,7 +52,8 @@ HARD RULE — refutation is not a checkbox. If a spike or source-search REFUTES
 an assumption the RDR currently relies on (the design says X, the target system
 or the source does not-X), STOP. Do not paper over it. Report it as a BLOCKER
 and send the
-RDR back to Stage 2 (approach), 3 (refine), or 4 (re-resolve) — name which.
+RDR back: class the refutation (`approach` | `contract` | `assumption-gap`,
+rdr-common §rdr-write) — `--outcome return` names the stage.
 Locking over a refuted assumption is the failure this gate exists to prevent.
 Run rdr-common §strong-consult on the reopened fork before routing — its
 verdict rides the BLOCKER report, and the route-back is the close packet's
@@ -90,4 +91,5 @@ Output:
   - A table: item | source(1–4) | disposition (VERIFIED/DOWNGRADED/ACCEPTED/
     BLOCKER) | evidence pointer or plan.
   - Verdict: RECONCILED (all items terminal, no BLOCKER) — ready for Finalize.
-            NOT RECONCILED — list each BLOCKER and the stage to return to.
+            NOT RECONCILED — list each BLOCKER with its class and the
+            emitted `next_action`.

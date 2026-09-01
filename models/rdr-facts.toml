@@ -346,6 +346,31 @@ path        = "counts.elements.C"
 min         = 0
 description = "Labelled Normative Contracts. Zero may mean unlabelled, not absent."
 
+# The Profile contract axis, as the `profile` rows of rdr-write.toml read
+# it. TEMPLATE.md's Transient marker (`Transient — scheduled deletion by
+# <sibling>, …`) says a marked contract counts toward neither the axis
+# nor the split signal; the projector reads the marker (scan
+# Element.Transient) and SUBTRACTS here, once, so no row and no stage
+# does the arithmetic. `contracts_transient` is the number, for the
+# reader; `contracts_durable` is the bucket the rows guard on. A record
+# whose contracts are prose has no labelled elements and reads `0`
+# durable — `contracts_prose` is what the rows read beside it, so the
+# unlabelled case stops by name rather than sizing as empty.
+[fact.contracts_transient]
+kind        = "int"
+source      = "contracts"
+select      = "transient"
+min         = 0
+description = "Labelled Normative Contracts carrying the Transient marker."
+
+[fact.contracts_durable]
+kind        = "enum"
+source      = "contracts"
+select      = "durable"
+domain      = ["0", "1", "2+"]
+absent      = "0"
+description = "Labelled contracts minus Transient-marked, bucketed for the profile rows; the subtraction is the projector's."
+
 # Declared tandem siblings. The Stage-2 tandem barrier bars a clustered
 # Draft from refine until every member has completed propose, so whether
 # the field is present is itself routing.

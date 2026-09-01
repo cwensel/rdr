@@ -158,33 +158,23 @@ Propose owns Investigation + Implementation Plan; do not re-author those here.
 
 Then OVERWRITE THE **Profile** Metadata field — the routing latch every later
 stage reads instead of re-deriving size. Seed wrote a provisional estimate; you
-replace it from the now-verified contracts (don't trust the estimate — recount).
-Count the *independent* load-bearing contracts in the Normative Contracts
-section (a distinct type design, hash, wire format, taxonomy, or destructive-op
-policy each count as one) and write the matching value (`rdr/stages/README.md`
-matrix):
-- one contract, no user-facing surface → `small` (skips Stage 5 — next is
-  Reconcile, not Pre-Lock);
-- one contract + user-facing surface, OR locks a contract → `mid`;
-- locks an enum/hash/format/grammar/destructive op → `large`;
-- cross-RDR producer / spans modules → `foundational`.
-Exclude `Transient`-marked contracts (scheduled deletion by a named sibling —
-TEMPLATE.md Normative Contracts) from this recount and from the ≥2 split
-signal: the marker is a recorded lifespan disposition; sizing stays on the
-durable contracts.
-With the assumptions just verified, the count is evidence-grounded here, not
-guessed. ≥2 independent contracts → the RDR spans more than one seam: flag for
-splitting (back to Stage 2/3) rather than picking a profile.
-**Then the floor — it outranks the count.** `--outcome floor` (rdr-common
-§lens-row's call; it reads `Seam Lineage` from disk — do not re-read or count
-it) answering `foundational` is the Profile whatever you just counted. The count
-may raise the profile; it may never lower one the floor holds — un-flooring an
-accreting seam routes it past the very lenses the floor buys. Report the
-profile + the contract count behind it, and `emit.why` when the floor applied.
-The field holds the value + one
-clause naming the contract(s); strip any matrix/provenance prose the template or Seed left
-behind — that guidance lives in the template comment and `rdr/stages/README.md`,
-not the instance.
+replace it from the now-verified contracts. Judge the one durable contract on
+two dispositions, written once, in the clause: is its surface user-facing
+(`yes|no`), and what does it lock (`none` | `contract` | `format` — an
+enum/hash/format/grammar/destructive op | `cross-rdr` — a producer other RDRs
+consume, or one spanning modules). Then run rdr-common §rdr-write with
+`--outcome profile`, passing `--tag floor=<emit.floor of --outcome floor>`
+(§lens-row's call — the accretion floor outranks the count and is resolved
+there, never re-read here), `--tag user_facing=<yes|no>` and `--tag locks=<…>`,
+and apply `edit` as handed: the field becomes `<value> — <one clause naming the
+contract>; user-facing <yes|no>; locks <…>`; drop any matrix/provenance prose
+the template or Seed left (it lives in the template comment, not the instance).
+The row counts the durable (non-`Transient`) fenced contracts for you:
+`stopped:split-signal` means two or more — the RDR spans more than one seam, so
+flag a split (back to Stage 2/3) rather than pick a profile;
+`stopped:contracts-unlabelled` means the contracts are prose — label each
+`**Cn**` over its fence first. Report `emit.profile`, the durable count behind
+it, and `emit.why` when the floor applied.
 
 Be brief in results; ultrathink for complex design or any load-bearing
 assumption; never trade brevity for a weaker verification. Report per

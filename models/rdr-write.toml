@@ -1,9 +1,10 @@
 # rdr-write.toml — the flow's structural record edits, as data.
 #
-# Four operations the flow performs by hand today, restated across five
-# prompt sites and re-derived by a model on every run: claim a number,
-# add or flip the README index row, lock at Stage 7, demote at 7.1. They
-# are the largest edits in the flow and the most mechanical.
+# Six operations the flow performed by hand, restated across prompt
+# sites and re-derived by a model on every run: claim a number, add or
+# flip the README index row, lock at Stage 7, demote at 7.1, size the
+# Profile at Resolve, and name the stage a blocker returns to. They are
+# the largest edits in the flow and the most mechanical.
 #
 # ---------------------------------------------------------------------
 # WHY THIS IS A TABLE AND NOT AN `rdr` SUBCOMMAND
@@ -60,9 +61,18 @@
 # over an empty product that any single row closes — green whether or not
 # it is complete.
 #
-# FOUR OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
+# SIX OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
 # different question over a different slice of the facts, and splitting
 # the question splits the product.
+#
+# FOUR TAGS ARE CALLER-SUPPLIED, NOT FACTS — the `observed` provenance's
+# ordinary shape, as rdr-cascade.toml's packet fields are. `user_facing`
+# and `locks` are Resolve's two judgements of the contract, written once
+# in the Profile clause; `floor` is rdr-status.toml's `emit.floor`, passed
+# through as a value so the accretion rule keeps its one home; and
+# `blocker_class` is the verdict packet's class of blocker. The resolver
+# demands a tag only where a row guards on it, so `claim`, `readme` and
+# `lock` run unchanged. `tools/rdr/routing_test.go` allowlists them.
 #
 # ---------------------------------------------------------------------
 # WHAT THIS TABLE DOES NOT DECIDE
@@ -76,8 +86,13 @@
 # Where the flow's own answer is a judgement a fact cannot make, the row
 # emits a `stopped:` token naming what is missing, exactly as
 # §stop-packet requires: a skipped check must never read as a passed one.
+#
+# The Profile is the one place a judgement is an INPUT: whether the
+# contract is user-facing and what it locks are Resolve's to say, so they
+# arrive as tags with `unknown` a declared member that stops by name.
+# The `profile` group maps them; it never infers them.
 
-outcomes = ["claim", "readme", "lock", "demote"]
+outcomes = ["claim", "readme", "lock", "demote", "profile", "return"]
 
 [model]
 id          = "rdr-write"
@@ -85,9 +100,61 @@ version     = 1
 class       = "decision-table"
 description = "RDR write side: the record's facts to the one structural edit."
 
+# --- the emit vocabulary (intrastate RDR 0024) ------------------------------
+#
+# Declared so a misspelt stop token or an undeclared key is a lint
+# failure, not a value a skill reads as an op. `op`'s dispositions are the
+# caller's contract: `edit` carries an expression to apply, `none` is the
+# state already held, `stop` is a §stop-packet token. Every key a row
+# emits is declared — the loader refuses a partial declaration.
+[emit.op]
+kind = "enum"
+[emit.op.domain]
+edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return"]
+none = ["none"]
+stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten"]
+
+[emit.target]
+kind   = "enum"
+domain = ["records-dir", "readme", "record", "packet"]
+
+[emit.edit]
+kind = "scalar"
+
+[emit.sections]
+kind = "scalar"
+
+[emit.then]
+kind = "scalar"
+
+[emit.why]
+kind = "scalar"
+
+[emit.surface]
+kind = "scalar"
+
+# The `profile` group's answer: the value the Profile field must carry.
+[emit.profile]
+kind   = "enum"
+domain = ["small", "mid", "large", "foundational"]
+
+# The stage a blocker returns to, as `demote` writes it (`@<stage>`, the
+# four the qualifier grammar accepts) and as `return` names it. The token
+# is the skill's verb; `next_action` is the command the packet carries.
+[emit.stage]
+kind   = "enum"
+domain = ["propose", "refine", "resolve", "prelock", "reconcile", "finalize"]
+
+# A subset of rdr-status.toml's `route` disposition, policed by
+# `tools/rdr/routing_test.go`; the caller appends NNNN as everywhere.
+[emit.next_action]
+kind   = "enum"
+domain = ["/rdr-propose", "/rdr-refine", "/rdr-resolve", "/rdr-prelock repeatability 1", "/rdr-reconcile", "/rdr-finalize"]
+
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
+domain        = ["claim", "readme", "lock", "demote", "profile", "return"]
 single_valued = true
 required      = true
 
@@ -181,6 +248,74 @@ required      = true
 [tags.gate_stale]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# --- the `profile` group's dimensions ---------------------------------------
+#
+# The contract axis, from `rdr-facts.toml`: labelled contracts minus the
+# Transient-marked ones, already subtracted and bucketed by the projector
+# (`contracts_durable`), and whether the section carries authored prose
+# (`contracts_prose`) — a `0` bucket with prose is UNLABELLED, which no
+# row can size and so stops by name; a `0` without is an empty section.
+[tags.contracts_durable]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1", "2+"]
+single_valued = true
+required      = true
+
+[tags.contracts_prose]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — Resolve's two judgements of the one durable contract,
+# each written once as a disposition in the Profile clause (`mid — C1;
+# user-facing yes; locks contract`, 04-resolve.prompt.md). `unknown` is
+# the declared "not judged" member and stops; nothing here defaults it.
+# `locks` is what the contract binds: nothing, a contract (→ mid), an
+# enum/hash/format/grammar/destructive op (→ large), or other RDRs and
+# modules (→ foundational) — one single-valued axis where the prose had
+# three overlapping clauses.
+[tags.user_facing]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["yes", "no", "unknown"]
+single_valued = true
+required      = true
+
+[tags.locks]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "contract", "format", "cross-rdr", "unknown"]
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — rdr-status.toml's `emit.floor` (`--outcome floor`,
+# rdr-common §lens-row), passed through as the value it is. The accretion
+# rule (two or more prior point-fixes, no disposition) lives in that one
+# group; this table reads its ANSWER and never restates the count.
+[tags.floor]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["foundational", "none"]
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — the class of a listed blocker, from the verdict
+# packet (Stage 6 NOT RECONCILED, Stage 7 NOT READY, Stage 8's spec
+# defect, 7.1's SPEC-DEFECT scope). The vocabulary is the former prose
+# ladders' own: an approach or scope/MVV gap (`approach`), a
+# `contradiction`, a `contract` edit, an `assumption-gap` Stage 4 must
+# re-verify, a round-disturbed assumption or open spike Stage 6 must
+# close, a missing `determinacy` disposition, or `wording` a re-lock
+# fixes in pass. `none` is the declared "unclassed" member and stops.
+[tags.blocker_class]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["approach", "contradiction", "contract", "assumption-gap", "assumption-disturbed", "spike", "determinacy", "wording", "none"]
 single_valued = true
 required      = true
 
@@ -726,22 +861,113 @@ surface = "the status, verbatim"
 # is a declared word there, so a note that survives a re-lock is a lint
 # finding rather than something a reader has to notice.
 
+# ONE ROW PER BLOCKER CLASS, because the `@<stage>` slot is the row's to
+# write: the qualifier grammar (TEMPLATE.md Status; model.RevisedFromGrammar)
+# accepts `@propose`, `@refine`, `@resolve` and `@finalize`, and the class
+# picks which. 7.1's re-entry scope is the same call — RE-LOCK-ONLY is
+# `wording`, STAGE-SCOPED is `contract` (3) or `assumption-gap` (4),
+# FULL-FLOW is `approach` (2). A class whose stage the grammar has no
+# token for (Stage 5, Stage 6) stops rather than guessing `@resolve`.
 [[rule]]
-id = "demote-final"
+id = "demote-final-approach"
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
 eq = "Final"
+[rule.guard.all.blocker_class]
+eq = "approach"
 [rule.emit]
 op     = "demote"
 target = "record"
+stage  = "propose"
 # The `;` must immediately follow the date (at most one short stage token
 # between): RevisedFromGrammar keys on it, and anything looser degrades
 # the qualifier to a free-text note that blinds every re-entry rule.
-edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> — <one-line reason>]/"
-sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE, RE-ENTRY SCOPE, resolution direction, and a pointer to the report"
-why    = "A cluster reconcile named this record as the less foundational of the pair — flip with the scope qualifier, then land the note."
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> @propose — <one-line reason>]/"
+sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE (2, FULL-FLOW), resolution direction, and a pointer to the report"
+why    = "The chosen approach is voided — flip with the scope qualifier naming Stage 2, then land the note."
 surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
+
+[[rule]]
+id = "demote-final-refine"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.blocker_class]
+in = ["contradiction", "contract"]
+[rule.emit]
+op     = "demote"
+target = "record"
+stage  = "refine"
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> @refine — <one-line reason>]/"
+sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE (3, STAGE-SCOPED), resolution direction, and a pointer to the report"
+why    = "A contradiction or a contract edit is Stage 3's — flip with the scope qualifier naming it, then land the note."
+surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
+
+[[rule]]
+id = "demote-final-resolve"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.blocker_class]
+eq = "assumption-gap"
+[rule.emit]
+op     = "demote"
+target = "record"
+stage  = "resolve"
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> @resolve — <one-line reason>]/"
+sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE (4, STAGE-SCOPED), resolution direction, and a pointer to the report"
+why    = "An assumption must be re-verified — flip with the scope qualifier naming Stage 4, then land the note."
+surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
+
+[[rule]]
+id = "demote-final-relock"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.blocker_class]
+eq = "wording"
+[rule.emit]
+op     = "demote"
+target = "record"
+stage  = "finalize"
+edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify none @finalize — <one-line reason>]/"
+sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE (fix + /rdr-finalize, RE-LOCK-ONLY), resolution direction, and a pointer to the report"
+why    = "A wording or cross-reference defect disturbs no assumption — flip RE-LOCK-ONLY, then land the note."
+surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
+
+# A class whose stage the qualifier grammar cannot name. A Final has
+# closed Stage 5 and 6; a spike or a disturbed assumption reopened on it
+# is an assumption gap for Stage 4, but that is the gate's reclassing to
+# make, not this row's.
+[[rule]]
+id = "demote-final-not-a-reentry"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.blocker_class]
+in = ["spike", "assumption-disturbed", "determinacy"]
+[rule.emit]
+op   = "stopped:class-not-a-reentry"
+why  = "The qualifier grammar names no @stage for Stage 5 or 6 — a Final has closed them, so reclass the blocker (an assumption to re-verify is `assumption-gap`)."
+surface = "the class and the finding, so the gate reclasses it or files the missing target"
+
+[[rule]]
+id = "demote-final-unclassed"
+[rule.match.recognized]
+eq = "demote"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.blocker_class]
+eq = "none"
+[rule.emit]
+op   = "stopped:no-blocker-class"
+why  = "No blocker class was passed — the @<stage> slot cannot be written, and a qualifier without it routes every re-entry to /rdr-resolve."
+surface = "the SPEC-DEFECT finding, so the caller classes it and re-runs"
 
 # Already a Draft → no-op. The record is already back in flight; a second
 # demote would stack a qualifier on a qualifier.
@@ -767,3 +993,321 @@ in = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected
 op   = "stopped:not-demotable"
 why  = "Terminal or parked — 7.1 routes back a Final, and this record is not one."
 surface = "the status, verbatim"
+
+# ===========================================================================
+# profile — Resolve's sizing of the Profile field
+# ===========================================================================
+#
+# Dimensions: contracts_durable × contracts_prose × user_facing × locks ×
+# floor = 3 × 2 × 3 × 5 × 2 = 180 cells, eleven rows.
+#
+# Profile is sized by blast radius — the matrix at stages/README.md. It
+# was a four-line ladder Resolve re-derived from a hand count, with the
+# Transient exclusion, the split signal and the accretion floor chained
+# after it in prose. Here the count arrives subtracted and bucketed, the
+# floor arrives as rdr-status.toml's answer, and the two judgements arrive
+# as tags. THE FLOOR OUTRANKS THE COUNT: it claims every cell it holds
+# first. Then: two or more durable contracts is the split signal, not a
+# size; none is either unlabelled (stop by name — prose contracts cannot
+# be counted) or unauthored; exactly one is sized by what it locks and
+# whether it is user-facing, and a judgement not written stops rather
+# than defaulting. Seed's estimate is not an input: the field is
+# OVERWRITTEN from the verified count, so the edit replaces the line.
+#
+# THE ANSWER IS `profile`, applied as the field's value, and `edit` is
+# the field line — with the two dispositions written INTO the clause, so
+# a later fact can read them back. The field may wrap; `then` names the
+# continuation to drop, since the template's matrix prose belongs in the
+# template comment and not the instance.
+
+# --- the floor holds: foundational, whatever the count --------------------
+[[rule]]
+id = "profile-floored"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "foundational"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "foundational"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: foundational — accretion floor; <one clause naming the contract(s)>/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "The accretion floor holds — Profile is foundational whatever the contract axis counts; the count may raise a profile, never lower one the floor holds."
+surface = "the floor's `why` from `--outcome floor`, and the durable count beside it"
+
+# --- no durable contract: unlabelled, or unauthored --------------------------
+[[rule]]
+id = "profile-unlabelled"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "0"
+[rule.guard.all.contracts_prose]
+eq = "true"
+[rule.emit]
+op   = "stopped:contracts-unlabelled"
+why  = "Normative Contracts carries prose and no labelled fence — the contract count is unreadable, and a size over an unread count is a guess."
+surface = "the section: label each independent contract `**Cn**` over its ```normative fence (TEMPLATE.md Normative Contracts), then re-run this call"
+
+[[rule]]
+id = "profile-no-contracts"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "0"
+[rule.guard.all.contracts_prose]
+eq = "false"
+[rule.emit]
+op   = "stopped:no-contracts"
+why  = "Normative Contracts is unauthored — there is nothing to size."
+surface = "that the section is the template's own text; Propose and Refine author it before Resolve sizes it"
+
+# --- two or more: the split signal ------------------------------------------
+[[rule]]
+id = "profile-split"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "2+"
+[rule.emit]
+op   = "stopped:split-signal"
+why  = "Two or more durable contracts — the record spans more than one seam; flag it for splitting rather than picking a profile."
+surface = "the durable fences by label: one seam → clauses of one `**C1**`; separate seams → split along them (Stage 2/3)"
+
+# --- exactly one: sized by what it locks, then by its surface ---------------
+[[rule]]
+id = "profile-locks-unjudged"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "unknown"
+[rule.emit]
+op   = "stopped:profile-judgement-unwritten"
+why  = "What the contract locks is not judged — nothing here defaults it."
+surface = "the `locks` disposition to write: none | contract | format (enum/hash/format/grammar/destructive op) | cross-rdr (producer, spans modules)"
+
+[[rule]]
+id = "profile-cross-rdr"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "cross-rdr"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "foundational"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: foundational — <one clause naming the contract>; user-facing <yes|no>; locks cross-rdr/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract that other RDRs consume or that spans modules — foundational."
+
+[[rule]]
+id = "profile-format"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "format"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "large"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: large — <one clause naming the contract>; user-facing <yes|no>; locks format/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract locking an enum, hash, format, grammar or destructive op — large."
+
+[[rule]]
+id = "profile-contract"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "contract"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "mid"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: mid — <one clause naming the contract>; user-facing <yes|no>; locks contract/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract that locks a contract — mid, whether or not it is user-facing."
+
+[[rule]]
+id = "profile-user-facing"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "none"
+[rule.guard.all.user_facing]
+eq = "yes"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "mid"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: mid — <one clause naming the contract>; user-facing yes; locks none/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract with a user-facing surface — mid."
+
+[[rule]]
+id = "profile-internal"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "none"
+[rule.guard.all.user_facing]
+eq = "no"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "small"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: small — <one clause naming the contract>; user-facing no; locks none/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract, internal, locking nothing — small; Stage 5 is skipped."
+surface = "that the next stage is Reconcile, not Pre-Lock"
+
+[[rule]]
+id = "profile-surface-unjudged"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "none"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "none"
+[rule.guard.all.user_facing]
+eq = "unknown"
+[rule.emit]
+op   = "stopped:profile-judgement-unwritten"
+why  = "A contract locking nothing is small or mid by its surface alone, and that is not judged."
+surface = "the `user-facing` disposition to write: yes | no"
+
+# ===========================================================================
+# return — the stage a blocker sends the record back to
+# ===========================================================================
+#
+# Dimensions: blocker_class = 9 cells, seven rows. Decide-only: the
+# answer is the packet's `next_action` (rdr-cascade.toml reads it as
+# `action=stage`), and nothing here writes the record.
+#
+# The ladder was stated at Stage 6 (NOT RECONCILED → 2/3/4), Stage 7 (NOT
+# READY: spike or disturbed assumption → 6, assumption gap → 4,
+# contradiction → 3, scope/MVV gap → 2, missing determinacy → 5) and
+# Stage 8 (a spec defect → 2/3/4). One vocabulary, one table; `demote`
+# above writes the same class into a Final's qualifier.
+
+[[rule]]
+id = "return-propose"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "approach"
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "propose"
+next_action = "/rdr-propose"
+why         = "The approach, the scope or the MVV is wrong — Stage 2 owns it."
+
+[[rule]]
+id = "return-refine"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+in = ["contradiction", "contract"]
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "refine"
+next_action = "/rdr-refine"
+why         = "A contradiction or a contract edit — Stage 3 owns it."
+
+[[rule]]
+id = "return-resolve"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "assumption-gap"
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "resolve"
+next_action = "/rdr-resolve"
+why         = "An assumption is unverified or refuted — Stage 4 owns it."
+
+[[rule]]
+id = "return-prelock"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "determinacy"
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "prelock"
+next_action = "/rdr-prelock repeatability 1"
+why         = "The Determinacy trigger fired and no run or `determinacy: n/a` disposition exists — repeatability-lite owns it."
+
+[[rule]]
+id = "return-reconcile"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+in = ["spike", "assumption-disturbed"]
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "reconcile"
+next_action = "/rdr-reconcile"
+why         = "An open spike or a round-disturbed assumption — Stage 6 owns closing it."
+
+[[rule]]
+id = "return-finalize"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "wording"
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "finalize"
+next_action = "/rdr-finalize"
+why         = "Wording or a cross-reference, no assumption disturbed — the lock pass fixes it in place."
+
+[[rule]]
+id = "return-unclassed"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "none"
+[rule.emit]
+op   = "stopped:no-blocker-class"
+why  = "The blocker carries no class — no stage can be named for it."
+surface = "the blocker, so the gate classes it (approach | contradiction | contract | assumption-gap | assumption-disturbed | spike | determinacy | wording)"

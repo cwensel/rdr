@@ -86,11 +86,10 @@ N/A-bulleted). -->
   authoritative by Resolve.
   Sized by BLAST RADIUS — the MAX of two axes, not
   contract count or word count.
-  (1) contract axis: small = one contract, no user-facing
-  surface (skips Stage 5); mid = one contract + user-facing
-  surface OR locks a contract; large = locks an enum/hash/
-  format/grammar/destructive-op; foundational = cross-RDR
-  producer / spans modules.
+  (1) contract axis: resolved by rdr-write.toml's `profile`
+  rows (the rule's one home) from the durable contract
+  count and two dispositions written in the clause:
+  `user-facing <yes|no>; locks <none|contract|format|cross-rdr>`.
   (2) accretion axis (HARD floor): resolved from `Seam
   Lineage` below by the routing model (rdr-status.toml's
   `floor` group — the rule's one home), never re-read here.
@@ -620,21 +619,20 @@ Contracts split signal). If it owns more than one
 seam, flag it for splitting rather than locking the
 seams together.
 
-Re-validate the **Profile** Metadata field against the
-contracts you just counted: confirm the value Resolve
-wrote still matches (one contract + no user-facing
-surface → `small`; etc. per the applicability matrix).
+Re-validate the **Profile** Metadata field: re-run
+rdr-write's `--outcome profile` with the clause's own
+dispositions and confirm the value Resolve wrote is
+what it emits (a stop is not a match).
 If the lenses that actually ran disagree with the
 Profile (e.g. Profile says `small` but the change locks
 a contract that warranted `mid`+ lenses, or the lenses
 were skipped on a wrong `small`), correct the field and
 do not lock until the missing lenses have run. This is
 the latch's backstop — a wrong Profile cannot route
-past the lens battery undetected. A `Transient`-marked
-contract with a named deleting sibling and schedule is a
-recorded lifespan disposition, not an under-sized
-Profile — do not count it when re-deriving. Also confirm form:
-value + one clause naming the contract(s); strip any
+past the lens battery undetected. (The row already
+excludes `Transient`-marked contracts.) Also confirm form:
+value + one clause naming the contract(s) and its two
+dispositions; strip any
 matrix/provenance prose left from the template or Seed
 (it belongs in the template comment, not the instance).]
 
