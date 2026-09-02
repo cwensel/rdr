@@ -1,0 +1,67 @@
+#!/bin/sh
+# rdr-next — the worklist with each record's next step, one line per record.
+#
+# `rdr status --argv` renders every in-flight and parked record as a
+# tab-separated line (slug, Status, its `--tag k=v` argv, qualifier);
+# `intrastate flow resolve` answers each row from the routing model. This
+# script only composes the two — neither binary calls the other, and the
+# only text it reads from the resolver is the envelope's own `emit.*` and
+# `dispositions.next` lines. It writes nothing.
+#
+# Output, one line per record:
+#   NNNN-slug · Status · next: /rdr-<stage> NNNN · <why>
+#   NNNN-slug · Deferred · parked: <revisit condition, verbatim>
+#   NNNN-slug · Status · next: stopped:<token> · <why>
+# A resolver refusal is `stopped:navigator-refused` with its first line —
+# a fact went absent, not false — and the loop continues.
+set -f   # the argv is one shell word per fact; never let a value glob
+
+here=$(dirname "$0")
+R="$here/rdr"
+H="${RDR_HOME:-$here/..}"
+M="$H/models/rdr-status.toml"
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
+[ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+[ -x "$R" ] || { echo "stopped:projector-not-built — $R" >&2; exit 1; }
+[ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 1; }
+
+tab=$(printf '\t')
+err=$(mktemp) || exit 1
+trap 'rm -f "$err"' EXIT
+
+# resolve <outcome> <argv…>: prints the envelope, or `refused` on stderr's first line.
+resolve() {
+  outcome=$1; shift
+  "$IS" flow resolve --model "$M" --outcome "$outcome" --plan-only --as text "$@" 2>"$err"
+}
+field() { printf '%s\n' "$2" | sed -n "s/^$1: //p" | head -1; }
+
+"$R" status --argv | while IFS="$tab" read -r rec status argv qual; do
+  num=${rec%%-*}
+  outcome=locate
+  while :; do
+    if ! out=$(resolve "$outcome" $argv); then
+      echo "$rec · $status · stopped:navigator-refused · $(head -1 "$err")"
+      continue 2
+    fi
+    next=$(field emit.next "$out")
+    case $(field dispositions.next "$out") in
+      chain) outcome=${next#resolve:} ;;   # resolve:lens / resolve:reentry
+      *) break ;;
+    esac
+  done
+  why=$(field emit.why "$out")
+  case $(field dispositions.next "$out") in
+    route)
+      if [ "$(field emit.next_arg "$out")" = cluster ]; then
+        echo "$rec · $status · next: $next <cluster set, not $num — /rdr-status $num names the members> · $why"
+      else
+        echo "$rec · $status · next: $next $num · $why"
+      fi ;;
+    none)
+      if [ -n "$qual" ]; then echo "$rec · $status · parked: $qual"
+      else echo "$rec · $status · $why"; fi ;;
+    *)
+      echo "$rec · $status · next: $next · $why" ;;
+  esac
+done

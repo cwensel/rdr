@@ -161,24 +161,9 @@ fetched for it.
 1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`. The bare status is
    `status`; the qualifier text needs the `--filter metadata` call, and only when
    `status_form` is not `none`.
-2. **Stage checklist** — one line per row of **What the facts mean**, verbatim in
-   name and order; never invent, split, or rename a row. **Pre-Lock is the single
-   `5+6` row** — no separate "Resolve-findings" stage. Mark each:
-   - `✓` — the row's facts are `true`.
-   - `–` — they are `false`.
-   - `~` — no durable artifact by design (Stage 3, and Stage 4 without spikes):
-     certified downstream, not forgotten. Name the downstream signal, not just the
-     verdict (`3 Refine  ~ judged done — A3/A5 Verified`). If that signal is
-     absent the `~` is **open** — say so and let it own **Next**
-     (`3 Refine  ~ open — CAs all Pending`). Never write `~` as done while naming
-     no Stage-4 product.
-   - **absent** (the fact is missing, not `false`) — write `?` and name the
-     unbound root. Never render an absent fact as `–`.
-
-   Print only **this profile's** lenses on the 5+6 row, plus a Determinacy-owed
-   `repeatability` when it fires — an owed obligation is never hidden. Off-profile
-   lenses are absent from the row, not `–`
-   (`5+6 Pre-Lock  ✓ grounding  ✓ 3amigo` for a mid RDR).
+2. **Stage checklist** — print `"$RDR_HOME/bin/rdr" status --checklist NNNN`
+   verbatim. `?` marks a fact nothing looked at (unbound root), never `–`. Lenses
+   shown are the ones that ran; the one owed is `emit.next`.
 3. **Next** — `emit.next` with `NNNN` appended, e.g.
    `Next: /rdr-prelock 0046 critique`. `none` → say terminal and name the
    disposition. `stopped:…` → print `emit.why` and stop there; a stop is an answer,
@@ -206,28 +191,12 @@ No writes. Confirm `git status` would be unchanged (you ran only reads).
 
 ## No-arg mode
 
-One command, no glob and no per-file read:
-
 ```sh
-"$RDR_HOME/bin/rdr" status
+"$RDR_HOME/bin/rdr-next"    # one line per in-flight record: status, next, why; parked rows carry their revisit condition
 ```
 
-It returns the `Draft`/`Final`-not-yet-`Implemented` set with each Status and
-qualifier already split, and every fact under it — so a row needs no follow-up
-read. Report each as `NNNN-slug · <Status> · next: /rdr-<stage> NNNN`, routing
-from the same model; resolve per row only for the row being acted on, since the
-worklist itself needs no per-row call.
-Parked RDRs are not in flight, so add `--status --json` and take the records with
-`terminal:false, in_flight:false` (`Deferred`) — list each on a separate **parked**
-line with its `status.qualifier` revisit condition verbatim: not in flight, not
-closed either, and a trigger nobody re-reads is how a park becomes an abandon by
-default. `--status` also groups the rest, so `Implemented`/`Demoted`/`Abandoned`/
-`Superseded` need no separate skip rule.
-
-When several listed Drafts are
-pre-propose siblings, recommend proposing **all** of them before any refines —
-breadth-first keeps joint-decision fires against still-fluid drafts
-(stages/02-propose.md, batch ordering).
+Print it verbatim. When several rows are pre-propose siblings, recommend
+proposing **all** before any refine (stages/02-propose.md, batch ordering).
 
 ## Self-update
 

@@ -1,0 +1,121 @@
+# 0020
+1 Seed                         ✓ Draft
+2 Propose                      – no Premortem:, no Ground-sweep: · joint_checks unset
+3 Refine                       ~ open — CAs all Pending
+4 Resolve                      – open — 2 of 2 Pending
+5+6 Pre-Lock (review+resolve)  – profile=mid · Determinacy: unjudged
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0021
+1 Seed                         ✓ Final
+2 Propose                      ✓ Premortem: Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ✓ spikes
+5+6 Pre-Lock (review+resolve)  ~ profile=foundational · ✓ cove · ✓ 3amigo · ~ critique (diff owed)
+6 Reconcile                    – no reconcile/
+7 Finalize                     ✓ gate.md
+7.1 Cluster                    ✓ clustered=true · cluster_reconciled=true · key=0021-0022-0023
+8 Implement                    – no capsule
+
+# 0022
+1 Seed                         ✓ Draft
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 1 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  ✓ profile=small
+6 Reconcile                    ✓ reconcile/reconcile.md
+7 Finalize                     – gate.md
+7.1 Cluster                    ✓ clustered unset · cluster_reconciled=true · key=0021-0022-0023
+8 Implement                    ~ impl_state=IN-PROGRESS · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true
+
+# 0023
+1 Seed                         ✓ Implemented
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small · legacy evidence shape
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ✓ clustered unset · cluster_reconciled=true · key=0021-0022-0023
+8 Implement                    – no capsule
+
+# 0024
+1 Seed                         ✓ Deferred
+2 Propose                      – no Premortem:, no Ground-sweep: · joint_checks unset
+3 Refine                       ~ open — CAs all Pending
+4 Resolve                      – open — 1 of 1 Pending
+5+6 Pre-Lock (review+resolve)  – profile=mid
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0025
+1 Seed                         ✓ Draft
+2 Propose                      – no Premortem:, no Ground-sweep: · joint_checks unset
+3 Refine                       ? unreadable — CA list unfilled or off-vocabulary
+4 Resolve                      ? unreadable — CA list unfilled or off-vocabulary
+5+6 Pre-Lock (review+resolve)  – profile unset
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0027
+1 Seed                         ✓ Implemented
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     ✓ gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset
+
+# 0028
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset
+
+# 0029
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     ✓ gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0030
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true
+
+# 0033
+1 Seed                         ✓ Draft
+2 Propose                      ✓ Premortem: Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 2 Verified, 0 terminal
+4 Resolve                      ✓ spikes
+5+6 Pre-Lock (review+resolve)  ✓ profile=mid · ✓ grounding · ✓ 3amigo
+6 Reconcile                    ✓ reconcile/reconcile.md
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+

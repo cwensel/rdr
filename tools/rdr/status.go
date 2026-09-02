@@ -59,6 +59,19 @@ func statusCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, err)
 		return 2
 	}
+	// `--checklist` reads the WHOLE vector three-valued, so a filter (which
+	// would turn every unasked fact into an absence) and the two argv
+	// renderings are refused with it; `--argv` is a line-per-record form
+	// and does not compose with the one-record renderings either.
+	filtered := f.filter != nil && *f.filter != ""
+	switch {
+	case *f.checklist && (*f.tags || *f.argv || filtered):
+		fmt.Fprintln(stderr, "stopped:usage (--checklist renders the whole vector, as text or beside the facts under --json; not with --tags, --argv or --filter)")
+		return 2
+	case *f.argv && (*f.tags || *f.json):
+		fmt.Fprintln(stderr, "stopped:usage (--argv is one line per record; not with --tags or --json)")
+		return 2
+	}
 	switch {
 	case len(args) == 0:
 		return statusWorklist(tbl, f, stdout, stderr)
@@ -156,6 +169,18 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 	switch {
 	case *f.tags:
 		return emitTags(tbl, facts, wantedFacts(f), stdout, stderr)
+	case *f.argv:
+		return emitArgv(tbl, []statusRow{{Summary: scan.Summarize(doc), Facts: facts}}, wantedFacts(f), stdout, stderr)
+	case *f.checklist:
+		// The env's resolved roots travel with the facts: a root missing
+		// from them is unbound, which is what turns an absence into `?`.
+		rows := renderChecklist(tbl, facts, env.Roots)
+		if *f.json {
+			return emit(map[string]any{
+				"schema": schemaVersion, "record": doc.Record, "facts": facts, "checklist": rows,
+			}, stdout, stderr)
+		}
+		return emitChecklist(rows, stdout)
 	case *f.json:
 		return emitFacts(facts, doc.Record, stdout, stderr)
 	}
@@ -183,6 +208,10 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 	// the same reason and with the same words.
 	if *f.tags {
 		fmt.Fprintln(stderr, "stopped:usage (--tags renders one record's argv; name a record)")
+		return 2
+	}
+	if *f.checklist {
+		fmt.Fprintln(stderr, "stopped:usage (--checklist renders one record's checklist; name a record)")
 		return 2
 	}
 	rows := []statusRow{}
@@ -221,10 +250,16 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 			"schema": schemaVersion, "records": rowsFor(rows, f), "skipped": skipped,
 		}, stdout, stderr)
 	}
-	for _, r := range rows {
-		fmt.Fprintf(stdout, "%s %-8s %s\n",
-			filepath.Base(strings.TrimSuffix(r.Path, ".md")), r.Status.Value, qualifier(r.Summary))
-		emitFactLines(r.Facts, indentWriter{stdout})
+	if *f.argv {
+		if code := emitArgv(tbl, rows, wantedFacts(f), stdout, stderr); code != 0 {
+			return code
+		}
+	} else {
+		for _, r := range rows {
+			fmt.Fprintf(stdout, "%s %-8s %s\n",
+				filepath.Base(strings.TrimSuffix(r.Path, ".md")), r.Status.Value, qualifier(r.Summary))
+			emitFactLines(r.Facts, indentWriter{stdout})
+		}
 	}
 	for _, s := range skipped {
 		fmt.Fprintf(stdout, "%s skipped  %s\n", s["target"], s["why"])
@@ -315,6 +350,10 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:usage (--tags renders one record's argv; name a record)")
 		return 2
 	}
+	if *f.checklist {
+		fmt.Fprintln(stderr, "stopped:usage (--checklist renders one record's checklist; name a record)")
+		return 2
+	}
 	docs, skipped, code := records(f, stderr)
 	if code != 0 {
 		return code
@@ -330,7 +369,11 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 	peers := newPeers(tbl, f, docs)
 	for _, d := range docs {
 		s := scan.Summarize(d)
-		if !s.InFlight {
+		// `--argv` feeds a resolver that has a cell for a parked record
+		// (locate-parked prints the revisit condition), so Deferred rows
+		// travel with it: a trigger nobody re-reads is how a park becomes
+		// an abandon. The text and JSON worklists stay the in-flight set.
+		if !s.InFlight && !(*f.argv && s.Status != nil && s.Status.Value == "Deferred") {
 			continue
 		}
 		env := NewFactEnv(tbl, d, recordSlug(s.Path))
@@ -348,6 +391,9 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		return emit(map[string]any{
 			"schema": schemaVersion, "records": rowsFor(rows, f), "skipped": skipped,
 		}, stdout, stderr)
+	}
+	if *f.argv {
+		return emitArgv(tbl, rows, wantedFacts(f), stdout, stderr)
 	}
 	for _, r := range rows {
 		fmt.Fprintf(stdout, "%s %-8s %s\n",
@@ -525,12 +571,27 @@ func withAbsentSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []F
 }
 
 func emitTags(tbl *FactTable, facts []Fact, want map[string]bool, stdout, stderr io.Writer) int {
+	words, err := tagWords(tbl, facts, want)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
+	for _, text := range words {
+		fmt.Fprintf(stdout, "--tag\n%s\n", text)
+	}
+	return 0
+}
+
+// tagWords renders the facts as the `k=v` words a resolver's argv carries
+// — the one rendering `--tags` and `--argv` share, so the two cannot
+// disagree about a record.
+func tagWords(tbl *FactTable, facts []Fact, want map[string]bool) ([]string, error) {
 	prose := map[string]bool{}
 	for _, d := range tbl.Facts {
 		prose[d.Name] = d.Prose
 	}
 	facts = withAbsentSentinels(tbl, facts, want)
-	var lines []string
+	var words []string
 	for _, f := range facts {
 		if prose[f.Name] {
 			continue
@@ -542,14 +603,42 @@ func emitTags(tbl *FactTable, facts []Fact, want map[string]bool, stdout, stderr
 		// would truncate silently at the first space, so it stops, and
 		// the message names the fact because the fix is in the table.
 		if unsafeTagWord(f, text) {
-			fmt.Fprintf(stderr, "stopped:unsafe-tag (%s renders %q, which an unquoted $(…) "+
-				"would split or glob; declare it prose or fix its kind)\n", f.Name, factValueText(f))
+			return nil, fmt.Errorf("stopped:unsafe-tag (%s renders %q, which an unquoted $(…) "+
+				"would split or glob; declare it prose or fix its kind)", f.Name, factValueText(f))
+		}
+		words = append(words, text)
+	}
+	return words, nil
+}
+
+// emitArgv is the line-per-record form a shell loop reads: the record's
+// slug, its Status, the `--tag k=v` argv, and the qualifier text, tab
+// separated in that order.
+//
+// The qualifier is LAST and only the qualifier may be empty: `read` with
+// a tab IFS collapses a run of tabs, so an empty middle field would shift
+// every field after it, while a missing last field just reads empty. It
+// is the one prose value the row carries (a parked record's revisit
+// condition, a re-entry's scope), and it rides here so the caller never
+// pays an `inspect` per row to see it. The argv is already one shell
+// word per fact (`tagWords` refuses anything else), so an unquoted
+// expansion under `set -f` hands the resolver exactly those words.
+func emitArgv(tbl *FactTable, rows []statusRow, want map[string]bool, stdout, stderr io.Writer) int {
+	for _, r := range rows {
+		words, err := tagWords(tbl, r.Facts, want)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
 			return 2
 		}
-		lines = append(lines, text)
-	}
-	for _, text := range lines {
-		fmt.Fprintf(stdout, "--tag\n%s\n", text)
+		argv := make([]string, 0, 2*len(words))
+		for _, w := range words {
+			argv = append(argv, "--tag", w)
+		}
+		status, qual := "", ""
+		if r.Status != nil {
+			status, qual = r.Status.Value, r.Status.Qualifier
+		}
+		fmt.Fprintf(stdout, "%s\t%s\t%s\t%s\n", recordSlug(r.Path), status, strings.Join(argv, " "), qual)
 	}
 	return 0
 }

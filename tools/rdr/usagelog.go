@@ -316,6 +316,10 @@ func usageFacet(cmd string, f *flags, target string) string {
 		switch {
 		case f.tags != nil && *f.tags:
 			return which + ":tags"
+		case f.checklist != nil && *f.checklist:
+			return which + ":checklist"
+		case f.argv != nil && *f.argv:
+			return which + ":argv"
 		case f.json != nil && *f.json:
 			return which + ":json"
 		}

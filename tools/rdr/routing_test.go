@@ -27,8 +27,9 @@ import (
 // is a fact this binary actually renders, that every value it compares
 // against is one the fact can actually carry, and that the model stays
 // parseable. Those are properties of this repo's data, checkable with no
-// second binary installed — which matters because `intrastate` is an
-// accelerator here, never a hard dependency.
+// second binary installed. `intrastate` is a dependency, not an
+// accelerator (rdr-common §intrastate) — the flow stops without it — but
+// the seam's own data properties should be checkable without it.
 
 const routingModelName = "rdr-status.toml"
 

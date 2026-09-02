@@ -1186,8 +1186,10 @@ Three renderings of ONE evaluation:
     rdr status 0055                # one fact per line — the cheap human read
     rdr status --json 0055         # the neutral vector (§Facts)
     rdr status --tags 0055         # `--tag k=v` argv for a resolver
+    rdr status --checklist 0055    # the stage checklist, three-valued (`?` = nothing looked)
     rdr status 0122 0123 0130      # a NAMED SET — one row per record
     rdr status                     # the Draft+Final worklist, each row with its facts
+    rdr status --argv              # the worklist + Deferred, one tab-separated argv line each (bin/rdr-next)
 
 ### Three arities, two costs
 

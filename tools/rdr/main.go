@@ -8,7 +8,7 @@
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-//	rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
+//	rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
 //	rdr env [--json]
 //	rdr version
 //
@@ -63,7 +63,7 @@ usage:
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
-  rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
+  rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
   rdr env [--json]
@@ -148,7 +148,12 @@ name, so the corpus is never scanned, and one that does not resolve is a
 With no argument it is the Draft+Final worklist, each row carrying its
 facts; --tags needs one record. --filter keeps only the named facts,
 which is what makes a set affordable to read (48 facts ≈ 7KB per record);
-a name the table does not declare is refused. It never writes.
+a name the table does not declare is refused. --checklist renders one
+record's stage checklist three-valued ("?" is a root nothing looked under,
+never "–"), as text or as a "checklist" array beside the facts under --json.
+--argv is one line per record — slug, Status, the "--tag k=v" argv, the
+qualifier, tab-separated — and its worklist form carries Deferred rows,
+which is what bin/rdr-next loops over. It never writes.
 
 receipt asks the usage log whether the record was linted at or after its
 last write (README §receipt): exit 0 and the lint's log line; 1 and
@@ -420,6 +425,8 @@ type flags struct {
 	locking             *bool
 	since               *string // receipt: the instant a lint must postdate
 	tags                *bool   // status: render the facts as a resolver's argv
+	checklist           *bool   // status: render the stage checklist (one record)
+	argv                *bool   // status: one tab-separated line per record with its argv
 	facts               *string // status/paths: the fact table to evaluate
 	lens                *string // paths: the per-lens iteration tree
 	cluster             *string // paths: Stage 7.1's cluster-keyed tree
@@ -500,6 +507,8 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")
+		f.checklist = fs.Bool("checklist", false, "render the stage checklist (one record only): text, or a `checklist` array beside the facts with --json")
+		f.argv = fs.Bool("argv", false, "one line per record: slug, Status, its `--tag k=v` argv, qualifier — tab-separated; the worklist form includes Deferred")
 		f.facts = fs.String("facts", "", "the fact table to evaluate (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
 		f.filter = fs.String("filter", "", "comma-separated fact names to keep (impl_state,status); a name the table does not declare is refused")
 	}

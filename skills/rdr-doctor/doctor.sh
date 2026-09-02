@@ -122,6 +122,10 @@ else
     fail "11 projector present but 'rdr version' failed ($RDR_BIN) - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
   else
     pass "11 projector built - $RDR_BIN ($ver)"
+    # 11e - the worklist navigator script, tracked beside the built binary (bin/ is
+    # otherwise gitignored, so a copy that dropped it would still pass 11).
+    [ -x "$RDR_HOME/bin/rdr-next" ] && pass "11e rdr-next present beside the projector" \
+      || warn "11e rdr-next missing at $RDR_HOME/bin/rdr-next - the no-arg /rdr-status worklist has no next-step column; restore it from the engine"
     # 11b - staleness. The binary is stamped with the engine revision it was built
     # from (-X main.version). A plugin upgrade or a git pull moves the engine and
     # leaves the old binary in place; it still answers, so this warns, never fails.
