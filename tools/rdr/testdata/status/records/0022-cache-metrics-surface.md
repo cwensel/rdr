@@ -39,3 +39,7 @@ Scope the counter to steady-state reads and move the panel first.
 ## Decision Rationale
 
 Premortem: the dashboard panel is the only blocker and it is one edit.
+
+## Implementation Plan
+
+_Draft placeholder._

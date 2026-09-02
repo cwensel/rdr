@@ -33,10 +33,10 @@ they consume — state it once, here:
   as an immutable contract.
 - **MVV in scope** (Stage 7 Scope Verification) — Phase 1 turns it into
   `REQ-MVV`, the runnable end-to-end test.
-- **Predecessors COMPLETE** — every `**Predecessors**:` entry's
-  `{ARTIFACT_DIR}/status.md` reads `COMPLETE`. This is the same gate the
-  TEMPLATE's Predecessors field names; launch.md's PRECHECKS enforce it and
-  halt otherwise.
+- **Predecessors COMPLETE** — `predecessors_state=complete` (`rdr status`;
+  `stopped:predecessor-incomplete:<predecessors_incomplete>` otherwise). This is
+  the same gate the TEMPLATE's Predecessors field names; launch.md's PRECHECKS
+  resolve it and halt otherwise.
 
 If any of these is not true, the RDR is not ready to implement — an unlocked
 record goes where `/rdr-status` routes it, and an unreconciled assumption is a

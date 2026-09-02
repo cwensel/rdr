@@ -76,10 +76,11 @@ it greps `Final` peers for a refusal token *because it is missing from the new
 proposal*, which needs the proposal, not the corpus. It stays with the authoring
 prompt, per member.
 
-`Predecessors` edges (`edges[]` `kind=="predecessor"`) are hard edges — topo-sort those first.
-Within an overlap group the likely **contract owner** proposes first: locus *is*
-the shared anchor > lower-level seam > Priority > number order. The order is a
-prior, not a promise — the loop corrects it; this pass makes corrections rare.
+Order = `"$RDR_HOME/bin/rdr" index --json --topo=<members>` `order[]`
+(predecessor edges first; ties by Priority, then number; `cycles[]` is a
+deadlock to surface, not to order). Within an overlap group the likely
+**contract owner** (locus *is* the shared anchor; the lower-level seam) may be
+moved first — a prior the loop corrects; this pass makes corrections rare.
 
 ## The loop — one proposer at a time
 

@@ -221,6 +221,8 @@ var factSources = map[string]bool{
 	"impl-artifact": true, "record-lines": true, "spike-diff": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
+	// the rollups: facts about the record's peers, read through FactEnv.Peer
+	"predecessor-rollup": true, "cluster-proposed": true, "related-rollup": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -509,6 +511,45 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				return d, fmt.Errorf("fact %q: domain does not declare %q, which record-lines can emit", name, m)
 			}
 		}
+	case "predecessor-rollup":
+		// Two selects: the set of predecessors not COMPLETE, and the
+		// state word the launch precheck routes on. The enum's members
+		// are fixed by the evaluator, so the domain must declare them.
+		switch d.Select {
+		case "incomplete":
+			if d.Kind != "set" {
+				return d, fmt.Errorf("fact %q: incomplete is a set", name)
+			}
+		case "state":
+			if d.Kind != "enum" {
+				return d, fmt.Errorf("fact %q: state is an enum", name)
+			}
+			for _, m := range predecessorStates {
+				if !slices.Contains(d.Domain, m) {
+					return d, fmt.Errorf("fact %q: domain does not declare %q, which state can emit", name, m)
+				}
+			}
+		default:
+			return d, fmt.Errorf("fact %q: a predecessor-rollup selects incomplete or state, got %q", name, d.Select)
+		}
+	case "cluster-proposed":
+		if d.Path == "" || d.Kind != "enum" {
+			return d, fmt.Errorf("fact %q: a cluster-proposed is an enum naming the section it reads", name)
+		}
+		for _, m := range clusterProposedMembers {
+			if !slices.Contains(d.Domain, m) {
+				return d, fmt.Errorf("fact %q: domain does not declare %q, which cluster-proposed can emit", name, m)
+			}
+		}
+	case "related-rollup":
+		if d.Kind != "enum" {
+			return d, fmt.Errorf("fact %q: a related-rollup is an enum", name)
+		}
+		for _, m := range relatedRollupMembers {
+			if !slices.Contains(d.Domain, m) {
+				return d, fmt.Errorf("fact %q: domain does not declare %q, which related-rollup can emit", name, m)
+			}
+		}
 	case "seam-lineage":
 		// The three selects are the three shapes the floor reads, and an
 		// unknown one would evaluate to nothing while reading as declared.
@@ -621,6 +662,17 @@ type FactEnv struct {
 	// unlooked, which is the honest answer.
 	ResolveEdges  func()
 	edgesResolved bool
+	// Peer answers another record's env by number — the rollup facts
+	// (predecessors, cluster siblings, related Finals) read a peer's
+	// capsule or section through it. Nil, or false, is "nothing looked":
+	// the peer is reported unresolved, never as not-COMPLETE.
+	Peer func(record string) (*FactEnv, bool)
+	// Corpus is every record in the dir, on first need, for the one fact
+	// that walks the edge graph (related-rollup). Nil leaves it absent.
+	Corpus func() []*scan.Document
+	// table is the declaring table, so a rollup can evaluate a peer's
+	// capsule state through the same declaration this record's uses.
+	table *FactTable
 }
 
 // NewFactEnv binds the roots a table declares from the seam.
@@ -643,7 +695,7 @@ type FactEnv struct {
 // false and must stay one.
 func NewFactEnv(t *FactTable, doc *scan.Document, slug string) *FactEnv {
 	e := &FactEnv{Doc: doc, Slug: slug, Roots: map[string]string{},
-		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+		readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir, table: t}
 	for _, r := range t.Roots {
 		base := strings.TrimSpace(envOrSeam(r.Var))
 		if base == "" {
@@ -759,6 +811,13 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.recordLines(d)
 	case "spike-diff":
 		return e.spikeDiff(d)
+
+	case "predecessor-rollup":
+		return e.predecessorRollup(d)
+	case "cluster-proposed":
+		return e.clusterProposed(d)
+	case "related-rollup":
+		return e.relatedRollup(d)
 	}
 	return Fact{}, false
 }
@@ -2428,4 +2487,177 @@ func (e *FactEnv) spikeDiff(d FactDecl) (Fact, bool) {
 		}
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(unrun)}, true
+}
+
+// --- the rollups: facts about a record's peers -----------------------------
+//
+// Each reads another record through FactEnv.Peer, and each folds a set
+// the flow used to fold by hand — Stage 8's "every predecessor COMPLETE",
+// the Stage-2 tandem barrier's "every sibling proposed", Finalize's "a
+// related Final is still unimplemented". The fold is here, once, and the
+// routing table reads a word.
+
+// predecessorStates are the values `state` can emit, checked against the
+// declared domain at load. `none` is the declared sentinel for a record
+// with no Predecessors field; the evaluator itself goes absent there.
+var predecessorStates = []string{"complete", "incomplete", "unresolved"}
+
+var clusterProposedMembers = []string{"all", "some", "none"}
+
+var relatedRollupMembers = []string{"0", "1+"}
+
+// capsuleStateOf evaluates the table's capsule-state fact over an env —
+// the peer's own `impl_state`, through the declaration this record's
+// uses, so the two cannot read the capsule differently. Empty when no
+// such fact is declared or the capsule is absent.
+func capsuleStateOf(t *FactTable, env *FactEnv) string {
+	if t == nil || env == nil {
+		return ""
+	}
+	for _, d := range t.Facts {
+		if d.Source != "capsule-state" {
+			continue
+		}
+		if f, ok := env.capsuleState(d); ok {
+			return f.Value
+		}
+		return ""
+	}
+	return ""
+}
+
+// predecessorRollup folds the Predecessors field over the peers'
+// capsules.
+//
+//	incomplete  the predecessors not COMPLETE — an unresolvable record
+//	            and an absent capsule are members, because neither is
+//	            "looked and COMPLETE"
+//	state       unresolved when any predecessor did not resolve (the
+//	            launch precheck halts on that first), else incomplete
+//	            when any is not COMPLETE, else complete
+//
+// Absent when the record declares no Predecessors: `none` is the
+// declared sentinel, not a state the evaluator invents.
+func (e *FactEnv) predecessorRollup(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	f := metadataField(e.Doc, "Predecessors")
+	if f == nil {
+		return Fact{}, false
+	}
+	preds := recordNumbers(f.Value)
+	if len(preds) == 0 {
+		return Fact{}, false
+	}
+	var incomplete []string
+	unresolved := false
+	for _, p := range preds {
+		var peer *FactEnv
+		ok := false
+		if e.Peer != nil {
+			peer, ok = e.Peer(p)
+		}
+		if !ok {
+			unresolved = true
+			incomplete = append(incomplete, p)
+			continue
+		}
+		if capsuleStateOf(e.table, peer) != "COMPLETE" {
+			incomplete = append(incomplete, p)
+		}
+	}
+	switch d.Select {
+	case "incomplete":
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(incomplete)}, true
+	case "state":
+		state := "complete"
+		switch {
+		case unresolved:
+			state = "unresolved"
+		case len(incomplete) > 0:
+			state = "incomplete"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: state}, true
+	}
+	return Fact{}, false
+}
+
+// clusterProposed folds the Cluster field over the siblings' plans:
+// `all` when every sibling's section (d.Path, the Implementation Plan)
+// carries authored text by sectionProse's rule, `some`, or `none`. A
+// sibling that does not resolve reads not-proposed, never proposed.
+// Absent when the record declares no Cluster: `solo` is the sentinel.
+func (e *FactEnv) clusterProposed(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	f := metadataField(e.Doc, "Cluster")
+	if f == nil {
+		return Fact{}, false
+	}
+	var siblings []string
+	for _, m := range recordNumbers(f.Value) {
+		if m != e.Doc.Record {
+			siblings = append(siblings, m)
+		}
+	}
+	if len(siblings) == 0 {
+		return Fact{}, false
+	}
+	proposed := 0
+	for _, m := range siblings {
+		if e.Peer == nil {
+			break
+		}
+		peer, ok := e.Peer(m)
+		if !ok {
+			continue
+		}
+		if p, ok := peer.sectionProse(d); ok && p.Value == "true" {
+			proposed++
+		}
+	}
+	v := "some"
+	switch proposed {
+	case 0:
+		v = "none"
+	case len(siblings):
+		v = "all"
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// relatedRollup counts the record's asserted cluster members (ClusterOf,
+// candidates excluded) that are Final and not COMPLETE — Finalize's
+// "reconcile before implement" question. On demand: it walks the corpus.
+// Absent with no corpus bound.
+func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
+	if e.Doc == nil || e.Corpus == nil {
+		return Fact{}, false
+	}
+	docs := e.Corpus()
+	if docs == nil {
+		return Fact{}, false
+	}
+	n := 0
+	for _, m := range scan.ClusterOf(docs, e.Doc.Record) {
+		if m.Record == e.Doc.Record || m.Candidate || m.Status != "Final" {
+			continue
+		}
+		state := ""
+		if e.Peer != nil {
+			if peer, ok := e.Peer(m.Record); ok {
+				state = capsuleStateOf(e.table, peer)
+			}
+		}
+		if state != "COMPLETE" {
+			n++
+		}
+	}
+	v := "0"
+	if n > 0 {
+		v = "1+"
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
 }

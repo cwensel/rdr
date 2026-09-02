@@ -1287,3 +1287,56 @@ kind        = "set"
 source      = "spike-diff"
 root        = "evidence"
 description = "Spikes the record cites under {SPIKE_DIR} with no entry in evidence/spikes/."
+
+# --- the rollups: what the record's peers say ------------------------------
+#
+# Each folds a SET the flow used to fold by hand — a read per peer, then an
+# AND in prose — into one word a routing row can claim. The peer is read
+# through the same table (its own `impl_state`, its own section-prose
+# rule), so a rollup and a direct `status` of the peer cannot disagree.
+#
+# Stage 8's predecessor gate. `predecessors_incomplete` is the set not
+# COMPLETE — an unresolvable record and an absent capsule are members,
+# because neither is "looked and COMPLETE"; `predecessors_state` is the
+# word `rdr-launch.toml`'s precheck routes on. `unresolved` wins over
+# `incomplete` (the prompt halted on a dangling predecessor first). Both
+# are absent with no Predecessors field; `none` is the state's sentinel.
+# The set is ON DEMAND — read by name for the halt line, never riding the
+# whole `--tags` vector, where an undeclared set refuses the call.
+[fact.predecessors_incomplete]
+kind        = "set"
+source      = "predecessor-rollup"
+select      = "incomplete"
+on_demand   = true
+description = "Predecessors whose capsule does not read COMPLETE, an unresolvable one included."
+
+[fact.predecessors_state]
+kind        = "enum"
+source      = "predecessor-rollup"
+select      = "state"
+domain      = ["complete", "incomplete", "unresolved", "none"]
+absent      = "none"
+description = "The predecessor gate folded: complete, incomplete, unresolved (a record did not resolve), or none declared."
+
+# The Stage-2 tandem barrier: a clustered Draft is barred from refine until
+# every sibling has proposed. "Proposed" is the sibling's Implementation
+# Plan carrying authored text — `contracts_prose`'s rule on that section —
+# and a sibling that does not resolve reads not-proposed. `solo` is the
+# sentinel for a record with no Cluster field.
+[fact.cluster_members_proposed]
+kind        = "enum"
+source      = "cluster-proposed"
+path        = "Implementation Plan"
+domain      = ["all", "some", "none", "solo"]
+absent      = "solo"
+description = "How many declared Cluster siblings carry an authored Implementation Plan: all, some, none; solo when unclustered."
+
+# Finalize's "reconcile before implement": the record's asserted cluster
+# members (`index --cluster-of`, candidates excluded) that are Final and
+# not COMPLETE. ON DEMAND: it walks the corpus, like the edge tallies.
+[fact.related_final_unimplemented]
+kind        = "enum"
+source      = "related-rollup"
+on_demand   = true
+domain      = ["0", "1+"]
+description = "Asserted cluster members that are Final with no COMPLETE capsule; 1+ routes to /rdr-cluster-reconcile first."

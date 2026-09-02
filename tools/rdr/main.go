@@ -73,7 +73,9 @@ index with no facet is the corpus graph: every record, element and edge,
 plus the derived backlinks (README §Queries over the graph). Facets:
   --status                    every record grouped by status
   --backlinks[=NNNN[:elem]]   who points at each target / at one target
-  --cluster-of NNNN           7.1's membership rule as a query
+  --cluster-of NNNN[,NNNN]    7.1's membership rule as a query; --closure runs it to a fixpoint,
+                              --final-unimplemented drops not-Final and COMPLETE members to out_of_scope
+  --topo[=NNNN,…]             build order over predecessor edges (Kahn; ties by Priority, then number)
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
   --literal-intersect [--all] in-flight pairs whose contracts share a literal, uncited first
   --open-joint [--all]        open joint decisions: Joint-check (home: OPEN) lines + joint-decision Status forms
@@ -314,6 +316,9 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if f.backlinks.set || *f.unresolved || *f.clusterOf != "" {
 			return indexEdges(f, stdout, stderr)
 		}
+		if f.topo.set {
+			return topoFacet(f, stdout, stderr)
+		}
 		if *f.status {
 			return statusFacet(f, stdout, stderr)
 		}
@@ -405,6 +410,9 @@ type flags struct {
 	status              *bool
 	backlinks, readme   optString
 	clusterOf           *string
+	closure             *bool     // index: --cluster-of to a fixpoint
+	finalUnimplemented  *bool     // index: --cluster-of scoped to Final-and-unimplemented
+	topo                optString // index: build order over predecessor edges
 	unresolved, anchors *bool
 	literals            *bool
 	openJoint, cycles   *bool
@@ -454,7 +462,11 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.all = fs.Bool("all", false, "anchor-intersect: every record, not only those in flight")
 		f.status = fs.Bool("status", false, "group records by status")
 		fs.Var(&f.backlinks, "backlinks", "the reverse edge table; =NNNN[:elem] answers who cites one target, mentions included")
-		f.clusterOf = fs.String("cluster-of", "", "the record's cluster by 7.1's membership rule")
+		f.clusterOf = fs.String("cluster-of", "", "the records' cluster by 7.1's membership rule (NNNN, or a comma list of seeds)")
+		f.closure = fs.Bool("closure", false, "cluster-of: repeat the hop from every asserted member to a fixpoint; candidates are never expanded")
+		f.finalUnimplemented = fs.Bool("final-unimplemented", false, "cluster-of: keep Final members whose capsule is not COMPLETE; the rest go to out_of_scope with why")
+		f.facts = fs.String("facts", "", "cluster-of --final-unimplemented: the fact table impl_state is read from (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
+		fs.Var(&f.topo, "topo", "build order over predecessor edges: Kahn, ties by Priority then number; =NNNN,… names the set (default: every in-flight record)")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
 		f.cycles = fs.Bool("cycles", false, "dependency shapes the flow cannot progress through: ownership cycles (predecessor/overrides/moved-to), Joint-check home cycles, and Final records whose home is Draft or whose check is OPEN")
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
@@ -2048,27 +2060,115 @@ func backlinksFacet(docs []*scan.Document, f *flags, stdout, stderr io.Writer) i
 // 7.1 prompt's own membership rule, expressed as a query rather than as
 // an LLM reading every candidate: related = mutual Predecessors, Peer-RDR
 // citations, or a shared Cross-Cutting Concern owner.
+//
+// `--closure` is the same rule to a fixpoint from every seed (a comma
+// list), which is what 7.1 step 1 used to assemble by hand from several
+// one-hop calls; `--final-unimplemented` is that step's scope filter,
+// evaluated here so the dropped members are listed with why rather than
+// silently omitted. A candidate is dropped too: confirming one means
+// re-running with it as a seed, never expanding it.
 func clusterFacet(docs []*scan.Document, of string, f *flags, stdout, stderr io.Writer) int {
-	// `--cluster-of 113` means record 0113, exactly as `inspect 113` does:
-	// resolve() already zero-pads its positional argument, and refusing the
-	// same vocabulary here cost the caller a retry turn.
-	if n := shortRecordNumber(of); n != "" {
-		of = n
+	var seeds []string
+	for _, part := range strings.Split(of, ",") {
+		part = strings.TrimSpace(part)
+		// `--cluster-of 113` means record 0113, exactly as `inspect 113`
+		// does: resolve() already zero-pads its positional argument, and
+		// refusing the same vocabulary here cost the caller a retry turn.
+		if n := shortRecordNumber(part); n != "" {
+			part = n
+		}
+		seed := ident.RecordOf(part)
+		if seed == "" {
+			fmt.Fprintf(stderr, "stopped:usage (--cluster-of takes a record number or a comma list, got %q)\n", part)
+			return 2
+		}
+		seeds = append(seeds, seed)
 	}
-	seed := ident.RecordOf(of)
-	if seed == "" {
-		fmt.Fprintf(stderr, "stopped:usage (--cluster-of takes a record number, got %q)\n", of)
-		return 2
+	closure := f.closure != nil && *f.closure
+	scoped := f.finalUnimplemented != nil && *f.finalUnimplemented
+	var members []scan.Member
+	if closure || len(seeds) > 1 {
+		members = scan.ClusterClosure(docs, seeds)
+	} else {
+		members = scan.ClusterOf(docs, seeds[0])
 	}
-	members := scan.ClusterOf(docs, seed)
+	if members == nil {
+		members = []scan.Member{}
+	}
+	out := map[string]any{"schema": schemaVersion, "seed": seeds[0], "seeds": seeds, "closure": closure, "cluster": members}
+	var dropped []clusterDrop
+	if scoped {
+		path, err := factTablePath(deref(f.facts))
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		tbl, err := LoadFactTable(path)
+		if err != nil {
+			fmt.Fprintln(stderr, err)
+			return 2
+		}
+		byRecord := map[string]*scan.Document{}
+		for _, d := range docs {
+			byRecord[d.Record] = d
+		}
+		kept := []clusterMember{}
+		dropped = []clusterDrop{}
+		for _, m := range members {
+			state := ""
+			if d := byRecord[m.Record]; d != nil {
+				state = capsuleStateOf(tbl, NewFactEnv(tbl, d, recordSlug(d.Path)))
+			}
+			why := ""
+			switch {
+			case m.Status != "Final":
+				why = "not-final"
+			case state == "COMPLETE":
+				why = "impl-complete"
+			case m.Candidate:
+				why = "candidate"
+			}
+			if why != "" {
+				dropped = append(dropped, clusterDrop{m.Record, m.Status, state, why})
+				continue
+			}
+			kept = append(kept, clusterMember{m, state})
+		}
+		out["cluster"], out["out_of_scope"] = kept, dropped
+		members = members[:0]
+		for _, k := range kept {
+			members = append(members, k.Member)
+		}
+	}
 	if *f.json {
-		return emit(map[string]any{"schema": schemaVersion, "seed": seed, "cluster": members}, stdout, stderr)
+		return emit(out, stdout, stderr)
 	}
 	for _, m := range members {
-		fmt.Fprintf(stdout, "%s %-18s %-12s %s\n", m.Record, m.Relation, m.Status, m.Title)
+		via := ""
+		if m.Via != "" {
+			via = " via " + m.Via
+		}
+		fmt.Fprintf(stdout, "%s %-18s %-12s %s%s\n", m.Record, m.Relation, m.Status, m.Title, via)
 	}
-	fmt.Fprintf(stdout, "cluster of %s: %d members\n", seed, len(members))
+	for _, d := range dropped {
+		fmt.Fprintf(stdout, "%s out-of-scope       %-12s %s\n", d.Record, d.Status, d.Why)
+	}
+	fmt.Fprintf(stdout, "cluster of %s: %d members\n", strings.Join(seeds, ","), len(members))
 	return 0
+}
+
+// clusterMember is a scoped member with the capsule state that kept it.
+type clusterMember struct {
+	scan.Member
+	ImplState string `json:"impl_state,omitempty"`
+}
+
+// clusterDrop is a member the scope filter removed, and why.
+type clusterDrop struct {
+	Record    string `json:"record"`
+	Status    string `json:"status,omitempty"`
+	ImplState string `json:"impl_state,omitempty"`
+	Why       string `json:"why"`
 }
 
 // recordOfID reads the record number out of an element or document ID.

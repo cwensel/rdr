@@ -99,27 +99,16 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   or contradicts the artifacts. If artifacts are inconsistent (e.g.,
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
   inconsistency: <detail>") and halt.
-- Predecessors: run
-  `"$RDR_HOME/bin/rdr" inspect --json --filter edges {RDR_PATH}`
-  and take `edges[]` where `kind=="predecessor"` — each carries `to`, `slug`,
-  `resolved`, `line`.
-  `resolved:false` is a dangling predecessor — the cited record does not
-  exist — and halts first: INCOMPLETE("predecessor <to> unresolved at line
-  <line>"). `--records` defaults to `$RDR_RECORDS`; without a records dir
-  `resolved` is ABSENT (nothing looked), neither sound nor broken.
-  Then ask every surviving predecessor at once — one call, not a read per
-  slug:
-  `"$RDR_HOME/bin/rdr" status --json --filter impl_state <slug> [<slug>…]`
-  Read each row's `impl_state` literally, and the three answers are three
-  different halts:
-  - `COMPLETE` — the only pass.
-  - any other value — INCOMPLETE("predecessor <slug> not COMPLETE: <value>").
-  - **the fact is ABSENT** — the row's `facts[]` is empty (no capsule).
-    Nothing looked, which is NOT "not COMPLETE": INCOMPLETE("predecessor
-    <slug> has no status capsule"). A `skipped[]` entry is a record that did
-    not resolve; report it the same way, never as incomplete.
-  Record the predecessor artifact paths to pass to Phase 0 and Phase 1. Skip
-  if no predecessor edges.
+- Predecessors: one call, the answer applied as a value (the `precheck` group
+  of `$RDR_HOME/models/rdr-launch.toml`; `intrastate lint` proves every cell):
+  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome precheck --plan-only \
+    $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>)
+  `emit.next` = `proceed` → continue; a `stopped:*` halts as INCOMPLETE with
+  `emit.why`, naming `predecessors_incomplete` (`"$RDR_HOME/bin/rdr" status
+  --json --filter predecessors_incomplete <slug>` — an unresolvable record and
+  an absent capsule are members; nothing looked is not COMPLETE). Record the
+  predecessors' artifact paths to pass to Phase 0 and Phase 1.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick

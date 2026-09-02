@@ -35,12 +35,11 @@ say so and point at `/rdr-implement NNNN`.
    it to answer 7.1; a topical name (`dml-purpose`) is a pre-2026-06-29 shape and
    reads as never reconciled. Use the members the stage RESOLVED, not the ones
    proposed: a dropped candidate is not in the key.
-2. **Build the cluster**: `"$RDR_HOME/bin/rdr" index --cluster-of NNNN` generates
-   candidates (the membership rule as a query, each member carrying the relation
-   that earned it). Union with the declared `Cluster` fields, run it from more
-   than one seed (it is one hop, not a closure), and filter to
-   Final-and-unimplemented yourself — Stage `07.1-cluster-reconcile.md` step 1
-   owns why each of those is required. Then form the peer pairs — **not all
+2. **Build the cluster**: `"$RDR_HOME/bin/rdr" index --json --cluster-of NNNN --closure --final-unimplemented`
+   is the membership — `cluster[]` is the set (relation and `via` per member),
+   `out_of_scope[]` the record of what was dropped and why; a `candidate` is
+   confirmed (re-run with it as a second seed) or dismissed, never expanded
+   (Stage `07.1-cluster-reconcile.md` step 1). Then form the peer pairs — **not all
    C(n,2)**: trim to the plausibly-interacting ones (that stage's step 3 owns the
    rule). The trim is the cost control; report scanned/possible.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);

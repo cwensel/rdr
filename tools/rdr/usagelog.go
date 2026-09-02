@@ -278,6 +278,7 @@ func usageFacet(cmd string, f *flags, target string) string {
 			{f.backlinks.set, "backlinks"},
 			{f.unresolved != nil && *f.unresolved, "unresolved"},
 			{f.clusterOf != nil && *f.clusterOf != "", "cluster-of"},
+			{f.topo.set, "topo"},
 			{f.status != nil && *f.status, "status"},
 			{f.cycles != nil && *f.cycles, "cycles"},
 			{f.openJoint != nil && *f.openJoint, "open-joint"},

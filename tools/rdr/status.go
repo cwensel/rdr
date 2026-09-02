@@ -68,6 +68,65 @@ func statusCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 	return statusSet(tbl, args, f, stdout, stderr)
 }
 
+// peers is one status call's answer to FactEnv.Peer and FactEnv.Corpus:
+// a peer record's env by number, read once and cached, and the corpus on
+// first need. Bound from the same records dir and table as the record in
+// hand, so a rollup and a direct `status` of the peer agree by
+// construction. With the corpus already in hand (the worklist) no file
+// is re-read; otherwise a peer is resolved by name and the corpus is
+// scanned only if a fact asks for it.
+type peers struct {
+	tbl      *FactTable
+	f        *flags
+	byRecord map[string]*scan.Document
+	cache    map[string]*FactEnv
+	docs     []*scan.Document
+	once     sync.Once
+}
+
+func newPeers(tbl *FactTable, f *flags, docs []*scan.Document) *peers {
+	p := &peers{tbl: tbl, f: f, cache: map[string]*FactEnv{}, docs: docs}
+	if docs != nil {
+		p.byRecord = map[string]*scan.Document{}
+		for _, d := range docs {
+			p.byRecord[d.Record] = d
+		}
+	}
+	return p
+}
+
+func (p *peers) corpus() []*scan.Document {
+	p.once.Do(func() {
+		if p.docs == nil {
+			p.docs, _, _ = records(p.f, io.Discard)
+		}
+	})
+	return p.docs
+}
+
+func (p *peers) peer(num string) (*FactEnv, bool) {
+	if env, ok := p.cache[num]; ok {
+		return env, env != nil
+	}
+	var doc *scan.Document
+	if p.byRecord != nil {
+		doc = p.byRecord[num]
+	} else if path, err := resolve(num, *p.f.records); err == nil {
+		doc, _ = scan.File(path, scan.Options{Project: *p.f.project})
+	}
+	if doc == nil || doc.Record == "" {
+		p.cache[num] = nil
+		return nil, false
+	}
+	env := NewFactEnv(p.tbl, doc, recordSlug(doc.Path))
+	p.cache[num] = env
+	return env, true
+}
+
+func (p *peers) bind(env *FactEnv) {
+	env.Peer, env.Corpus = p.peer, p.corpus
+}
+
 // statusOne evaluates one record.
 func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) int {
 	path, err := resolve(arg, *f.records)
@@ -87,6 +146,7 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 	env := NewFactEnv(tbl, doc, recordSlug(path))
 	env.Want = wantedFacts(f)
 	env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
+	newPeers(tbl, f, nil).bind(env)
 	facts := tbl.Evaluate(env)
 	if facts, err = filterFacts(tbl, facts, f); err != nil {
 		fmt.Fprintln(stderr, err)
@@ -127,6 +187,7 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 	}
 	rows := []statusRow{}
 	skipped := []map[string]string{}
+	peers := newPeers(tbl, f, nil)
 	for _, arg := range args {
 		path, err := resolve(arg, *f.records)
 		if err != nil {
@@ -146,6 +207,7 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 		env := NewFactEnv(tbl, doc, recordSlug(path))
 		env.Want = wantedFacts(f)
 		env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
+		peers.bind(env)
 		facts := tbl.Evaluate(env)
 		facts, err = filterFacts(tbl, facts, f)
 		if err != nil {
@@ -265,6 +327,7 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		resolveOnce.Do(func() { scan.NewResolver(docs, *f.repo).ResolveAll(docs) })
 	}
 	rows := []statusRow{}
+	peers := newPeers(tbl, f, docs)
 	for _, d := range docs {
 		s := scan.Summarize(d)
 		if !s.InFlight {
@@ -273,6 +336,7 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		env := NewFactEnv(tbl, d, recordSlug(s.Path))
 		env.Want = wantedFacts(f)
 		env.ResolveEdges = resolveAll
+		peers.bind(env)
 		facts, err := filterFacts(tbl, tbl.Evaluate(env), f)
 		if err != nil {
 			fmt.Fprintln(stderr, err)

@@ -137,9 +137,9 @@ Four questions route nothing, because each is about **another record** or about
 prose. The model declines them on purpose; they are yours.
 
 - **The tandem barrier.** A bare `Draft` declaring a `Cluster` is barred from
-  refine until every member has completed propose. `cluster` is set-valued and no
-  row guards it — if a sibling has not proposed, next is that sibling's
-  `/rdr-propose`, not this RDR's `/rdr-refine`.
+  refine until `cluster_members_proposed=all`; no row guards it — on `some` or
+  `none`, next is the unproposed sibling's `/rdr-propose`, not this RDR's
+  `/rdr-refine`.
 - **Has the home answered?** `stopped:check-the-joint-decision-home` means a
   `Final` owes a joint decision. If the home has ANSWERED, the scoped
   answer-vs-fences check (Stage 7.1) is owed **before** implement. Surface the home
@@ -191,10 +191,9 @@ fetched for it.
      dash-joined key — that is the `<cluster-name>` arm, which reads as the
      pre-2026-06-29 topical shape.
    - `cluster_key` absent → the verb **bare**; `emit.surface` names the declared
-     members as candidates. Resolving them is 7.1 step 1's call: `--cluster-of`
-     is one hop, not a closure (four seeds of one live set answered 9/10/11/13),
-     needs a Final-and-unimplemented filter, and costs ~1.9s to this skill's
-     ~56ms. **Never run it here.**
+     members as candidates. Resolving them is 7.1 step 1's call:
+     `index --cluster-of --closure --final-unimplemented` (~2s to this skill's
+     ~56ms). **Never run it here.**
 4. **Caveats** — `emit.surface` verbatim, plus only genuinely-open items: a `~`
    gate whose downstream signal is **absent** (a `~` already certified downstream
    stays in the checklist, never here — don't nudge a re-run of a done stage); an

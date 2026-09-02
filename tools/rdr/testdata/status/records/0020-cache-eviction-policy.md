@@ -42,3 +42,12 @@ Not yet chosen.
 ## Decision Rationale
 
 Pending the assumptions above.
+
+## Implementation Plan
+
+### Phase 1: Code Implementation
+
+#### Step 1: Measure the resident set
+
+Replay a full day of traffic against the bounded cache and record the
+resident set at each eviction, before any policy is chosen.

@@ -745,6 +745,83 @@ type Member struct {
 	// Candidate marks the mutual-mentions tier: a member to confirm or
 	// dismiss, not one the records assert.
 	Candidate bool `json:"candidate,omitempty"`
+	// Via is the member whose hop found this one, set by ClusterClosure;
+	// empty on a seed and on a one-hop ClusterOf.
+	Via string `json:"via,omitempty"`
+}
+
+// ClusterClosure is ClusterOf run to a fixpoint from every seed.
+//
+// ClusterOf is one hop and asymmetric between peers; 7.1 used to union
+// it by hand from several seeds. This repeats the hop from every
+// ASSERTED member until no new record appears, and records `Via` — the
+// member whose hop found each one — so the basis stays visible. A
+// candidate (mutual-mentions) is noted and never expanded: a lead that
+// seeded a hop would pull the corpus in through prose. A candidate later
+// reached by a typed relation is promoted and then expanded. A seed the
+// corpus does not hold is dropped; nil when none resolves.
+func ClusterClosure(docs []*Document, seeds []string) []Member {
+	byRecord := map[string]*Document{}
+	for _, d := range docs {
+		byRecord[d.Record] = d
+	}
+	out := map[string]Member{}
+	var queue, order []string
+	for _, s := range seeds {
+		if byRecord[s] == nil {
+			continue
+		}
+		if _, seen := out[s]; seen {
+			continue
+		}
+		out[s] = Member{Record: s, Relation: "seed"}
+		queue = append(queue, s)
+		order = append(order, s)
+	}
+	for len(queue) > 0 {
+		from := queue[0]
+		queue = queue[1:]
+		for _, m := range ClusterOf(docs, from) {
+			if m.Record == from {
+				continue
+			}
+			have, seen := out[m.Record]
+			switch {
+			case !seen:
+				m.Via = from
+				out[m.Record] = m
+				order = append(order, m.Record)
+				if !m.Candidate {
+					queue = append(queue, m.Record)
+				}
+			case have.Candidate && !m.Candidate:
+				m.Via = from
+				out[m.Record] = m
+				queue = append(queue, m.Record)
+			}
+		}
+	}
+	if len(order) == 0 {
+		return nil
+	}
+	seedCount := 0
+	for _, r := range order {
+		if out[r].Relation == "seed" {
+			seedCount++
+		}
+	}
+	rest := order[seedCount:]
+	sortStrings(rest)
+	members := make([]Member, 0, len(order))
+	for _, r := range append(order[:seedCount:seedCount], rest...) {
+		m := out[r]
+		m.Title, m.Status = byRecord[r].Title, ""
+		if f := byRecord[r].MetadataField("Status"); f != nil && f.Status != nil {
+			m.Status = f.Status.Value
+		}
+		members = append(members, m)
+	}
+	return members
 }
 
 // ClusterOf derives a record's cluster from the edge graph.

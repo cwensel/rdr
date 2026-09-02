@@ -575,6 +575,196 @@ func TestIndexClusterCandidateTier(t *testing.T) {
 	}
 }
 
+// TestIndexClusterClosure: `--closure` is ClusterOf to a fixpoint. A
+// declares B, B declares C, C rests on D as peer evidence, D and E only
+// mention each other, and E mentions G mutually: the closure from A is
+// {A,B,C,D} with E a candidate that is never expanded (G stays out).
+// `--final-unimplemented` then drops the Implemented member and the
+// COMPLETE-capsule member, keeps the one with no capsule, and lists the
+// candidate as dropped with why; a solo seed answers itself alone.
+func TestIndexClusterClosure(t *testing.T) {
+	dir := t.TempDir()
+	head := func(num, title, status string) string {
+		return "# Recommendation " + num + ": " + title +
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: small\n"
+	}
+	peer := "\n## Critical Assumptions\n\n- **A1 [claim]**\n  - **Status**: Verified\n  - **Method**: Peer RDR\n  - **Evidence**: 0004-delta A1\n"
+	for name, body := range map[string]string{
+		"0001-alpha.md":   head("0001", "Alpha", "Final") + "- **Cluster**: 0002-beta\n\n## Problem Statement\n\nSynthetic.\n",
+		"0002-beta.md":    head("0002", "Beta", "Final") + "- **Cluster**: 0003-gamma\n\n## Problem Statement\n\nSynthetic.\n",
+		"0003-gamma.md":   head("0003", "Gamma", "Implemented") + peer + "\n## Problem Statement\n\nSynthetic.\n",
+		"0004-delta.md":   head("0004", "Delta", "Final") + "\n## Critical Assumptions\n\n- **A1 [claim]**\n  - **Status**: Verified\n\n## Problem Statement\n\nSee 0005-epsilon.\n",
+		"0005-epsilon.md": head("0005", "Epsilon", "Final") + "\n## Problem Statement\n\nSee 0004-delta and 0007-eta.\n",
+		"0006-zeta.md":    head("0006", "Zeta", "Final") + "\n## Problem Statement\n\nSynthetic.\n",
+		"0007-eta.md":     head("0007", "Eta", "Final") + "\n## Problem Statement\n\nSee 0005-epsilon.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(dir, "0002-beta", "artifacts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "0002-beta", "artifacts", "status.md"), []byte("phase: done\nstate: COMPLETE\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_RECORDS", dir)
+	table := factTableForTest(t)
+
+	type member struct {
+		Record, Relation, Via, Status, ImplState string
+		Candidate                                bool
+	}
+	type drop struct{ Record, Status, ImplState, Why string }
+	read := func(args ...string) (cluster []member, dropped []drop) {
+		t.Helper()
+		code, out, errb := runCapture(t, append([]string{"index", "--json", "--records", dir, "--facts", table}, args...)...)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, errb)
+		}
+		var got struct {
+			Closure    bool
+			Cluster    []member
+			OutOfScope []drop `json:"out_of_scope"`
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		return got.Cluster, got.OutOfScope
+	}
+	ids := func(ms []member) string {
+		var s []string
+		for _, m := range ms {
+			s = append(s, m.Record)
+		}
+		return strings.Join(s, " ")
+	}
+
+	cluster, _ := read("--cluster-of", "0001", "--closure")
+	if ids(cluster) != "0001 0002 0003 0004 0005" {
+		t.Fatalf("closure from 0001 = %q, want A B C D and the candidate E", ids(cluster))
+	}
+	for _, m := range cluster {
+		switch m.Record {
+		case "0003":
+			if m.Via != "0002" || m.Relation != "declared" {
+				t.Errorf("C reached %q via %q, want declared via 0002", m.Relation, m.Via)
+			}
+		case "0004":
+			if m.Via != "0003" || m.Relation != "peer-evidence" {
+				t.Errorf("D reached %q via %q, want peer-evidence via 0003", m.Relation, m.Via)
+			}
+		case "0005":
+			if !m.Candidate || m.Via != "0004" {
+				t.Errorf("E should be a candidate via 0004: %+v", m)
+			}
+		}
+	}
+	// One hop from A is still one hop: C is not there without --closure.
+	if one, _ := read("--cluster-of", "0001"); ids(one) != "0001 0002" {
+		t.Errorf("one hop = %q, want the seed and B", ids(one))
+	}
+	// Two seeds are a closure without the flag being said.
+	if two, _ := read("--cluster-of", "0001,0006"); ids(two) != "0001 0006 0002 0003 0004 0005" {
+		t.Errorf("two seeds = %q", ids(two))
+	}
+
+	cluster, dropped := read("--cluster-of", "0001", "--closure", "--final-unimplemented")
+	if ids(cluster) != "0001 0004" {
+		t.Errorf("scoped = %q, want the seed and D (no capsule stays in scope)", ids(cluster))
+	}
+	why := map[string]string{}
+	for _, d := range dropped {
+		why[d.Record] = d.Why
+	}
+	if why["0002"] != "impl-complete" || why["0003"] != "not-final" || why["0005"] != "candidate" || len(dropped) != 3 {
+		t.Errorf("out_of_scope = %+v", dropped)
+	}
+
+	if solo, dropped := read("--cluster-of", "0006", "--closure", "--final-unimplemented"); ids(solo) != "0006" || len(dropped) != 0 {
+		t.Errorf("solo seed = %q dropped %+v", ids(solo), dropped)
+	}
+}
+
+// TestIndexTopo: build order over predecessor edges. A chain, a Priority
+// tie and a number tie order as Kahn with the declared tiebreak; a
+// predecessor cycle lands in `cycles` and the rest still orders; a
+// predecessor outside the set is `external`; a name the corpus lacks is
+// `skipped`; an empty set is `order: []`.
+func TestIndexTopo(t *testing.T) {
+	dir := t.TempDir()
+	rec := func(num, title, priority, preds string) string {
+		body := "# Recommendation " + num + ": " + title + "\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n- **Priority**: " + priority + "\n"
+		if preds != "" {
+			body += "- **Predecessors**: " + preds + "\n"
+		}
+		return body + "\n## Problem Statement\n\nSynthetic.\n"
+	}
+	for name, body := range map[string]string{
+		"0001-a.md": rec("0001", "A", "High", ""),
+		"0002-b.md": rec("0002", "B", "Low", "0001-a"),
+		"0003-c.md": rec("0003", "C", "High", "0001-a"),
+		"0004-d.md": rec("0004", "D", "Medium", ""),
+		"0005-e.md": rec("0005", "E", "High", "0006-f"),
+		"0006-f.md": rec("0006", "F", "High", "0005-e"),
+		"0007-g.md": rec("0007", "G", "", "0009-x"),
+		"0008-h.md": rec("0008", "H", "High", ""),
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type got struct {
+		Order []struct {
+			Record, Priority string
+			After            []string
+		}
+		Cycles   [][]string
+		External []struct{ Record, Predecessor string }
+		Skipped  []string
+	}
+	read := func(args ...string) got {
+		t.Helper()
+		code, out, errb := runCapture(t, append([]string{"index", "--json", "--records", dir}, args...)...)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, errb)
+		}
+		var g got
+		if err := json.Unmarshal([]byte(out), &g); err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+	order := func(g got) string {
+		var s []string
+		for _, r := range g.Order {
+			s = append(s, r.Record)
+		}
+		return strings.Join(s, " ")
+	}
+
+	g := read("--topo")
+	if order(g) != "0001 0003 0008 0004 0002 0007" {
+		t.Errorf("order = %q: want A first, then C (High, depends on A) before H (High, later number), then Medium, Low, unset", order(g))
+	}
+	if len(g.Cycles) != 1 || strings.Join(g.Cycles[0], " ") != "0005 0006" {
+		t.Errorf("cycles = %v, want E and F", g.Cycles)
+	}
+	if len(g.External) != 1 || g.External[0].Record != "0007" || g.External[0].Predecessor != "0009" {
+		t.Errorf("external = %+v", g.External)
+	}
+	if len(g.Order) > 4 && strings.Join(g.Order[4].After, ",") != "0001" {
+		t.Errorf("B's after = %v", g.Order[4].After)
+	}
+	g = read("--topo=0002,0001,0009")
+	if order(g) != "0001 0002" || len(g.Skipped) != 1 || g.Skipped[0] != "0009" {
+		t.Errorf("named set: order %q skipped %v", order(g), g.Skipped)
+	}
+	if g = read("--topo=0009"); len(g.Order) != 0 || g.Order == nil {
+		t.Errorf("empty set: order %v", g.Order)
+	}
+}
+
 // TestSourceAnchorsResolveWithoutRecordsDir: `--repo` is its own
 // authority. Source-anchor resolution greps the repo and never consults
 // the records map, so a missing or unwalkable `--records` must not take
@@ -1389,6 +1579,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 		{"-backlinks", "backlinks"},
 		{"-unresolved", "unresolved"},
 		{"-cluster-of=1", "cluster-of"},
+		{"-topo", "topo"},
 		{"-status", "status"},
 		{"-cycles", "cycles"},
 		{"-open-joint", "open-joint"},
@@ -1442,8 +1633,9 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	declared := map[string]bool{}
 	fs.VisitAll(func(fl *flag.Flag) {
 		switch fl.Name {
-		case "json", "records", "repo", "project", "template", "all", "filter", "record":
-			return // not facets: shared flags and modifiers
+		case "json", "records", "repo", "project", "template", "all", "filter", "record",
+			"closure", "final-unimplemented", "facts":
+			return // not facets: shared flags and modifiers (the last three qualify --cluster-of)
 		}
 		declared[fl.Name] = true
 	})

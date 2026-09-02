@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -211,7 +211,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 	for _, want := range []string{"0020-cache-eviction-policy", "0021-cache-warmup-order",
 		"0022-cache-metrics-surface", "0025-cache-key-encoding",
 		"0026-cache-hash-identity", "0028-cache-flush-hook", "0029-cache-size-report",
-		"0030-cache-warm-ratio", "total 8 in flight over 11 records"} {
+		"0030-cache-warm-ratio", "0031-cache-warm-report", "0032-cache-warm-alert",
+		"total 10 in flight over 13 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -227,6 +228,103 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 	// and derive each one's position is the choreography it replaced.
 	if !strings.Contains(out, "ca                           enum    all-pending") {
 		t.Errorf("worklist rows carry no facts:\n%s", out)
+	}
+}
+
+// TestPredecessorsRollup: the launch precheck's fold, read off the
+// fixtures. 0031 names 0030 (capsule COMPLETE) and 0021 (no capsule):
+// `incomplete`, and the set names 0021. 0032 names a record the dir does
+// not hold: `unresolved`, halting first. 0030 declares no Predecessors:
+// absent in --json, and `--tags` renders the declared sentinel `none`.
+func TestPredecessorsRollup(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	read := func(rec string) map[string]string {
+		t.Helper()
+		code, out, errb := runCapture(t, "status", "--facts", table, "--json", "--filter", "predecessors_state,predecessors_incomplete", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var got struct {
+			Facts []struct {
+				Name, Value string
+				Members     []string
+			}
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		facts := map[string]string{}
+		for _, f := range got.Facts {
+			if f.Members != nil {
+				facts[f.Name] = strings.Join(f.Members, ",")
+			} else {
+				facts[f.Name] = f.Value
+			}
+		}
+		return facts
+	}
+	if got := read("0031"); got["predecessors_state"] != "incomplete" || got["predecessors_incomplete"] != "0021" {
+		t.Errorf("0031: %v, want incomplete with 0021 named (0030 is COMPLETE, 0021 has no capsule)", got)
+	}
+	if got := read("0032"); got["predecessors_state"] != "unresolved" || got["predecessors_incomplete"] != "9999" {
+		t.Errorf("0032: %v, want unresolved naming 9999", got)
+	}
+	if got := read("0030"); len(got) != 0 {
+		t.Errorf("0030 declares no Predecessors, but --json carries %v; absence must survive the JSON rendering", got)
+	}
+	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", "--filter", "status,predecessors_state", "0030")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "predecessors_state=none") {
+		t.Errorf("--tags on a record with no Predecessors did not render the sentinel:\n%s", out)
+	}
+}
+
+// TestClusterMembersProposed: the tandem barrier's fold. 0021 declares
+// 0020 (an authored Implementation Plan) and 0022 (a draft placeholder):
+// `some`. A sibling the dir does not hold reads not-proposed, so a cluster
+// with one authored plan and one missing member is `some`, never `all`;
+// an unclustered record is absent, rendered `solo`.
+func TestClusterMembersProposed(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, out, errb := runCapture(t, "status", "--facts", table, "--filter", "cluster_members_proposed", "0021")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "cluster_members_proposed     enum    some") {
+		t.Errorf("0021's siblings are one authored plan and one placeholder, want some:\n%s", out)
+	}
+	code, out, errb = runCapture(t, "status", "--facts", table, "--tags", "--filter", "cluster_members_proposed", "0020")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "cluster_members_proposed=solo") {
+		t.Errorf("an unclustered record renders solo:\n%s", out)
+	}
+
+	dir := t.TempDir()
+	head := func(num, title, cluster string) string {
+		return "# Recommendation " + num + ": " + title + "\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n- **Cluster**: " + cluster +
+			"\n\n## Problem Statement\n\nSynthetic.\n"
+	}
+	for name, body := range map[string]string{
+		"0001-a.md": head("0001", "A", "0002-b, 0003-c"),
+		"0002-b.md": head("0002", "B", "0001-a") + "\n## Implementation Plan\n\n### Phase 1: Code Implementation\n\nWrite the adapter behind the existing interface first.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	code, out, errb = runCapture(t, "status", "--facts", table, "--records", dir, "--filter", "cluster_members_proposed", "0001")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "cluster_members_proposed     enum    some") {
+		t.Errorf("a missing sibling reads not-proposed, want some:\n%s", out)
+	}
+	if code, out, _ = runCapture(t, "status", "--facts", table, "--records", dir, "--filter", "cluster_members_proposed", "0002"); code != 0 || !strings.Contains(out, "enum    none") {
+		t.Errorf("0002's one sibling has no plan, want none: exit %d\n%s", code, out)
 	}
 }
 

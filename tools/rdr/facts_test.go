@@ -955,6 +955,12 @@ var routingFacts = map[string]string{
 	"contracts_transient":   "how many labelled contracts the Transient marker excludes from the Profile axis",
 	"contracts_durable":     "the Profile contract axis: labelled minus Transient, bucketed, subtracted by the projector",
 	"spikes_unrun":          "Stage 6's third open-set source: spikes the record names with no run on disk, as a set rather than a walk",
+
+	// the rollups: the set behind a routed word, and the two set questions
+	// no row guards because they are about another record
+	"predecessors_incomplete":     "the predecessors the launch precheck's stopped:predecessor-incomplete names",
+	"cluster_members_proposed":    "the Stage-2 tandem barrier: every sibling's plan authored",
+	"related_final_unimplemented": "Finalize's next step: a related Final still unimplemented routes to 7.1 first",
 }
 
 // TestEveryStageRowIsExpressedAsFacts is the issue's acceptance criterion,

@@ -76,8 +76,9 @@ Claude: /rdr-finalize <NNNN>
 ## Next step (rdr-common §next-step)
 
 - The lock commit (standalone `docs(rdr): finalize …`, **never** `fixup!`) is part of the READY action above — see Usage / rdr-common §commit.
-- Locked → `Next: /rdr-implement NNNN`. (If ≥2 related RDRs are now Final and none
-  implemented → `/rdr-cluster-reconcile <cluster>` first.)
+- Locked → `Next: /rdr-implement NNNN`;
+  `"$RDR_HOME/bin/rdr" status --json --filter related_final_unimplemented NNNN`
+  reading `1+` → `/rdr-cluster-reconcile NNNN` first.
 - NOT READY → the named earlier stage (`/rdr-reconcile NNNN` for an open
   spike/assumption; `/rdr-resolve` / `/rdr-refine` / `/rdr-propose` per the blocker).
 - `/rdr-status NNNN` to re-orient.

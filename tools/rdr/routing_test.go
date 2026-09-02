@@ -887,7 +887,7 @@ func emitNextDomain(t *testing.T, name string) map[string][]string {
 func TestLaunchEmitsAreDeclaredDispositions(t *testing.T) {
 	m := loadRoutingModelNamed(t, launchModelName)
 	domain := emitNextDomain(t, launchModelName)
-	for _, part := range []string{"route", "done", "stop"} {
+	for _, part := range []string{"route", "done", "go", "stop"} {
 		if len(domain[part]) == 0 {
 			t.Errorf("[emit.next.domain] declares no %q partition", part)
 		}
@@ -919,8 +919,12 @@ func TestLaunchEmitsAreDeclaredDispositions(t *testing.T) {
 			if part == "route" {
 				t.Errorf("completion row %q emits %q; the completion gate verdicts, it does not route", id, next)
 			}
+		case strings.HasPrefix(id, "precheck"):
+			if part != "go" && part != "stop" {
+				t.Errorf("precheck row %q emits %q (%s); the precheck proceeds or stops, it neither routes nor completes", id, next, part)
+			}
 		default:
-			t.Errorf("rule %q belongs to neither the size nor the complete group by id", id)
+			t.Errorf("rule %q belongs to none of the size, complete or precheck groups by id", id)
 		}
 	}
 	for v := range member {
@@ -1023,6 +1027,21 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 	argv = filteredTagArgv(t, table, "0021", "impl_orphans,impl_open_decisions,impl_mvv_recorded")
 	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete-coverage-unread" || next != "stopped:coverage-unread" {
 		t.Errorf("completion gate on 0021 (no ledger): rule %q next %q, want complete-coverage-unread", rule, next)
+	}
+
+	// The precheck: status x predecessors_state, every row reachable from
+	// a fixture. 0020 is Draft; 0032 names a record the dir lacks; 0031
+	// names one with no capsule; 0030 names none and proceeds.
+	for _, c := range []struct{ rec, rule, next string }{
+		{"0020", "precheck-not-final", "stopped:not-final"},
+		{"0032", "precheck-unresolved", "stopped:predecessor-unresolved"},
+		{"0031", "precheck-incomplete", "stopped:predecessor-incomplete"},
+		{"0030", "precheck-ok", "proceed"},
+	} {
+		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state")
+		if rule, next := resolve("precheck", argv); rule != c.rule || next != c.next {
+			t.Errorf("precheck on %s: rule %q next %q, want %s/%s", c.rec, rule, next, c.rule, c.next)
+		}
 	}
 }
 

@@ -204,10 +204,9 @@ Read the Problem Statement and Context, then:
    previously-empty cell, removes a guard, classifies the
    previously-unclassified), grep `Final` peers for the refusal token itself
    (the error / `unclassified` / refused literal): a Final peer *relying on the
-   refusal* is a FIRE. Open peers = `*.md` at depth 1 of `$RDR_RECORDS` (never
-   recurse) whose FIRST `- **Status**:` value starts with `Draft` or `Final`
-   (prefix match; the template's Status comment carries decoy statuses),
-   excluding this RDR. This arm is not convertible: it searches for a token
+   refusal* is a FIRE. Open peers = `"$RDR_HOME/bin/rdr" status --json --filter status`
+   `records[].path` (this record included is harmless: the token is absent
+   from it by definition). This arm is not convertible: it searches for a token
    *because it is absent from the new proposal*, so it needs the proposal rather
    than the corpus — the intersection facets can only report what two records
    both say, never what one of them stopped saying. A clear on arms 1 and 2 is
@@ -232,7 +231,7 @@ Read the Problem Statement and Context, then:
    is detection, not demotion: siblings proceed under recorded tolerance once
    the joint decision has a home.
    **Bridge sub-check** — Cluster members only, behind the tandem barrier
-   (all members' plans exist, so a scheduled deletion is decidable). When this
+   (`cluster_members_proposed=all`, so a scheduled deletion is decidable). When this
    RDR's Implementation Plan introduces a surface a sibling's plan schedules
    for deletion/replacement — cues `bridge`, `retire`, `replace` (stem match,
    in either plan; NOT `supersede`, which overwhelmingly claims lineage over
