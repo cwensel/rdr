@@ -337,6 +337,9 @@ Finalization Gate run on every profile, so they are folded into "Gate" below:
 | Large / locks an enum, hash, format, grammar, or destructive operation | Grounding + 3amigo + Critique + Gate |
 | Foundational / cross-RDR producer / spans modules | CoVe + 3amigo + Critique + Repeatability + Gate (+ Stage 7.1 cross-RDR pairwise, post-Final, per cluster) |
 
+Illustrative, not normative — `models/rdr-status.toml` (`lens` group) is the authority and `intrastate lint` proves it
+complete.
+
 Grounding (a cheap codebase-claim sweep) runs first wherever a contract is locked — standalone at Mid/Large, embedded
 as CoVe's Step 0 at Foundational (so CoVe leads there); 3amigo runs on every non-trivial RDR; Critique on RDRs that lock
 a surface; Repeatability runs on foundational work, and `mid`/`large` add repeatability-lite when the Determinacy trigger

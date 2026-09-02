@@ -1,9 +1,7 @@
 # Grounding Step-0 — Codebase Claim Sweep (S-00)
 
-**Use when**: any RDR that **locks a contract** (`mid` and up). The cheap oracle
-half of [cove](4-cove.md), run standalone at `mid` where the full cove persona
-pass is overhead but an ungrounded contract frame is still expensive. At
-`foundational` it is Step 0 *inside* cove (which runs first), not run separately.
+**Use when**: the `lens` outcome names `grounding`. The cheap oracle half of
+[cove](4-cove.md), which embeds it as Step 0 (never run standalone there).
 
 **What it uniquely catches**: a contract frame that is internally coherent but
 **false against the codebase** — a new discriminator/heuristic invented when a

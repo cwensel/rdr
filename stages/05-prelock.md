@@ -36,30 +36,11 @@ Tooling sweep is **not** here: it moved to the Gate's pre-step in
 [Stage 7](07.0-finalize.md), because the lenses and Stage 6 reconcile rewrite the
 draft and a mechanical sweep is only meaningful *after* the last mutation.
 
-| RDR profile | Lenses (in order) |
-| --- | --- |
-| Small / single-file / non-user-facing | *(none — straight to Stage 6, then the Stage 7 sweep + Gate)* |
-| Mid / user-facing OR locks a contract | grounding → 3amigo ‡ |
-| Large / locks enum·hash·format·grammar·destructive | grounding → 3amigo → critique ‡ |
-| Foundational / cross-RDR / spans modules | cove → 3amigo → critique → repeatability |
-
-‡ *+ repeatability-lite if the Determinacy trigger fires (below).*
-
-**The grounding sweep runs first** — as `grounding` at `mid`/`large`, as cove's
-Step 0 at `foundational`. It is the only check that reads the RDR against
-*source*; running it ahead of the personas keeps them from ratifying a frame
-that's false against the codebase. So the **first lens is profile-dependent**:
-`mid`/`large` → the standalone
-[grounding Step-0](../prompts/pre-lock/0-grounding.md) (a cheap deterministic
-sweep); `foundational` → [cove](../prompts/pre-lock/4-cove.md), which subsumes
-it — cove leads and `grounding` is not run separately. Subsumption runs one way:
-a standalone `grounding/` from a pre-escalation `mid`/`large` pass does **not**
-discharge cove's Step 0, so an escalated RDR still owes `cove` first. The
-cost-order cascade still holds for the remaining 3amigo → critique →
-repeatability. A propose-time `Ground-sweep:`
-verdict (02-propose step 7.5) means the proposal's anchors are already
-source-checked — grounding (and cove's Step 0) delta-scopes to claims added or
-edited since propose; no verdict line → full sweep.
+**Which lenses.** The `lens` outcome answers this (rdr-common §lens-row):
+`emit.row` is the row still owed, in order; `mid`/`large` add repeatability-lite
+when the Determinacy trigger fires (below). A propose-time `Ground-sweep:`
+verdict (02-propose step 7.5) scopes grounding / cove's Step 0 per
+[0-grounding.md](../prompts/pre-lock/0-grounding.md).
 
 **Accretion floor.** Resolved, never re-read here: §lens-row's call,
 `--outcome floor`, answers it from the `Seam Lineage` facts (the model's
@@ -261,13 +242,11 @@ enforces them; don't re-derive):
    `stopped:verdict-flapping` and surfaces it once; the cure is §strong-consult
    (rdr-common) over the open ledger entries, then a human look — not a
    fourth pass.
-4. **Converged → next lens** in the set. **Critique is model-aware**: a lone
-   single-model `critique.md` does **not** converge a `foundational` RDR (dual-model
-   required, or recorded single-model fallback); on re-entry, compare the existing
-   evidence's `Model:` stamp (§model-stamp) to this session's — a different model is
-   the second pass to run, never "already complete." The owed second pass keeps
-   `critique` the *next* lens: the close packet points at `--auto` (or, where the
-   harness can't spawn per-model, the relaunch), never at a later lens.
+4. **Converged → `emit.next` is the next lens.** Critique's second pass is
+   `--outcome critique`'s answer (§model-stamp), never a stamp compare here;
+   while owed it keeps `critique` next — the close packet points at `--auto`
+   (or, where the harness can't spawn per-model, the relaunch), never at a
+   later lens.
 
 If critique or cove surfaces that an *assumption* was wrong (not just
 under-documented), flag-as-you-go captures it and **Stage 6 reconciles it** before

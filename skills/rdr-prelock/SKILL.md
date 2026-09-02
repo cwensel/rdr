@@ -1,8 +1,8 @@
 ---
 name: rdr-prelock
 metadata:
-  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding|cove (first lens: grounding at mid/large, cove at foundational), 3amigo, critique, repeatability}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
-description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding or cove (whichever the Profile picks) then 3amigo, critique, repeatability. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
+  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
+description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding, 3amigo, critique, repeatability, cove — the `lens` outcome names the next one. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
 ---
 
 # rdr-prelock — Stage 5+6 (Pre-Lock Review **and** Resolve, per lens)
@@ -37,9 +37,7 @@ spawn, barrier before diff, harness degradation) — don't restate them. With
 the first-lens fork, the Determinacy add-on and the additive-on-escalation
 rule, all encoded in the table, so don't restate or re-derive them.
 
-`emit.next` names the lens to run. The row runs in order (the grounding sweep
-leads: ground the frame before the personas debate it), which is why the answer
-is always the first missing one.
+`emit.next` names the lens to run; `emit.row` is what remains after it.
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a

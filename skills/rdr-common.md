@@ -531,10 +531,9 @@ it via this anchor and do not restate it.
 | status (read-only) | current state; content reason for it; exact next command |
 
 Per-stage next pointers: seed→propose→refine→resolve→prelock(per lens — one
-`/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence;
-`repeatability` first loops fresh-session run(s)→diff, variant by `Profile` not
-files present — `mid`/`large` lite (run-1), `foundational`/escalation full
-(run-1/2/3) — then the diff session resolves its `diff.md`)→reconcile→finalize→[cluster-reconcile]→implement.
+`/rdr-prelock <lens>` cycle reviews *and* resolves, looping to convergence; the
+`lens` outcome orders them, `--outcome repeatability` orders its
+runs)→reconcile→finalize→[cluster-reconcile]→implement.
 The branch after `resolve` reads the RDR's **`Profile` field** (the latch Stage 4
 writes), not a fresh size inference — resolve it through **§lens-row** below. The
 finalize Gate re-validates the field before lock, so a wrong value cannot
@@ -582,11 +581,10 @@ It answers with the next command and its reason, and returns
 `stopped:no-profile` when the `Profile` field is absent — a §stop-packet, never
 a default. On a re-entered Draft it also names a row lens whose evidence
 predates the qualifier's demote date (`lens_stale`), since a folder its Final
-earned is not a lens run over the rework. The row it walks (`small` skips Stage 5; `mid` grounding → 3amigo;
-`large` + critique; `foundational` cove → 3amigo → critique → repeatability,
-leading with cove because cove subsumes grounding's sweep), the
-first-missing-lens rule, and the additive-never-shrinks rule are all encoded
-there — do not restate or re-derive them here.
+earned is not a lens run over the rework. The row, the first-missing rule, the
+additive-on-escalation rule and the remaining span are encoded there: `emit.next`
+is the next lens, `emit.row` the rest of the row in order (`none` = complete). Do
+not restate or walk them here.
 
 `intrastate` is **required** (§intrastate). Unresolved, this is
 `stopped:no-intrastate` — never a hand-walked row: an inferred lens that reads

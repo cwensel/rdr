@@ -211,9 +211,12 @@ on every profile:
 | RDR profile | Stages |
 | --- | --- |
 | Small / single-file / non-user-facing | 1·2·3·4 → *(skip 5)* → 6 → 7 → 8 |
-| Mid / user-facing OR locks a contract | 1·2·3·4 → 5(grounding+3amigo) → 6 → 7 → 8 |
-| Large / locks enum·hash·format·grammar·destructive op | 1·2·3·4 → 5(grounding+3amigo+critique) → 6 → 7 → 8 |
-| Foundational / cross-RDR producer / spans modules | 1·2·3·4 → 5(cove+3amigo+critique+repeatability) → 6 → 7 → [7.1]† → 8 |
+| Mid / user-facing OR locks a contract | 1·2·3·4 → 5 → 6 → 7 → 8 |
+| Large / locks enum·hash·format·grammar·destructive op | 1·2·3·4 → 5 → 6 → 7 → 8 |
+| Foundational / cross-RDR producer / spans modules | 1·2·3·4 → 5 → 6 → 7 → [7.1]† → 8 |
+
+Which lenses Stage 5 runs per profile is the `lens` outcome of
+`models/rdr-status.toml`, not this table.
 
 † **Stage 7.1 Cluster Reconcile** is *per cluster, not per RDR* — the `[7.1]†`
 marker only flags that a foundational RDR's cross-RDR Pairwise happens there,

@@ -112,6 +112,17 @@ chain = ["resolve:lens", "resolve:reentry"]
 none  = ["none"]
 stop  = ["stopped:assumption-list-unreadable", "stopped:check-the-joint-decision-home", "stopped:deferred-without-condition", "stopped:determinacy-trigger-unjudged", "stopped:no-profile", "stopped:profile-below-floor", "stopped:repeatability-variant-unstamped", "stopped:seam-lineage-count-unread"]
 
+# The `lens` group's second answer: the row STILL OWED, headed by
+# `emit.next`, in order — or `none` when the row is complete (or empty at
+# `small`). draft-to-lock writes its `lenses:` line from `row` as handed,
+# so no stage walks the row forward from one lens.
+# Values are comma-joined with no spaces — one shell word; lint refuses
+# a value with a space (`emit_value_out_of_domain`), so that spelling is
+# the only one.
+[emit.row]
+kind   = "enum"
+domain = ["none", "grounding,3amigo", "3amigo", "grounding,3amigo,critique", "3amigo,critique", "critique", "cove,3amigo,critique,repeatability", "3amigo,critique,repeatability", "critique,repeatability", "repeatability"]
+
 [emit.why]
 kind = "scalar"
 
@@ -937,6 +948,7 @@ eq = "lens"
 eq = "small"
 [rule.emit]
 next = "/rdr-reconcile"
+row = "none"
 why  = "Profile small — §lens-row skips Stage 5 entirely."
 
 # --- mid: grounding -> 3amigo ---------------------------------------------
@@ -953,6 +965,7 @@ eq = "false"
 in = ["grounding", "3amigo"]
 [rule.emit]
 next = "/rdr-prelock grounding"
+row = "grounding,3amigo"
 why  = "Profile mid — grounding is the first lens of the row and has not run."
 
 [[rule]]
@@ -969,6 +982,7 @@ eq = "false"
 in = ["grounding", "3amigo"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
+row = "3amigo"
 why  = "Profile mid — grounding has run; 3amigo is the next row entry."
 
 # The mid row is complete. A Determinacy-owed `repeatability` is an
@@ -991,6 +1005,7 @@ eq = "true"
 in = ["grounding", "3amigo"]
 [rule.emit]
 next    = "/rdr-reconcile"
+row    = "none"
 why     = "Profile mid — the grounding -> 3amigo row is complete."
 surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
 
@@ -1008,6 +1023,7 @@ eq = "false"
 in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock grounding"
+row = "grounding,3amigo,critique"
 why  = "Profile large — grounding is the first lens of the row and has not run."
 
 [[rule]]
@@ -1024,6 +1040,7 @@ eq = "false"
 in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
+row = "3amigo,critique"
 why  = "Profile large — 3amigo is the next row entry."
 
 [[rule]]
@@ -1042,6 +1059,7 @@ eq = "false"
 in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next = "/rdr-prelock critique"
+row = "critique"
 why  = "Profile large — critique is the last row entry and has not run."
 
 [[rule]]
@@ -1060,6 +1078,7 @@ eq = "true"
 in = ["grounding", "3amigo", "critique"]
 [rule.emit]
 next    = "/rdr-reconcile"
+row    = "none"
 why     = "Profile large — the grounding -> 3amigo -> critique row is complete."
 surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
 
@@ -1082,6 +1101,7 @@ eq = "false"
 in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-prelock cove"
+row = "cove,3amigo,critique,repeatability"
 why  = "Profile foundational — cove leads the row (it subsumes grounding's sweep as Step 0) and has not run."
 
 [[rule]]
@@ -1098,6 +1118,7 @@ eq = "false"
 in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-prelock 3amigo"
+row = "3amigo,critique,repeatability"
 why  = "Profile foundational — 3amigo is the next row entry."
 
 [[rule]]
@@ -1116,6 +1137,7 @@ eq = "false"
 in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next    = "/rdr-prelock critique"
+row    = "critique,repeatability"
 why     = "Profile foundational — critique is the next row entry."
 surface = "critique on a foundational RDR owes the DUAL-MODEL diff, not just critique.md"
 
@@ -1137,6 +1159,7 @@ eq = "false"
 in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next    = "/rdr-prelock repeatability"
+row    = "repeatability"
 why     = "Profile foundational — repeatability is the last row entry and has not run."
 surface = "foundational takes the FULL variant: run-1/2/3 then diff"
 
@@ -1158,6 +1181,7 @@ eq = "true"
 in = ["cove", "3amigo", "critique", "repeatability"]
 [rule.emit]
 next = "/rdr-reconcile"
+row = "none"
 why  = "Profile foundational — the cove -> 3amigo -> critique -> repeatability row is complete."
 
 # --- re-entered: the evidence predates the demote --------------------------
@@ -1182,6 +1206,7 @@ eq = "mid"
 eq = "grounding"
 [rule.emit]
 next    = "/rdr-prelock grounding"
+row    = "grounding,3amigo"
 why     = "Re-entered — grounding's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1195,6 +1220,7 @@ eq = "mid"
 eq = "3amigo"
 [rule.emit]
 next    = "/rdr-prelock 3amigo"
+row    = "3amigo"
 why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1208,6 +1234,7 @@ eq = "large"
 eq = "grounding"
 [rule.emit]
 next    = "/rdr-prelock grounding"
+row    = "grounding,3amigo,critique"
 why     = "Re-entered — grounding's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1221,6 +1248,7 @@ eq = "large"
 eq = "3amigo"
 [rule.emit]
 next    = "/rdr-prelock 3amigo"
+row    = "3amigo,critique"
 why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1234,6 +1262,7 @@ eq = "large"
 eq = "critique"
 [rule.emit]
 next    = "/rdr-prelock critique"
+row    = "critique"
 why     = "Re-entered — critique's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1247,6 +1276,7 @@ eq = "foundational"
 eq = "cove"
 [rule.emit]
 next    = "/rdr-prelock cove"
+row    = "cove,3amigo,critique,repeatability"
 why     = "Re-entered — cove's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1260,6 +1290,7 @@ eq = "foundational"
 eq = "3amigo"
 [rule.emit]
 next    = "/rdr-prelock 3amigo"
+row    = "3amigo,critique,repeatability"
 why     = "Re-entered — 3amigo's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1273,6 +1304,7 @@ eq = "foundational"
 eq = "critique"
 [rule.emit]
 next    = "/rdr-prelock critique"
+row    = "critique,repeatability"
 why     = "Re-entered — critique's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 
@@ -1286,6 +1318,7 @@ eq = "foundational"
 eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability"
+row    = "repeatability"
 why     = "Re-entered — repeatability's evidence predates the demote date, so the row is not current."
 surface = "the demote date from the qualifier and the lens's newest evidence date; a re-run under iter-N makes it current"
 

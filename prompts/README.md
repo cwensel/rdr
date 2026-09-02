@@ -39,12 +39,9 @@ beside the stage docs at [`../skills/`](../skills/).
 
 The analytical lenses of the [Pre-Lock Review](../README.md#pre-lock-review)
 process. Run between Decide and Lock; the Finalization Gate is the final check.
-The **single-RDR** lenses are numbered for run order; each is one file, one
-paste block, reading only `{RDR_PATH}` (grounding also reads the source the RDR
-cites). The grounding sweep runs first wherever a contract is locked — standalone at
-Mid/Large, embedded as CoVe's Step 0 at Foundational, so **CoVe** is the first
-lens there and `grounding` is not run separately. Numbering is file order, not
-the run order for a given profile.
+The **single-RDR** lenses are each one file, one paste block, reading only
+`{RDR_PATH}` (grounding also reads the source the RDR cites). The `lens` outcome
+of `models/rdr-status.toml` orders them per profile; numbering is file order.
 
 | # | Lens | File | Cost | Skip when |
 | --- | --- | --- | --- | --- |

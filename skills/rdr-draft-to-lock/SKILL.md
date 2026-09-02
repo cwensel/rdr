@@ -120,7 +120,7 @@ Contracts` (an h4 inside Proposed Solution, per TEMPLATE.md; reading it is not
 reading the body). Take the row from **§lens-row**'s call — the same one every
 stage makes — never a row computed here.
 
-`emit.next` is the first lens; walking the row forward from it gives the span.
+`emit.next` is the first lens and `emit.row` the span — write it as handed.
 Write the plan to `{ARTIFACT_DIR}/run-plan.md` (`mkdir -p` it — Stage 7 is
 otherwise its first writer). It holds what this run scheduled and decided, and
 opens by saying so — never where the RDR stands, which is derived (Re-entry below):
@@ -128,7 +128,7 @@ opens by saying so — never where the RDR stands, which is derived (Re-entry be
 ```
 rdr: <RDR_SLUG>           profile: <value>   (as read; Draft = provisional)
 posture: upfront=<v> each=<v> finalize=<v>   (the posture row's answer; re-asked with the lens row)
-lenses: <row, in order, or "none (small)">   [re-entry: delta-scoped to <IDs>]
+lenses: <emit.row verbatim; "none" at small or complete>   [re-entry: delta-scoped to <IDs>]
                                              (critique/repeatability run --auto)
 stages: refine -> resolve -> [lenses] -> reconcile -> finalize   stop-after: <--to>
 ```
@@ -264,7 +264,7 @@ when a re-ask diverges.
 
 The up-front confirm asks about **cost and posture** — the lens row's span and
 `stop-after` — never "is the row right?", which §lens-row already decided from
-the Profile and the human cannot answer better. State the row, its
+the Profile and the human cannot answer better. State `emit.row`, its
 `iter-N`/delta bracket when demoted, and that `critique`/`repeatability` fan out
 under `--auto`: that span and that fan-out are where the cost lands.
 

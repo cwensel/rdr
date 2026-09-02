@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -214,18 +215,36 @@ func loadRoutingModelNamed(t *testing.T, name string) *routingModel {
 	return m
 }
 
-// splitTOMLList reads a single-line `["a", "b"]` literal.
+// splitTOMLList reads a single-line `["a", "b"]` literal. A comma inside
+// a quoted member is part of the member — `[emit.row]` spells a lens
+// span as one comma-joined word — so the split is on the commas between
+// quotes, never on every comma.
 func splitTOMLList(s string) []string {
 	s = strings.TrimSpace(s)
 	if !strings.HasPrefix(s, "[") || !strings.HasSuffix(s, "]") {
 		return nil
 	}
 	var out []string
-	for _, part := range strings.Split(s[1:len(s)-1], ",") {
-		if p := strings.Trim(strings.TrimSpace(part), `"`); p != "" {
+	var cur strings.Builder
+	quoted := false
+	flush := func() {
+		if p := strings.Trim(strings.TrimSpace(cur.String()), `"`); p != "" {
 			out = append(out, p)
 		}
+		cur.Reset()
 	}
+	for _, r := range s[1 : len(s)-1] {
+		switch {
+		case r == '"':
+			quoted = !quoted
+			cur.WriteRune(r)
+		case r == ',' && !quoted:
+			flush()
+		default:
+			cur.WriteRune(r)
+		}
+	}
+	flush()
 	return out
 }
 
@@ -1103,6 +1122,95 @@ func TestWriteProfileEmitMatchesTheProfileFact(t *testing.T) {
 	for _, id := range w.RuleIDs {
 		if em := w.Emits[id]; em["op"] == "profile" && !containsString(emit, em["profile"]) {
 			t.Errorf("rule %q emits profile %q outside [emit.profile]", id, em["profile"])
+		}
+	}
+}
+
+// TestLensRowHasOneHome pins the Stage-5 lens row to its one home, the
+// `lens` group of the status model, both ways.
+//
+// Forward: no stage, skill, or prompt spells the row out — a
+// `grounding → 3amigo → critique` chain in prose is a second table that
+// drifts from the model and invites a reader to walk it instead of
+// reading `emit.row`. The sweep covers every prose tree; the model is the
+// home, fixtures and testdata are pinned copies, and README.md carries
+// the matrix under an explicit non-normative note.
+//
+// Backward: every `[emit.row]` member is emitted by some lens rule, so the
+// declared domain carries no span nothing can ever produce, and every
+// lens rule that routes (not a stop) emits one — draft-to-lock writes its
+// `lenses:` line from that value as handed.
+func TestLensRowHasOneHome(t *testing.T) {
+	re := regexp.MustCompile(`(grounding|cove)[[:space:]]*(→|->|\+)[[:space:]]*3amigo|3amigo[[:space:]]*(→|->|\+)[[:space:]]*critique|critique[[:space:]]*(→|->|\+)[[:space:]]*repeatability`)
+	skip := []string{"models", filepath.Join("skills", "rdr-doctor", "fixtures"), filepath.Join("tools", "rdr", "testdata")}
+	allow := map[string]bool{"README.md": true}
+	for _, top := range []string{"README.md", "stages", "skills", "prompts"} {
+		root := repoFile(t, top)
+		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, _ := filepath.Rel(repoFile(t, "."), path)
+			for _, s := range skip {
+				if rel == s || strings.HasPrefix(rel, s+string(filepath.Separator)) {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+			}
+			if d.IsDir() || allow[rel] || !strings.HasSuffix(path, ".md") {
+				return nil
+			}
+			src, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			for i, line := range strings.Split(string(src), "\n") {
+				if re.MatchString(line) {
+					t.Errorf("%s:%d spells the lens row in prose; the row is the `lens` group's `emit.row`:\n%s", rel, i+1, line)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	m := loadRoutingModel(t)
+	domain := m.EmitDomains["row"]
+	if len(domain) == 0 {
+		t.Fatal("the status model declares no [emit.row]; the lens span has no home")
+	}
+	emitted := map[string]string{}
+	for _, id := range m.RuleIDs {
+		if !strings.HasPrefix(id, "lens-") {
+			continue
+		}
+		em := m.Emits[id]
+		row, ok := em["row"]
+		if strings.HasPrefix(em["next"], "stopped:") {
+			if ok {
+				t.Errorf("rule %q stops and must emit no row; it emits %q", id, row)
+			}
+			continue
+		}
+		if !ok {
+			t.Errorf("rule %q routes and must emit `row`", id)
+			continue
+		}
+		if !containsString(domain, row) {
+			t.Errorf("rule %q emits row %q, not a member of [emit.row]", id, row)
+		}
+		if strings.Contains(row, " ") {
+			t.Errorf("rule %q emits row %q with a space; a span is one shell word", id, row)
+		}
+		emitted[row] = id
+	}
+	for _, v := range domain {
+		if emitted[v] == "" {
+			t.Errorf("[emit.row] declares %q, which no lens rule emits", v)
 		}
 	}
 }

@@ -26,9 +26,8 @@ Read the Problem Statement and Context, then:
    `foundational` → this is a *missing design decision, not a missing patch*:
    before proposing any mechanism, write one sentence naming the **undecided
    contract** the prior point-fixes all danced around, and set Profile to
-   `foundational` (the cove lens then runs — it subsumes grounding as its Step
-   0). Enumerate approaches as answers to that contract question, not as the
-   next patch. `none` → skip this step; a `stopped:*` → surface it (§stop-packet).
+   `foundational` (the `lens` outcome then routes the row). Enumerate approaches
+   as answers to that contract question, not as the next patch. `none` → skip this step; a `stopped:*` → surface it (§stop-packet).
 
 1. **Read prior art FIRST — before naming any approach.** An LLM that enumerates
    first anchors on its training prior and won't reliably self-correct, so read
