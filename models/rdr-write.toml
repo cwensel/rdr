@@ -114,7 +114,7 @@ kind = "enum"
 [emit.op.domain]
 edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return"]
 none = ["none"]
-stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:joint-home-unresolved", "stopped:overlap-uncited", "stopped:overlap-unchecked"]
+stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked"]
 
 [emit.target]
 kind   = "enum"
@@ -261,10 +261,13 @@ single_valued = true
 required      = true
 
 # The lock's reading of the `Joint-check:` lines, from `rdr-facts.toml`'s
-# `joint_check_home` — worst line first. `open` and `unhomed` are the
-# two the lock refuses; `none` is the declared absent sentinel (no line
-# written), which rdr-status's `joint_checks` already surfaces and the
-# lock does not read as clear.
+# `joint_check_home` — worst line first. `open` is the one the lock
+# refuses. `unhomed` locks and stays visible on the vector: a consumer's
+# joint-decision register may sit outside the records dir, which the
+# tool cannot resolve yet, and refusing what it cannot read would stop
+# every fire homed there. `none` is the declared absent sentinel (no
+# line written), which rdr-status's `joint_checks` already surfaces and
+# the lock does not read as clear.
 [tags.joint_check_home]
 provenance    = "observed"
 kind          = "enum"
@@ -778,7 +781,7 @@ eq = "false"
 [rule.guard.unless.status_form]
 eq = "joint-decision"
 [rule.guard.all.joint_check_home]
-in = ["none", "clear", "homed"]
+in = ["none", "clear", "homed", "unhomed"]
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -809,7 +812,7 @@ eq = "true"
 [rule.guard.all.gate_stale]
 eq = "false"
 [rule.guard.all.joint_check_home]
-in = ["none", "clear", "homed"]
+in = ["none", "clear", "homed", "unhomed"]
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -824,8 +827,8 @@ surface = "the preserved qualifier verbatim, so the open question is visible at 
 # is a legal propose-time value and an illegal lock: both siblings would
 # reach Final each carrying its copy of the shared decision, and 7.1 can
 # then only demote one. Stamp-when-decided stays the JDR's rule; this
-# refuses only to lock an unhomed fire. Guarded on a written, current
-# gate so the gate refusals below keep precedence.
+# refuses only to lock an OPEN fire. Guarded on a written, current gate
+# so the gate refusals below keep precedence.
 [[rule]]
 id = "lock-joint-open"
 [rule.match.recognized]
@@ -842,27 +845,6 @@ eq = "open"
 op   = "stopped:joint-decision-open"
 why  = "A Joint-check fire still reads `home: OPEN` — the shared decision has no home, so locking would fence a second copy of it."
 surface = "the `Joint-check:` line verbatim (`inspect --select <NNNN>:JCn`); home it on a resolvable §-anchor (JDR entry or owner clause), then re-run the lock"
-
-# A Draft whose Joint-check fire names a home nothing resolves → refuse.
-# Prose naming no authority, an anchor the corpus does not hold, or a
-# home nothing looked for: the propose gate's "false or absent is not a
-# pass", read here as the fact rather than re-derived from the edges.
-[[rule]]
-id = "lock-joint-unhomed"
-[rule.match.recognized]
-eq = "lock"
-[rule.guard.all.status]
-eq = "Draft"
-[rule.guard.all.gate_written]
-eq = "true"
-[rule.guard.all.gate_stale]
-eq = "false"
-[rule.guard.all.joint_check_home]
-eq = "unhomed"
-[rule.emit]
-op   = "stopped:joint-home-unresolved"
-why  = "A Joint-check fire names a home that resolves to nothing — prose naming no authority, or an anchor the corpus does not hold — which is not a home."
-surface = "the `joint-decision-home` edges from the JC element with their `resolved` value (`inspect --json --filter edges`); false or absent is not a pass"
 
 # A Draft whose gate.md predates its re-entry → refuse. The file is
 # there, so `gate_written` reads true, but it was written for the Final

@@ -544,7 +544,9 @@ description = "Joint-check: lines, projected as JC elements."
 # joint-decision-home edge that resolved TRUE; `unhomed` is a written home
 # that names no ref, or one that resolved false or was never looked for —
 # the propose gate's own "false or absent is not a pass". `open` is a
-# legal propose-time value the lock refuses. `none` is the ABSENT
+# legal propose-time value the lock refuses; `unhomed` locks but stays
+# on the vector, since a consumer's joint-decision register may sit
+# outside the records dir where no ref resolves. `none` is the ABSENT
 # SENTINEL: no Joint-check line at all, which the lock does not read as
 # clear and which rdr-status already surfaces through `joint_checks`.
 [fact.joint_check_home]

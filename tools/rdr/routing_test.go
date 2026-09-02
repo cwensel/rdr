@@ -1339,15 +1339,16 @@ func TestDeterminacyGroupRoutesTheWrittenLine(t *testing.T) {
 	expect("0030", "determinacy", tags("0030"), "determinacy-small", "none")
 }
 
-// TestLockRefusesAnUnhomedJointDecision pins the write model's joint-
+// TestLockRefusesAnOpenJointDecision pins the write model's joint-
 // decision fence. The two locking rows read `joint_check_home` and lock
-// only over none/clear/homed (a positive atom: intrastate's `unless` is a
-// block-level conjunction, so a second `unless` key would have widened
-// the row rather than narrowed it); the open and unhomed cells are
-// claimed by refusing rows that keep the gate refusals' precedence; and
-// the `fence` group is exactly the three overlap rows, every stop a
-// declared disposition.
-func TestLockRefusesAnUnhomedJointDecision(t *testing.T) {
+// over none/clear/homed/unhomed (a positive atom: intrastate's `unless`
+// is a block-level conjunction, so a second `unless` key would have
+// widened the row rather than narrowed it); the open cell is claimed by
+// a refusing row that keeps the gate refusals' precedence — unhomed
+// locks, because a home the tool cannot resolve (a register outside the
+// records dir) is not a home it may refuse; and the `fence` group is
+// exactly the three overlap rows, every stop a declared disposition.
+func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 	m := loadRoutingModelNamed(t, "rdr-write.toml")
 	guards := map[string]map[string][]string{}
 	for _, a := range m.Atoms {
@@ -1358,13 +1359,12 @@ func TestLockRefusesAnUnhomedJointDecision(t *testing.T) {
 	}
 	for _, id := range []string{"lock-draft", "lock-draft-joint-decision"} {
 		got := guards[id]["joint_check_home"]
-		if len(got) != 3 || !containsString(got, "none") || !containsString(got, "clear") || !containsString(got, "homed") {
-			t.Errorf("%s guards joint_check_home on %v, want exactly [none clear homed]", id, got)
+		if len(got) != 4 || !containsString(got, "none") || !containsString(got, "clear") || !containsString(got, "homed") || !containsString(got, "unhomed") {
+			t.Errorf("%s guards joint_check_home on %v, want exactly [none clear homed unhomed]", id, got)
 		}
 	}
 	for id, want := range map[string][2]string{
-		"lock-joint-open":    {"open", "stopped:joint-decision-open"},
-		"lock-joint-unhomed": {"unhomed", "stopped:joint-home-unresolved"},
+		"lock-joint-open": {"open", "stopped:joint-decision-open"},
 	} {
 		g := guards[id]
 		if g == nil {
@@ -1413,7 +1413,7 @@ func TestLockRefusesAnUnhomedJointDecision(t *testing.T) {
 		t.Errorf("fence row %q is missing", id)
 	}
 	stops := m.EmitDomains["op.stop"]
-	for _, tok := range []string{"stopped:joint-decision-open", "stopped:joint-home-unresolved", "stopped:overlap-uncited", "stopped:overlap-unchecked"} {
+	for _, tok := range []string{"stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked"} {
 		if !containsString(stops, tok) {
 			t.Errorf("%s is emitted but not a declared stop disposition (%v)", tok, stops)
 		}
@@ -1423,8 +1423,8 @@ func TestLockRefusesAnUnhomedJointDecision(t *testing.T) {
 // TestLockAndFenceResolveTheFixtures runs the seam live: the fixture's
 // `--tags --filter` argv, the gate facts the finalize prompt asserts, and
 // `intrastate flow resolve` selecting one row — the open fire refuses,
-// the homed one locks, the unhomed one refuses by name, and the fence
-// answers over the fixture's uncited pair.
+// the homed one locks, the unhomed one locks with its home visible on
+// the vector, and the fence answers over the fixture's uncited pair.
 func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 	bin := intrastateBinary(t)
 	_, table := bindStatusFixture(t)
@@ -1452,7 +1452,8 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 	}
 	for _, c := range []struct{ rec, rule, op string }{
 		{"0033", "lock-joint-open", "stopped:joint-decision-open"},
-		{"0022", "lock-joint-unhomed", "stopped:joint-home-unresolved"},
+		// A home the tool could not resolve is not the lock's refusal.
+		{"0022", "lock-draft", "lock"},
 		{"0026", "lock-draft", "lock"},
 		{"0020", "lock-draft", "lock"},
 		// No line at all is not the lock's refusal: `joint_checks` surfaces it.

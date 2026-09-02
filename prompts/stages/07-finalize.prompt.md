@@ -59,10 +59,11 @@ rdr-common §rdr-write call,
 it must emit `op = none`. `stopped:overlap-uncited` is NOT READY (a shared
 decision nobody fired on — fire it, do not sync the copies), and
 `stopped:overlap-unchecked` means nothing looked. The lock itself refuses
-`joint_check_home` = `open` (`stopped:joint-decision-open`) or `unhomed`
-(`stopped:joint-home-unresolved`) — a fire must be homed on a resolvable
-§-anchor before Final; homing is a JDR/owner-clause edit, never a wording
-tweak to a peer's Final.
+`joint_check_home` = `open` (`stopped:joint-decision-open`) — a fire must be
+homed before Final; homing is a JDR/owner-clause edit, never a wording tweak
+to a peer's Final. `unhomed` locks: the home names something the tool cannot
+resolve (a register outside the records dir), and the gate's written response
+is what vouches for it.
 
 Then run the Finalization Gate from the template as written responses (not
 checkboxes): items 1, 2, 3 and 5 go to {ARTIFACT_DIR}/gate.md — a short header
