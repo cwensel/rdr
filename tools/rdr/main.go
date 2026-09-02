@@ -5,7 +5,7 @@
 //
 // Usage:
 //
-//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--project P] [--records DIR]
+//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
@@ -59,7 +59,7 @@ const schemaVersion = scan.SchemaVersion
 const usage = `rdr — read-only projector for RDR markdown records
 
 usage:
-  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--grep TEXT] [--all] [--project P] [--records DIR] [--repo DIR]
+  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--grep TEXT] [--touched-since REV] [--all] [--project P] [--records DIR] [--repo DIR]
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
@@ -103,6 +103,14 @@ repeat it for several, answered in order. --grep TEXT asks which elements
 hold the literal (case-sensitive, fixed string): one row per containing
 element — id, range, matching line numbers, first matching line — a bare
 miss answers no-match at exit 0; it does not combine with --select/--filter.
+--touched-since REV asks which ids the record's diff from REV to the
+working tree overlaps (git diff -U0, post-image hunks; a pure deletion
+touches the element ending at or beginning after it): elements then
+sections, one row each — id, range; --json adds "kind" and carries the
+hunks as evidence, so an empty answer is [] beside them. A record
+renamed since REV diffs as a whole-file add, so every id is touched. A
+rev git cannot diff is stopped:no-diff, never an empty set; it does not
+combine with --grep/--select, and --filter may name only elements.
 A record is named by number (3,
 03, 0003), slug, path, or the corpus's own citation (cli/0003, and
 cli/0003:A2 selects the element); --records defaults to $RDR_RECORDS and a
@@ -374,6 +382,7 @@ type flags struct {
 	project, records   *string
 	sel                multiString // inspect: every --select, in order
 	grep               *string     // inspect: the literal whose containing elements to name
+	touchedSince       *string     // inspect: the rev whose diff to the working tree scopes the ids
 	filter             *string
 	// argc is how many positional arguments the invocation carried. The
 	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
@@ -422,6 +431,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
 		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|assumptions|<element-id>; repeat for several, answered in order")
 		f.grep = fs.String("grep", "", "name the elements whose lines carry this literal (case-sensitive, fixed string); no-match answers exit 0; not with --select or --filter")
+		f.touchedSince = fs.String("touched-since", "", "name the ids whose lines the diff from REV to the working tree touches (git diff -U0, post-image hunks); a rev git cannot diff stops; not with --grep or --select")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
 		f.all = fs.Bool("all", false, "include facets omitted by default")
 	case "index":
@@ -883,6 +893,19 @@ func inspect(args []string, f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "stopped:usage (--grep answers alone; drop --select/--filter)")
 		return 2
 	}
+	// --touched-since is one question too — which ids the diff overlaps —
+	// and its rows are already element-shaped, so --filter elements is
+	// the one filter it accepts.
+	if f.touchedSince != nil && *f.touchedSince != "" {
+		if (f.grep != nil && *f.grep != "") || len(f.sel.values) > 0 {
+			fmt.Fprintln(stderr, "stopped:usage (--touched-since answers alone; drop --grep/--select)")
+			return 2
+		}
+		if f.filter != nil && *f.filter != "" && *f.filter != "elements" {
+			fmt.Fprintln(stderr, "stopped:usage (--touched-since answers elements; --filter may name only elements)")
+			return 2
+		}
+	}
 	for i, sel := range f.sel.values {
 		f.sel.values[i] = localCitation(sel, *f.records)
 	}
@@ -997,6 +1020,11 @@ func project(arg string, f *flags, stderr io.Writer) (projection, error) {
 	// never needs the corpus scan the edge verdicts pay for.
 	if f.grep != nil && *f.grep != "" {
 		return grepRecord(doc, *f.grep, *f.json), nil
+	}
+	// --touched-since reads one git diff and the record's ranges; no
+	// edge verdict is on the row, so none is paid for.
+	if f.touchedSince != nil && *f.touchedSince != "" {
+		return touchedSince(doc, *f.touchedSince, *f.json)
 	}
 	if showsEdges(f) {
 		resolveEdges(doc, f, stderr)

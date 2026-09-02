@@ -1458,6 +1458,35 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	}
 }
 
+// TestEveryInspectQuestionNamesItselfInTheUsageLog pins inspect's
+// question flags to their facet names, for the same reason index's are
+// pinned: a question that logs as `text` cannot have its uptake audited.
+func TestEveryInspectQuestionNamesItselfInTheUsageLog(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{nil, "text"},
+		{[]string{"-json"}, "json"},
+		{[]string{"-json", "-filter=metadata,counts"}, "json:metadata,counts"},
+		{[]string{"-select=0004:A1"}, "select:element"},
+		{[]string{"-grep=x"}, "grep"},
+		{[]string{"-touched-since=HEAD"}, "touched-since"},
+		{[]string{"-touched-since=HEAD", "-json"}, "touched-since"},
+	}
+	for _, c := range cases {
+		fs := flag.NewFlagSet("inspect", flag.ContinueOnError)
+		fs.SetOutput(io.Discard)
+		f := declareFlags("inspect", fs)
+		if err := fs.Parse(c.args); err != nil {
+			t.Fatalf("%v: %v", c.args, err)
+		}
+		if got := usageFacet("inspect", f, "0004"); got != c.want {
+			t.Errorf("%v logs as %q, want %q", c.args, got, c.want)
+		}
+	}
+}
+
 // TestIndexResolvesOnlyForFacetsThatShowIt is inspect's rule at corpus
 // scale: resolution is the only thing index does that reads beyond the
 // records dir, and only a facet that can SHOW a `resolved` verdict may pay

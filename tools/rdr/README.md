@@ -18,6 +18,7 @@ first non-flag word.
 
     rdr inspect 55                         # sections (§, nested) then elements, one line each: id, range, byte size, label
     rdr inspect --grep 'RetryBudget' 0055  # which elements hold the literal (case-sensitive): id, range, hit lines, first match; a miss is no-match at exit 0
+    rdr inspect --touched-since abc123 --json 0055   # which ids the diff from that rev to the working tree overlaps: .touched[].{id,kind,line_start,line_end}, the hunks beside them
     rdr inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
     rdr inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
     rdr inspect --select 0055:C4 0055      # the bytes the id names
@@ -726,6 +727,20 @@ that each mention the other are also reported, as `mutual-mentions` with
 Two historical members had no citation in either direction; no rule over
 the records recovers a membership the records never state, and a declared
 `Cluster` field is the fix.
+
+**What changed since a rev, as ids.** `inspect --touched-since REV` is
+the re-entry scope: the diff from REV to the working tree (`git diff
+-U0`, issued by the binary) read as post-image hunks, intersected with
+the record's ranges — every element and section a hunk overlaps, a
+nested clause and its contract both, a pure deletion touching the id
+that ends before it or begins after it. The answer is the id list a
+stage scopes by, with the hunks beside it so an empty `touched: []` is
+evidence, not silence; a rev git cannot diff is `stopped:no-diff`, never
+an empty set. A record renamed since REV has no history at that path
+and diffs as a whole-file add: every id is touched, which is the honest
+answer. Two stages read it — Stage 4's demotion route-back and
+pre-lock's `lens_stale` re-entry — and neither intersects hunks with
+line ranges by hand any more.
 
 | test | asserts |
 | --- | --- |

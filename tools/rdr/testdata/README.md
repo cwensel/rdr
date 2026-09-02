@@ -46,6 +46,11 @@ conformant record whose tally the scanner tests pin by hand.
 | `author-structure.md` | author sub-headings under Approach; a foreign `## Appendix` with sub-headings; prose-named labels in Consequences, Failure Modes and Cross-Cutting Concerns; a `Risk` under a Step; `Rejected (…)` |
 | `addressable-text.md` | bold paragraph leads a `§` citation can name, and mid-paragraph emphasis that is not one; a `### Load-Bearing Decisions` heading with author-numbered `**D1**` / `**D6**` bullets |
 
+`touched/hunks.diff` is a synthetic unified diff read against
+`current-shape.md`'s element table by `inspect --touched-since`'s
+goldens — an interior edit, a pure deletion and a blank-length add —
+so the overlap rule is pinned without a git repository in the tree.
+
 `status/` is a ten-record corpus for the fact table and `rdr status`,
 and it is the only fixture tree that ships more than records: the facts
 are exact-path PROBES, so the paths have to exist. `records/` holds the

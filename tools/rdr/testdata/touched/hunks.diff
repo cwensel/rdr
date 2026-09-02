@@ -1,0 +1,12 @@
+diff --git a/0004-frame-checksum-algorithm.md b/0004-frame-checksum-algorithm.md
+index 1111111..2222222 100644
+--- a/0004-frame-checksum-algorithm.md
++++ b/0004-frame-checksum-algorithm.md
+@@ -38,2 +38,3 @@
+-  - **Evidence**: the polynomial's minimum distance
++  - **Evidence**: the polynomial's minimum distance, re-derived
++    against the declared maximum
+@@ -87 +87,0 @@
+-  - **Naming**: the constant is `ChecksumPolynomial`
+@@ -209,0 +210 @@
++  - **Scenario**: a single-bit corruption in the payload.

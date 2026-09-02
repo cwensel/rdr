@@ -247,6 +247,10 @@ func usageFacet(cmd string, f *flags, target string) string {
 			// and record text does not belong in the usage log.
 			return which + "grep"
 		}
+		if f.touchedSince != nil && *f.touchedSince != "" {
+			// The rev is not logged either: the facet is the fact.
+			return which + "touched-since"
+		}
 		if len(f.sel.values) > 0 {
 			classes := make([]string, 0, len(f.sel.values))
 			for _, sel := range f.sel.values {

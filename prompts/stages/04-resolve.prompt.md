@@ -52,18 +52,15 @@ assumption by id, not the whole Critical Assumptions section:
 
 Third branch — `revised-from` with an EMPTY `reverify` set and a refine commit
 after the demote (a route-back refine that rewrote the list): scope = the
-assumptions whose lines that commit touched. Never `git show` it; take its
-post-image hunk starts and intersect with `inspect`'s `A*` line ranges:
+assumptions whose lines that commit touched. Never `git show` it; ask:
 
 ```sh
 sha=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): refine' -- "$RDR_PATH")
-git -C "$RDR_RECORDS" diff -U0 "$sha^" "$sha" -- "$RDR_PATH" | grep '^@@' \
-  | sed -E 's/^@@ -[0-9]+(,[0-9]+)? \+([0-9]+)(,([0-9]+))? @@.*/\2 \4/'
+"$RDR_HOME/bin/rdr" inspect --touched-since "$sha^" --json <NNNN>   # .touched[].id, A* only
 ```
 
-(start, length; a blank length is 1) against the `A*` rows of `inspect <NNNN>` —
-an assumption is in scope when a hunk overlaps its range. Write the resulting ids
-back into the qualifier so the next stage routes without recomputing.
+Use the id list as a value; write it into the qualifier so the next stage
+routes without recomputing.
 
 A `resolved:false` target names an assumption that does not exist — report it
 rather than skipping silently; `resolved` absent means nothing looked, neither

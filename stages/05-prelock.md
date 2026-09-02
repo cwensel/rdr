@@ -25,9 +25,8 @@ Don't overwrite them or stall asking; run as a **new iteration**, **delta-scoped
 the `re-verify <IDs>`**, not a full re-run (which regenerates equivalent findings
 against a mostly-unchanged draft). The paste block detects this and sets the folder.
 `re-verify none` with the `lens_stale` fact naming this lens scopes instead to the
-elements the rework's hunks touch (`git diff -U0 <demote-base> HEAD` on the record,
-`^@@` starts against `inspect`'s line-range rows); the parent computes that id list
-once and hands sub-agents the ids, never the diff.
+ids `inspect --touched-since` returns (rdr-prelock step 1); the parent computes
+that id list once and hands sub-agents the ids, never the diff.
 
 ## Which lenses (the risk matrix)
 

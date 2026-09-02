@@ -57,13 +57,12 @@ One invocation runs the full loop for one lens:
    *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
    Final …; re-verify <IDs>]` qualifier names the scope's floor, not its ceiling —
    after a rework, real defects land outside the listed ids. Whenever `lens_stale`
-   names this lens (`status --tags`), scope = `<IDs>` ∪ the elements whose lines
-   the rework touched: hunk starts of
-   `git -C "$RDR_RECORDS" diff -U0 <demote-base> HEAD -- "$RDR_PATH" | grep '^@@'`
-   (demote-base = the last `finalize` commit on the path) intersected with
-   `inspect <NNNN>`'s line-range rows; `re-verify none` → the hunk set alone.
-   Compute it once, here, saving the diff to `$ITER_DIR`; a spawn brief carries
-   the id list and that file's path — never the diff command.
+   names this lens (`status --tags`), scope = `<IDs>` ∪ `.touched[].id` of
+   `base=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): finalize' -- "$RDR_PATH")`
+   `"$RDR_HOME/bin/rdr" inspect --touched-since "$base" --json <NNNN>`;
+   `re-verify none` → the touched ids alone. Compute it once, here, saving the
+   JSON to `$ITER_DIR/touched.json`; a spawn brief carries the id list — never
+   a diff.
 2. **Run the lens prompt** (`pre-lock/0-grounding.md` · `1-3amigo.md` ·
    `2-critique.md` · `4-cove.md`)
    → it writes element files to `{EVIDENCE_DIR}`. `3amigo` is not one prompt run:
