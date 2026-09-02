@@ -43,6 +43,8 @@ Not yet chosen.
 
 Pending the assumptions above.
 
+Joint-check: clear (3 peers; no shared anchor or literal).
+
 ## Implementation Plan
 
 ### Phase 1: Code Implementation

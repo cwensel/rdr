@@ -21,6 +21,8 @@ ca_other_terminal            int     0
 ca_placeholder               int     0
 ca_off_vocabulary            int     0
 ca                           enum    all-pending
+joint_checks                 int     1
+joint_check_home             enum    clear
 premortem_line               bool    false
 ground_sweep_line            bool    false
 lens_grounding               bool    false
@@ -144,6 +146,8 @@ ca_other_terminal            int     1
 ca_placeholder               int     0
 ca_off_vocabulary            int     0
 ca                           enum    all-terminal
+joint_checks                 int     1
+joint_check_home             enum    unhomed
 premortem_line               bool    true
 ground_sweep_line            bool    false
 lens_grounding               bool    false

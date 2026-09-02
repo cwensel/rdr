@@ -61,9 +61,11 @@
 # over an empty product that any single row closes — green whether or not
 # it is complete.
 #
-# SIX OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
+# SEVEN OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
 # different question over a different slice of the facts, and splitting
-# the question splits the product.
+# the question splits the product. `fence` is the one that never edits:
+# it re-runs propose's overlap arms at lock and only answers `none` or
+# stops.
 #
 # FOUR TAGS ARE CALLER-SUPPLIED, NOT FACTS — the `observed` provenance's
 # ordinary shape, as rdr-cascade.toml's packet fields are. `user_facing`
@@ -92,7 +94,7 @@
 # arrive as tags with `unknown` a declared member that stops by name.
 # The `profile` group maps them; it never infers them.
 
-outcomes = ["claim", "readme", "lock", "demote", "profile", "return"]
+outcomes = ["claim", "readme", "lock", "demote", "profile", "return", "fence"]
 
 [model]
 id          = "rdr-write"
@@ -112,7 +114,7 @@ kind = "enum"
 [emit.op.domain]
 edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return"]
 none = ["none"]
-stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten"]
+stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:joint-home-unresolved", "stopped:overlap-uncited", "stopped:overlap-unchecked"]
 
 [emit.target]
 kind   = "enum"
@@ -154,7 +156,7 @@ domain = ["/rdr-propose", "/rdr-refine", "/rdr-resolve", "/rdr-prelock repeatabi
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["claim", "readme", "lock", "demote", "profile", "return"]
+domain        = ["claim", "readme", "lock", "demote", "profile", "return", "fence"]
 single_valued = true
 required      = true
 
@@ -231,6 +233,13 @@ kind       = "set"
 provenance = "observed"
 kind       = "set"
 
+# `spikes_unrun` rides the vector whenever the evidence root is bound —
+# `[]` is a real answer there, and an undeclared `[]` refuses the whole
+# lock call, exactly as `cluster` would. No row guards on it.
+[tags.spikes_unrun]
+provenance = "observed"
+kind       = "set"
+
 # Stage 7's done-signal: `{ARTIFACT_DIR}/gate.md` exists. It does not say
 # the gate PASSED — the projector does not open that file — so `lock`
 # reads it only to tell a first lock from a re-lock.
@@ -248,6 +257,30 @@ required      = true
 [tags.gate_stale]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# The lock's reading of the `Joint-check:` lines, from `rdr-facts.toml`'s
+# `joint_check_home` — worst line first. `open` and `unhomed` are the
+# two the lock refuses; `none` is the declared absent sentinel (no line
+# written), which rdr-status's `joint_checks` already surfaces and the
+# lock does not read as clear.
+[tags.joint_check_home]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "clear", "homed", "open", "unhomed"]
+single_valued = true
+required      = true
+
+# --- the `fence` group's one dimension ---------------------------------------
+#
+# Propose's overlap arms re-run at lock, scoped to this record
+# (`overlap_uncited`, ON DEMAND — the caller filters for it by name).
+# `unchecked` is the declared sentinel for no corpus bound.
+[tags.overlap_uncited]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "unchecked"]
 single_valued = true
 required      = true
 
@@ -721,6 +754,11 @@ surface = "the row's old and new Status, so a flip nobody intended is visible"
 # The VERDICT is not this table's. Stage 7 reads five written responses
 # and decides; `--outcome lock` is the caller asserting READY. This
 # answers only "given READY, what is the edit".
+#
+# Dimensions: status × status_form × gate_written × gate_stale ×
+# joint_check_home = 9 × 8 × 2 × 2 × 5 = 1440 cells. The gate refusals
+# (stale, unwritten) keep precedence: the joint rows guard on a written,
+# current gate, so a record owing both hears about the gate first.
 
 # A Draft with its gate written, and written SINCE any re-entry → the
 # full lock. `gate_stale` is the second half of the guard: a re-entered
@@ -739,6 +777,8 @@ eq = "true"
 eq = "false"
 [rule.guard.unless.status_form]
 eq = "joint-decision"
+[rule.guard.all.joint_check_home]
+in = ["none", "clear", "homed"]
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -768,6 +808,8 @@ eq = "joint-decision"
 eq = "true"
 [rule.guard.all.gate_stale]
 eq = "false"
+[rule.guard.all.joint_check_home]
+in = ["none", "clear", "homed"]
 [rule.emit]
 op     = "lock"
 target = "record"
@@ -777,6 +819,50 @@ edit   = "s/^- \\*\\*Status\\*\\*: Draft *\\(\\[joint decision.*\\]\\).*$/- **St
 sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
 why    = "Gate written and the Draft still owes a joint decision — lock as usual, but the qualifier survives the flip: `Final [joint decision → …]` is what routes the home check."
 surface = "the preserved qualifier verbatim, so the open question is visible at the lock; the README row flips in the same pass (`--outcome readme`), commit `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`"
+
+# A Draft whose Joint-check fire still reads `home: OPEN` → refuse. OPEN
+# is a legal propose-time value and an illegal lock: both siblings would
+# reach Final each carrying its copy of the shared decision, and 7.1 can
+# then only demote one. Stamp-when-decided stays the JDR's rule; this
+# refuses only to lock an unhomed fire. Guarded on a written, current
+# gate so the gate refusals below keep precedence.
+[[rule]]
+id = "lock-joint-open"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.gate_written]
+eq = "true"
+[rule.guard.all.gate_stale]
+eq = "false"
+[rule.guard.all.joint_check_home]
+eq = "open"
+[rule.emit]
+op   = "stopped:joint-decision-open"
+why  = "A Joint-check fire still reads `home: OPEN` — the shared decision has no home, so locking would fence a second copy of it."
+surface = "the `Joint-check:` line verbatim (`inspect --select <NNNN>:JCn`); home it on a resolvable §-anchor (JDR entry or owner clause), then re-run the lock"
+
+# A Draft whose Joint-check fire names a home nothing resolves → refuse.
+# Prose naming no authority, an anchor the corpus does not hold, or a
+# home nothing looked for: the propose gate's "false or absent is not a
+# pass", read here as the fact rather than re-derived from the edges.
+[[rule]]
+id = "lock-joint-unhomed"
+[rule.match.recognized]
+eq = "lock"
+[rule.guard.all.status]
+eq = "Draft"
+[rule.guard.all.gate_written]
+eq = "true"
+[rule.guard.all.gate_stale]
+eq = "false"
+[rule.guard.all.joint_check_home]
+eq = "unhomed"
+[rule.emit]
+op   = "stopped:joint-home-unresolved"
+why  = "A Joint-check fire names a home that resolves to nothing — prose naming no authority, or an anchor the corpus does not hold — which is not a home."
+surface = "the `joint-decision-home` edges from the JC element with their `resolved` value (`inspect --json --filter edges`); false or absent is not a pass"
 
 # A Draft whose gate.md predates its re-entry → refuse. The file is
 # there, so `gate_written` reads true, but it was written for the Final
@@ -838,6 +924,50 @@ in = ["Implemented", "Reverted", "Abandoned", "Superseded", "Demoted", "Rejected
 op   = "stopped:not-lockable"
 why  = "Terminal or parked — the record is past the gate and its content is not amended."
 surface = "the status, verbatim"
+
+# ===========================================================================
+# fence — propose's overlap arms, re-run at lock
+# ===========================================================================
+#
+# Dimension: overlap_uncited = 3 cells, three rows. Propose's joint
+# check runs once, before refine, over the peers open THEN; a peer
+# proposed later shares the anchor and nobody re-asked. This group asks
+# again at lock, scoped to the record (`rdr-facts.toml`'s
+# `overlap_uncited`, filtered by name), and never edits: `none` is the
+# fence holding, and either stop is NOT READY. It refuses to sync the
+# copies — the answer to an uncited overlap is the joint check, fired.
+
+[[rule]]
+id = "fence-clear"
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.overlap_uncited]
+eq = "0"
+[rule.emit]
+op  = "none"
+why = "Every open-peer overlap touching this record is cross-cited — no second copy of a decision another open record fences."
+
+[[rule]]
+id = "fence-uncited"
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.overlap_uncited]
+eq = "1+"
+[rule.emit]
+op   = "stopped:overlap-uncited"
+why  = "An open peer shares an anchor or contract literal with this record and neither cites the other — a joint decision nobody fired on, or a propose-time `clear` a later peer made stale."
+surface = "`index --anchor-intersect --record NNNN` and `--literal-intersect --record NNNN`: the uncited pairs with their anchors; fire the joint check (02-propose's arms), never sync the copies"
+
+[[rule]]
+id = "fence-unchecked"
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.overlap_uncited]
+eq = "unchecked"
+[rule.emit]
+op   = "stopped:overlap-unchecked"
+why  = "No records dir was bound, so the overlap arms never ran — unchecked is not clear."
+surface = "bind $RDR_RECORDS (rdr-common §seam-bind) and re-run"
 
 # ===========================================================================
 # demote — 7.1's route-back

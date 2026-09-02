@@ -165,6 +165,11 @@ type JointCheck struct {
 	Targets []string `json:"targets,omitempty"`
 	// Home is the text inside `(home: …)`: where the decision is ruled.
 	Home string `json:"home,omitempty"`
+	// Homes are the `|` segments of Home that name a reference, as
+	// written (the edge pass fills it). A segment absent here — prose
+	// naming no authority, OPEN, no `(home:` at all — is one nothing can
+	// resolve, and the lock counts them against the segments written.
+	Homes []string `json:"homes,omitempty"`
 	// Open is true when the home is OPEN — the decision has no ruling yet.
 	Open bool `json:"open"`
 }

@@ -223,7 +223,7 @@ by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 # §rdr-write — one call. $RDR_HOME comes from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
-  --outcome <claim|readme|lock|demote|profile|return> [--tag k=v …] \
+  --outcome <claim|readme|lock|demote|profile|return|fence> [--tag k=v …] \
   $("$RDR_HOME/bin/rdr" status --tags NNNN)
 ```
 

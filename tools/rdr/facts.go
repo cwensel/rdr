@@ -221,6 +221,7 @@ var factSources = map[string]bool{
 	"impl-artifact": true, "record-lines": true, "spike-diff": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
+	"joint-check-home": true, "overlap-uncited": true,
 	// the rollups: facts about the record's peers, read through FactEnv.Peer
 	"predecessor-rollup": true, "cluster-proposed": true, "related-rollup": true,
 }
@@ -586,11 +587,11 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 	// and prose is the one kind nothing routes on — `--tags` omits it
 	// wholesale, so a sentinel there would name a rendering that never
 	// happens.
-	// An on-demand fact is never in an unfiltered render, so a sentinel
-	// for it would name a rendering that never happens either.
-	if d.HasAbsent && d.OnDemand {
-		return d, fmt.Errorf("fact %q: an on-demand fact is rendered only when asked for, so absent would not apply", name)
-	}
+	// An on-demand fact MAY declare one: it is rendered only under
+	// `--filter`, and a filtered `--tags` renders the sentinels of the
+	// facts asked for (withAbsentSentinels reads the same want set), so a
+	// routing group that guards on an on-demand fact still receives the
+	// key when nothing was looked.
 	if d.HasAbsent && d.Prose {
 		return d, fmt.Errorf("fact %q: a prose fact is never rendered as a tag, so absent would not apply", name)
 	}
@@ -805,6 +806,10 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.reverifyIDs(d)
 	case "edge-tally":
 		return e.edgeTally(d)
+	case "joint-check-home":
+		return e.jointCheckHome(d)
+	case "overlap-uncited":
+		return e.overlapUncited(d)
 	case "impl-artifact":
 		return e.implArtifact(d)
 	case "record-lines":
@@ -2387,6 +2392,111 @@ func (e *FactEnv) reverifyIDs(d FactDecl) (Fact, bool) {
 	return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(ids)}, true
 }
 
+// resolveEdgesOnce asks the caller's hook the first time a fact needs
+// the edges decided, and never again: every edge fact shares the one
+// resolution, and a call that filters them all out never pays for it.
+func (e *FactEnv) resolveEdgesOnce() {
+	if e.ResolveEdges != nil && !e.edgesResolved {
+		e.edgesResolved = true
+		e.ResolveEdges()
+	}
+}
+
+// jointCheckHome is the lock's reading of the record's `Joint-check:`
+// lines, folded worst-first: clear < homed < unhomed < open. A fire is
+// homed only when every `|` segment of its `(home: …)` minted a
+// joint-decision-home edge (scan.jointCheckEdges) and every one resolved
+// TRUE — the propose gate's own rule, "false or absent is not a pass", so
+// a home nothing looked for (no corpus bound) reads unhomed, never homed.
+// A `re-run` line mints no home and reads unhomed for the same reason.
+// `open` is a legal propose-time value the lock refuses. With no line at
+// all the fact is absent; `joint_checks` already surfaces that.
+func (e *FactEnv) jointCheckHome(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	const (
+		clear = iota + 1
+		homed
+		unhomed
+		open
+	)
+	worst := 0
+	for _, el := range e.Doc.Elements {
+		if el.Kind != ident.JointCheck || el.Joint == nil {
+			continue
+		}
+		r := unhomed
+		switch {
+		case el.Joint.Verdict == "clear":
+			r = clear
+		case el.Joint.Open:
+			r = open
+		case e.jointHomed(el):
+			r = homed
+		}
+		if r > worst {
+			worst = r
+		}
+	}
+	if worst == 0 {
+		return Fact{}, false
+	}
+	v := map[int]string{clear: "clear", homed: "homed", unhomed: "unhomed", open: "open"}[worst]
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// jointHomed decides one fired line: every `|` segment named a reference
+// (Joint.Homes, filled by the edge pass — a segment that did not, prose
+// naming no authority or a trailing OPEN, is a home nothing can resolve),
+// at least one home edge was minted, and every one resolved true. Homes
+// is counted rather than the edges because two segments naming one
+// section are one edge and two homes.
+func (e *FactEnv) jointHomed(el scan.Element) bool {
+	if len(el.Joint.Homes) != len(strings.Split(el.Joint.Home, "|")) {
+		return false
+	}
+	e.resolveEdgesOnce()
+	n := 0
+	for _, ed := range e.Doc.Edges {
+		if ed.From != el.ID || ed.Kind != edge.JointDecisionHome {
+			continue
+		}
+		if ed.Resolved == nil || !*ed.Resolved {
+			return false
+		}
+		n++
+	}
+	return n > 0
+}
+
+// overlapUncited re-runs propose's two query arms at lock, scoped to this
+// record: the in-flight pairs sharing a source anchor (AnchorIntersect) or
+// a contract literal (LiteralIntersect) where neither record cites the
+// other — a joint decision nobody fired on, or a propose-time `clear` a
+// later peer made stale. On demand: it walks the corpus. Absent with no
+// corpus bound, so the table's `unchecked` sentinel carries it.
+func (e *FactEnv) overlapUncited(d FactDecl) (Fact, bool) {
+	if e.Doc == nil || e.Corpus == nil {
+		return Fact{}, false
+	}
+	docs := e.Corpus()
+	if docs == nil {
+		return Fact{}, false
+	}
+	n := 0
+	for _, o := range append(scan.AnchorIntersect(docs, true), scan.LiteralIntersect(docs, true)...) {
+		if !o.Cited && (o.Records[0] == e.Doc.Record || o.Records[1] == e.Doc.Record) {
+			n++
+		}
+	}
+	v := "0"
+	if n > 0 {
+		v = "1+"
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
 // edgeTally counts the record's typed edges by verdict — the numbers
 // §mechanical-gate used to pull the whole edges facet for.
 //
@@ -2405,10 +2515,7 @@ func (e *FactEnv) edgeTally(d FactDecl) (Fact, bool) {
 	if e.Doc == nil {
 		return Fact{}, false
 	}
-	if e.ResolveEdges != nil && !e.edgesResolved {
-		e.edgesResolved = true
-		e.ResolveEdges()
-	}
+	e.resolveEdgesOnce()
 	var total, unresolved, unlooked, peerUnresolved int
 	peerUnlooked := false
 	for _, ed := range e.Doc.Edges {

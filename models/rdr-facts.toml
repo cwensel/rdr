@@ -539,6 +539,34 @@ min         = 0
 absent      = "0"
 description = "Joint-check: lines, projected as JC elements."
 
+# The lock's reading of the Joint-check lines, folded worst-first. A fire
+# is `homed` only when every `|` segment of its `(home: …)` minted a
+# joint-decision-home edge that resolved TRUE; `unhomed` is a written home
+# that names no ref, or one that resolved false or was never looked for —
+# the propose gate's own "false or absent is not a pass". `open` is a
+# legal propose-time value the lock refuses. `none` is the ABSENT
+# SENTINEL: no Joint-check line at all, which the lock does not read as
+# clear and which rdr-status already surfaces through `joint_checks`.
+[fact.joint_check_home]
+kind        = "enum"
+source      = "joint-check-home"
+domain      = ["none", "clear", "homed", "open", "unhomed"]
+absent      = "none"
+description = "Worst Joint-check line at lock: clear, homed (every home ref resolved), open, or unhomed (a home nothing resolves); none when no line is written."
+
+# Propose's arms 1 and 2 (`index --anchor-intersect|--literal-intersect
+# --record`) re-run at lock over the in-flight corpus: `1+` when any pair
+# touching this record has no cross-citation — a fire nobody wrote, or a
+# `clear` that a later peer made stale. ON DEMAND: it walks the corpus
+# (~2s). `unchecked` is the sentinel for no corpus bound.
+[fact.overlap_uncited]
+kind        = "enum"
+source      = "overlap-uncited"
+on_demand   = true
+domain      = ["0", "1+", "unchecked"]
+absent      = "unchecked"
+description = "Open-peer overlap pairs (shared anchor or contract literal) touching this record with no cross-citation: 0, 1+, or unchecked."
+
 [fact.premortem_line]
 kind        = "bool"
 source      = "verdict-line"

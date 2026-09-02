@@ -97,7 +97,8 @@ peer, and only the true joint forks surfaced to the user.
   question — advanced over silently → re-run. A fire clears only onto a
   resolvable §-anchor `home:` or `OPEN` — prose naming no authority does not;
   check it as an edge, not a string: `edges[]` `kind=="joint-decision-home"`
-  needs `resolved: true` (`false` or **absent** is not a pass).
+  needs `resolved: true` (`false` or **absent** is not a pass; the edge leaves
+  the `JC` element — the Status qualifier's leaves the record).
 - **Was the bridge question surfaced and answered when its cues were present?**
   Behind the tandem barrier, a plan-introduced surface a Cluster sibling
   schedules for deletion puts the (a) skip-to-end-state / (b) `Transient`-marker

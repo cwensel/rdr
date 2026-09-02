@@ -36,3 +36,5 @@ trailing newline.
 ## Decision Rationale
 
 A written pre-image is the only thing that makes two readers comparable.
+
+Joint-check: fired → 0033 (home: 0033 §Normative Contracts) — shared pre-image encoding.

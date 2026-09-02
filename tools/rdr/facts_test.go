@@ -2312,3 +2312,107 @@ func TestLinesFactBucketsTheRecord(t *testing.T) {
 		t.Errorf("a record-lines domain missing 401+ loaded (err %v); the member check is what keeps the row claimable", err)
 	}
 }
+
+// statusDocs scans the status fixture corpus, as `records` does.
+func statusDocs(t *testing.T, dir string) []*scan.Document {
+	t.Helper()
+	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
+	var docs []*scan.Document
+	for _, p := range paths {
+		doc, err := scan.File(p, scan.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if doc.IsRecord() {
+			docs = append(docs, doc)
+		}
+	}
+	if len(docs) == 0 {
+		t.Fatalf("no records under %s", dir)
+	}
+	return docs
+}
+
+// TestJointCheckHomeFoldsWorstFirst pins the lock's reading of the
+// Joint-check lines over the status fixtures: clear, homed (every home
+// segment resolved true), open, unhomed (a §-anchor the corpus lacks),
+// and absent when no line is written. Resolution is the caller's hook:
+// with none, a homed line reads unhomed — false or absent is not a pass
+// — and a clear line never asks for it. The fence fact is on demand,
+// answers 1+ for the uncited pair and absent with no corpus.
+func TestJointCheckHomeFoldsWorstFirst(t *testing.T) {
+	tbl := loadRealTable(t)
+	recs, _, _ := statusFixture(t)
+	docs := statusDocs(t, recs)
+	byRec := map[string]*scan.Document{}
+	for _, d := range docs {
+		byRec[d.Record] = d
+	}
+	homeOnly := map[string]bool{"joint_check_home": true}
+	for rec, want := range map[string]string{"0020": "clear", "0026": "homed", "0033": "open", "0022": "unhomed"} {
+		doc := byRec[rec]
+		env := NewFactEnv(tbl, doc, rec)
+		env.ResolveEdges = func() { scan.NewResolverOver(docs, "", true).ResolveAll([]*scan.Document{doc}) }
+		env.Want = homeOnly
+		if got, ok := factValue(tbl.Evaluate(env), "joint_check_home"); !ok || got != want {
+			t.Errorf("%s: joint_check_home = %q (%v), want %s", rec, got, ok, want)
+		}
+	}
+	env := NewFactEnv(tbl, byRec["0025"], "0025")
+	env.Want = homeOnly
+	if got, ok := factValue(tbl.Evaluate(env), "joint_check_home"); ok {
+		t.Errorf("0025 writes no Joint-check: line but joint_check_home = %q; the fact must be absent", got)
+	}
+
+	// Nothing looked: the homed record cannot read homed. A fresh scan,
+	// because the loop above resolved the shared corpus doc in place.
+	fresh, err := scan.File(byRec["0026"].Path, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	env = NewFactEnv(tbl, fresh, "0026")
+	env.Want = homeOnly
+	if got, _ := factValue(tbl.Evaluate(env), "joint_check_home"); got != "unhomed" {
+		t.Errorf("0026 with no ResolveEdges hook = %q, want unhomed", got)
+	}
+	// A clear line never pays for resolution.
+	calls := 0
+	env = NewFactEnv(tbl, byRec["0020"], "0020")
+	env.ResolveEdges = func() { calls++ }
+	env.Want = homeOnly
+	if got, _ := factValue(tbl.Evaluate(env), "joint_check_home"); got != "clear" || calls != 0 {
+		t.Errorf("0020 = %q with %d resolutions, want clear and 0", got, calls)
+	}
+
+	// overlap_uncited: on demand, 1+ for the uncited pair, absent unbound.
+	corpus := func() []*scan.Document { return docs }
+	for _, rec := range []string{"0025", "0026"} {
+		env = NewFactEnv(tbl, byRec[rec], rec)
+		env.Corpus = corpus
+		if _, ok := factValue(tbl.Evaluate(env), "overlap_uncited"); ok {
+			t.Errorf("%s: overlap_uncited evaluated unfiltered; it is on demand", rec)
+		}
+		env.Want = map[string]bool{"overlap_uncited": true}
+		if got, _ := factValue(tbl.Evaluate(env), "overlap_uncited"); got != "1+" {
+			t.Errorf("%s: overlap_uncited = %q, want 1+ (shares key.go::Preimage with its peer, neither cites the other)", rec, got)
+		}
+	}
+	env = NewFactEnv(tbl, byRec["0033"], "0033")
+	env.Corpus, env.Want = corpus, map[string]bool{"overlap_uncited": true}
+	if got, _ := factValue(tbl.Evaluate(env), "overlap_uncited"); got != "0" {
+		t.Errorf("0033: overlap_uncited = %q, want 0 (its fire is cited by the JC target edge)", got)
+	}
+	env = NewFactEnv(tbl, byRec["0025"], "0025")
+	env.Want = map[string]bool{"overlap_uncited": true}
+	if got, ok := factValue(tbl.Evaluate(env), "overlap_uncited"); ok {
+		t.Errorf("overlap_uncited = %q with no corpus bound; nothing looked must be absent", got)
+	}
+	// …and `--tags` carries that absence as the declared sentinel, so
+	// the fence group receives its dimension rather than refusing.
+	t.Setenv("RDR_RECORDS", t.TempDir())
+	t.Setenv("RDR_EVIDENCE", "")
+	code, out, errb := runCapture(t, "status", "--facts", factTableForTest(t), "--tags", "--filter", "overlap_uncited", byRec["0025"].Path)
+	if code != 0 || strings.TrimSpace(out) != "--tag\noverlap_uncited=unchecked" {
+		t.Errorf("unbound corpus: exit %d, tags %q (%s), want overlap_uncited=unchecked", code, out, errb)
+	}
+}

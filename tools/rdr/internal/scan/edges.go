@@ -76,6 +76,7 @@ func (d *Document) edges() {
 	d.fieldLines = d.fieldOwnedLines()
 	d.metadataEdges(claimed)
 	d.qualifierEdges(claimed)
+	d.jointCheckEdges(claimed)
 	d.assumptionEdges(claimed)
 	d.contractEdges(claimed)
 	d.crossCuttingEdges(claimed)
@@ -432,6 +433,98 @@ func (d *Document) demotedEdge(target string, line int, evidence string, claimed
 	// edge exists and the target is what the author wrote.
 	d.addEdge(Edge{From: d.docID(), To: target, Kind: edge.MovedTo, Line: line,
 		Evidence: evidence, Field: "Status"}, claimed, [2]int{})
+}
+
+// --- joint checks -------------------------------------------------------
+
+// jointCheckEdges reads the home and the fired targets of every
+// `Joint-check:` line that is not `clear`.
+//
+// The propose gate checks a fire's home "as an edge, not a string": a
+// `joint-decision-home` edge that resolved true, where false or absent is
+// not a pass. Until this pass the line had no such edge — the kind was
+// minted only from the Status qualifier, and the line's references fell
+// through to mentions — so the gate's own reading was always absent. The
+// home is `|`-segmented (`cli/0113 §R-2 | OPEN`); each segment naming a
+// reference mints one home edge whose Evidence is the segment, so a
+// reader can count the segments that homed against the segments written.
+// OPEN mints nothing: an open home is a value on the element
+// (JointCheck.Open), not a target. The fired targets (`fired → 0113`)
+// mint mentions, which is what makes an intersect's `cited` honest for a
+// fire the author wrote.
+func (d *Document) jointCheckEdges(claimed map[int][][2]int) {
+	for i := range d.Elements {
+		el := &d.Elements[i]
+		if el.Kind != ident.JointCheck || el.Joint == nil || el.Joint.Verdict == "clear" {
+			continue
+		}
+		line := el.LineStart
+		raw := d.Line(line)
+		m := jointCheckLine.FindStringSubmatchIndex(raw)
+		if m == nil {
+			continue
+		}
+		head, headEnd := m[4], m[5]
+		if h := jointHome.FindStringSubmatchIndex(raw); h != nil {
+			headEnd = h[0]
+			off := h[2]
+			for _, seg := range strings.Split(raw[h[2]:h[3]], "|") {
+				start := off
+				off += len(seg) + 1
+				t := strings.TrimSpace(seg)
+				if t == "" || strings.HasPrefix(strings.ToUpper(t), "OPEN") {
+					continue
+				}
+				refs := homeRefs(seg)
+				if len(refs) > 0 {
+					el.Joint.Homes = append(el.Joint.Homes, t)
+				}
+				for _, r := range refs {
+					d.addEdge(Edge{From: el.ID, To: d.target(r), Kind: edge.JointDecisionHome,
+						Line: line, LineEnd: el.LineEnd, Evidence: t, Field: "Joint-check", Slug: r.Slug},
+						claimed, [2]int{start + r.Start, start + r.End})
+				}
+			}
+		}
+		if headEnd < head {
+			continue
+		}
+		targets := map[string]bool{}
+		for _, t := range el.Joint.Targets {
+			targets[t] = true
+		}
+		for _, r := range edge.FindRefs(raw[head:headEnd], true) {
+			if !targets[r.Raw] || r.Record == d.Record {
+				continue // as mentionEdges: the record naming itself is not a relation
+			}
+			d.addEdge(Edge{From: el.ID, To: d.target(r), Kind: edge.Mentions,
+				Line: line, LineEnd: el.LineEnd, Evidence: r.Raw, Field: "Joint-check", Slug: r.Slug},
+				claimed, [2]int{head + r.Start, head + r.End})
+		}
+	}
+}
+
+// homeRefs reads the references of one home segment. The segment IS a
+// reference by the line's grammar, so a bare number there is a record
+// WITH its element half — `0033 §Normative Contracts` homes on the
+// section, not the document. FindRefs' bare-number sweep was built for
+// record lists and reads the number alone, so a bare segment is re-read
+// behind the marker the reference grammar wants, and the offsets are
+// shifted back onto the segment.
+func homeRefs(seg string) []edge.Ref {
+	if refs := edge.FindRefs(seg, false); len(refs) > 0 {
+		return refs
+	}
+	const marker = "RDR "
+	t := strings.TrimLeft(seg, " \t")
+	lead := len(seg) - len(t)
+	var out []edge.Ref
+	for _, r := range edge.FindRefs(marker+t, false) {
+		r.Start, r.End = max(r.Start-len(marker), 0)+lead, r.End-len(marker)+lead
+		r.Raw = seg[r.Start:r.End]
+		out = append(out, r)
+	}
+	return out
 }
 
 // --- assumptions --------------------------------------------------------

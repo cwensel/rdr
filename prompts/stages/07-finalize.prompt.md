@@ -53,6 +53,17 @@ Repeatability-lite: run §lens-row's call with `--outcome repeatability` (follow
 `resolve:determinacy` chain once). `emit.next` must be `none`; anything else is
 NOT READY, class `determinacy`, with `emit.surface` quoted.
 
+Joint-decision fence: before the lock, re-run propose's arms 1 and 2 as one
+rdr-common §rdr-write call,
+`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited NNNN)`;
+it must emit `op = none`. `stopped:overlap-uncited` is NOT READY (a shared
+decision nobody fired on — fire it, do not sync the copies), and
+`stopped:overlap-unchecked` means nothing looked. The lock itself refuses
+`joint_check_home` = `open` (`stopped:joint-decision-open`) or `unhomed`
+(`stopped:joint-home-unresolved`) — a fire must be homed on a resolvable
+§-anchor before Final; homing is a JDR/owner-clause edit, never a wording
+tweak to a peer's Final.
+
 Then run the Finalization Gate from the template as written responses (not
 checkboxes): items 1, 2, 3 and 5 go to {ARTIFACT_DIR}/gate.md — a short header
 (RDR id/slug, date, verdict), then one H2 section per item — not into the RDR.

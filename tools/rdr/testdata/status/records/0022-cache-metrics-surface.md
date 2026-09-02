@@ -39,6 +39,7 @@ Scope the counter to steady-state reads and move the panel first.
 ## Decision Rationale
 
 Premortem: the dashboard panel is the only blocker and it is one edit.
+Joint-check: fired → 0024 (home: 0024 §Persistence Budget) — shared restart budget.
 
 ## Implementation Plan
 

@@ -1500,7 +1500,10 @@ func TestIndexCyclesFacet(t *testing.T) {
 	}
 	head := func(num, title, status, meta string) string {
 		return "# Recommendation " + num + ": " + title +
-			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: standard\n" + meta + "\n## Problem Statement\n\nSynthetic.\n"
+			"\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status + "\n- **Profile**: standard\n" + meta + "\n## Problem Statement\n\nSynthetic.\n" +
+			// Every Joint-check home below names §Normative Contracts, and a
+			// home is an edge the lock resolves — so the section exists.
+			"\n## Normative Contracts\n\nSynthetic.\n"
 	}
 	// 0001 <-> 0002 override each other; 0003 <-> 0005 defer to each other's
 	// Draft home; 0004 (Final) has an OPEN check and a home on a Draft, and
@@ -2686,5 +2689,38 @@ func TestGrepNamesTheContainingElement(t *testing.T) {
 	code, _, errb = runCapture(t, "inspect", "--grep", "BandHold", "--select", "0022:C1", path)
 	if code != 2 || !strings.Contains(errb, "stopped:usage") {
 		t.Errorf("--grep with --select: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestIndexAnchorIntersectOverTheStatusCorpus: the fence fact's first arm,
+// by the CLI, over the same fixtures — 0025 and 0026 share the key
+// pre-image anchor and neither cites the other, so the pair is UNCITED
+// under `--record` for either side.
+func TestIndexAnchorIntersectOverTheStatusCorpus(t *testing.T) {
+	recs, _ := bindStatusFixture(t)
+	for _, rec := range []string{"0025", "0026"} {
+		code, out, errb := runCapture(t, "index", "--anchor-intersect", "--record", rec, "--json", "--records", recs)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var env struct {
+			Overlaps []scan.Overlap `json:"overlaps"`
+		}
+		if err := json.Unmarshal([]byte(out), &env); err != nil {
+			t.Fatal(err)
+		}
+		uncited := 0
+		for _, o := range env.Overlaps {
+			if o.Cited {
+				continue
+			}
+			uncited++
+			if o.Records != [2]string{"0025", "0026"} || !containsString(o.Anchors, "internal/cache/key.go::Preimage") {
+				t.Errorf("%s: uncited pair %+v, want 0025/0026 over key.go::Preimage", rec, o)
+			}
+		}
+		if uncited != 1 {
+			t.Errorf("%s: %d uncited pairs, want 1:\n%s", rec, uncited, out)
+		}
 	}
 }

@@ -28,8 +28,10 @@ Claude: /rdr-finalize <NNNN>
    Finalization Gate's judgement responses to `{ARTIFACT_DIR}/gate.md`, then
    acts on the verdict:
    - **READY** → write responses 1, 2, 3 and 5 to `{ARTIFACT_DIR}/gate.md`
-     (overwrite on re-lock), then run rdr-common **§rdr-write** twice and apply
-     each `emit.edit` as handed — never retype the edits as prose:
+     (overwrite on re-lock), then run rdr-common **§rdr-write** three times
+     and apply each `emit.edit` as handed — never retype the edits as prose:
+     `--outcome fence` first (the prompt's joint-decision fence; it never
+     edits, and a `stopped:*` from it or from the lock flips nothing);
      `--outcome lock` replaces those four sub-sections with the one-line
      pointer to gate.md and sets Status → Final (`### Cross-Cutting Concerns`
      STAYS in the record, because peers cite it as `cli/NNNN:G-cross-cutting`);

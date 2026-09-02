@@ -521,7 +521,7 @@ document's own; `to` is what the kind's target class says it is.
 | `overrides` | `- **Overrides**:` | record or element |
 | `cluster` | `- **Cluster**:` | record |
 | `moved-to` | `Demoted [→ …]` | issue or record |
-| `joint-decision-home` | `Final [joint decision → <home §anchor>: …]` | element |
+| `joint-decision-home` | `Final [joint decision → <home §anchor>: …]`, and a `Joint-check: fired … (home: <ref>)` line (from the `JC` element; `OPEN` mints nothing) | element |
 | `reverify` | `Draft [revised from Final …; re-verify A2,A4]` | this record's own assumptions |
 | `peer-evidence` | a `Method: Peer RDR` assumption's Evidence | element |
 | `transient-deleted-by` | the `Transient — scheduled deletion by …` marker | record |

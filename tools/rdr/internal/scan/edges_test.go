@@ -334,3 +334,66 @@ func TestQuotedPeerCitationIsAMention(t *testing.T) {
 		}
 	}
 }
+
+// TestJointCheckLineMintsHomeAndTargetEdges: the propose gate checks a
+// fire's home "as an edge, not a string", so the `(home: …)` of a
+// `Joint-check:` line mints a joint-decision-home edge FROM THE JC
+// ELEMENT, one per `|` segment naming a reference, with the segment as
+// its evidence. The fired target is a mention (what makes an intersect's
+// `cited` honest for a fire), OPEN mints nothing, the mentions pass does
+// not re-mint the home reference weakly, and a bare `NNNN §Section` homes
+// on the section rather than the document.
+func TestJointCheckLineMintsHomeAndTargetEdges(t *testing.T) {
+	head := "# Recommendation 0026: X\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n\n## Decision Rationale\n\n"
+	d := Bytes([]byte(head+"Joint-check: fired → 0113 (home: cli/0113 §Normative Contracts | OPEN) — shared.\n"), Options{})
+
+	homes := edgesOf(d, edge.JointDecisionHome)
+	if len(homes) != 1 {
+		t.Fatalf("want exactly one home edge, got %v", homes)
+	}
+	h := homes[0]
+	if h.From != "0026:JC1" || h.To != "cli/0113:§normative-contracts" || h.Evidence != "cli/0113 §Normative Contracts" || h.Field != "Joint-check" {
+		t.Errorf("home edge = %+v", h)
+	}
+	// The element records which segments named a reference: one of two.
+	if jc := d.Elements[len(d.Elements)-1]; jc.Joint == nil || len(jc.Joint.Homes) != 1 || jc.Joint.Homes[0] != "cli/0113 §Normative Contracts" {
+		t.Errorf("JC homes = %+v, want the one referencing segment", jc.Joint)
+	}
+	// Two segments homing on one section are one edge and two homes.
+	two := Bytes([]byte(head+"Joint-check: fired → 0113 (home: cli/0113 §Normative Contracts S-3 | cli/0113 §Normative Contracts E-1) — split.\n"), Options{})
+	if e := edgesOf(two, edge.JointDecisionHome); len(e) != 1 {
+		t.Errorf("same-section segments minted %d edges, want 1 (identity dedupes)", len(e))
+	}
+	if jc := two.Elements[len(two.Elements)-1]; jc.Joint == nil || len(jc.Joint.Homes) != 2 {
+		t.Errorf("same-section segments recorded %+v, want two homes", jc.Joint)
+	}
+	var mentions []Edge
+	for _, e := range d.Edges {
+		if e.Kind == edge.Mentions {
+			mentions = append(mentions, e)
+		}
+	}
+	if len(mentions) != 1 || mentions[0].From != "0026:JC1" || mentions[0].To != "0113" || mentions[0].Field != "Joint-check" {
+		t.Errorf("want one mention of the fired target from the JC element, got %v", mentions)
+	}
+	for _, e := range d.Edges {
+		if strings.Contains(strings.ToUpper(e.To), "OPEN") {
+			t.Errorf("OPEN minted an edge: %+v", e)
+		}
+	}
+
+	// A clear line mints nothing; a bare-number home carries its section.
+	d = Bytes([]byte(head+"Joint-check: clear (3 peers; no shared anchor).\nJoint-check: fired → 0033 (home: 0033 §Normative Contracts) — pre-image.\n"), Options{})
+	homes = edgesOf(d, edge.JointDecisionHome)
+	if len(homes) != 1 || homes[0].From != "0026:JC2" || homes[0].To != "0033:§normative-contracts" {
+		t.Errorf("bare home: %v", homes)
+	}
+	if !hasEdge(d, edge.Mentions, "0026:JC2", "0033") {
+		t.Errorf("fired target not mentioned: %v", edgesOf(d, edge.Mentions))
+	}
+	for _, e := range d.Edges {
+		if e.From == "0026:JC1" {
+			t.Errorf("a clear line minted %+v", e)
+		}
+	}
+}

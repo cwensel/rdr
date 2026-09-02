@@ -20,7 +20,8 @@ same entry differently.
 - **A1 [Collisions are the binding risk, not encoding cost]**
   - **Status**: Verified | Pending | Unverified
   - **Method**: TBD
-  - **Evidence**: TBD
+  - **Evidence**: TBD — `internal/cache/key.go::Preimage` is the only
+    encoder in the tree, so a collision test there settles it.
   - **If wrong**: The encoding optimises the wrong axis.
 
 ## Proposed Solution

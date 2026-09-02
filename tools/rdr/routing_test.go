@@ -1335,3 +1335,141 @@ func TestDeterminacyGroupRoutesTheWrittenLine(t *testing.T) {
 	// 0030: small has no Stage 5.
 	expect("0030", "determinacy", tags("0030"), "determinacy-small", "none")
 }
+
+// TestLockRefusesAnUnhomedJointDecision pins the write model's joint-
+// decision fence. The two locking rows read `joint_check_home` and lock
+// only over none/clear/homed (a positive atom: intrastate's `unless` is a
+// block-level conjunction, so a second `unless` key would have widened
+// the row rather than narrowed it); the open and unhomed cells are
+// claimed by refusing rows that keep the gate refusals' precedence; and
+// the `fence` group is exactly the three overlap rows, every stop a
+// declared disposition.
+func TestLockRefusesAnUnhomedJointDecision(t *testing.T) {
+	m := loadRoutingModelNamed(t, "rdr-write.toml")
+	guards := map[string]map[string][]string{}
+	for _, a := range m.Atoms {
+		if guards[a.Rule] == nil {
+			guards[a.Rule] = map[string][]string{}
+		}
+		guards[a.Rule][a.Key] = a.Literals
+	}
+	for _, id := range []string{"lock-draft", "lock-draft-joint-decision"} {
+		got := guards[id]["joint_check_home"]
+		if len(got) != 3 || !containsString(got, "none") || !containsString(got, "clear") || !containsString(got, "homed") {
+			t.Errorf("%s guards joint_check_home on %v, want exactly [none clear homed]", id, got)
+		}
+	}
+	for id, want := range map[string][2]string{
+		"lock-joint-open":    {"open", "stopped:joint-decision-open"},
+		"lock-joint-unhomed": {"unhomed", "stopped:joint-home-unresolved"},
+	} {
+		g := guards[id]
+		if g == nil {
+			t.Errorf("no rule %q; the %s cell locks through the bare row", id, want[0])
+			continue
+		}
+		if got := g["joint_check_home"]; len(got) != 1 || got[0] != want[0] {
+			t.Errorf("%s guards joint_check_home on %v, want [%s]", id, got, want[0])
+		}
+		if got := g["gate_stale"]; len(got) != 1 || got[0] != "false" {
+			t.Errorf("%s guards gate_stale on %v; the stale-gate refusal must keep precedence", id, got)
+		}
+		if got := g["gate_written"]; len(got) != 1 || got[0] != "true" {
+			t.Errorf("%s guards gate_written on %v; the no-gate refusal must keep precedence", id, got)
+		}
+		if op := m.Emits[id]["op"]; op != want[1] {
+			t.Errorf("%s emits op %q, want %s", id, op, want[1])
+		}
+		if strings.TrimSpace(m.Emits[id]["surface"]) == "" {
+			t.Errorf("%s stops but surfaces nothing", id)
+		}
+	}
+
+	if !containsString(m.Outcomes, "fence") {
+		t.Fatalf("outcomes %v carry no fence", m.Outcomes)
+	}
+	fence := map[string]string{"fence-clear": "none", "fence-uncited": "stopped:overlap-uncited", "fence-unchecked": "stopped:overlap-unchecked"}
+	for _, id := range m.RuleIDs {
+		if !strings.HasPrefix(id, "fence-") {
+			continue
+		}
+		want, ok := fence[id]
+		if !ok {
+			t.Errorf("unexpected fence row %q", id)
+			continue
+		}
+		delete(fence, id)
+		if op := m.Emits[id]["op"]; op != want {
+			t.Errorf("%s emits op %q, want %s", id, op, want)
+		}
+		if g := guards[id]; len(g) != 1 || len(g["overlap_uncited"]) != 1 {
+			t.Errorf("%s guards %v, want exactly one overlap_uncited literal", id, g)
+		}
+	}
+	for id := range fence {
+		t.Errorf("fence row %q is missing", id)
+	}
+	stops := m.EmitDomains["op.stop"]
+	for _, tok := range []string{"stopped:joint-decision-open", "stopped:joint-home-unresolved", "stopped:overlap-uncited", "stopped:overlap-unchecked"} {
+		if !containsString(stops, tok) {
+			t.Errorf("%s is emitted but not a declared stop disposition (%v)", tok, stops)
+		}
+	}
+}
+
+// TestLockAndFenceResolveTheFixtures runs the seam live: the fixture's
+// `--tags --filter` argv, the gate facts the finalize prompt asserts, and
+// `intrastate flow resolve` selecting one row — the open fire refuses,
+// the homed one locks, the unhomed one refuses by name, and the fence
+// answers over the fixture's uncited pair.
+func TestLockAndFenceResolveTheFixtures(t *testing.T) {
+	bin := intrastateBinary(t)
+	_, table := bindStatusFixture(t)
+	model := repoFile(t, filepath.Join("models", "rdr-write.toml"))
+	resolve := func(outcome string, argv []string, extra ...string) (rule, op string) {
+		t.Helper()
+		args := append([]string{"flow", "resolve", "--model", model, "--outcome", outcome, "--plan-only", "--as", "json"}, argv...)
+		for i := 0; i+1 < len(extra); i += 2 {
+			args = append(args, "--tag", extra[i]+"="+extra[i+1])
+		}
+		out, err := exec.Command(bin, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("intrastate refused the %s resolve: %v\n%s", outcome, err, out)
+		}
+		var env struct {
+			Data struct {
+				Rule string            `json:"rule"`
+				Emit map[string]string `json:"emit"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(out, &env); err != nil {
+			t.Fatalf("%s: unreadable plan: %v\n%s", outcome, err, out)
+		}
+		return env.Data.Rule, env.Data.Emit["op"]
+	}
+	for _, c := range []struct{ rec, rule, op string }{
+		{"0033", "lock-joint-open", "stopped:joint-decision-open"},
+		{"0022", "lock-joint-unhomed", "stopped:joint-home-unresolved"},
+		{"0026", "lock-draft", "lock"},
+		{"0020", "lock-draft", "lock"},
+		// No line at all is not the lock's refusal: `joint_checks` surfaces it.
+		{"0025", "lock-draft", "lock"},
+	} {
+		argv := filteredTagArgv(t, table, c.rec, "status,status_form,joint_check_home")
+		if rule, op := resolve("lock", argv, "gate_written", "true", "gate_stale", "false"); rule != c.rule || op != c.op {
+			t.Errorf("lock on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
+		}
+	}
+	for _, c := range []struct{ rec, rule, op string }{
+		{"0025", "fence-uncited", "stopped:overlap-uncited"},
+		{"0033", "fence-clear", "none"},
+	} {
+		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited")
+		if rule, op := resolve("fence", argv); rule != c.rule || op != c.op {
+			t.Errorf("fence on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
+		}
+	}
+	if rule, op := resolve("fence", nil, "overlap_uncited", "unchecked"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
+		t.Errorf("fence unchecked: rule %q op %q", rule, op)
+	}
+}

@@ -44,3 +44,4 @@ Determinacy: n/a — no algorithmic contract is locked.
 
 - Premortem: no failure mode survived the spike.
 - Ground-sweep: clean — the two readers were the only assumptions.
+- Joint-check: fired → 0026 (home: OPEN) — which record owns the key pre-image.
