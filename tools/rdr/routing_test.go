@@ -1214,3 +1214,98 @@ func TestLensRowHasOneHome(t *testing.T) {
 		}
 	}
 }
+
+// TestDeterminacyGroupRoutesTheWrittenLine is the Stage-5 Determinacy
+// seam, resolved live. The judgement — is a locked contract algorithmic?
+// — is a reading no fact makes; what the table routes on is the
+// `Determinacy:` line that reading leaves in Normative Contracts, read as
+// the `determinacy` fact. The mid/large `repeatability` row with no run-1
+// CHAINS to the `determinacy` group (its own group is at 1440, and a
+// third value would overflow it), and that group answers once instead of
+// the ladder being re-walked at Stages 5, 6 and 7.
+//
+// The goldens the prose ladder gave, recorded before it was deleted:
+//
+//	cue judged | run-1+diff | n/a line | before                | after
+//	no cue     | -          | -        | READY, unrecorded     | NOT READY until `na` is written
+//	fired      | yes        | -        | READY                 | `fired` -> lite rows -> none
+//	fired      | no         | yes      | READY                 | `na` -> none
+//	fired      | no         | no       | NOT READY             | `fired` -> route run 1
+//	unjudged   | -          | -        | re-walked at 5, 6, 7  | stop, once
+func TestDeterminacyGroupRoutesTheWrittenLine(t *testing.T) {
+	bin := intrastateBinary(t)
+	_, table := bindStatusFixture(t)
+	model := repoFile(t, filepath.Join("models", routingModelName))
+
+	tags := func(rec string) []string {
+		t.Helper()
+		code, out, errb := runCapture(t, "status", "--facts", table, "--tags", rec)
+		if code != 0 {
+			t.Fatalf("%s: --tags exit %d: %s", rec, code, errb)
+		}
+		return strings.Split(strings.TrimSpace(out), "\n")
+	}
+	// with is the shell's `${V/key=old/key=new}`: one tag rewritten, the
+	// rest of the record's vector untouched.
+	with := func(argv []string, key, value string) []string {
+		out := append([]string(nil), argv...)
+		for i, a := range out {
+			if strings.HasPrefix(a, key+"=") {
+				out[i] = key + "=" + value
+				return out
+			}
+		}
+		t.Fatalf("no %s= tag in %q", key, argv)
+		return nil
+	}
+	resolve := func(outcome string, argv []string) (rule, next string) {
+		t.Helper()
+		args := append([]string{"flow", "resolve", "--model", model, "--outcome", outcome, "--plan-only", "--as", "json"}, argv...)
+		out, err := exec.Command(bin, args...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("intrastate refused the %s resolve: %v\n%s", outcome, err, out)
+		}
+		var env struct {
+			Data struct {
+				Rule string            `json:"rule"`
+				Emit map[string]string `json:"emit"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(out, &env); err != nil {
+			t.Fatalf("%s: unreadable plan: %v\n%s", outcome, err, out)
+		}
+		return env.Data.Rule, env.Data.Emit["next"]
+	}
+	expect := func(what, outcome string, argv []string, rule, next string) {
+		t.Helper()
+		if r, n := resolve(outcome, argv); r != rule || n != next {
+			t.Errorf("%s: --outcome %s selected %q -> %q, want %q -> %q", what, outcome, r, n, rule, next)
+		}
+	}
+
+	// 0020: mid, no run-1, no line — the unjudged sentinel, stopped once.
+	v20 := tags("0020")
+	expect("0020", "repeatability", v20, "repeatability-mid-large-unrun", "resolve:determinacy")
+	expect("0020", "determinacy", v20, "determinacy-unjudged", "stopped:determinacy-trigger-unjudged")
+	expect("0020 with na written", "determinacy", with(v20, "determinacy", "na"), "determinacy-na", "none")
+	expect("0020 with fired written", "determinacy", with(v20, "determinacy", "fired"), "determinacy-fired-mid", "/rdr-prelock repeatability 1")
+	expect("0020 as large, fired", "determinacy", with(with(v20, "determinacy", "fired"), "profile", "large"), "determinacy-fired-large", "/rdr-prelock repeatability 1")
+	expect("0020 with no Profile", "determinacy", with(v20, "profile", "none"), "determinacy-no-profile", "stopped:no-profile")
+
+	// 0024: mid with the line written n/a — the record that owes no run,
+	// end to end through the chain.
+	v24 := tags("0024")
+	expect("0024", "repeatability", v24, "repeatability-mid-large-unrun", "resolve:determinacy")
+	expect("0024", "determinacy", v24, "determinacy-na", "none")
+
+	// 0026: foundational carries a fired line, and its route is unchanged
+	// — the full lens is on the row, so the trigger adds nothing.
+	v26 := tags("0026")
+	expect("0026", "determinacy", v26, "determinacy-foundational", "none")
+	if _, next := resolve("repeatability", v26); next != "/rdr-prelock repeatability 2" {
+		t.Errorf("0026: --outcome repeatability answers %q; a foundational route must not read the line", next)
+	}
+
+	// 0030: small has no Stage 5.
+	expect("0030", "determinacy", tags("0030"), "determinacy-small", "none")
+}

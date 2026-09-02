@@ -1273,7 +1273,7 @@ op          = "return"
 target      = "packet"
 stage       = "prelock"
 next_action = "/rdr-prelock repeatability 1"
-why         = "The Determinacy trigger fired and no run or `determinacy: n/a` disposition exists — repeatability-lite owns it."
+why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it."
 
 [[rule]]
 id = "return-reconcile"

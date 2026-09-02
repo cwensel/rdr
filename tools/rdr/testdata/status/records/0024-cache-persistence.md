@@ -27,6 +27,13 @@ A restart discards the cache. Whether that costs anything is unmeasured.
 
 Parked: no acceptable mechanism until the budget exists.
 
+## Normative Contracts
+
+The persisted form, if any, is chosen when the budget exists; nothing is
+locked here.
+
+Determinacy: n/a — no algorithmic contract is locked while parked.
+
 ## Decision Rationale
 
 Parked pending the restart budget.

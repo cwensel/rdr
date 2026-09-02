@@ -117,8 +117,9 @@ type FactDecl struct {
 	Kind string
 	// Source names the evaluator that answers this fact.
 	Source string
-	// Path is a projection path for a field, or the relative path for a
-	// probe. Paths is the probe-any list.
+	// Path is a projection path for a field, the relative path for a
+	// probe, or the section a verdict-line reads. Paths is the probe-any
+	// list.
 	Path  string
 	Paths []string
 	// Root names the FactRoot a probe hangs under.
@@ -1046,20 +1047,31 @@ func (e *FactEnv) caRollup(d FactDecl) (Fact, bool) {
 	return Fact{Name: d.Name, Kind: d.Kind, Value: "mixed"}, true
 }
 
-// verdictLine reports whether a Stage-2 verdict line is written in
-// Decision Rationale.
+// verdictLine reads a labelled verdict line from one section — the
+// Stage-2 `Premortem:`/`Ground-sweep:` lines in Decision Rationale, and
+// the Stage-5 `Determinacy:` line in Normative Contracts.
 //
 // These lines are prose the projector does not carry — unlike
 // `Joint-check:`, which IS projected as a JC element with a parsed
 // verdict — so the only way to see them is to read that section's bytes.
 // The read is bounded by the section's own line range, never the file.
+// `path` names the section (Decision Rationale when unset). A bool fact
+// answers whether the line is there; an enum fact answers its leading
+// word, normalised (`n/a` reads `na`), and goes ABSENT when there is no
+// line or the word is off the declared domain — the honest answer, and
+// the one the table's sentinel names, rather than a member invented for
+// it (the header-field rule).
 func (e *FactEnv) verdictLine(d FactDecl) (Fact, bool) {
 	if e.Doc == nil || e.Doc.Path == "" {
 		return Fact{}, false
 	}
+	section := d.Path
+	if section == "" {
+		section = "Decision Rationale"
+	}
 	var start, end int
 	for _, n := range e.Doc.Outline {
-		if n.Canonical == "Decision Rationale" {
+		if n.Canonical == section {
 			start, end = n.LineStart, n.LineEnd
 			break
 		}
@@ -1075,18 +1087,54 @@ func (e *FactEnv) verdictLine(d FactDecl) (Fact, bool) {
 	if end > len(lines) {
 		end = len(lines)
 	}
+	inMarker := false
 	for i := start - 1; i < end && i < len(lines); i++ {
 		if i < 0 {
+			continue
+		}
+		// Template guidance (`[Required — …]`) is not content, the same
+		// reading sectionProse applies: a line inside a marker block
+		// cannot be the verdict, however it is worded.
+		t := strings.TrimSpace(lines[i])
+		if inMarker {
+			inMarker = !strings.Contains(t, "]")
+			continue
+		}
+		if strings.HasPrefix(t, "[") && !strings.Contains(t, "]") {
+			inMarker = true
 			continue
 		}
 		// The label opens the line; emphasis around it is presentation,
 		// the same reading the assumption-status parser applies.
 		bare := strings.TrimSpace(strings.NewReplacer("**", "", "*", "", "_", "", "`", "", "- ", "").Replace(lines[i]))
-		if strings.HasPrefix(bare, d.Label) {
+		if !strings.HasPrefix(bare, d.Label) {
+			continue
+		}
+		if d.Kind != "enum" {
 			return Fact{Name: d.Name, Kind: d.Kind, Value: "true"}, true
 		}
+		v := verdictWord(strings.TrimSpace(bare[len(d.Label):]))
+		if v == "" || !slices.Contains(d.Domain, v) {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	}
+	if d.Kind == "enum" {
+		return Fact{}, false
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: "false"}, true
+}
+
+// verdictWord is the enum reading of a verdict line's value: the leading
+// whitespace-delimited token (headerValue's rule — what follows is a note
+// to a human), lower-cased, a trailing stop dropped, and `n/a` folded to
+// `na`, the spelling a tag can carry.
+func verdictWord(s string) string {
+	w := strings.ToLower(strings.TrimRight(headerValue(s), ".,;:"))
+	if w == "n/a" {
+		return "na"
+	}
+	return w
 }
 
 // capsuleState reads the Stage-9 capsule's state word.

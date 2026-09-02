@@ -290,7 +290,8 @@ gate_stale                   bool    false
 gate_written                 bool    false
 impl_capsule                 bool    false
 cluster_reconciled           bool    false
-contracts_prose              bool    false
+contracts_prose              bool    true
+determinacy                  enum    na
 ca_pending_ids               set     ["0024:A1"]
 ca_off_vocabulary_ids        set     []
 

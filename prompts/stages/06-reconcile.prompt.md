@@ -8,9 +8,9 @@ Pre-Lock needs-verification list(s):
 
 Before building the open set, preflight Stage 5 with §lens-row's call: anything
 but `/rdr-reconcile` is `NOT RECONCILED — return to Stage 5` — print `emit.next`
-with NNNN. For `mid`/`large`, a fired Determinacy trigger also requires
-`evidence/repeatability/run-1.md` + `diff.md` or a written
-`determinacy: n/a - <reason>`.
+with NNNN. Repeatability-lite: the same call with `--outcome repeatability`
+(follow a `resolve:determinacy` chain once) must emit `next = none`; anything
+else is the same stop, with `emit.surface` quoted.
 
 Build the open set from FOUR sources:
 1. The Pre-Lock needs-(re)verification list(s) — assumptions flipped back to

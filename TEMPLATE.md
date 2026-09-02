@@ -194,7 +194,10 @@ list of the contracts this RDR owns**: a surface not
 named here has no spec to test against, so during
 implementation an un-named surface is a deviation, not
 free latitude (see `prompts/implementation/launch.md`
-Phase 2).]
+Phase 2). Stage 5 closes this section with one line,
+outside the fences: either `Determinacy: fired — <contracts>`
+or else `Determinacy: n/a — <reason>` (prompts/pre-lock/
+3-repeatability.md §Determinacy trigger).]
 
 > **Proportionality (split signal).** Count the
 > *independent* load-bearing contracts this RDR is the

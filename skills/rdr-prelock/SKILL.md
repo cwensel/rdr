@@ -118,9 +118,10 @@ Two things the row hands back rather than decides. A `run-2`/`run-3` request aga
 `variant: lite` header stops with `stopped:repeatability-lite-no-run-2:<NNNN>` —
 escalate to full only by rewriting that line to `full (escalated: <reason>)` first
 (`3-repeatability.md` *Escalate*), else `diff` on `run-1`. And on `mid`/`large` the
-lens is owed only if the Stage-5 **Determinacy trigger** fires, which is a judgement
-over Normative Contracts, not a fact: the row stops with
-`stopped:determinacy-trigger-unjudged` and names the section to read.
+lens is owed only if the `Determinacy:` line in Normative Contracts reads fired: the
+row chains to `resolve:determinacy`, which routes run 1, `none`, or stops with
+`stopped:determinacy-trigger-unjudged` until the line is written
+(`3-repeatability.md` §Determinacy trigger).
 
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
@@ -187,8 +188,8 @@ over Normative Contracts, not a fact: the row stops with
   in a fresh session; it also resolves `diff.md`.
 - **All profile lenses done** → the model answers `/rdr-reconcile` (row
   complete): `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
-  A Determinacy obligation the table cannot see (§lens-row's one judgement) is
-  yours to add before you accept that answer.
+  Ask `--outcome repeatability` first — it decides the Determinacy add-on from the
+  `Determinacy:` line.
 - **`stopped:verdict-flapping`** → resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces
   a redesign, `/rdr-resolve NNNN` / `/rdr-propose NNNN` now.

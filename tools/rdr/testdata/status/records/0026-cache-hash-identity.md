@@ -31,6 +31,8 @@ The key pre-image is the tuple `(namespace, shard, key)` encoded with a
 single NUL separator, and the hash is taken over those bytes with no
 trailing newline.
 
+**Determinacy:** fired — the pre-image encoding (hashing, identity).
+
 ## Decision Rationale
 
 A written pre-image is the only thing that makes two readers comparable.

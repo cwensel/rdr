@@ -2,9 +2,7 @@
 
 **Use when**: single-RDR pre-lock, for RDRs that lock a public API, signature,
 or data model an implementer must reproduce exactly — or when the Stage 5
-**Determinacy trigger** fires on an algorithmic contract (step-ordering,
-parse/deparse, import/export, compose/decompose, hashing, identity, migration,
-multi-step MVV fidelity). Apply after the draft is complete **and its assumptions
+**Determinacy trigger** (below) fires. Apply after the draft is complete **and its assumptions
 are verified** (Stage 4). One of the single-RDR lenses; peers with
 [3amigo](1-3amigo.md), [critique](2-critique.md), and [cove](4-cove.md).
 
@@ -20,6 +18,31 @@ the finding.
 
 **Cost**: 15 min × 3 runs (one session each) + 10 min for a 4th `diff` pass in a
 fresh session.
+
+## Determinacy trigger
+
+Judged once at Stage 5 on a `mid`/`large` RDR, from its **Normative Contracts** —
+the fenced ` ```normative ` block(s), not the surrounding prose, and not the
+profile. It **fires** when a locked contract is *algorithmic*: its output depends
+on **step ordering**; it defines **parse/deparse, import/export,
+compose/decompose, hashing, identity, or migration** behaviour; a **data-model
+field's ownership/semantics** could be inferred more than one way; or the **MVV
+rests on multi-step transformation fidelity**. A cue read from the contract's
+*kind*, never a word test — grepping the RDR over-fires on topic vocabulary, and
+the ownership cue names no verb. Read the block and ask what it legislates.
+
+It does **not** fire for CLI-flag/UX/surface changes, additive un-ordered config,
+doc/wording, or pure plumbing with no transform — nothing there has a step order
+or a field owner to diff. `Transient`-marked contracts (TEMPLATE.md Normative
+Contracts) are outside the read; the marker is their disposition.
+
+Write the judgement once, as one line in Normative Contracts outside the fences:
+`Determinacy: fired — C2 (hashing), C4 (step order)` or
+`Determinacy: n/a — <one-clause reason>`. `rdr status` reads it as the
+`determinacy` fact and `--outcome repeatability` routes the lite variant below
+on it; with no line the table stops with `stopped:determinacy-trigger-unjudged`.
+Foundational runs the full ×3 lens regardless; the lite diff escalates on the
+criteria below.
 
 ## Repeatability-lite (one alternate-model reconstruction)
 

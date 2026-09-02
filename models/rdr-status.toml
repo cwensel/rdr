@@ -79,7 +79,7 @@
 # missing, exactly as §stop-packet requires — a skipped check must never
 # read as a passed one.
 
-outcomes = ["locate", "reentry", "lens", "critique", "repeatability", "floor"]
+outcomes = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy"]
 
 [model]
 id          = "rdr-status"
@@ -108,7 +108,7 @@ facts  = "models/rdr-facts.toml"
 kind = "enum"
 [emit.next.domain]
 route = ["/rdr-cluster-reconcile", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability 1", "/rdr-prelock repeatability 2", "/rdr-prelock repeatability 3", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
-chain = ["resolve:lens", "resolve:reentry"]
+chain = ["resolve:lens", "resolve:reentry", "resolve:determinacy"]
 none  = ["none"]
 stop  = ["stopped:assumption-list-unreadable", "stopped:check-the-joint-decision-home", "stopped:deferred-without-condition", "stopped:determinacy-trigger-unjudged", "stopped:no-profile", "stopped:profile-below-floor", "stopped:repeatability-variant-unstamped", "stopped:seam-lineage-count-unread"]
 
@@ -147,7 +147,7 @@ domain = ["foundational", "none"]
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["locate", "reentry", "lens", "critique", "repeatability", "floor"]
+domain        = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy"]
 single_valued = true
 required      = true
 
@@ -373,6 +373,16 @@ required      = true
 [tags.lens_repeatability_diff]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# The Stage-5 Determinacy judgement, as the `Determinacy:` line in
+# Normative Contracts reads it. `unjudged` is the ABSENT SENTINEL — no
+# line written yet — and the `determinacy` group stops on it by name.
+[tags.determinacy]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["fired", "na", "unjudged"]
 single_valued = true
 required      = true
 
@@ -986,11 +996,10 @@ row = "3amigo"
 why  = "Profile mid — grounding has run; 3amigo is the next row entry."
 
 # The mid row is complete. A Determinacy-owed `repeatability` is an
-# ADD-ON to this row when the Stage-5 trigger fires on an algorithmic
-# contract, and the trigger is a judgement over the Normative Contracts
-# section — a zero `C` count means UNLABELLED, not absent, so a fact
-# cannot decide it. The row therefore names both the discharge and the
-# obligation rather than silently choosing reconcile.
+# ADD-ON to this row, decided by the `determinacy` group over the
+# `Determinacy:` line the Stage-5 judgement leaves in Normative
+# Contracts; the surface points the caller at that outcome rather than
+# silently choosing reconcile.
 [[rule]]
 id = "lens-mid-row-complete"
 [rule.match.recognized]
@@ -1007,7 +1016,7 @@ in = ["grounding", "3amigo"]
 next    = "/rdr-reconcile"
 row    = "none"
 why     = "Profile mid — the grounding -> 3amigo row is complete."
-surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
+surface = "`--outcome repeatability` decides the Determinacy add-on from the `Determinacy:` line; ask it before accepting reconcile"
 
 # --- large: grounding -> 3amigo -> critique -------------------------------
 
@@ -1080,7 +1089,7 @@ in = ["grounding", "3amigo", "critique"]
 next    = "/rdr-reconcile"
 row    = "none"
 why     = "Profile large — the grounding -> 3amigo -> critique row is complete."
-surface = "the Stage-5 Determinacy trigger: if it fires, repeatability (lite) is appended to the row and owed before reconcile"
+surface = "`--outcome repeatability` decides the Determinacy add-on from the `Determinacy:` line; ask it before accepting reconcile"
 
 # --- foundational: cove -> 3amigo -> critique -> repeatability ------------
 #
@@ -1647,18 +1656,15 @@ why     = "Profile foundational — repeatability is on the row and has not star
 surface = "stamp `variant: full (profile: foundational)` into run-1's header at generation"
 
 # mid/large: repeatability is NOT on the row. It is an ADD-ON owed only
-# when the Stage-5 Determinacy trigger fires, and that trigger is a
-# judgement over the Normative Contracts section — is a locked contract
-# algorithmic? — which no fact decides. `contracts_prose` says whether
-# there is anything to read; it cannot say what the contract IS.
-#
-# So this row does NOT name a stage. Answering `/rdr-prelock
-# repeatability 1` here would assert an obligation the model cannot
-# know, and answering `none` would hide one that may be real — the
-# §stop-packet rule is that a skipped check must never read as a passed
-# one. It stops, names the judgement, and hands over the section.
+# when the Stage-5 Determinacy trigger fires — a judgement over the
+# Normative Contracts section (is a locked contract algorithmic?) that no
+# fact makes, but one Stage 5 WRITES once, as the `Determinacy:` line the
+# `determinacy` fact reads. This group is at 1440, and a third value on
+# it overflows the bound, so the line gets its own outcome, chained
+# exactly as `locate` chains to `reentry`. The chained group routes run
+# 1, `none`, or the unjudged stop — nothing here re-derives it.
 [[rule]]
-id = "repeatability-unrun-determinacy-unjudged"
+id = "repeatability-mid-large-unrun"
 [rule.match.recognized]
 eq = "repeatability"
 [rule.guard.all.profile]
@@ -1670,9 +1676,8 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next    = "stopped:determinacy-trigger-unjudged"
-why     = "Profile mid/large — repeatability is owed only if the Stage-5 Determinacy trigger fires, which is a judgement over Normative Contracts, not a fact."
-surface = "the Normative Contracts section: if a locked contract is algorithmic (ordering-dependent, or parse/deparse, import/export, compose/decompose, hashing, identity, migration), repeatability-lite is owed; otherwise the lens is not on this row"
+next = "resolve:determinacy"
+why  = "Profile mid/large — repeatability is an add-on; the trigger is a written line the determinacy group routes on."
 
 # A run-1 exists but carries no variant header. Pre-dates
 # §repeatability-variant; the header is the durable record and this one
@@ -1956,3 +1961,107 @@ eq = "repeatability"
 next    = "/rdr-prelock repeatability"
 why     = "Re-entered — the run set is written but predates the demote, so the lens is owed a pass for this iteration."
 surface = "the demote date from the qualifier and the runs' newest evidence date; a re-run under iter-N makes it current"
+
+# ===========================================================================
+# `determinacy` — is repeatability-lite owed?
+#   (prompts/pre-lock/3-repeatability.md §Determinacy trigger)
+# ===========================================================================
+#
+# Dimensions: profile × determinacy = 5 × 3 = 15.
+#
+# Reached only through `repeatability-mid-large-unrun`'s
+# `resolve:determinacy` — no run-1, variant unwritten, not stale — so the
+# run and diff dimensions are already settled and are not re-imported.
+# The judgement stays with Stage 5: whether a locked contract is
+# algorithmic is a reading. What the table routes on is the line that
+# reading leaves behind, `Determinacy: fired — …` or `Determinacy: n/a —
+# <reason>` in Normative Contracts, which `rdr status` reads as
+# `determinacy`. `unjudged` is the absent sentinel and it STOPS: a
+# missing judgement must never read as n/a (§stop-packet), and it stops
+# once, here, instead of being re-walked at Stages 5, 6 and 7.
+#
+# Every cell is claimed. No profile is the stop it always is; small has
+# no Stage 5; foundational has the full lens on its row already, so the
+# line adds nothing there. Only mid/large read it.
+
+[[rule]]
+id = "determinacy-no-profile"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+eq = "none"
+[rule.emit]
+next    = "stopped:no-profile"
+why     = "The Profile field is absent — §lens-row makes that a stop-packet, never a default."
+surface = "that no Profile is written; the lite add-on cannot be sized without it"
+
+[[rule]]
+id = "determinacy-small"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+eq = "small"
+[rule.emit]
+next = "none"
+why  = "Profile small — §lens-row skips Stage 5, so repeatability is not owed."
+
+[[rule]]
+id = "determinacy-foundational"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.emit]
+next = "none"
+why  = "Profile foundational — the full repeatability lens is on the row already; the trigger adds nothing."
+
+[[rule]]
+id = "determinacy-unjudged"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+in = ["mid", "large"]
+[rule.guard.all.determinacy]
+eq = "unjudged"
+[rule.emit]
+next    = "stopped:determinacy-trigger-unjudged"
+why     = "Profile mid/large — no `Determinacy:` line is written in Normative Contracts, so the trigger is unjudged."
+surface = "Normative Contracts: judge the trigger once against $RDR_HOME/prompts/pre-lock/3-repeatability.md §Determinacy trigger and write `Determinacy: fired — <contracts>` or `Determinacy: n/a — <reason>` there, outside the fences"
+
+[[rule]]
+id = "determinacy-na"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+in = ["mid", "large"]
+[rule.guard.all.determinacy]
+eq = "na"
+[rule.emit]
+next = "none"
+why  = "Profile mid/large — the `Determinacy:` line reads n/a; repeatability is not on this row."
+
+[[rule]]
+id = "determinacy-fired-mid"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.determinacy]
+eq = "fired"
+[rule.emit]
+next    = "/rdr-prelock repeatability 1"
+why     = "Profile mid — the `Determinacy:` line reads fired; repeatability-lite is owed and run 1 starts it."
+surface = "stamp `variant: lite (profile: mid)` into run-1's header at generation"
+
+[[rule]]
+id = "determinacy-fired-large"
+[rule.match.recognized]
+eq = "determinacy"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.determinacy]
+eq = "fired"
+[rule.emit]
+next    = "/rdr-prelock repeatability 1"
+why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed and run 1 starts it."
+surface = "stamp `variant: lite (profile: large)` into run-1's header at generation"

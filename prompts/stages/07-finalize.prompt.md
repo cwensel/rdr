@@ -47,12 +47,9 @@ closed), the listed defects should be closed in live text: verify each there
 (delegate the read), then delete the note at lock — NOT READY only if one is
 still open.
 
-ALSO scan `Profile` + `Normative Contracts`: for a `mid`/`large` RDR whose
-contract names step-ordering, parse/deparse, import/export, compose/decompose,
-hashing, identity, migration, ambiguous field ownership, or multi-step MVV
-fidelity, require `evidence/repeatability/run-1.md` + `diff.md` or a written
-`determinacy: n/a - <reason>` disposition. If absent, NOT READY, class
-`determinacy`.
+Repeatability-lite: run §lens-row's call with `--outcome repeatability` (follow a
+`resolve:determinacy` chain once). `emit.next` must be `none`; anything else is
+NOT READY, class `determinacy`, with `emit.surface` quoted.
 
 Then run the Finalization Gate from the template as written responses (not
 checkboxes): items 1, 2, 3 and 5 go to {ARTIFACT_DIR}/gate.md — a short header

@@ -599,15 +599,13 @@ again, with the caveat on `surface` — single-model fallback, unstamped pass, v
 mismatch. Ask at a lens close-out and at Stage 5's preflight; their answer outranks
 the row's folder-level one.
 
-**The one judgment the table does not make** is the Stage 5 Determinacy trigger
-(`$RDR_HOME/stages/05-prelock.md`): on a `mid`/`large` algorithmic contract it
-appends `repeatability` (lite) as a *row entry*, discharged only by
-`evidence/repeatability/` files or a written `determinacy: n/a — <reason>`.
-A fact cannot decide it — `contracts_prose` says the section holds authored text
-(a zero `counts.elements.C` means *unlabelled* as often as *absent*), but whether a
-contract is ALGORITHMIC is a reading. So the `mid`/`large` `repeatability` rows stop
-with `stopped:determinacy-trigger-unjudged` and name the section: read those lines
-(`outline[]` bounds them) and judge the trigger on what they say.
+**The Determinacy trigger is a written line, not a re-read.** Stage 5 judges it
+once (`$RDR_HOME/prompts/pre-lock/3-repeatability.md` §Determinacy trigger) and
+writes `Determinacy: fired — …` or `Determinacy: n/a — …` in Normative Contracts;
+`--outcome repeatability` chains to the `determinacy` group on that line
+(`resolve:determinacy`, followed once), which routes run 1, `none`, or
+`stopped:determinacy-trigger-unjudged` while the line is unwritten. A zero
+`contracts` count says nothing here — the line does.
 
 ## §mechanical-gate — 30-second template/anchor grep at stage exit
 

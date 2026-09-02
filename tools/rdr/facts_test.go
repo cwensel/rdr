@@ -868,6 +868,9 @@ var stageFacts = map[string][]string{
 		// critique's two passes, and which variant run-1 declares. The
 		// `critique` and `repeatability` outcome groups route on these.
 		"critique_models", "repeatability_variant",
+		// The Stage-5 Determinacy judgement as the `Determinacy:` line
+		// records it; the `determinacy` group routes the lite add-on on it.
+		"determinacy",
 		// The accretion floor's inputs. The floor itself is the `floor`
 		// outcome's row over the bucket and the disposition; the count is
 		// published for the reader and routes nothing directly.
@@ -1892,6 +1895,66 @@ func TestSeamLineageFactsAreAbsentWithoutTheField(t *testing.T) {
 				if v, ok := factValue(facts, name); ok {
 					t.Errorf("%s = %q; with no readable field the fact must be absent, not defaulted", name, v)
 				}
+			}
+		})
+	}
+}
+
+// --- the Determinacy line ---------------------------------------------------
+
+// contractsRecord writes a mid record whose Normative Contracts section
+// holds `body` (no section at all when empty) and returns its facts.
+func contractsRecord(t *testing.T, body string) []Fact {
+	t.Helper()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "0032-frame-codec.md")
+	doc := "# Recommendation 0032: Frame codec\n\n## Metadata\n\n- **Date**: 2026-09-01\n- **Status**: Draft\n- **Profile**: mid\n\n## Problem Statement\n\nSynthetic.\n"
+	if body != "" {
+		doc += "\n## Normative Contracts\n\n" + body + "\n"
+	}
+	doc += "\n## Decision Rationale\n\nSynthetic.\n"
+	if err := os.WriteFile(path, []byte(doc), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	d, err := scan.File(path, scan.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tbl := loadRealTable(t)
+	return tbl.Evaluate(NewFactEnv(tbl, d, "0032-frame-codec"))
+}
+
+// TestDeterminacyReadsTheWrittenLine: the Stage-5 judgement is a reading
+// no fact makes, so the fact reads the LINE the reading leaves behind —
+// its leading word, with `n/a` folded to `na` and emphasis dropped. No
+// line, a word off the domain, and a line inside template guidance all
+// read ABSENT (rendered `unjudged` under --tags), never `na`: silence is
+// not a disposition, and the table stops on it by name.
+func TestDeterminacyReadsTheWrittenLine(t *testing.T) {
+	fence := "```normative\nfunc Encode(f Frame) []byte\n```\n\n"
+	for _, c := range []struct{ name, body, want string }{
+		{"fired", fence + "Determinacy: fired — C1 (hashing), C2 (step order)", "fired"},
+		{"n/a folds to na", fence + "Determinacy: n/a — a flag surface; nothing algorithmic is locked.", "na"},
+		{"case and a trailing stop", fence + "Determinacy: N/A.", "na"},
+		{"bold label", fence + "**Determinacy:** fired — C1.", "fired"},
+		{"bold label, colon outside", fence + "**Determinacy**: fired — C1.", "fired"},
+		{"no line", fence, ""},
+		{"no section", "", ""},
+		{"off-domain word", fence + "Determinacy: maybe — decide later.", ""},
+		{"template guidance is not a line", "[Required — never omit.\nDeterminacy: fired — <contracts> or\nDeterminacy: n/a — <reason>.]", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			facts := contractsRecord(t, c.body)
+			got, ok := factValue(facts, "determinacy")
+			if got != c.want || ok != (c.want != "") {
+				t.Errorf("determinacy = %q (present %v), want %q", got, ok, c.want)
+			}
+			if c.want != "" {
+				return
+			}
+			tbl := loadRealTable(t)
+			if v, _ := factValue(withAbsentSentinels(tbl, facts, nil), "determinacy"); v != "unjudged" {
+				t.Errorf("--tags renders determinacy=%q for an unwritten line, want the `unjudged` sentinel", v)
 			}
 		})
 	}

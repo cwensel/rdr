@@ -1151,6 +1151,25 @@ path        = "Normative Contracts"
 absent      = "false"
 description = "Normative Contracts carries authored text, labelled or not."
 
+# The Stage-5 Determinacy judgement, written once. Whether a locked
+# contract is ALGORITHMIC is a reading no fact makes; what a fact reads
+# is the line that reading leaves behind — `Determinacy: fired — …` or
+# `Determinacy: n/a — <reason>` in Normative Contracts, outside the
+# fences (prompts/pre-lock/3-repeatability.md §Determinacy trigger). The
+# `determinacy` group of rdr-status.toml routes repeatability-lite on it.
+#
+# `unjudged` is the ABSENT SENTINEL: no line, a placeholder-only section,
+# or a word off the domain all read absent, and the table stops on that
+# by name rather than reading silence as n/a. Absent ≠ na.
+[fact.determinacy]
+kind        = "enum"
+source      = "verdict-line"
+path        = "Normative Contracts"
+label       = "Determinacy:"
+domain      = ["fired", "na", "unjudged"]
+absent      = "unjudged"
+description = "The Stage-5 Determinacy judgement, written once as a `Determinacy:` line in Normative Contracts; n/a reads as na."
+
 # --- the index row ---------------------------------------------------------
 #
 # What `$RDR_RECORDS/README.md`'s index table says about this record. The

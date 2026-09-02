@@ -38,10 +38,10 @@ Claude: /rdr-reconcile <NNNN>
      lenses whose completion a folder cannot show: each answers `none` when finished,
      names the lens again when not (the same stop), and carries the caveat to copy
      into Caveats — a single-model fallback, an unstamped pass, or a variant mismatch
-     (full ran where lite was owed). The `mid`/`large` **Determinacy** judgement stays
-     yours: those rows stop with `stopped:determinacy-trigger-unjudged` and name
-     **Normative Contracts** to read, and firing without `run-1.md` + `diff.md` or a
-     written `determinacy: n/a - <reason>` is the same stop.
+     (full ran where lite was owed). The `mid`/`large` **Determinacy** add-on is
+     `--outcome repeatability`'s answer too (chain `resolve:determinacy` once):
+     `stopped:determinacy-trigger-unjudged` means the `Determinacy:` line is unwritten
+     in Normative Contracts, and a route to run 1 is the same stop.
 2. **Run the prompt** [`06-reconcile.prompt.md`](06-reconcile.prompt.md);
    paste the Pre-Lock list(s) where its `<paste the list(s)>` marker is. It builds the
    open set from four sources (Pre-Lock list, still-Pending assumptions, named-but-

@@ -224,11 +224,10 @@ not in Stage 5. Single-RDR profiles skip it (7 → 8). See
 [Cross-RDR drift](#cross-rdr-drift-stage-71).
 
 A `mid`/`large` RDR additionally runs **repeatability-lite** inside Stage 5 when
-the **Determinacy trigger** fires on an algorithmic contract (step-ordering,
-parse/deparse, import/export, compose/decompose, hashing, identity, migration,
-multi-step MVV fidelity) — a mechanical cue read from Normative Contracts, not the
-profile. See [`05-prelock.md`](05-prelock.md). Foundational already runs the full
-`repeatability` lens.
+the **Determinacy trigger** fires — judged once against
+[`3-repeatability.md` §Determinacy trigger](../prompts/pre-lock/3-repeatability.md#determinacy-trigger),
+written as the `Determinacy:` line in Normative Contracts, and routed by
+`--outcome repeatability`. Foundational already runs the full `repeatability` lens.
 
 **The profile is a recorded latch, not re-inferred each stage.** It lives in the
 RDR's `Profile` Metadata field, sized by **blast radius, not word count** — the

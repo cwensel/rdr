@@ -48,31 +48,11 @@ verdict (02-propose step 7.5) scopes grounding / cove's Step 0 per
 outranks the lens answer — the field is a recorded latch, and Stage 4 owns the
 write.
 
-**Determinacy trigger (repeatability-lite).** A second gate, read from the
-RDR's **Normative Contracts** — the fenced ` ```normative ` block, not the
-surrounding prose — and not from its profile. If a locked contract is
-*algorithmic* — its **output depends on step ordering**, or it defines
-**parse/deparse, import/export, compose/decompose, hashing, identity, or migration**
-behavior, or a **data-model field whose ownership/semantics could be inferred more
-than one way**, or the **MVV rests on multi-step transformation fidelity** — add
-**repeatability-lite** (one alternate-model reconstruction + a focused diff; see
-[the lens](../prompts/pre-lock/3-repeatability.md#repeatability-lite-one-alternate-model-reconstruction))
-to the profile's lenses, down to `mid` (§lens-row appends it as a row entry, so
-the next-lens rule sees it). This is a cue read from the contract's *kind* — a
-narrow read, but **not a word test**: it fires on what the block *does*, and the
-ownership-ambiguity cue names none of the verbs. Grepping the whole RDR
-over-fires on topic vocabulary (an RDR *about* identity says "identity"
-everywhere); grepping only the block under-fires. Read the block and ask what it
-legislates. The escape is a one-line written disposition in the lens
-folder (`determinacy: n/a — <reason>`), mirroring the accretion escape;
-`Transient`-marked contracts (TEMPLATE.md Normative Contracts) are excluded from
-the trigger read in the same register — the marker line is their recorded
-disposition. It does
-**not** fire for CLI-flag/UX/surface changes, additive un-ordered config,
-doc/wording, or pure plumbing with no transform — these have no step-ordering or
-field-ownership ambiguity to diff. Foundational still runs the **full** ×3 lens
-unchanged; the trigger only *adds* mid/large coverage at the lite tier, and the lite
-diff escalates to the full lens on the criteria the lens names.
+**Determinacy trigger (repeatability-lite).** Judged once, against
+[the lens](../prompts/pre-lock/3-repeatability.md#determinacy-trigger)
+§Determinacy trigger, and written as the `Determinacy:` line in Normative
+Contracts; `--outcome repeatability` routes repeatability-lite on it (down to
+`mid`). Foundational runs the full lens regardless.
 
 **Conditional mini-checks (structural triggers).** Five cheap checks that fire only
 on a named cue in the draft — *not* lenses, *not* profile-tiered, *not* always-on.
