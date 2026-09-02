@@ -1002,7 +1002,7 @@ paths       = ["deviations.md"]
 label       = "needs author decision"
 domain      = ["0", "1+", "none"]
 absent      = "none"
-description = "Status: lines in deviations.md still reading needs author decision; a rewritten line is closed."
+description = "Status: lines in deviations.md still reading needs author decision, bold or qualified; a line rewritten with → is closed."
 
 [fact.impl_mvv_recorded]
 kind        = "bool"

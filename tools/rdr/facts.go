@@ -1467,6 +1467,16 @@ var decisionCut = []string{"(", ".", ";", "—"}
 
 // openDecisions counts deviations.md's `Status:` lines whose leading
 // phrase still reads the open label, case-insensitively.
+//
+// The value is trimmed of bold and space before the cut because the
+// legacy corpus wraps the label three ways (`**Status:** x`, `**Status:
+// x**`, `- **Status: x (…)**`) and stripLead only removes a LEADING
+// `**`. A line carrying `→` anywhere is a rewritten line — the launch
+// prompt closes an entry only by rewriting it to `… → RESOLVED (…)` —
+// so it is closed whatever sits before the arrow. Otherwise the phrase
+// is open when it IS the label or starts with the label and a space:
+// `needs author decision on ordering (…)` is a qualified open line,
+// not a closed one.
 func openDecisions(raw []byte, label string) int {
 	n := 0
 	for _, ln := range strings.Split(string(raw), "\n") {
@@ -1474,15 +1484,19 @@ func openDecisions(raw []byte, label string) int {
 		if !strings.HasPrefix(strings.ToLower(bare), "status:") {
 			continue
 		}
-		val := strings.TrimSpace(bare[len("status:"):])
+		val := strings.Trim(bare[len("status:"):], "* ")
+		if strings.Contains(val, "→") {
+			continue
+		}
 		cut := len(val)
 		for _, mark := range decisionCut {
 			if i := strings.Index(val, mark); i >= 0 && i < cut {
 				cut = i
 			}
 		}
-		phrase := strings.TrimSpace(val[:cut])
-		if strings.EqualFold(phrase, label) {
+		phrase := strings.ToLower(strings.TrimSpace(val[:cut]))
+		want := strings.ToLower(label)
+		if phrase == want || strings.HasPrefix(phrase, want+" ") {
 			n++
 		}
 	}

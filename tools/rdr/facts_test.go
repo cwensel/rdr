@@ -2126,6 +2126,47 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	t.Run("open decisions, legacy spellings", func(t *testing.T) {
+		cases := []struct {
+			name string
+			line string
+			want string
+		}{
+			{"bold label, colon inside, list item",
+				"- **Status:** needs author decision", "1+"},
+			{"bold label, colon inside",
+				"**Status:** needs author decision", "1+"},
+			{"trailing bold, no cut mark",
+				"**Status: needs author decision**", "1+"},
+			{"trailing bold with parenthesis",
+				"**Status: needs author decision (low stakes)**", "1+"},
+			{"qualifier words before the cut",
+				"Status: needs author decision on resumption ordering (recorded, NOT", "1+"},
+			{"rewritten, bold label",
+				"**Status:** needs author decision → RESOLVED (option B).", "0"},
+			{"rewritten after a parenthesis",
+				"Status: needs author decision (low stakes) → RESOLVED (kept).", "0"},
+			{"rewritten, plain, wrapped-line indent",
+				"  Status: needs author decision → RESOLVED (an empty tier reads 1.0; there is", "0"},
+			{"bold non-open status",
+				"**Status:** mechanical translation", "0"},
+			{"history line, not a Status line",
+				"- **Original status:** needs author decision", "0"},
+			{"label mentioned mid-prose",
+				"recorded here with `Status: needs author decision`, and work continued.", "0"},
+			{"label as a longer word (boundary)",
+				"Status: needs author decisions", "0"},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				e := implArtifactEnv(t, tbl, map[string]string{"deviations.md": c.line + "\n"})
+				if got, _ := factValue(tbl.Evaluate(e), "impl_open_decisions"); got != c.want {
+					t.Errorf("impl_open_decisions = %q, want %q for line %q", got, c.want, c.line)
+				}
+			})
+		}
+	})
+
 	t.Run("mvv recorded", func(t *testing.T) {
 		e := implArtifactEnv(t, tbl, map[string]string{"coverage.md": "## REQ-MVV runner\n\nHow to run it.\n"})
 		if got, _ := factValue(tbl.Evaluate(e), "impl_mvv_recorded"); got != "false" {
