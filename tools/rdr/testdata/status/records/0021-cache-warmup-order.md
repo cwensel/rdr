@@ -27,7 +27,8 @@ requests after a restart slower than the steady state.
   - **Status**: Verified
   - **Method**: Source Search
   - **Evidence**: The manifest carries a declared priority per entry;
-    shown in Research Findings.
+    shown in Research Findings. Spikes: `{SPIKE_DIR}/manifest-priority`
+    (run) and `{SPIKE_DIR}/warmup-order/run.md` (named, not yet run).
   - **If wrong**: Warm-up needs a second input nothing produces.
 
 #### Normative Contracts

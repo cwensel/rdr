@@ -90,6 +90,10 @@ type IterTree struct {
 	Name  string
 	Root  string
 	Under string
+	// Cap is the iteration past which the tree's loop is flapping;
+	// `rdr paths` buckets ITER against it. 0 means the tree declares
+	// none, and then no bucket is emitted.
+	Cap int
 }
 
 // FactRoot is a tree a probe's path is relative to: a seam var, plus the
@@ -214,7 +218,7 @@ var factSources = map[string]bool{
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "seam-lineage": true, "contracts": true,
-	"impl-artifact": true, "record-lines": true,
+	"impl-artifact": true, "record-lines": true, "spike-diff": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
 }
@@ -228,6 +232,7 @@ var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
 	"cluster-key": true, "header-field": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "impl-artifact": true,
+	"spike-diff": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -263,7 +268,10 @@ func LoadFactTable(path string) (*FactTable, error) {
 			t.Iter.First = tbl.Str("first")
 		case strings.HasPrefix(tbl.Name, "iteration.tree."):
 			name := strings.TrimPrefix(tbl.Name, "iteration.tree.")
-			tr := IterTree{Name: name, Root: tbl.Str("root"), Under: tbl.Str("under")}
+			tr := IterTree{Name: name, Root: tbl.Str("root"), Under: tbl.Str("under"), Cap: tbl.Int("cap")}
+			if c, ok := tbl.Scalar("cap"); ok && tr.Cap < 1 {
+				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: iteration tree %q cap %q is not a positive integer)", path, name, c)
+			}
 			if tr.Root == "" {
 				return nil, fmt.Errorf("stopped:malformed-fact-table (%s: iteration tree %q names no root)", path, name)
 			}
@@ -442,6 +450,10 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 	case "assumption-ids", "edge-tally":
 		if d.Select == "" {
 			return d, fmt.Errorf("fact %q: a %s names a select", name, d.Source)
+		}
+	case "spike-diff":
+		if d.Root == "" || d.Kind != "set" {
+			return d, fmt.Errorf("fact %q: a spike-diff is a set naming a root", name)
 		}
 	case "impl-artifact":
 		// The four selects are the four ledger reads; an unknown one
@@ -745,6 +757,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.implArtifact(d)
 	case "record-lines":
 		return e.recordLines(d)
+	case "spike-diff":
+		return e.spikeDiff(d)
 	}
 	return Fact{}, false
 }
@@ -2360,4 +2374,58 @@ func (e *FactEnv) edgeTally(d FactDecl) (Fact, bool) {
 		return Fact{}, false
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(n)}, true
+}
+
+// spikeDiff is the spikes the record NAMES minus the ones on disk: the
+// first path segment after `{SPIKE_DIR}/` in each artifact edge, less
+// the entries of the root's `spikes/` dir, matched by name with or
+// without an extension (`warmup-order/` and `warmup-order.md` both count
+// as a run of `warmup-order`). Stage 6 built this set by hand from the
+// record and a directory listing; a set fact is the same subtraction,
+// executed.
+//
+// Three-valued like every rooted fact: absent when the root is unbound.
+// A missing spikes dir is NOT absent — the root was looked at and holds
+// no runs, so every named spike is unrun — and a record naming no spike
+// answers `[]` whatever the dir holds.
+func (e *FactEnv) spikeDiff(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	dir, ok := e.under(d.Root, "spikes")
+	if !ok {
+		return Fact{}, false
+	}
+	const prefix = "{SPIKE_DIR}/"
+	var named []string
+	for _, ed := range e.Doc.Edges {
+		if ed.Kind != edge.Artifact || !strings.HasPrefix(ed.To, prefix) {
+			continue
+		}
+		rest := strings.TrimPrefix(ed.To, prefix)
+		if i := strings.Index(rest, "/"); i >= 0 {
+			rest = rest[:i]
+		}
+		if rest != "" {
+			named = append(named, rest)
+		}
+	}
+	run := map[string]bool{}
+	if entries, err := e.readDir(dir); err == nil {
+		for _, ent := range entries {
+			n := ent.Name()
+			if strings.HasPrefix(n, ".") {
+				continue
+			}
+			run[n] = true
+			run[strings.TrimSuffix(n, filepath.Ext(n))] = true
+		}
+	}
+	var unrun []string
+	for _, n := range named {
+		if !run[n] {
+			unrun = append(unrun, n)
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(unrun)}, true
 }

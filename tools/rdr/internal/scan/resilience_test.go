@@ -62,6 +62,11 @@ func isFixtureArtifact(rel string) bool {
 	if len(parts) > 1 && parts[0] == "status" && parts[1] == "evidence" {
 		return true
 	}
+	// `anchors/` holds findings ledgers — files that CITE a record's
+	// ids, read by `rdr anchors` — and no record.
+	if parts[0] == "anchors" {
+		return true
+	}
 	// `status/records/<slug>/…` — a record is the FILE `<slug>.md`, so
 	// anything under a directory of that name is its artifact.
 	return len(parts) > 3 && parts[0] == "status" && parts[1] == "records"

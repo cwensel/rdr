@@ -73,9 +73,10 @@ say so and point at `/rdr-implement NNNN`.
   (re-lock-only / stage-scoped / full-flow), sized to the defect — the stage doc owns
   this call.
 - At N>1: every check is a RE-SCANNED or CARRIED row, the re-scans are exactly the
-  pairs whose members moved, and each demotion traces to an open ledger entry —
-  a demotion on an unledgered finding means the gate is grading its own last repair.
-  Past the cap (N>3, findings open) the run stops rather than demoting again.
+  pairs the `revisions.txt` diff moved, and each demotion traces to an open ledger
+  entry — a demotion on an unledgered finding means the gate is grading its own
+  last repair. The cap is the `cluster-cap` row resolved at entry
+  (`models/rdr-loop.toml`): `stopped:cluster-flapping` stops rather than demoting.
 - Each **JOINT-DECISION** is genuinely joint (not a dodged single-RDR defect),
   and its tolerance names the open QUESTION as well as the home. Every home's
   recorded revision was diffed; each answer that surfaced has its siblings'

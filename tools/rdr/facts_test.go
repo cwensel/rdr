@@ -954,6 +954,7 @@ var routingFacts = map[string]string{
 	"contracts_prose":       "the Determinacy trigger's input: contracts written as prose, which a zero C count cannot see",
 	"contracts_transient":   "how many labelled contracts the Transient marker excludes from the Profile axis",
 	"contracts_durable":     "the Profile contract axis: labelled minus Transient, bucketed, subtracted by the projector",
+	"spikes_unrun":          "Stage 6's third open-set source: spikes the record names with no run on disk, as a set rather than a walk",
 }
 
 // TestEveryStageRowIsExpressedAsFacts is the issue's acceptance criterion,

@@ -342,6 +342,20 @@ func usageFacet(cmd string, f *flags, target string) string {
 			return which + ":json"
 		}
 		return which
+	case "anchors":
+		// Named so the ledger-diff uptake is auditable: the verb exists
+		// to retire the prose "reconcile by passage anchor", and a facet
+		// the log cannot name reads as never called. The file count is
+		// carried because one call over a pass's files is the arity
+		// that replaced a read per file.
+		which := "found"
+		if f.unresolved != nil && *f.unresolved {
+			which = "unresolved"
+		}
+		if f.argc > 1 {
+			return which + ":files"
+		}
+		return which
 	case "lint":
 		// Two facets, because two things call lint: a gate, which needs
 		// the verdict, and a stage reading mid-flow, which needs the

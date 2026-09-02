@@ -55,6 +55,7 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     ["0020:A1","0020:A2"]
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0021
 status                       enum    Final
@@ -101,7 +102,7 @@ lens_repeatability_diff      bool    false
 critique_model_a             scalar  synthetic-model-a[1m]
 critique_models              enum    absent
 propose_premortem            bool    false
-spikes                       bool    false
+spikes                       bool    true
 reconcile                    bool    false
 reconcile_report             bool    false
 reconcile_report_alt         bool    false
@@ -117,6 +118,7 @@ cluster_key                  scalar  0021-0022-0023
 contracts_prose              bool    true
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     ["warmup-order"]
 
 # 0022
 status                       enum    Draft
@@ -182,6 +184,7 @@ contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
 reverify                     set     ["0022:A1","0022:A2"]
+spikes_unrun                 set     []
 
 # 0023
 status                       enum    Implemented
@@ -238,6 +241,7 @@ cluster_key                  scalar  0021-0022-0023
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0024
 status                       enum    Deferred
@@ -294,6 +298,7 @@ contracts_prose              bool    true
 determinacy                  enum    na
 ca_pending_ids               set     ["0024:A1"]
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0025
 status                       enum    Draft
@@ -347,6 +352,7 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0027
 status                       enum    Implemented
@@ -404,6 +410,7 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0028
 status                       enum    Final
@@ -461,6 +468,7 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0029
 status                       enum    Final
@@ -516,6 +524,7 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 
 # 0030
 status                       enum    Final
@@ -576,4 +585,5 @@ cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []
 ca_off_vocabulary_ids        set     []
+spikes_unrun                 set     []
 

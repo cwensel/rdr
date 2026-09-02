@@ -28,11 +28,13 @@ a sweep you spawn gets that path in its brief. On BLOCK, split the findings:
   refuted assumption, section unfillable from what the RDR carries). Class it
   (`blocker_class`, rdr-common §rdr-write) — `--outcome return` names the stage.
 
-LOOP-BREAKER: before any NOT-READY return pointer, read the prior reports
-under the same eval's `$EVIDENCE_DIR` (`$ITER_FOUND` names the iterations on
-disk). A finding re-reported unchanged after its named stage
-ran is a ROUTING failure, not an author failure — stop per §stop-packet
-(`stopped:finalize-routing-loop:<finding + stage that failed to clear it>`).
+LOOP-BREAKER: before any NOT-READY return pointer, diff this pass against the
+prior one from the same `paths` eval (`$PRIOR_DIR`; absent = first pass, skip):
+`R="$RDR_HOME/bin/rdr"; LC_ALL=C comm -12 <("$R" anchors --record <NNNN>
+"$PRIOR_DIR"/tooling-pass.md) <("$R" anchors --record <NNNN> "$ITER_DIR"/tooling-pass.md)`.
+A non-empty result is a finding re-reported after its named stage ran — a
+ROUTING failure, not an author failure — stop per §stop-packet
+(`stopped:finalize-routing-loop:<that list + the stage that failed to clear it>`).
 
 ALSO confirm no cluster re-entry note survives: a `## Refinement Context
 (cluster re-entry — delete on re-lock)` block left by the 07.1 gate MUST be

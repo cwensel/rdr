@@ -16,8 +16,9 @@ Build the open set from FOUR sources:
 1. The Pre-Lock needs-(re)verification list(s) — assumptions flipped back to
    Pending, and new A-N claims added during fix passes.
 2. Every Critical Assumption currently Status: Pending or Unverified.
-3. Every spike NAMED anywhere in the RDR (or its findings) with no captured
-   run — check {SPIKE_DIR} for existing results before assuming one is unrun.
+3. `spikes_unrun` (`"$RDR_HOME/bin/rdr" status --tags NNNN`) — the spikes the
+   RDR names under {SPIKE_DIR} with no entry in `evidence/spikes/`, already
+   subtracted; plus any a findings file names that the RDR does not.
 4. An exactness-word sweep over what a review round touched or introduced:
    `rdr lint NNNN | grep prose:exactness` — the one lint slice this stage
    reads, never the whole output — for the terms of art, plus the quantifiers

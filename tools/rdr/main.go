@@ -65,6 +65,7 @@ usage:
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
   rdr status [<NNNN|slug|path>…] [--json|--tags] [--filter f1,f2] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
+  rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
   rdr env [--json]
   rdr version
 
@@ -162,7 +163,17 @@ bound roots; --lens/--cluster/--tree name a tree and print its dir.
 it found and a note when they are not contiguous. Loose files are
 iteration 1 (rdr-common §evidence), so a first pass writes the base
 itself. An unbound root is a stated absence and exit 1, never a
-fabricated path. It never writes, and creates no directory.
+fabricated path. It never writes, and creates no directory. Under a tree
+that declares a cap, PRIOR_DIR names where the last pass wrote and
+ITER_BUCKET is ITER against the cap ("1".."cap" or "over") — the loop tag
+models/rdr-loop.toml routes on.
+
+anchors prints, sorted and unique, the element ids the given files cite
+that the record's projection mints — the outline, element and anchor ids
+inspect lists — one per line, so two findings ledgers are diffed with
+comm rather than re-read side by side. A peer record's id is a citation,
+not an anchor, and is skipped; --unresolved prints instead the tokens
+shaped like this record's ids that name nothing it mints.
 
 env prints the seam this cwd binds — every marker var, plus
 RDR_MARKER and RDR_PROJECT, one quoted k=v per line for eval, or --json.
@@ -193,7 +204,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint", "receipt", "status", "env", "paths":
+	case "inspect", "index", "lint", "receipt", "status", "env", "paths", "anchors":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -332,6 +343,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return envCmd(f, stdout, stderr)
 	case "paths":
 		return pathsCmd(fs.Args(), f, stdout, stderr)
+	case "anchors":
+		return anchorsCmd(fs.Args(), f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -469,6 +482,9 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.cluster = fs.String("cluster", "", "the Stage 7.1 cluster key whose dir to bind (the members' numbers joined)")
 		f.tree = fs.String("tree", "", "any tree the table declares, as <name>[=<operand>]")
 		f.nextIter = fs.Bool("next-iter", false, "list the bound dir and report the iteration the next pass should write")
+	case "anchors":
+		f.record = fs.String("record", "", "the record whose ids the files are read against (NNNN, slug or path)")
+		f.unresolved = fs.Bool("unresolved", false, "print instead the tokens shaped like this record's ids that name no element it mints")
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")

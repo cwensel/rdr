@@ -1,0 +1,280 @@
+# rdr-loop.toml — the two re-run caps, as proven rows.
+#
+# Stage 5's lens loop ("substantial fix → re-run … Cap = 3 … stop with
+# stopped:verdict-flapping") and Stage 7.1's cluster cap ("N=1 full,
+# N>1 delta-scope, N>3 with findings open → stopped:cluster-flapping")
+# were prose ladders a model re-walked per pass, counting iterations by
+# hand. This table is both; `intrastate lint --model` proves every cell.
+#
+# DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
+# accessors. The caller acts on `emit`; nothing here writes.
+#
+# EVERY TAG IS CALLER-SUPPLIED. None is an `rdr status` fact: a pass number
+# belongs to one lens or one cluster, not to the record, so no fact vector
+# renders it. Each is a VALUE the caller already holds from a tool call —
+# never estimated — passed as `--tag k=v`, the `observed` provenance's
+# declared shape:
+#   iter     — ITER_BUCKET from `rdr paths … --next-iter`: the pass the
+#              next run would write, against the tree's declared cap
+#              (rdr-facts.toml `[iteration.tree.*] cap`). `over` is one
+#              past the cap, so a rerun at `over` IS the fourth pass.
+#   found    — whether `rdr anchors` over the pass just resolved printed
+#              anything (`some`) or nothing (`none`).
+#   net_new  — whether `comm -13 <ledger> <pass>` printed anything: an
+#              anchor this pass raised that the origin ledger never had.
+#   fix      — the resolve's one judgement: `substantial` (a rewrite that
+#              can open gaps) or `small`.
+#   open     — 7.1 at entry: whether the prior report carries open ledger
+#              entries.
+# `tools/rdr/routing_test.go` names these caller tags in its allowlist.
+#
+# THE ANSWER IS `emit.next`, applied as a value. `rerun` re-runs the lens
+# delta-scoped into ITER_DIR; `converged` moves to the next lens; `run`
+# runs the 7.1 gate with `why` naming its scope. A `stopped:*` member is
+# the stage's stop packet, named. The lens, record and open entries are
+# the caller's to append.
+
+outcomes = ["lens-loop", "cluster-cap"]
+
+[model]
+id          = "rdr-loop"
+version     = 1
+class       = "decision-table"
+description = "The lens-loop and cluster-reconcile re-run caps: rerun, converge, run, or stop as flapping, from the pass number and the ledger diff."
+
+[model.metadata]
+owner  = "rdr"
+source = "skills/rdr-prelock/SKILL.md, prompts/stages/07.1-cluster-reconcile.prompt.md"
+facts  = "models/rdr-facts.toml"
+
+[emit.next]
+kind = "enum"
+[emit.next.domain]
+route = ["rerun", "converged", "run"]
+stop  = ["stopped:verdict-flapping", "stopped:cluster-flapping", "stopped:ledger-diff-inconsistent"]
+
+[emit.why]
+kind = "scalar"
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["lens-loop", "cluster-cap"]
+single_valued = true
+required      = true
+
+# --- caller-supplied, from tool calls this pass --------------------------------
+
+# ITER_BUCKET: the pass the next run would write, against the tree's cap.
+[tags.iter]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["1", "2", "3", "over"]
+single_valued = true
+required      = true
+
+# `rdr anchors` over the pass just resolved printed something.
+[tags.found]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "some"]
+single_valued = true
+required      = true
+
+# `comm -13 ledger pass` printed something: anchors the ledger never had.
+[tags.net_new]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "some"]
+single_valued = true
+required      = true
+
+# The resolve's judgement of its own edit.
+[tags.fix]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["substantial", "small"]
+single_valued = true
+required      = true
+
+# 7.1 at entry: the prior report's ledger still has open entries.
+[tags.open]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "some"]
+single_valued = true
+required      = true
+
+# ===========================================================================
+# lens-loop — Stage 5 step 5, after a pass is resolved
+# ===========================================================================
+#
+# iter x found x net_new x fix = 32 cells. Nothing found converges
+# whatever the pass; a rerun is allowed while it would write pass 2 or 3;
+# `over` means a rerun is the fourth pass, which the cap forbids — a
+# substantial fix or a net-new anchor there is the plank problem, named.
+# Two cells are impossible on a consistent diff and stop as such: net-new
+# anchors with nothing found, and anchors found with no pass on disk.
+
+[[rule]]
+id = "loop-converged"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.found]
+eq = "none"
+[rule.guard.all.net_new]
+eq = "none"
+[rule.emit]
+next = "converged"
+why  = "The pass raised no anchor: no open entries, so the next lens runs."
+
+[[rule]]
+id = "loop-diff-inconsistent"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.found]
+eq = "none"
+[rule.guard.all.net_new]
+eq = "some"
+[rule.emit]
+next = "stopped:ledger-diff-inconsistent"
+why  = "net_new is a subset of found; net-new anchors with nothing found means the two anchors calls read different files."
+
+[[rule]]
+id = "loop-no-pass-on-disk"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+eq = "1"
+[rule.guard.all.found]
+eq = "some"
+[rule.emit]
+next = "stopped:ledger-diff-inconsistent"
+why  = "Anchors were found but paths --next-iter reports nothing written: the pass wrote somewhere the tree does not read."
+
+[[rule]]
+id = "loop-rerun"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+in = ["2", "3"]
+[rule.guard.all.found]
+eq = "some"
+[rule.guard.all.fix]
+eq = "substantial"
+[rule.emit]
+next = "rerun"
+why  = "A rewrite can open gaps and the cap allows this pass: re-run the lens delta-scoped to the still-open anchors, under ITER_DIR."
+
+[[rule]]
+id = "loop-small-fix"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+in = ["2", "3"]
+[rule.guard.all.found]
+eq = "some"
+[rule.guard.all.fix]
+eq = "small"
+[rule.emit]
+next = "converged"
+why  = "A small fix opens nothing a re-run would find; net-new anchors are charted, not scope."
+
+[[rule]]
+id = "loop-flapping-net-new"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+eq = "over"
+[rule.guard.all.found]
+eq = "some"
+[rule.guard.all.net_new]
+eq = "some"
+[rule.emit]
+next = "stopped:verdict-flapping"
+why  = "Three passes and still net-new anchors against a barely-changed draft: the plank problem. §strong-consult over the open entries, then a human look — not a fourth pass."
+
+[[rule]]
+id = "loop-flapping-substantial"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+eq = "over"
+[rule.guard.all.found]
+eq = "some"
+[rule.guard.all.net_new]
+eq = "none"
+[rule.guard.all.fix]
+eq = "substantial"
+[rule.emit]
+next = "stopped:verdict-flapping"
+why  = "A substantial fix past the cap would need a fourth pass to check; the re-raised entries are ledgered, so the stop names them rather than running it."
+
+[[rule]]
+id = "loop-over-small"
+[rule.match.recognized]
+eq = "lens-loop"
+[rule.guard.all.iter]
+eq = "over"
+[rule.guard.all.found]
+eq = "some"
+[rule.guard.all.net_new]
+eq = "none"
+[rule.guard.all.fix]
+eq = "small"
+[rule.emit]
+next = "converged"
+why  = "Past the cap with only ledgered entries and a small fix: nothing a re-run would find, so the lens converges."
+
+# ===========================================================================
+# cluster-cap — Stage 7.1 at entry
+# ===========================================================================
+#
+# iter x open = 8 cells. The first pass runs the set-scoped checks in full;
+# later passes delta-scope by revision; past the cap, a run with open
+# entries is the flapping cluster and stops, while one with nothing open
+# still runs (an answered tolerance's check is owed whatever the count).
+
+[[rule]]
+id = "cap-first"
+[rule.match.recognized]
+eq = "cluster-cap"
+[rule.guard.all.iter]
+eq = "1"
+[rule.emit]
+next = "run"
+why  = "First pass: the set-scoped checks run in full and its findings table is the origin ledger."
+
+[[rule]]
+id = "cap-delta"
+[rule.match.recognized]
+eq = "cluster-cap"
+[rule.guard.all.iter]
+in = ["2", "3"]
+[rule.emit]
+next = "run"
+why  = "Delta-scope by revision: re-scan only pairs with a moved member, carry the rest, trace every finding to an open ledger entry."
+
+[[rule]]
+id = "cap-over-clear"
+[rule.match.recognized]
+eq = "cluster-cap"
+[rule.guard.all.iter]
+eq = "over"
+[rule.guard.all.open]
+eq = "none"
+[rule.emit]
+next = "run"
+why  = "Past the cap with nothing open: delta-scope by revision; only an answered tolerance's check or a carried deferral is at stake, never a demotion."
+
+[[rule]]
+id = "cap-flapping"
+[rule.match.recognized]
+eq = "cluster-cap"
+[rule.guard.all.iter]
+eq = "over"
+[rule.guard.all.open]
+eq = "some"
+[rule.emit]
+next = "stopped:cluster-flapping"
+why  = "A fourth gate pass with entries still open: stop with the open entries and the decomposition question; §strong-consult, then the author."

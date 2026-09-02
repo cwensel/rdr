@@ -65,13 +65,15 @@ Persona 3 — QA / Tester → persona-3-qa.md
     the passage at fault and the test it prevents.
 ```
 
-After all three files land, the **dispatcher consolidates mechanically**:
-compute which passages two or more personas named, rather than having a model
-that has read all three re-judge them. Where the personas anchored to element
-ids, the overlap is a set intersection on those ids — exact, not a string match
-on quoted prose. Merge every finding into
-{EVIDENCE_DIR}/consolidation.md — the file Stage 6 reads — tagging the
-multi-persona passages as **hotspots**. Overlap marks a hotspot passage, not a
+After all three files land, the **dispatcher consolidates mechanically** — the
+hotspots are a count over the ids, not a model re-judging three files:
+
+    R="$RDR_HOME/bin/rdr"
+    for f in {EVIDENCE_DIR}/persona-*.md; do "$R" anchors --record <NNNN> "$f"; done \
+      | sort | uniq -c | awk '$1>=2'
+
+Merge every finding into {EVIDENCE_DIR}/consolidation.md — the file Stage 6
+reads — tagging those ids' passages as **hotspots**. Overlap marks a hotspot passage, not a
 validated finding; a finding raised by exactly one persona is not thereby
 weaker. (Because the personas never saw each other, their agreement is
 evidence, not conformity.)

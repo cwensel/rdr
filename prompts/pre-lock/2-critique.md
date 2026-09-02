@@ -91,11 +91,11 @@ Structure:
    |----|-------------|--------------|-------------------|--------|
 
    - **ID** — `C-1`, `C-2`, … stable within this file.
-   - **RDR passage** — a real anchor. Prefer the element id the projector
-     addresses (`NNNN:C4`, `NNNN:A3`, `NNNN:§approach`) — it survives a reword,
-     a quoted phrase does not; `"$RDR_HOME/bin/rdr" inspect {RDR_PATH}` lists
-     them, one per line. A `§Section`, REQ id, `A-N` or quoted phrase still
-     counts. "The RDR generally" is not one.
+   - **RDR passage** — MUST be the element id the projector addresses
+     (`NNNN:C4`, `NNNN:A3`; `NNNN:§slug` for prose) — it survives a reword and
+     it is the key a re-run's ledger diff (`rdr anchors`) compares by, so a
+     quoted phrase is a row the diff cannot see; `"$RDR_HOME/bin/rdr" inspect
+     {RDR_PATH}` lists them, one per line. "The RDR generally" is not one.
    - **Origin** — the section that raised it: `§1`/`§2`/`§3`/`premortem`/`AT-N`
      (may be several). Premortem and AT origins rank equal to the rest.
 

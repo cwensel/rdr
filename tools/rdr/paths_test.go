@@ -381,3 +381,75 @@ func TestPathsTextFormSurvivesEval(t *testing.T) {
 		}
 	}
 }
+
+// TestNextIterBucketsAgainstTheDeclaredCap: ITER_BUCKET is ITER against
+// the tree's `cap`, "1".."cap" verbatim and "over" past it — the loop tag
+// rdr-loop.toml routes on, so a stage never compares N to a number of its
+// own. PRIOR_DIR is where the last pass wrote: the highest segment, the
+// base when only loose files are there, absent when nothing is. A tree
+// that declares no cap gets no bucket, so a caller cannot route on a
+// cap the table never stated.
+func TestNextIterBucketsAgainstTheDeclaredCap(t *testing.T) {
+	_, ev := pathsFixture(t)
+	const slug = "0007-iteration-shapes"
+	for _, c := range []struct {
+		name   string
+		args   []string
+		bucket string
+		prior  string
+	}{
+		{"past the cap", []string{"--lens", "critique"}, "over",
+			filepath.Join(ev, slug, "evidence", "critique", "iter-4")},
+		{"loose files only", []string{"--lens", "3amigo"}, "2",
+			filepath.Join(ev, slug, "evidence", "3amigo")},
+		{"nothing written", []string{"--lens", "cove"}, "1", ""},
+		{"cluster past the cap with a gap", []string{"--cluster", "0007-0008"}, "over",
+			filepath.Join(ev, "cluster-reconcile", "0007-0008", "iter-3")},
+		{"no cap declared", []string{"--tree", "spikes"}, "", ""},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			a := pathsJSON(t, append(c.args, "--next-iter", "0007")...)
+			if a.IterBucket != c.bucket {
+				t.Errorf("iter_bucket = %q, want %q (next_iter %d)", a.IterBucket, c.bucket, a.NextIter)
+			}
+			if a.PriorDir != c.prior {
+				t.Errorf("prior_dir = %q, want %q", a.PriorDir, c.prior)
+			}
+		})
+	}
+}
+
+// TestNextIterBucketOnTheStatusFixture pins the in-cap case on the
+// checked-in tree: cluster 0021-0022-0023 holds a loose report and
+// iter-2, so the next pass is 3 — inside the cap, bucketed verbatim —
+// and the prior pass is iter-2. The text form carries both as quoted
+// words, so a skill evals them beside ITER.
+func TestNextIterBucketOnTheStatusFixture(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, out, errb := runCapture(t, "paths", "--facts", table, "--cluster", "0021-0022-0023", "--next-iter", "0021")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	for _, want := range []string{"ITER=3\n", "ITER_BUCKET='3'\n",
+		"PRIOR_DIR='" + filepath.Join(os.Getenv("RDR_EVIDENCE"), "cluster-reconcile", "0021-0022-0023", "iter-2") + "'\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("the text form is missing %q:\n%s", want, out)
+		}
+	}
+}
+
+// TestIterationCapMustBePositive: a cap the table spells but the reader
+// cannot count with would bucket every pass as "over" and stop every
+// loop on its first pass — refused at load, like an undeclared root.
+func TestIterationCapMustBePositive(t *testing.T) {
+	body := "[facts]\nversion = 1\n\n[root.evidence]\nvar = \"RDR_EVIDENCE\"\nsuffix = \"{slug}\"\n\n" +
+		"[iteration]\nsegment = \"iter-{n}\"\n\n[iteration.tree.lens]\nroot = \"evidence\"\nunder = \"{lens}\"\ncap = \"three\"\n\n" +
+		"[fact.x]\nkind = \"bool\"\nsource = \"probe\"\nroot = \"evidence\"\npath = \"x\"\n"
+	p := filepath.Join(t.TempDir(), "t.toml")
+	if err := os.WriteFile(p, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := LoadFactTable(p); err == nil || !strings.Contains(err.Error(), "cap") {
+		t.Errorf("LoadFactTable = %v, want an error naming the cap", err)
+	}
+}

@@ -63,6 +63,16 @@ type pathsAnswer struct {
 	NextDir  string `json:"next_dir,omitempty"`
 	Found    []int  `json:"found"`
 	Note     string `json:"note,omitempty"`
+	// PriorDir is where the LAST pass wrote — the highest segment found,
+	// or the base when only loose files are there — so a diff against
+	// the pass just run reads one variable rather than listing the tree.
+	// Omitted when nothing has been written.
+	PriorDir string `json:"prior_dir,omitempty"`
+	// IterBucket is NextIter against the tree's declared cap: "1".."cap"
+	// verbatim, "over" past it. It is the loop tag `rdr-loop.toml` routes
+	// on, so a stage never compares N to a number of its own. Omitted
+	// for a tree that declares no cap.
+	IterBucket string `json:"iter_bucket,omitempty"`
 }
 
 func pathsCmd(args []string, f *flags, stdout, stderr io.Writer) int {
@@ -153,6 +163,22 @@ func pathsCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 			// use and the probes do not look for.
 			if next == 1 {
 				ans.NextDir = ans.Dir
+			}
+			// The prior pass is the one the segments name, or the loose
+			// set; nothing on disk means no prior, and that is left
+			// absent rather than pointed at the base.
+			switch {
+			case len(found) > 0:
+				ans.PriorDir = filepath.Join(ans.Dir,
+					strings.ReplaceAll(tbl.Iter.Segment, "{n}", strconv.Itoa(found[len(found)-1])))
+			case next == 2:
+				ans.PriorDir = ans.Dir
+			}
+			if tree.Cap > 0 {
+				ans.IterBucket = "over"
+				if next <= tree.Cap {
+					ans.IterBucket = strconv.Itoa(next)
+				}
 			}
 		}
 	}
@@ -284,6 +310,12 @@ func emitPathsText(a pathsAnswer, stdout io.Writer) int {
 		}
 		if a.Note != "" {
 			fmt.Fprintf(stdout, "ITER_NOTE=%s\n", shellQuote(a.Note))
+		}
+		if a.PriorDir != "" {
+			fmt.Fprintf(stdout, "PRIOR_DIR=%s\n", shellQuote(a.PriorDir))
+		}
+		if a.IterBucket != "" {
+			fmt.Fprintf(stdout, "ITER_BUCKET=%s\n", shellQuote(a.IterBucket))
 		}
 	}
 	return 0

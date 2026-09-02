@@ -76,13 +76,21 @@ One invocation runs the full loop for one lens:
 4. **Resolve** — run the sibling [`05-prelock-resolve.prompt.md`](05-prelock-resolve.prompt.md);
    it owns the mechanics (grounding gate · origin anchor · durable disposition ·
    tiebreaker-reduction · flag-as-you-go). Don't restate them here.
-5. **Loop or converge.** Substantial fix (a rewrite — can open gaps) → re-run the
-   lens **delta-scoped to open ledger entries** under `iter-N/`, then resolve
-   again; a small fix needn't. **Converged** = no open entries (all fixed /
-   dismissed-with-cite / charted). **Cap = 3**: still surfacing net-new findings
-   against a barely-changed draft after three iterations is the plank problem — stop
-   with `stopped:verdict-flapping:<lens>:<NNNN>` (name the churning entries),
-   surface once; the cure is a human look or model switch, not a fourth pass.
+5. **Loop or converge** — a row, not a count. From the resolve's own
+   `paths --lens <lens> --next-iter` eval and its `comm` files (`$L` ledger,
+   `$N` this pass, prompt §ORIGIN ANCHOR), with `fix` the one judgement
+   (`substantial` = a rewrite that can open gaps, else `small`):
+   ```sh
+   intrastate flow resolve --model "$RDR_HOME/models/rdr-loop.toml" --outcome lens-loop \
+     --plan-only --tag iter="$ITER_BUCKET" --tag fix=<substantial|small> \
+     --tag found=$([ -s "$N" ] && echo some || echo none) \
+     --tag net_new=$([ -n "$(LC_ALL=C comm -13 "$L" "$N")" ] && echo some || echo none)
+   ```
+   `rerun` → re-run the lens **delta-scoped to `comm -12 "$L" "$N"`** under
+   `$ITER_DIR`, then resolve again. `converged` → next lens. `stopped:*` →
+   emit as `stopped:verdict-flapping:<lens>:<NNNN>` with the `comm -13` list
+   (the churning entries), surface once; the cure is a human look or model
+   switch, not a fourth pass.
 
 **The RDR's first lens pass owes the mini-check cue read** before its resolve
 closes (cues, tables, desk trace: `$RDR_HOME/stages/05-prelock.md`, single-source);

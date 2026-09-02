@@ -16,8 +16,9 @@ From the arg header above, bind for this session:
     between calls — re-run, don't carry).
   - {EVIDENCE_DIR} = the lens-output dir, from
     `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"`.
-    Read the findings from `$ITER_DIR` — the pass that just ran wrote there
-    (`$ITER_FOUND` names the iterations on disk; at `ITER=1` it is the base).
+    Read the findings from `$PRIOR_DIR` — the pass that just ran wrote there
+    (the highest iteration on disk; the base after a first pass). `$ITER_DIR`
+    is where a re-run would write, `$ITER_BUCKET` the loop's pass tag.
 
 For the RDR at {RDR_PATH}, resolve each finding one by one. If you were handed
 the findings inline (a return packet's ledger — the norm under `--auto`), that
@@ -32,8 +33,10 @@ use it as the origin ledger as-is, don't rebuild one. Each row's **Origin**
 (`§1`/`§2`/`§3`/`premortem`/`AT-N`) points into the prose below, where the reasoning
 that justifies the row lives — read it before dispositioning, and rank
 premortem/AT-origin rows equal to the rest. A defect the prose raises but no row
-indexes still gets resolved (say so; it's a ledger bug, not a skip). Dual-model runs
-reconcile by passage anchor — `C-N` IDs don't correspond across files.
+indexes still gets resolved (say so; it's a ledger bug, not a skip). `C-N` is a
+per-file row handle; across files the key is the element id — dual-model runs
+diff `LC_ALL=C comm` over `"$R" anchors --record <NNNN>` of `critique.md` vs
+`critique-modelB.md` (`$R="$RDR_HOME/bin/rdr"`; two findings on one id collapse).
 
 Each finding passes the GROUNDING GATE before it can edit the draft, gets a
 durable DISPOSITION, and is anchored to an origin concern. Do these in order; the
@@ -66,12 +69,21 @@ frame — a count re-measured in the wrong unit returns correct and wrong. Findi
 that keep *widening* one enumeration (6→7→9→…) are that signal: question the unit.
 
 ORIGIN ANCHOR (anti-plank). On the first pass, the findings *are* the
-originating concerns — keep them as a ledger (critique ships one; for other lenses
-build it from the findings file). Every finding you act on traces to a ledger
-entry. A finding that traces to none is **net-new scope** — do not let
-it quietly expand this RDR (the "scope-expansion wormhole"). **On a re-run,
-delta-scope to the still-open ledger entries** — do not author a fresh full
-critique of the rewritten draft; critiquing your own edits is exactly the
+originating concerns — the loose files under `$EVIDENCE_DIR` are the ledger
+(critique ships one; other lenses' findings files are it). Every finding you act
+on traces to a ledger entry; one that traces to none is **net-new scope** — do
+not let it quietly expand this RDR (the "scope-expansion wormhole"). On a
+re-run the trace is a diff, not a re-read (`$PRIOR_DIR` is this pass, from the
+same `paths` eval):
+  ```sh
+  R="$RDR_HOME/bin/rdr"; L=$(mktemp); N=$(mktemp)
+  "$R" anchors --record <NNNN> "$EVIDENCE_DIR"/*.md > "$L"   # origin ledger
+  "$R" anchors --record <NNNN> "$PRIOR_DIR"/*.md > "$N"      # this pass
+  LC_ALL=C comm -13 "$L" "$N"   # net-new scope
+  LC_ALL=C comm -12 "$L" "$N"   # still-open
+  ```
+**Delta-scope to the still-open set** — do not author a fresh full critique of
+the rewritten draft; critiquing your own edits is exactly the
 critique-on-critique drift this guards against.
 
 DISPOSITION (every finding exits exactly one way — no silent drops):

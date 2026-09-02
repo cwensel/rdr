@@ -430,6 +430,12 @@ kind       = "set"
 provenance = "observed"
 kind       = "set"
 
+# Stage 6's third open-set source: spikes the record names with no run
+# under evidence/spikes/. Always on for the same reason as the lists above.
+[tags.spikes_unrun]
+provenance = "observed"
+kind       = "set"
+
 # ===========================================================================
 # `locate` — the coarse position (§How it decides next, step 1)
 # ===========================================================================

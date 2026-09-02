@@ -215,13 +215,13 @@ enforces them; don't re-derive):
    charted-to-successor — no silent drops), anchored to the **origin ledger**, and
    tiebreakers collapsed with reasoning + evidence rather than handed to you.
    Editing the *draft* is legitimate — the no-edit rule binds only after Final.
-3. **Loop or stop.** Substantial fix → re-run the lens **delta-scoped to open
-   ledger entries** (under `iter-N/`), then resolve again; small fix doesn't need
-   it. **Cap = 3**: three iterations still surfacing net-new findings against a
-   barely-changed draft = the plank problem — the skill stops with
-   `stopped:verdict-flapping` and surfaces it once; the cure is §strong-consult
-   (rdr-common) over the open ledger entries, then a human look — not a
-   fourth pass.
+3. **Loop or stop** — one row of `models/rdr-loop.toml --outcome lens-loop`
+   (the skill's call): `rerun` re-runs the lens **delta-scoped to the still-open
+   set** (under `iter-N/`), then resolve again; `converged` moves on; the cap
+   (`[iteration.tree.lens] cap`, three passes) past which net-new findings
+   against a barely-changed draft = the plank problem is
+   `stopped:verdict-flapping`, surfaced once; the cure is §strong-consult
+   (rdr-common) over the open entries, then a human look — not a fourth pass.
 4. **Converged → `emit.next` is the next lens.** Critique's second pass is
    `--outcome critique`'s answer (§model-stamp), never a stamp compare here;
    while owed it keeps `critique` next — the close packet points at `--auto`

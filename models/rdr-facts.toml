@@ -125,9 +125,15 @@ first = "loose"
 
 # The per-lens tree: `$RDR_EVIDENCE/<slug>/evidence/<lens>/`, the base a
 # Stage-5 lens writes to and the one `--lens` selects.
+# `cap` is the iteration past which a tree's loop is flapping, not
+# progressing. `rdr paths --next-iter` buckets ITER against it as
+# ITER_BUCKET ("1".."cap", else "over"), the tag `models/rdr-loop.toml`
+# routes on; a tree with no cap has no bucket. Data, so the cap a stage
+# doc states and the one the loop enforces are one number.
 [iteration.tree.lens]
 root  = "evidence"
 under = "{lens}"
+cap   = 3
 
 # Stage 7.1's tree, the one output NOT under the record: it is keyed by the
 # cluster because one run reconciles a set and writes one directory for all
@@ -137,6 +143,7 @@ under = "{lens}"
 [iteration.tree.cluster]
 root  = "evidence-root"
 under = "cluster-reconcile/{key}"
+cap   = 3
 
 # The per-RDR siblings that are not lenses. They take iterations by the same
 # rule (07-finalize: "first run `tooling-pass.md`; re-runs `iter-N/`"), so
@@ -148,6 +155,7 @@ under = "spikes"
 [iteration.tree.tooling-pass]
 root  = "evidence"
 under = "tooling-pass"
+cap   = 3
 
 # ===========================================================================
 # The record half — fields off the projection
@@ -1266,3 +1274,16 @@ select      = "peer-evidence-unresolved"
 on_demand   = true
 min         = 0
 description = "Peer-RDR Evidence citations whose element was looked for and not found; absent while unchecked."
+
+# The spikes the record NAMES minus the ones `evidence/spikes/` holds —
+# Stage 6's third open-set source, as a set rather than a walk. A name is
+# the first path segment after `{SPIKE_DIR}/` in an `artifact` edge; an
+# entry matches by name with or without its extension. Absent when the
+# evidence root is unbound; `[]` when the record names none, or every one
+# named has a run on disk — and a missing spikes dir means every named
+# spike is unrun, which is a real answer, not the unbound case.
+[fact.spikes_unrun]
+kind        = "set"
+source      = "spike-diff"
+root        = "evidence"
+description = "Spikes the record cites under {SPIKE_DIR} with no entry in evidence/spikes/."

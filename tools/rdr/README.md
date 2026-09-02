@@ -1055,6 +1055,33 @@ that a caller might `mkdir -p`, and an unfilled `{key}` is refused rather
 than collapsed to the parent of every cluster. It creates no directory and
 writes nothing.
 
+Two more values ride `--next-iter` so a loop never counts for itself.
+`PRIOR_DIR` is where the last pass wrote — the highest segment, or the base
+when only loose files are there — so "diff this pass against the ledger"
+reads one variable. `ITER_BUCKET` is ITER against the tree's declared `cap`
+(`[iteration.tree.<name>] cap` in the fact table): `"1".."cap"` verbatim,
+`"over"` past it. It is the `iter` tag `models/rdr-loop.toml` routes on, so
+the cap a stage doc states and the one the loop enforces are one number in
+one file; a tree that declares no cap gets no bucket.
+
+## Anchors
+
+`rdr anchors --record NNNN FILE...` prints, sorted and unique, the element
+ids the files cite that the record's projection mints — the same outline,
+element and anchor ids `inspect` lists. Findings ledgers anchor rows to
+those ids, so reconciling a re-run against its origin ledger is `comm -13`
+(net-new) and `comm -12` (still-open) over two of these, and the 3amigo
+hotspots are `sort | uniq -c` over three. The prompts used to say "reconcile
+by passage anchor" and "set intersection on those ids" in prose, which a
+model then performed by re-reading both files.
+
+Membership is exact: a token shaped like an id that names nothing minted
+contributes nothing, and a peer record's id is a citation, not an anchor.
+`--unresolved` prints those shaped-but-unminted tokens instead, which is
+what a ledger row points at after a reword. Output is byte-ordered so two
+outputs `comm` without a locale in the way (`LC_ALL=C comm` in the prompts
+makes that explicit).
+
 ## Facts
 
 `models/rdr-facts.toml` declares the signals `rdr-status` reads, and the

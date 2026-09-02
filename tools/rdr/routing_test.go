@@ -37,7 +37,7 @@ const routingModelName = "rdr-status.toml"
 // binary calls the other, so a check that covered only the first would
 // leave the second free to drift — and the write model carries its own
 // copy of the status vocabulary plus `readme_status`'s.
-var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml"}
+var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml", "rdr-loop.toml"}
 
 // callerTags names, per model, the observed tags a caller supplies by hand
 // (an orchestrator's own packet fields and Ledger, never an `rdr status`
@@ -54,6 +54,12 @@ var callerTags = map[string]map[string]bool{
 	// last packet's verdict. Its six other tags are facts and stay policed.
 	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true},
 	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true},
+	// The loop caps: every tag is a value the caller holds from a tool
+	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
+	// `rdr anchors` and `comm` printed anything, the resolve's fix size,
+	// and 7.1's open-entry count. A pass number belongs to one lens or
+	// cluster, not the record, so no fact renders it.
+	"rdr-loop.toml": {"iter": true, "found": true, "net_new": true, "fix": true, "open": true},
 }
 
 // routingModel is the parsed model, reduced to what the seam needs: the
