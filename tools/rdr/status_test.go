@@ -828,3 +828,25 @@ func TestStatusSetReadsOnlyTheRecordsNamed(t *testing.T) {
 		}
 	}
 }
+
+// TestStatusTagsRenderAnOnDemandSentinelOnlyWhenAsked: an on-demand fact
+// is evaluated only under `--filter`, so its sentinel belongs only there.
+// Rendering it unfiltered would stamp "nothing looked" on every record
+// and hand every routing table a key nobody asked for.
+func TestStatusTagsRenderAnOnDemandSentinelOnlyWhenAsked(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, tags, errb := runCapture(t, "status", "--tags", "--facts", table, "0025")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if strings.Contains(tags, "overlap_uncited=") {
+		t.Errorf("an on-demand fact's sentinel leaked into the unfiltered render:\n%s", tags)
+	}
+	code, tags, errb = runCapture(t, "status", "--tags", "--filter", "overlap_uncited", "--facts", table, "0025")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(tags, "overlap_uncited=") {
+		t.Errorf("the on-demand fact asked for by name did not render:\n%s", tags)
+	}
+}

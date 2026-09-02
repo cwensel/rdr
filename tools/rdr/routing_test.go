@@ -485,7 +485,10 @@ func TestRoutingSentinelsRenderOnlyAsTags(t *testing.T) {
 
 	var sentinels []FactDecl
 	for _, f := range tbl.Facts {
-		if f.HasAbsent {
+		// An on-demand fact renders its sentinel only under `--filter`
+		// (TestStatusTagsRenderAnOnDemandSentinelOnlyWhenAsked); the
+		// unfiltered argv this test reads never carries it.
+		if f.HasAbsent && !f.OnDemand {
 			sentinels = append(sentinels, f)
 		}
 	}

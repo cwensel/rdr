@@ -534,13 +534,29 @@ func (i indentWriter) Write(p []byte) (int, error) {
 // absent exactly as before, which is right for the facts nothing routes
 // on. Adding a sentinel to one is a deliberate act, not a default.
 func withAbsentSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []Fact {
+	return withSentinels(tbl, facts, want)
+}
+
+// skipSentinel says whether a declaration is outside this render: not in
+// the filter, or on demand with no filter at all. An on-demand fact was
+// never evaluated by an unfiltered call, so its sentinel would say
+// "nothing looked" on every record and every routing table would carry a
+// key nobody asked for; it renders only when the caller names it.
+func skipSentinel(d FactDecl, want map[string]bool) bool {
+	if want == nil {
+		return d.OnDemand
+	}
+	return !want[d.Name]
+}
+
+func withSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []Fact {
 	have := make(map[string]bool, len(facts))
 	for _, f := range facts {
 		have[f.Name] = true
 	}
 	missing := false
 	for _, d := range tbl.Facts {
-		if want != nil && !want[d.Name] {
+		if skipSentinel(d, want) {
 			continue
 		}
 		if d.HasAbsent && !have[d.Name] {
@@ -557,7 +573,7 @@ func withAbsentSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []F
 	}
 	out := make([]Fact, 0, len(facts)+1)
 	for _, d := range tbl.Facts {
-		if want != nil && !want[d.Name] {
+		if skipSentinel(d, want) {
 			continue
 		}
 		switch f, ok := byName[d.Name]; {
