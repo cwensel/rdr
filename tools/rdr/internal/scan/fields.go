@@ -148,8 +148,13 @@ func (d *Document) fields() {
 			f.LineEnd = j
 		}
 		f.Value = strings.TrimSpace(val)
+		// A record with no headings has no nodes, so a labelled bullet
+		// there belongs to no section. `title:missing` already says why;
+		// the field is still read, unsectioned.
 		node := d.nodeAt(i)
-		f.Section = node.ID
+		if node != nil {
+			f.Section = node.ID
+		}
 
 		switch el := d.elementAt(i); {
 		case meta != nil && node == meta && len(m[1]) == 0:

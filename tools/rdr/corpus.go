@@ -360,7 +360,7 @@ func readmeFacet(f *flags, path string, stdout, stderr io.Writer) int {
 	}
 	rows := scan.ParseReadmeIndex(strings.Split(string(body), "\n"))
 	if len(rows) == 0 {
-		fmt.Fprintf(stderr, "stopped:no-index-table (%s has no `| [NNNN](…) |` rows)\n", path)
+		fmt.Fprintf(stderr, "stopped:no-index-table (%s has no `| NNNN |` index rows)\n", path)
 		return 2
 	}
 	drift := scan.ReadmeDrift(docs, rows)

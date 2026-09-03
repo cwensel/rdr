@@ -1546,6 +1546,23 @@ func TestReadmeRowMatchesOnTheNumberNotTheTitle(t *testing.T) {
 	}
 }
 
+// TestReadmeRowReadsAnUnlinkedRow: the link is the convention, the number
+// is the key. Read as no row, the record answers `none` and routes to
+// `readme --add`, which appends a second row beside the one already
+// there — the exact shape the `none`/absent split exists to prevent.
+func TestReadmeRowReadsAnUnlinkedRow(t *testing.T) {
+	records := t.TempDir()
+	doc := recordAt(t, records, "0009-thing", "Draft")
+	readmeIndex(t, records, "| 0009 | Thing | Final | High |")
+	tbl := loadRealTable(t)
+	env := testEnv(t, tbl, "0009-thing", "", records)
+	env.Doc = doc
+	got, ok := factValue(tbl.Evaluate(env), "readme_status")
+	if !ok || got != "Final" {
+		t.Errorf("readme_status = %q (present %v); an unlinked row is a row", got, ok)
+	}
+}
+
 // TestStaleLensDatesEvidenceAgainstTheDemote covers the four readings
 // the freshness facts make: a content `Date:` outranks the mtime, the
 // mtime dates a file with no stamp, a re-run under iter-N makes the lens

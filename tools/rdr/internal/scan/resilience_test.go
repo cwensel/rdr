@@ -371,6 +371,35 @@ func TestWrappedMetadata(t *testing.T) {
 	}
 }
 
+// TestHeadlessDocumentIsRead: a file with no headings at all has no
+// nodes, so a labelled bullet in it belongs to no section. That is the
+// one shape where the field's section is genuinely unknowable, and it
+// must read as unsectioned rather than crash the scan — a continuation
+// line under the bullet made it a nil deref. `title:missing` is the
+// finding; the field is still recorded.
+func TestHeadlessDocumentIsRead(t *testing.T) {
+	doc := Bytes([]byte("- **Status**:\n  Draft\n"), Options{})
+	if len(doc.Fields) != 1 {
+		t.Fatalf("the bullet is still a field: %+v", doc.Fields)
+	}
+	f := doc.Fields[0]
+	if f.Label != "Status" || f.Value != "Draft" || f.LineEnd != 2 || f.Section != "" {
+		t.Errorf("field = %+v, want an unsectioned Status/Draft spanning both lines", f)
+	}
+	if len(doc.Metadata) != 0 {
+		t.Errorf("no Metadata section means no metadata fields: %+v", doc.Metadata)
+	}
+	var titled bool
+	for _, w := range doc.Warnings {
+		if w.Code == "title:missing" {
+			titled = true
+		}
+	}
+	if !titled {
+		t.Errorf("the missing title is the finding: %+v", doc.Warnings)
+	}
+}
+
 // TestAuthorStructure: an author's sub-headings inside a template section
 // are that section's content, not foreign sections; a foreign top-level
 // section warns once, with its own sub-headings inside the range;

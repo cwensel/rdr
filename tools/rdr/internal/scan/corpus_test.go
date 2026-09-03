@@ -161,6 +161,34 @@ func TestReadmeDriftIsACheck(t *testing.T) {
 	}
 }
 
+// TestReadmeRowNeedsNoLink: an unlinked `| NNNN |` row is a row. The link
+// is the convention; the number is the key. Read as no row at all, the
+// record reports `none` and `readme --add` appends a duplicate beside the
+// row already there — and `index --readme` calls it `missing-row`.
+func TestReadmeRowNeedsNoLink(t *testing.T) {
+	docs := []*Document{
+		synth(t, "0001", head("0001", "Alpha", "Final")+"\n## Problem Statement\n\nSynthetic.\n"),
+		synth(t, "0002", head("0002", "Beta", "Draft")+"\n## Problem Statement\n\nSynthetic.\n"),
+	}
+	rows := ParseReadmeIndex(strings.Split(`# Records
+
+| ID | Title | Status | Priority |
+| --- | --- | --- | --- |
+| 0001 | Alpha | Final | High |
+| [0002](0002-beta.md) | Beta | Draft | High |
+`, "\n"))
+	if len(rows) != 2 || rows[0].Record != "0001" || rows[0].Status != "Final" || rows[0].Title != "Alpha" {
+		t.Fatalf("the unlinked row is a row: %+v", rows)
+	}
+	if drift := ReadmeDrift(docs, rows); len(drift) != 0 {
+		t.Errorf("a table that agrees drifts on nothing: %+v", drift)
+	}
+	// The header and the rule carry no number and are not rows.
+	if got := ParseReadmeIndex([]string{"| ID | Title |", "| --- | --- |", "| 12 | short |"}); len(got) != 0 {
+		t.Errorf("only a four-digit first cell is a row: %+v", got)
+	}
+}
+
 // TestGraphDerivesBacklinks: the graph's reverse edges are a transposition
 // of its forward edges, so every edge appears under its target exactly
 // once and the record count is the corpus.

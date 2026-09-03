@@ -331,12 +331,18 @@ type ReadmeRow struct {
 	Line     int    `json:"line"`
 }
 
-// readmeRow matches `| [NNNN](file) | Title | Status | Priority |`.
-var readmeRow = regexp.MustCompile(`^\|\s*\[(\d{4})\]\([^)]*\)\s*\|(.*)$`)
+// readmeRow matches `| [NNNN](file) | Title | Status | Priority |` and
+// the UNLINKED `| NNNN | Title | Status | Priority |` variant. The link
+// is the convention, not the row: a hand-written or delinked row still
+// says this record is indexed, and reading only the linked ones reports
+// the record as having no row at all — which sends `readme --add` to
+// append a second row beside the one already there, and `index --readme`
+// to call it `missing-row`. The number is the key either way.
+var readmeRow = regexp.MustCompile(`^\|\s*(?:\[(\d{4})\]\([^)]*\)|(\d{4}))\s*\|(.*)$`)
 
 // ParseReadmeIndex reads the index table rows out of README lines. Only
-// rows whose first cell is a linked record number are rows; the header,
-// the rule and the prose are not.
+// rows whose first cell is a record number are rows; the header, the
+// rule and the prose are not.
 func ParseReadmeIndex(lines []string) []ReadmeRow {
 	var rows []ReadmeRow
 	for i, l := range lines {
@@ -344,8 +350,12 @@ func ParseReadmeIndex(lines []string) []ReadmeRow {
 		if m == nil {
 			continue
 		}
-		cells := splitCells(m[2])
-		row := ReadmeRow{Record: m[1], Line: i + 1}
+		num := m[1]
+		if num == "" {
+			num = m[2]
+		}
+		cells := splitCells(m[3])
+		row := ReadmeRow{Record: num, Line: i + 1}
 		cell := func(n int) string {
 			if n < len(cells) {
 				return strings.TrimSpace(cells[n])

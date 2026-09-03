@@ -442,7 +442,7 @@ eq = "readme"
 eq = "unindexed"
 [rule.emit]
 op   = "stopped:no-index-table"
-why  = "No README, or one carrying no `| [NNNN](...) |` index table — nothing looked, so nothing is written."
+why  = "No README, or one carrying no numbered index table — nothing looked, so nothing is written."
 surface = "the records dir, so the human can say whether the index moved or was never scaffolded"
 
 # No row → ADD one carrying the record's own status.
@@ -457,7 +457,7 @@ op     = "readme-add"
 target = "readme"
 # Appended after the LAST existing index row, so the table stays contiguous
 # and no other row is touched. The caller supplies the cells it holds.
-edit   = "append `| [NNNN](NNNN-slug.md) | <Title> | <Status> | <Priority> |` after the final `| [NNNN](` row of the `## Index` table; replace a first-RDR placeholder comment if one is present"
+edit   = "append `| [NNNN](NNNN-slug.md) | <Title> | <Status> | <Priority> |` after the final numbered row of the `## Index` table; replace a first-RDR placeholder comment if one is present"
 why    = "The record has no index row and the table was read cleanly — add it."
 surface = "Title and Priority from the record's own H1 and Metadata, never invented"
 
@@ -613,7 +613,7 @@ in = ["unindexed", "none", "Draft"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -628,7 +628,7 @@ in = ["unindexed", "none", "Final"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -643,7 +643,7 @@ in = ["unindexed", "none", "Implemented"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -658,7 +658,7 @@ in = ["unindexed", "none", "Deferred"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -673,7 +673,7 @@ in = ["unindexed", "none", "Demoted"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -688,7 +688,7 @@ in = ["unindexed", "none", "Abandoned"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -703,7 +703,7 @@ in = ["unindexed", "none", "Superseded"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -718,7 +718,7 @@ in = ["unindexed", "none", "Reverted"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -733,7 +733,7 @@ in = ["unindexed", "none", "Rejected"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `| [NNNN](` row of the `## Index` table, replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
+edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
