@@ -991,13 +991,23 @@ flow's own nearest-marker-wins rule (a repo-local `.rdr/workspace` beats
 the shared `../.rdr-workspace`), sources the marker with `sh` — markers
 are plain assignments that expand `$WS`/`$PROJECT` internally, so they
 need a real shell, not a regex — and reads `RDR_RECORDS`,
-`RDR_SOURCE_REPO`, `RDR_EVIDENCE` and `RDR_HOME` back out.
+`RDR_SOURCE_REPO`, `RDR_EVIDENCE` and `RDR_HOME` back out. In a git
+worktree, `.git` is a FILE rather than a directory; it is followed (no
+`git` process spawned) to the main checkout for the marker lookup, but a
+repo-local marker's records bind to the worktree being edited, never the
+main checkout beside it. A marker written before that distinction existed
+refuses with `stopped:marker-binds-main-checkout` rather than silently
+handing back the wrong tree.
 
 The binding order is **flag, then environment, then marker**. A flag is
 someone spelling out a path; an exported var is a decision someone made;
 the marker is only what fills the gap that would otherwise be an error.
 No marker binds nothing at all — discovery, never invention — and the
-caller fails exactly as it did before.
+caller fails exactly as it did before. `--records` and `--repo` bind
+`$RDR_RECORDS` and `$RDR_SOURCE_REPO` for every other reader of those
+vars too — the fact table's roots (§Facts) included — so naming a
+directory on the command line moves the whole seam, not just the record
+lookup.
 
 This exists because shell state dies between agent tool calls. A skill
 that needed `$RDR_RECORDS` had to re-run a fifteen-line resolver or carry

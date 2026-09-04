@@ -50,7 +50,8 @@ repo. **Nearest marker wins**: a repo-local `$PROJECT/.rdr/workspace` (this
 repo's own RDR env, inside its gitignored `.rdr/` — the default) beats the shared
 `$WS/.rdr-workspace` (a workspace seam siblings opt into via `--workspace`) —
 like `.git` or `.editorconfig`, the closest governs. `$PROJECT` is `dirname` of
-the git-common-dir, so a worktree resolves its main repo's local marker;
+the git-common-dir, so a worktree resolves its main repo's local marker; a
+repo-local marker's records bind to the worktree toplevel.
 `$RDR_MARKER` records which one won.
 
 ```sh

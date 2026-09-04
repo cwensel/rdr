@@ -26,6 +26,15 @@ package main
 //
 // It is discovery, never invention: no marker means nothing is bound and
 // the caller fails exactly as before.
+//
+// A git worktree complicates "the project": its `.git` is a FILE, not a
+// directory, pointing at the main checkout, so the marker LOOKUP still
+// resolves there — but a repo-local marker's records must bind to the
+// worktree being edited, not the main checkout beside it. `findMarker`
+// tells the two apart as `project` (the main checkout, for lookup) and
+// `toplevel` (the worktree, for anchoring); a marker written before this
+// distinction existed refuses rather than silently binding the wrong
+// tree.
 
 import (
 	"os"
@@ -102,7 +111,7 @@ func markerRefusal() string {
 // without one, and callers already handle unbound vars.
 func bindSeam() map[string]string {
 	out := map[string]string{}
-	marker, project, ws := findMarker()
+	marker, project, ws, toplevel := findMarker()
 	if marker == "" {
 		return out
 	}
@@ -129,7 +138,7 @@ for v in ` + strings.Join(seamVars, " ") + `; do
 done
 exit 0`
 	cmd := exec.Command("sh", "-c", script, "_", marker)
-	cmd.Env = append(os.Environ(), "PROJECT="+project, "WS="+ws)
+	cmd.Env = append(os.Environ(), "PROJECT="+project, "WS="+ws, "TOPLEVEL="+toplevel)
 	cmd.Dir = project
 	var refusal strings.Builder
 	cmd.Stderr = &refusal
@@ -148,6 +157,25 @@ exit 0`
 		}
 		out[k] = v
 	}
+
+	// A repo-local marker anchors `<CONSUMER>_ROOT="$PROJECT"` before this
+	// fix, so from a worktree it would bind the MAIN checkout's records —
+	// the exact false pass this fix removes. Once toplevel and project can
+	// differ, the only way to tell a stale marker from a bound one is to
+	// check where the bound records actually landed: inside toplevel, or
+	// only inside project. The worktree may sit INSIDE the main checkout
+	// (`main/.claude/worktrees/x`), so the test is "under project AND not
+	// under toplevel", not a simple inequality.
+	if marker == filepath.Join(project, ".rdr", "workspace") && toplevel != project {
+		if records := out["RDR_RECORDS"]; records != "" &&
+			strings.HasPrefix(records, project+string(filepath.Separator)) &&
+			!strings.HasPrefix(records, toplevel+string(filepath.Separator)) {
+			seamRefusal = "stopped:marker-binds-main-checkout marker=" + marker +
+				" records=" + records + " toplevel=" + toplevel +
+				" -- a repo-local marker must anchor its records on $TOPLEVEL; re-run /rdr-init --reconfigure"
+			return map[string]string{}
+		}
+	}
 	return out
 }
 
@@ -155,27 +183,34 @@ exit 0`
 // `$PROJECT/.rdr/workspace` beats the shared `$WS/.rdr-workspace`, the
 // way the closest .git or .editorconfig governs.
 //
-// `$PROJECT` is the directory holding the git common dir, so a worktree
-// resolves its main repo's marker rather than missing it — the same
-// worktree-invariance the shell resolver is careful about.
-func findMarker() (marker, project, ws string) {
+// `toplevel` is the directory holding whatever stopped the upward walk —
+// a `.git` directory or a `.git` file, exactly what
+// `git rev-parse --show-toplevel` would answer, without paying a process
+// spawn on every invocation. In a worktree `.git` is a FILE pointing at
+// the main repo, and `toplevel` is the worktree itself, never the main
+// checkout.
+//
+// `project` is where the git COMMON dir lives — the main checkout — so
+// the marker lookup still finds a repo-local marker that was written
+// once, in the main checkout, and never duplicated per worktree. Outside
+// a worktree `project == toplevel`. Inside one, the `.git` file is
+// followed: its `gitdir:` line names the worktree's private git dir, and
+// that dir's `commondir` file names the shared one, whose parent is
+// `project`. Either read failing falls back to `project = toplevel` —
+// today's behavior — so a `.git` file this binary cannot parse degrades
+// to "marker not found" rather than a wrong bind.
+func findMarker() (marker, project, ws, toplevel string) {
 	cwd, err := os.Getwd()
 	if err != nil {
-		return "", "", ""
+		return "", "", "", ""
 	}
 	if resolved, err := filepath.EvalSymlinks(cwd); err == nil {
 		cwd = resolved
 	}
-	// Walk up for `.git`, which is the project root by the same rule
-	// `git rev-parse --git-common-dir` applies — without paying a process
-	// spawn on every invocation. In a worktree `.git` is a FILE pointing
-	// at the main repo; the directory holding it is still this project's
-	// root, and the marker lookup wants that, so the pointer needs no
-	// following.
-	project = ""
+	toplevel = ""
 	for dir := cwd; ; {
 		if pathExists(filepath.Join(dir, ".git")) {
-			project = dir
+			toplevel = dir
 			break
 		}
 		parent := filepath.Dir(dir)
@@ -184,18 +219,68 @@ func findMarker() (marker, project, ws string) {
 		}
 		dir = parent
 	}
+	if toplevel == "" {
+		return "", "", "", ""
+	}
+	project = gitCommonProject(toplevel)
 	if project == "" {
-		return "", "", ""
+		project = toplevel
 	}
 	ws = filepath.Dir(project)
 
 	if local := filepath.Join(project, ".rdr", "workspace"); fileExists(local) {
-		return local, project, ws
+		return local, project, ws, toplevel
 	}
 	if shared := filepath.Join(ws, ".rdr-workspace"); fileExists(shared) {
-		return shared, project, ws
+		return shared, project, ws, toplevel
 	}
-	return "", project, ws
+	return "", project, ws, toplevel
+}
+
+// gitCommonProject answers the directory holding the git COMMON dir, or
+// "" when `.git` is a plain directory (no following needed) or the
+// pointer chain cannot be read. Pure file reads, no `git` process: a
+// worktree's `.git` is `gitdir: <path>`, and `<path>/commondir` names the
+// shared git dir, usually as `../..` relative to `<path>`.
+func gitCommonProject(toplevel string) string {
+	dotGit := filepath.Join(toplevel, ".git")
+	fi, err := os.Stat(dotGit)
+	if err != nil || fi.IsDir() {
+		return ""
+	}
+	raw, err := os.ReadFile(dotGit)
+	if err != nil {
+		return ""
+	}
+	const prefix = "gitdir:"
+	line := strings.TrimSpace(string(raw))
+	if idx := strings.IndexByte(line, '\n'); idx >= 0 {
+		line = line[:idx]
+	}
+	if !strings.HasPrefix(line, prefix) {
+		return ""
+	}
+	gitdir := strings.TrimSpace(strings.TrimPrefix(line, prefix))
+	if !filepath.IsAbs(gitdir) {
+		gitdir = filepath.Join(toplevel, gitdir)
+	}
+	commondirFile := filepath.Join(gitdir, "commondir")
+	raw, err = os.ReadFile(commondirFile)
+	if err != nil {
+		return ""
+	}
+	commondir := strings.TrimSpace(string(raw))
+	if commondir == "" {
+		return ""
+	}
+	if !filepath.IsAbs(commondir) {
+		commondir = filepath.Join(gitdir, commondir)
+	}
+	commondir = filepath.Clean(commondir)
+	if resolved, err := filepath.EvalSymlinks(commondir); err == nil {
+		commondir = resolved
+	}
+	return filepath.Dir(commondir)
 }
 
 // seamValue returns a marker value, or "" when no marker bound it. The
@@ -211,10 +296,38 @@ func pathExists(p string) bool {
 	return err == nil
 }
 
-// envOrSeam is the binding order every flag default uses: an explicit
-// environment variable wins, then the marker. The flag itself outranks
-// both, since a caller who spells out a path means that path.
+// flagBound holds the roots a resolved flag has bound for this process —
+// `--records`/`--repo`, once main.go knows their final absolute value.
+// `declareFlags` reads `envOrSeam` for a flag's DEFAULT before the flag
+// itself is parsed, so the flag cannot outrank env-or-marker from inside
+// its own default; this map is how it does so anyway, for every OTHER
+// reader of the same var (NewFactEnv's roots, resolveRecordsDir's
+// $RDR_RECORDS fallback) that would otherwise keep reading the old tree
+// after `--records` named a new one.
+var (
+	flagBoundMu sync.Mutex
+	flagBound   = map[string]string{}
+)
+
+// bindFlag records a resolved flag value under the var name it stands
+// in for, so envOrSeam's later callers see it first.
+func bindFlag(name, value string) {
+	flagBoundMu.Lock()
+	defer flagBoundMu.Unlock()
+	flagBound[name] = value
+}
+
+// envOrSeam is the binding order every flag default uses: a resolved
+// flag outranks an explicit environment variable, which outranks the
+// marker — a caller who spells out a path means that path, over anything
+// ambient.
 func envOrSeam(name string) string {
+	flagBoundMu.Lock()
+	v, ok := flagBound[name]
+	flagBoundMu.Unlock()
+	if ok && v != "" {
+		return v
+	}
 	if v := strings.TrimSpace(os.Getenv(name)); v != "" {
 		return v
 	}

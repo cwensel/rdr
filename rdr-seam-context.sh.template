@@ -12,7 +12,9 @@ GC=$(cd "$GC" 2>/dev/null && pwd -P) || exit 0
 # BOTH exported: a marker guards on the var its scope anchors, and asserts its
 # RDR_PROJECT_ANCHOR against $PROJECT. Exporting only $WS would leave $PROJECT
 # empty, so a repo-local marker would refuse its own project.
-PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
+PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")
+TOPLEVEL=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+export PROJECT WS TOPLEVEL
 # nearest marker wins: repo-local (inside .rdr/) overrides the shared workspace marker
 if   [ -f "$PROJECT/.rdr/workspace" ]; then MARKER="$PROJECT/.rdr/workspace"
 elif [ -f "$WS/.rdr-workspace" ];      then MARKER="$WS/.rdr-workspace"

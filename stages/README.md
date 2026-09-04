@@ -322,7 +322,9 @@ cwd:
 
 ```sh
 GC=$(git rev-parse --git-common-dir) && GC=$(cd "$GC" && pwd -P)   # split: empty capture would make cd a no-op
-PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
+PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")
+TOPLEVEL=$(git rev-parse --show-toplevel) || exit 1
+export PROJECT WS TOPLEVEL
 # nearest wins: a repo-local marker (inside .rdr/) overrides the shared workspace one
 # `|| exit`: a marker states which project it describes and REFUSES under another
 # (its RDR_PROJECT_ANCHOR guard). An unchecked `.` swallows that refusal and leaves
@@ -343,9 +345,12 @@ explanation, and the bootstrap for anything that runs before the binary exists.
 from inside a worktree (a gitignored file at a repo root is *not* checked out
 into its worktrees — verified — so the marker must live *above* the repos and be
 reached by walking up from git topology, not by `./`). `dirname` twice gives the
-workspace root `$WS`; sourcing `$WS/.rdr-workspace` binds every path. This is the
-same topology the ship skills already use, now expressed as **data in one file**
-instead of a derivation duplicated across stage prompts and skills.
+workspace root `$WS`; sourcing `$WS/.rdr-workspace` binds every path. Repo-local
+records bind to `$TOPLEVEL` instead, so a worktree reads the tree it is editing;
+`$PROJECT` still names the main checkout, for the marker lookup and the anchor
+check. This is the same topology the ship skills already use, now expressed as
+**data in one file** instead of a derivation duplicated across stage prompts and
+skills.
 
 Not an env var: env vars do not reliably reach spawned agents or worktree
 processes (`direnv` only fires on interactive `cd`), so they can't be the source

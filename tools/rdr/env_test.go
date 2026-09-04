@@ -19,6 +19,9 @@ func runEnv(t *testing.T, args ...string) (string, string, int) {
 	seamMu.Lock()
 	seamDir, seamCache, seamRefusal = "\x00unset", nil, ""
 	seamMu.Unlock()
+	flagBoundMu.Lock()
+	flagBound = map[string]string{}
+	flagBoundMu.Unlock()
 	fs := flag.NewFlagSet("env", flag.ContinueOnError)
 	fs.SetOutput(io.Discard)
 	f := declareFlags("env", fs)
@@ -401,6 +404,83 @@ func TestEnvRefusalIsNotAMissingMarker(t *testing.T) {
 	if strings.Contains(errb, "stopped:no-marker") {
 		t.Errorf("a marker that refused is reported as absent — the caller would run /rdr-init "+
 			"and rewrite a marker that is correct for its own project: %s", errb)
+	}
+}
+
+// TestEnvFromAWorktreeBindsTheWorktreesRecords is `env`'s acceptance of the
+// worktree fix: a repo-local marker written with $TOPLEVEL in its body
+// binds the worktree being edited, and RDR_PROJECT still names the main
+// checkout — the anchor a caller uses to assert the seam belongs to the
+// repo it is standing in.
+func TestEnvFromAWorktreeBindsTheWorktreesRecords(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+: "${TOPLEVEL:?needs the canonical resolver}"
+RDR_RECORDS="$TOPLEVEL/docs/rdr"
+export RDR_RECORDS
+`
+	mainProject, worktree := newWorktreeFixture(t, body)
+	t.Setenv("RDR_RECORDS", "")
+
+	t.Chdir(worktree)
+	out, errb, code := runEnv(t)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	got := parseEnvText(out)
+	if want := filepath.Join(worktree, "docs", "rdr"); got["RDR_RECORDS"] != want {
+		t.Errorf("RDR_RECORDS = %q, want the worktree's %q", got["RDR_RECORDS"], want)
+	}
+	if got[envProjectVar] != mainProject {
+		t.Errorf("%s = %q, want the main checkout %q", envProjectVar, got[envProjectVar], mainProject)
+	}
+
+	// From the main checkout itself, TOPLEVEL == PROJECT and the same
+	// marker binds the same way it always did.
+	mainRecords := filepath.Join(mainProject, "docs", "rdr")
+	if err := os.MkdirAll(mainRecords, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(mainProject)
+	out, errb, code = runEnv(t)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if got := parseEnvText(out)["RDR_RECORDS"]; got != mainRecords {
+		t.Errorf("RDR_RECORDS = %q, want %q", got, mainRecords)
+	}
+}
+
+// TestEnvRefusesAStaleMarkerFromAWorktree is the `env` layer of the same
+// stale-marker refusal seam_test.go proves at bindSeam: a pre-fix marker
+// anchors records on $PROJECT, so from a worktree `env` must stop rather
+// than publish the main checkout's corpus under the worktree's name.
+func TestEnvRefusesAStaleMarkerFromAWorktree(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+export RDR_RECORDS
+`
+	mainProject, worktree := newWorktreeFixture(t, body)
+	t.Setenv("RDR_RECORDS", "")
+
+	t.Chdir(worktree)
+	out, errb, code := runEnv(t)
+	if code != 1 {
+		t.Errorf("exit %d, want 1 — a stale marker must not bind the main checkout's records", code)
+	}
+	if out != "" {
+		t.Errorf("published a seam from a stale marker:\n%s", out)
+	}
+	if !strings.Contains(errb, "stopped:marker-binds-main-checkout") {
+		t.Errorf("wrong reason: %s", errb)
+	}
+
+	mainRecords := filepath.Join(mainProject, "docs", "rdr")
+	if err := os.MkdirAll(mainRecords, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(mainProject)
+	if _, errb, code := runEnv(t); code != 0 {
+		t.Errorf("exit %d, want 0 — the same marker binds normally outside a worktree: %s", code, errb)
 	}
 }
 

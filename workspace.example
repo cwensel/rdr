@@ -6,7 +6,9 @@
 #
 # Consume it (worktree-invariant; the canonical resolver is rdr-common §seam-bind):
 #   GC=$(git rev-parse --git-common-dir) && GC=$(cd "$GC" && pwd -P)
-#   PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT"); export PROJECT WS
+#   PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")
+#   TOPLEVEL=$(git rev-parse --show-toplevel) || exit 1
+#   export PROJECT WS TOPLEVEL
 #   if   [ -f "$PROJECT/.rdr/workspace" ]; then . "$PROJECT/.rdr/workspace"
 #   elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"; fi
 # git-common-dir resolves the main repo's .git even from a worktree, so both anchors
@@ -42,6 +44,7 @@ RDR_PROJECT_ANCHOR="/abs/path/to/<your-project>"
   echo "stopped:foreign-project marker=$RDR_PROJECT_ANCHOR/.rdr/workspace describes=$RDR_PROJECT_ANCHOR handed=$PROJECT" >&2
   return 1 2>/dev/null || exit 1
 }
+: "${TOPLEVEL:?source this file via the canonical resolver so \$TOPLEVEL is set}"
 
 # workspace arm — delete for a repo-local marker; uncomment and set the anchor.
 # This is only the FIRST half: a workspace marker makes two claims, and $WS
@@ -56,8 +59,9 @@ RDR_PROJECT_ANCHOR="/abs/path/to/<your-project>"
 # --- per-consumer repo roots (FILL: keep the ones this workspace has) ---
 # These name the sibling repos in YOUR workspace. They are conveniences for
 # building the contract paths below — NOT load-bearing for the flow itself.
-# Add/rename to match reality (e.g. MYPROJECT_ROOT="$WS/myproject").
-MYPROJECT_ROOT="$WS/<your-project>"
+# Add/rename to match reality. Repo-local: $TOPLEVEL, the worktree being edited
+# (equals $PROJECT outside one). Workspace: one per sibling, MYPROJECT_ROOT="$WS/myproject".
+MYPROJECT_ROOT="$TOPLEVEL"
 
 # === RDR engine contract — the FIVE vars the /rdr-* skills read ===============
 # Everything below is required. The skills read ONLY these; they never recompute
@@ -83,12 +87,13 @@ RDR_EVIDENCE="$RDR_RECORDS"
 
 # RDR_ENV / RDR_RESOURCES — the path-map and evidence-index data files.
 #   Default (gitignored .rdr/ seam at the project root; no rdr- prefix — .rdr/ scopes them):
-#     RDR_ENV="$MYPROJECT_ROOT/.rdr/env.md"
-#     RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/resources.md"
+#     RDR_ENV="$PROJECT/.rdr/env.md"
+#     RDR_RESOURCES="$PROJECT/.rdr/resources.md"
 #   Pinned seam (tracked sibling repo): point there, where rdr-env.md / rdr-resources.md
 #   keep the prefix to stay self-describing.
-RDR_ENV="$MYPROJECT_ROOT/.rdr/env.md"
-RDR_RESOURCES="$MYPROJECT_ROOT/.rdr/resources.md"
+# On $PROJECT, not the repo root: .rdr/ is untracked and exists only beside this marker.
+RDR_ENV="$PROJECT/.rdr/env.md"
+RDR_RESOURCES="$PROJECT/.rdr/resources.md"
 
 # RDR_SOURCE_REPO — the checkout whose `path::Symbol` anchors the RDRs cite; the tree
 #   `rdr --repo` greps (rdr-common §source-root). Usually this consumer's own

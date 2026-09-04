@@ -636,3 +636,244 @@ printf -- '-----BEGIN PGP SIGNATURE-----\n\nZmFrZQ==\n-----END PGP SIGNATURE----
 		t.Errorf("a repo with commit.gpgsign=false was signed anyway:\n%s", head)
 	}
 }
+
+// newWorktreeFixture builds the topology a real git worktree has, without
+// invoking git: a main checkout P with a `.git` DIRECTORY and the
+// worktree's `commondir` file beneath it, and a worktree W — deliberately
+// nested at `P/.claude/worktrees/wt`, mirroring the harness's own layout —
+// whose `.git` is a FILE pointing back at P's private worktree git dir.
+// `findMarker`'s `gitCommonProject` must resolve W's project to P by
+// reading only these two files, no `git` process spawned.
+func newWorktreeFixture(t *testing.T, markerBody string) (mainProject, worktree string) {
+	t.Helper()
+	root := t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	mainProject = filepath.Join(root, "main")
+	worktree = filepath.Join(mainProject, ".claude", "worktrees", "wt")
+	privateGitDir := filepath.Join(mainProject, ".git", "worktrees", "wt")
+
+	for _, dir := range []string{
+		filepath.Join(mainProject, ".git"),
+		privateGitDir,
+		filepath.Join(worktree, "docs", "rdr"),
+	} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The main checkout's own git dir IS the common dir; a real repo's
+	// commondir file for its own git dir would be ".", but this fixture
+	// only needs the worktree's pointer chain, which commondir supplies
+	// as a path relative to the PRIVATE worktree git dir.
+	if err := os.WriteFile(filepath.Join(privateGitDir, "commondir"), []byte("../..\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(worktree, ".git"),
+		[]byte("gitdir: "+privateGitDir+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rec := "# Recommendation 0007: Seam\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(worktree, "docs", "rdr", "0007-seam.md"), []byte(rec), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	markerDir := filepath.Join(mainProject, ".rdr")
+	if err := os.MkdirAll(markerDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(markerDir, "workspace"), []byte(markerBody), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return mainProject, worktree
+}
+
+// TestWorktreeFollowsTheGitdirPointer: a worktree's `.git` is a FILE, not
+// a directory, so the pre-fix `findMarker` took the worktree ITSELF as
+// `project` and looked for `<worktree>/.rdr/workspace` — which is never
+// there, because the marker lives in the main checkout. The fix follows
+// the pointer (via `commondir`, no `git` spawned) so the marker still
+// resolves, and anchors the bound records on `$TOPLEVEL` — the worktree
+// being edited — rather than `$PROJECT`, the main checkout beside it.
+func TestWorktreeFollowsTheGitdirPointer(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+: "${TOPLEVEL:?needs the canonical resolver}"
+RDR_RECORDS="$TOPLEVEL/docs/rdr"
+RDR_SOURCE_REPO="$TOPLEVEL"
+export RDR_RECORDS RDR_SOURCE_REPO
+`
+	mainProject, worktree := newWorktreeFixture(t, body)
+	t.Setenv("RDR_RECORDS", "")
+	t.Setenv("RDR_SOURCE_REPO", "")
+
+	t.Run("from the worktree root", func(t *testing.T) {
+		t.Chdir(worktree)
+		got := bindSeam()
+		want := filepath.Join(worktree, "docs", "rdr")
+		if got["RDR_RECORDS"] != want {
+			t.Errorf("RDR_RECORDS = %q, want the worktree's %q", got["RDR_RECORDS"], want)
+		}
+		if got["RDR_SOURCE_REPO"] != worktree {
+			t.Errorf("RDR_SOURCE_REPO = %q, want %q", got["RDR_SOURCE_REPO"], worktree)
+		}
+	})
+
+	t.Run("from a subdirectory of the worktree", func(t *testing.T) {
+		sub := filepath.Join(worktree, "docs")
+		t.Chdir(sub)
+		got := bindSeam()
+		want := filepath.Join(worktree, "docs", "rdr")
+		if got["RDR_RECORDS"] != want {
+			t.Errorf("RDR_RECORDS = %q, want %q", got["RDR_RECORDS"], want)
+		}
+	})
+
+	t.Run("from the main checkout, no worktree involved", func(t *testing.T) {
+		mainRecords := filepath.Join(mainProject, "docs", "rdr")
+		if err := os.MkdirAll(mainRecords, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Chdir(mainProject)
+		got := bindSeam()
+		if got["RDR_RECORDS"] != mainRecords {
+			t.Errorf("RDR_RECORDS = %q, want %q — outside a worktree TOPLEVEL == PROJECT", got["RDR_RECORDS"], mainRecords)
+		}
+	})
+}
+
+// TestStaleMarkerBindsMainCheckoutRefuses: a marker written before TOPLEVEL
+// existed anchors `<CONSUMER>_ROOT="$PROJECT"`, so from a worktree it binds
+// the MAIN checkout's records — a real corpus, just the wrong one, which is
+// the false pass this fix removes. The refusal fires only when the bound
+// records land under `project` and NOT under `toplevel`, so a worktree that
+// happens to sit inside the main checkout is not itself mistaken for the
+// stale case.
+func TestStaleMarkerBindsMainCheckoutRefuses(t *testing.T) {
+	body := `: "${PROJECT:?needs the canonical resolver}"
+RDR_RECORDS="$PROJECT/docs/rdr"
+export RDR_RECORDS
+`
+	mainProject, worktree := newWorktreeFixture(t, body)
+	t.Setenv("RDR_RECORDS", "")
+
+	t.Run("from the worktree the stale marker refuses", func(t *testing.T) {
+		t.Chdir(worktree)
+		got := bindSeam()
+		if v, ok := got["RDR_RECORDS"]; ok {
+			t.Errorf("a stale marker still bound RDR_RECORDS = %q", v)
+		}
+		why := markerRefusal()
+		if !strings.Contains(why, "stopped:marker-binds-main-checkout") {
+			t.Errorf("wrong or missing refusal: %q", why)
+		}
+	})
+
+	t.Run("from the main checkout the same marker still binds", func(t *testing.T) {
+		mainRecords := filepath.Join(mainProject, "docs", "rdr")
+		if err := os.MkdirAll(mainRecords, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		t.Chdir(mainProject)
+		got := bindSeam()
+		if got["RDR_RECORDS"] != mainRecords {
+			t.Errorf("RDR_RECORDS = %q, want %q — the marker is correct outside a worktree", got["RDR_RECORDS"], mainRecords)
+		}
+		if why := markerRefusal(); why != "" {
+			t.Errorf("the main checkout's own bind refused: %q", why)
+		}
+	})
+}
+
+// recordsTreeWithArtifacts builds one records dir holding record `num`
+// and, when withArtifacts is true, an artifacts folder beside it whose
+// four files give every impl-artifact fact a non-trivial value: a
+// COMPLETE capsule, one REQ line with its coverage row, and one still-open
+// deviation. Without artifacts, every impl_* fact is absent — the shape
+// tree B needs to prove --records didn't just happen to agree with the
+// env by coincidence.
+func recordsTreeWithArtifacts(t *testing.T, num string, withArtifacts bool) string {
+	t.Helper()
+	dir := t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(dir); err == nil {
+		dir = resolved
+	}
+	slug := num + "-seam-flag-bind"
+	rec := "# Recommendation " + num + ": Seam Flag Bind\n\n## Metadata\n\n" +
+		"- **Date**: 2026-08-01\n- **Status**: Final\n- **Profile**: standard\n\n" +
+		"## Problem Statement\n\nSynthetic.\n"
+	if err := os.WriteFile(filepath.Join(dir, slug+".md"), []byte(rec), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if !withArtifacts {
+		return dir
+	}
+	artifacts := filepath.Join(dir, slug, "artifacts")
+	if err := os.MkdirAll(artifacts, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"status.md":     "phase: done\nstate: COMPLETE\n",
+		"req-list.md":   "- **[REQ-1]** \"first.\"\n",
+		"coverage.md":   "| Requirement | Test |\n| --- | --- |\n| `REQ-1` | `TestOne` |\n",
+		"deviations.md": "- **Status: needs author decision (recorded, run continued)**\n",
+	}
+	for name, body := range files {
+		if err := os.WriteFile(filepath.Join(artifacts, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return dir
+}
+
+// TestRecordsFlagRebindsTheArtifactRoots is defect 2's acceptance:
+// `--records DIR` picks the record file from DIR, but NewFactEnv's roots
+// (artifacts, evidence) used to keep reading $RDR_RECORDS from the
+// environment or marker regardless — so `status --records X --tags NNNN`
+// could read the record in X and its artifacts from a different tree,
+// silently. Tree A carries a real artifact ledger; tree B carries none.
+// All three invocations below must read tree A's artifacts, or the tag
+// vectors would disagree on impl_state/impl_open_decisions/etc.
+func TestRecordsFlagRebindsTheArtifactRoots(t *testing.T) {
+	num := "0058"
+	treeA := recordsTreeWithArtifacts(t, num, true)
+	treeB := recordsTreeWithArtifacts(t, num, false)
+	table := factTableForTest(t)
+
+	// Run from a cwd unrelated to either tree, so no marker or cwd-relative
+	// resolution can accidentally supply the right answer.
+	elsewhere := t.TempDir()
+	t.Chdir(elsewhere)
+
+	tags := func(label string, env map[string]string, args ...string) string {
+		t.Helper()
+		for k, v := range env {
+			t.Setenv(k, v)
+		}
+		full := append([]string{"status", "--tags", "--facts", table}, args...)
+		full = append(full, num)
+		code, out, errb := runCapture(t, full...)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", label, code, errb)
+		}
+		return out
+	}
+
+	viaEnv := tags("env only", map[string]string{"RDR_RECORDS": treeA, "RDR_SOURCE_REPO": ""})
+	viaFlag := tags("flag only", map[string]string{"RDR_RECORDS": "", "RDR_SOURCE_REPO": ""}, "--records", treeA)
+	viaFlagOverEnv := tags("flag overrides a different env", map[string]string{"RDR_RECORDS": treeB, "RDR_SOURCE_REPO": ""}, "--records", treeA)
+
+	if viaEnv != viaFlag {
+		t.Errorf("env-bound and flag-bound tag vectors disagree:\nenv:  %s\nflag: %s", viaEnv, viaFlag)
+	}
+	if viaFlag != viaFlagOverEnv {
+		t.Errorf("--records did not outrank a conflicting $RDR_RECORDS for the artifact roots:\n"+
+			"flag alone:      %s\nflag over env B: %s", viaFlag, viaFlagOverEnv)
+	}
+	for _, want := range []string{"impl_state=COMPLETE", "impl_open_decisions=1+"} {
+		if !strings.Contains(viaFlagOverEnv, want) {
+			t.Errorf("tag vector missing %q (artifacts not read from the --records tree):\n%s", want, viaFlagOverEnv)
+		}
+	}
+}

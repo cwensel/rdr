@@ -21,6 +21,17 @@ func fixturePath(name string) string { return filepath.Join("testdata", name) }
 
 func runCapture(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
+	// run() binds --records/--repo into the package-level flagBound map so
+	// every OTHER envOrSeam reader sees them too (facts.go's roots, this
+	// binary's own $RDR_RECORDS fallback) — a real process only ever calls
+	// run() once, but a test binary calls it hundreds of times, and a bind
+	// this test made must not answer for the next one, which may resolve
+	// the same var through the marker or the environment instead.
+	t.Cleanup(func() {
+		flagBoundMu.Lock()
+		flagBound = map[string]string{}
+		flagBoundMu.Unlock()
+	})
 	var out, errb bytes.Buffer
 	code := run(args, &out, &errb)
 	return code, out.String(), errb.String()

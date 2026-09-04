@@ -222,6 +222,32 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if err := fs.Parse(hoistFlags(fs, args[1:])); err != nil {
 			return 2
 		}
+		// Each invocation of this process (or, in a test binary, each call to
+		// run()) resolves its own roots; a bind from a PRIOR invocation must
+		// not answer for this one, since recordsDir below itself falls back
+		// through envOrSeam and would otherwise see its own last answer
+		// before this call has had a chance to overwrite it.
+		bindFlag("RDR_RECORDS", "")
+		bindFlag("RDR_SOURCE_REPO", "")
+		// A resolved `--records`/`--repo` must outrank envOrSeam for every
+		// OTHER reader of the same var — NewFactEnv's roots, the fact table's
+		// path, resolveRecordsDir's own $RDR_RECORDS fallback — not only the
+		// one flag that named it. Without this, `--records X` picked the
+		// record from X while artifact/evidence roots kept reading the
+		// env/marker tree, silently: two directories answering as one.
+		// Binding the resolved default to itself is harmless, so this always
+		// runs rather than only when the flag was actually typed.
+		// Only when something NAMED a directory (a flag, env or marker):
+		// an unconfigured repo's "." default must keep its roots unbound,
+		// so its facts read absent, not false.
+		if *f.records != "" {
+			if dir := recordsDir(*f.records); dirExists(dir) {
+				bindFlag("RDR_RECORDS", dir)
+			}
+		}
+		if *f.repo != "" {
+			bindFlag("RDR_SOURCE_REPO", *f.repo)
+		}
 		// Every stopped: line lands on BOTH streams. Sessions habitually
 		// 2>/dev/null a read they expect to succeed, and a stated absence
 		// that lives only on the suppressed stream reads as an empty

@@ -4,7 +4,9 @@
 # body into a shell — that is what made earlier runs drop labels. Writes nothing.
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "[FAIL] not in a git repo - run \$rdr-doctor in Codex or /rdr-doctor in Claude inside a workspace repo"; exit 0; }
 GIT_COMMON=$(cd "$GC" && pwd -P) || { echo "[FAIL] git dir unreadable"; exit 0; }
-PROJECT=$(dirname "$GIT_COMMON"); WS=$(dirname "$PROJECT"); export PROJECT WS
+PROJECT=$(dirname "$GIT_COMMON"); WS=$(dirname "$PROJECT")
+TOPLEVEL=$(git rev-parse --show-toplevel 2>/dev/null) || { echo "[FAIL] git toplevel unreadable"; exit 0; }
+export PROJECT WS TOPLEVEL
 echo "rdr-doctor - project: $PROJECT"
 nf=0; nw=0
 fail(){ echo "  [FAIL] $1"; nf=$((nf+1)); }

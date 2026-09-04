@@ -54,7 +54,7 @@ const (
 // so `eval` survives a path with a space and cannot execute what a marker
 // happened to contain.
 func envCmd(f *flags, stdout, stderr io.Writer) int {
-	marker, project, ws := findMarker()
+	marker, project, ws, _ := findMarker()
 	if project == "" {
 		fmt.Fprintln(stderr, "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)")
 		return 1

@@ -87,11 +87,13 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    first (split form — never `cd "$(git …)"`, an empty capture makes `cd` a silent
    no-op):
    `GC=$(git rev-parse --git-common-dir) || stop; GC=$(cd "$GC" && pwd -P);`
-   `PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT")`.
+   `PROJECT=$(dirname "$GC"); WS=$(dirname "$PROJECT");`
+   `TOPLEVEL=$(git rev-parse --show-toplevel) || stop`.
    **Pick the marker by scope (default repo-local):**
    - **repo-local (default)** → `$PROJECT/.rdr/workspace`. Inside the already
      gitignored `.rdr/`, so no project-level `.gitignore` edit; anchored at
-     `$PROJECT` so worktrees resolve it. Anchor the marker's paths on `$PROJECT`.
+     `$PROJECT` so worktrees resolve it. Anchor records, evidence and source
+     repo on `$TOPLEVEL`; the `.rdr/` seam files and the lookup stay on `$PROJECT`.
    - **workspace (`--workspace`)** → `$WS/.rdr-workspace`, shared above the repos,
      anchored on `$WS`. For **one project whose parts span sibling repos** (code,
      records, evidence), never for two unrelated projects: the marker's vars are

@@ -111,7 +111,7 @@ func usageLogPath() string {
 		if !usageMarkerFallback {
 			return ""
 		}
-		marker, _, _ := findMarker()
+		marker, _, _, _ := findMarker()
 		if marker == "" {
 			return ""
 		}
