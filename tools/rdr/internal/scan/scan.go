@@ -1105,14 +1105,16 @@ func (d *Document) contracts() {
 var clauseDef = regexp.MustCompile(`^(?:\*\*)?([A-Z]{1,3}-\d+[a-z]?)(?:\*\*|\s{2,}|\s\(|:)`)
 
 // clauseDefWide matches the alignment casualty the two-space arm creates:
-// once a label's digits reach two, a column-aligned list closes the gap to
-// a single space (`R-9  determinism:` but `R-10 cascade guard.`), and the
-// strict grammar reads R-10's lines as R-9's. Alone this would also match
-// prose that opens a line with a wide label, so clauses() accepts it only
-// inside a fence where a sibling with the same letter prefix already
-// defined at two or more spaces — the alignment the collapsed gap is
-// evidence of. No bold form: bold labels are not column-aligned.
-var clauseDefWide = regexp.MustCompile(`^([A-Z]{1,3}-\d{2,}[a-z]?) `)
+// once a label grows a column — a second digit (`R-9  determinism:` but
+// `R-10 cascade guard.`) or a sub-letter (`H-1  header` but `H-2a
+// disposition`) — a column-aligned list closes the gap to a single space,
+// and the strict grammar reads the wider label's lines as its
+// predecessor's. Alone this would also match prose that opens a line
+// with such a label, so clauses() accepts it only inside a fence where a
+// sibling with the same letter prefix already defined at two or more
+// spaces — the alignment the collapsed gap is evidence of. No bold form:
+// bold labels are not column-aligned.
+var clauseDefWide = regexp.MustCompile(`^([A-Z]{1,3}-(?:\d{2,}[a-z]?|\d[a-z])) `)
 
 // clauseAligned captures the letter prefix of a definition written in the
 // aligned style — clauseDef's two-or-more-space separator arm.

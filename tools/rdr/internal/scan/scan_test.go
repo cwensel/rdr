@@ -1218,3 +1218,64 @@ E-12 references E-1, but this fence's E style is the colon, not columns.
 		t.Errorf("Select(R-10) = %d-%d %v", s, e, ok)
 	}
 }
+
+// TestAlignedClauseListMintsSubLetteredLabels: the collapsed gap is not
+// only a second digit. A sub-lettered label (`H-2a`) is one column wider
+// than its aligned sibling (`H-1  `) and closes the gap the same way, so
+// it is a definition under the same evidence — a same-prefix sibling at
+// two spaces in the fence. Without that sibling a line opening `REQ-2a
+// requires …` stays the wrapped prose it is (cli/0105's shape), and the
+// sub-lettered clause is addressable from a sibling record's citation.
+func TestAlignedClauseListMintsSubLetteredLabels(t *testing.T) {
+	raw := []byte(`# Recommendation 0032: Carrier
+
+## Metadata
+
+- **Status**: Draft
+
+#### Normative Contracts
+
+**C1**
+
+` + "```normative" + `
+H-1  header not the fixed prefix → refused
+H-2a disposition=append ∧ zero records → warns and skips
+H-2b disposition ∈ {restate, replace} ∧ zero records → refused
+     at scan only
+H-3  body=none ∧ a fence is present → refused
+` + "```" + `
+
+**C2**
+
+` + "```normative" + `
+REQ-1: the carrier is one file.
+REQ-2a requires the skip carry reason, which REQ-1 leaves
+to the producer.
+` + "```" + `
+`)
+	doc := Bytes(raw, Options{})
+	want := map[string][2]int{
+		"0032:H-1":   {12, 12},
+		"0032:H-2a":  {13, 13},
+		"0032:H-2b":  {14, 15},
+		"0032:H-3":   {16, 16},
+		"0032:REQ-1": {22, 24}, // REQ-2a is prose inside REQ-1's span
+	}
+	for id, r := range want {
+		e := element(t, doc, id)
+		if e.Kind != ident.Clause || e.LineStart != r[0] || e.LineEnd != r[1] {
+			t.Errorf("%s spans %d-%d, want %d-%d", id, e.LineStart, e.LineEnd, r[0], r[1])
+		}
+	}
+	for _, e := range doc.Elements {
+		if e.Kind == ident.Clause && e.Key == "REQ-2a" {
+			t.Errorf("prose opening with a sub-lettered label was minted: %+v", e)
+		}
+	}
+	if n := doc.Counts.Elements[ident.Clause]; n != 5 {
+		t.Errorf("clause count = %d, want 5", n)
+	}
+	if len(doc.Warnings) != 0 {
+		t.Errorf("warnings = %+v, want none", doc.Warnings)
+	}
+}
