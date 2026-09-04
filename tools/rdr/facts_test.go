@@ -2185,6 +2185,59 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	t.Run("open decisions, emphasis-insensitive key spellings", func(t *testing.T) {
+		cases := []struct {
+			name string
+			open string // the open-line spelling
+			done string // the same entry, rewritten to RESOLVED
+		}{
+			{"plain", "Status: needs author decision", "Status: needs author decision → RESOLVED (kept)."},
+			{"bold key only", "**Status**: needs author decision", "**Status**: needs author decision → RESOLVED (kept)."},
+			{"bold key and colon", "**Status:** needs author decision", "**Status:** needs author decision → RESOLVED (kept)."},
+			{"backtick key", "`Status`: needs author decision", "`Status`: needs author decision → RESOLVED (kept)."},
+		}
+		for _, c := range cases {
+			t.Run(c.name, func(t *testing.T) {
+				open := implArtifactEnv(t, tbl, map[string]string{"deviations.md": c.open + "\n"})
+				if got, _ := factValue(tbl.Evaluate(open), "impl_open_decisions"); got != "1+" {
+					t.Errorf("open: impl_open_decisions = %q, want 1+ for line %q", got, c.open)
+				}
+				done := implArtifactEnv(t, tbl, map[string]string{"deviations.md": c.done + "\n"})
+				if got, _ := factValue(tbl.Evaluate(done), "impl_open_decisions"); got != "0" {
+					t.Errorf("resolved: impl_open_decisions = %q, want 0 for line %q", got, c.done)
+				}
+			})
+		}
+	})
+
+	t.Run("open decisions, mid-line Status key", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "- **Type**: SPEC-DEFECT. **Status**: needs author decision.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_open_decisions"); got != "midline" {
+			t.Errorf("impl_open_decisions = %q, want midline — the Status key sits after the Type field, uncountable", got)
+		}
+	})
+
+	t.Run("open decisions, whole line bold wraps both fields", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "**Type: X. Status: needs author decision**\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_open_decisions"); got != "midline" {
+			t.Errorf("impl_open_decisions = %q, want midline — Status sits after Type even though the whole line is bold", got)
+		}
+	})
+
+	t.Run("open decisions, midline beats a plain open line", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "Status: needs author decision\n" +
+				"**Type**: SPEC-DEFECT. **Status**: needs author decision.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_open_decisions"); got != "midline" {
+			t.Errorf("impl_open_decisions = %q, want midline — a mid-line entry makes the whole count untrustworthy", got)
+		}
+	})
+
 	t.Run("mvv recorded", func(t *testing.T) {
 		e := implArtifactEnv(t, tbl, map[string]string{"coverage.md": "## REQ-MVV runner\n\nHow to run it.\n"})
 		if got, _ := factValue(tbl.Evaluate(e), "impl_mvv_recorded"); got != "false" {

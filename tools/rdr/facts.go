@@ -1316,7 +1316,7 @@ func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
 var implArtifactMembers = map[string][]string{
 	"req-count":      {"0-10", "11+"},
 	"orphans":        {"0", "1+"},
-	"open-decisions": {"0", "1+"},
+	"open-decisions": {"0", "1+", "midline"},
 }
 
 // implArtifact answers the Stage-8 launch-gate signals, read from the
@@ -1387,9 +1387,14 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 		if !ok {
 			return Fact{}, false
 		}
-		n := openDecisions(raw, d.Label)
+		n, midline := openDecisions(raw, d.Label)
 		v := "0"
-		if n > 0 {
+		switch {
+		case midline:
+			// Precedence over a count: a mid-line Status key means the
+			// count below cannot be trusted, whatever it says.
+			v = "midline"
+		case n > 0:
 			v = "1+"
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
@@ -1530,26 +1535,72 @@ func coverageRows(raw []byte) (ids map[string]bool, emptyCell map[string]bool) {
 // cut there would read the closed line as still open.
 var decisionCut = []string{"(", ".", ";", "—"}
 
-// openDecisions counts deviations.md's `Status:` lines whose leading
-// phrase still reads the open label, case-insensitively.
+// emphasisMarks are the markdown emphasis/code delimiters a field's key
+// or value may be wrapped in — bold, italic, double- and single-score,
+// and backtick — in the order fieldValue tries stripping a closing one.
+var emphasisMarks = []string{"**", "__", "*", "_", "`"}
+
+// fieldValue reads a `key: value` field from a line already reduced by
+// stripLead, treating the key as emphasis-insensitive: a bare key, one
+// wrapped in matching bold, italic, double- or single-score, or
+// backticks — `Status:`, `**Status**:`, `**Status:**`, and so on — are
+// all the same key. The corpus wraps a labelled field in whichever of
+// these an author's editor produced; the field's identity is the word,
+// not the markup around it.
 //
-// The value is trimmed of bold and space before the cut because the
-// legacy corpus wraps the label three ways (`**Status:** x`, `**Status:
-// x**`, `- **Status: x (…)**`) and stripLead only removes a LEADING
-// `**`. A line carrying `→` anywhere is a rewritten line — the launch
-// prompt closes an entry only by rewriting it to `… → RESOLVED (…)` —
-// so it is closed whatever sits before the arrow. Otherwise the phrase
-// is open when it IS the label or starts with the label and a space:
-// `needs author decision on ordering (…)` is a qualified open line,
-// not a closed one.
-func openDecisions(raw []byte, label string) int {
-	n := 0
+// ok is false when bare does not open with the key at all — the caller
+// decides what a mid-line key (one that sits after other text) means,
+// because that is a different, uncountable case, not a fieldValue one.
+func fieldValue(bare, key string) (string, bool) {
+	if len(bare) < len(key) || !strings.EqualFold(bare[:len(key)], key) {
+		return "", false
+	}
+	rest := bare[len(key):]
+	for _, mark := range emphasisMarks {
+		if strings.HasPrefix(rest, mark) {
+			rest = rest[len(mark):]
+			break
+		}
+	}
+	if !strings.HasPrefix(rest, ":") {
+		return "", false
+	}
+	return strings.Trim(rest[1:], "* `"), true
+}
+
+// midlineStatus matches a `Status:` key (any of the emphasis wrappings
+// fieldValue accepts) that sits after a CLOSED prior field on the same
+// line — preceded by a sentence-ending mark (`.`, `;`, `,`, `)`, itself
+// optionally followed by whitespace) — so a shared line like `**Type**:
+// SPEC-DEFECT. **Status**: needs author decision.` is recognized even
+// though the line does not OPEN with the key. Bare whitespace alone is
+// deliberately not a boundary: `Original status:` is a different field
+// (a history note) whose name merely ends in the same word, one space
+// away, not a Status key sitting after other content.
+var midlineStatus = regexp.MustCompile(`(?i)([.;,)]\s*|^)(\*\*|\*|__|_|` + "`" + `)?status(\*\*|\*|__|_|` + "`" + `)?\s*:`)
+
+// openDecisions counts deviations.md's `Status:` lines whose leading
+// phrase still reads the open label, case-insensitively, and reports
+// whether any line carries a Status key mid-line — after other text,
+// where the reader cannot trust a count.
+//
+// A line carrying `→` anywhere is a rewritten line — the launch prompt
+// closes an entry only by rewriting it to `… → RESOLVED (…)` — so it is
+// closed whatever sits before the arrow. Otherwise the phrase is open
+// when it IS the label or starts with the label and a space: `needs
+// author decision on ordering (…)` is a qualified open line, not a
+// closed one.
+func openDecisions(raw []byte, label string) (n int, midline bool) {
+	want := strings.ToLower(label)
 	for _, ln := range strings.Split(string(raw), "\n") {
 		bare := stripLead(ln)
-		if !strings.HasPrefix(strings.ToLower(bare), "status:") {
+		val, ok := fieldValue(bare, "status")
+		if !ok {
+			if midlineStatus.MatchString(bare) {
+				midline = true
+			}
 			continue
 		}
-		val := strings.Trim(bare[len("status:"):], "* ")
 		if strings.Contains(val, "→") {
 			continue
 		}
@@ -1560,12 +1611,11 @@ func openDecisions(raw []byte, label string) int {
 			}
 		}
 		phrase := strings.ToLower(strings.TrimSpace(val[:cut]))
-		want := strings.ToLower(label)
 		if phrase == want || strings.HasPrefix(phrase, want+" ") {
 			n++
 		}
 	}
-	return n
+	return n, midline
 }
 
 // labelledLine reports whether any line's stripped lead starts with

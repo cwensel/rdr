@@ -1059,9 +1059,9 @@ select      = "open-decisions"
 root        = "artifacts"
 paths       = ["deviations.md"]
 label       = "needs author decision"
-domain      = ["0", "1+", "none"]
+domain      = ["0", "1+", "midline", "none"]
 absent      = "none"
-description = "Status: lines in deviations.md still reading needs author decision, bold or qualified; a line rewritten with → is closed."
+description = "Status: lines in deviations.md still reading needs author decision, bold or qualified; a line rewritten with → is closed; midline when a Status key sits mid-line (the **Type**: … **Status**: … entry form), where the count cannot be trusted."
 
 [fact.impl_mvv_recorded]
 kind        = "bool"
