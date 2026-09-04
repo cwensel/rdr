@@ -303,6 +303,7 @@ Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lis
 Apply the same escalation rule as Phase 2 if needed.
 
 COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
+  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome complete --plan-only \
     $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded <slug>) \
     --tag suite_green=<true|false>    # the last packet's verdict: PASS → true
