@@ -215,7 +215,11 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
-		if err := fs.Parse(args[1:]); err != nil {
+		// The flag package stops parsing at the first positional, so a flag
+		// typed after the target (`rdr status 0020 --tags`) is the natural
+		// argv shape, not a mistake — hoist it ahead of the positionals so
+		// Parse sees it and it is accepted, rather than refused.
+		if err := fs.Parse(hoistFlags(fs, args[1:])); err != nil {
 			return 2
 		}
 		// Every stopped: line lands on BOTH streams. Sessions habitually
@@ -293,14 +297,6 @@ func (m stopMirror) Write(p []byte) (int, error) {
 // so that every exit path passes through one place that can be measured
 // — a facet that returned directly from the switch would escape the log.
 func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) int {
-	// The flag package stops parsing at the first positional, so a flag
-	// typed after the target arrives here as an argument, and each
-	// subcommand refused it with its own arity line — true, but hiding
-	// the real mistake. Say the rule and echo the corrected call.
-	if msg := misplacedFlags(cmd, fs); msg != "" {
-		fmt.Fprintln(stderr, msg)
-		return 2
-	}
 	switch cmd {
 	case "inspect":
 		return inspect(fs.Args(), f, stdout, stderr)
@@ -360,34 +356,37 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 	return 2
 }
 
-// misplacedFlags reports a positional that is really a flag typed after
-// the target (`rdr lint 0112 --json`), with the corrected call spelled
-// out. A flag that takes a value keeps its neighbour, so the echo is
-// pasteable as written.
-func misplacedFlags(cmd string, fs *flag.FlagSet) string {
-	args := fs.Args()
-	var moved, targets []string
+// hoistFlags reorders argv so every flag token precedes every positional,
+// which is what fs.Parse requires to see a flag typed after the target
+// (`rdr status 0020 --tags`) rather than stopping at the target and
+// leaving the flag as a stray positional. A flag that takes a value keeps
+// its neighbour (`--select A9`, `--grep -seed-label`); an undefined flag
+// moves alone, so Parse still refuses it with its own "flag provided but
+// not defined" message, exactly as when it is typed first. A literal `--`
+// ends the scan: it and everything after it stay in place as positionals.
+func hoistFlags(fs *flag.FlagSet, args []string) []string {
+	var flags, positionals []string
 	for i := 0; i < len(args); i++ {
 		a := args[i]
-		if !strings.HasPrefix(a, "-") || a == "-" || a == "--" {
-			targets = append(targets, a)
+		if a == "--" {
+			positionals = append(positionals, args[i:]...)
+			break
+		}
+		if !strings.HasPrefix(a, "-") || a == "-" {
+			positionals = append(positionals, a)
 			continue
 		}
-		moved = append(moved, a)
+		flags = append(flags, a)
 		name := strings.TrimLeft(a, "-")
 		if strings.Contains(name, "=") {
 			continue
 		}
 		if fl := fs.Lookup(name); fl != nil && !isBoolFlag(fl) && i+1 < len(args) {
 			i++
-			moved = append(moved, args[i])
+			flags = append(flags, args[i])
 		}
 	}
-	if len(moved) == 0 {
-		return ""
-	}
-	call := append([]string{"rdr", cmd}, append(moved, targets...)...)
-	return "stopped:usage (flags go before the target: " + strings.Join(call, " ") + ")"
+	return append(flags, positionals...)
 }
 
 // isBoolFlag asks the flag package's own question: a boolean flag never

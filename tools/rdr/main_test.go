@@ -2543,29 +2543,62 @@ func TestStopsLandOnStdoutToo(t *testing.T) {
 	}
 }
 
-// TestTrailingFlagsNameTheRealMistake: `rdr lint 0112 --json` used to
-// stop with the subcommand's arity line — true, but hiding that the flag
-// was merely typed after the target. When a rejected positional starts
-// with `-`, the stop says the rule and echoes the corrected call,
-// value-taking flags keeping their operand.
-func TestTrailingFlagsNameTheRealMistake(t *testing.T) {
+// TestTrailingFlagsRunAsIfTypedFirst: a flag typed after the target
+// (`rdr lint 0112 --json`) used to stop with a misleading "flags go
+// before the target" refusal, because the flag package stops parsing at
+// the first positional and never sees it. hoistFlags reorders argv ahead
+// of Parse, so the trailing form must behave exactly like the leading
+// form: same exit code, same stdout, same stderr.
+func TestTrailingFlagsRunAsIfTypedFirst(t *testing.T) {
 	for _, c := range []struct {
-		args []string
-		want string
+		leading, trailing []string
 	}{
-		{[]string{"lint", "0112", "--json"}, "rdr lint --json 0112"},
-		{[]string{"inspect", "0112", "--records", "docs"}, "rdr inspect --records docs 0112"},
-		{[]string{"status", "0112", "--tags"}, "rdr status --tags 0112"},
-		{[]string{"paths", "0112", "--next-iter"}, "rdr paths --next-iter 0112"},
+		{[]string{"lint", "--json", "0112"}, []string{"lint", "0112", "--json"}},
+		{[]string{"inspect", "--records", "docs", "0112"}, []string{"inspect", "0112", "--records", "docs"}},
+		{[]string{"status", "--tags", "0112"}, []string{"status", "0112", "--tags"}},
+		{[]string{"paths", "--next-iter", "0112"}, []string{"paths", "0112", "--next-iter"}},
 	} {
-		code, out, errb := runCapture(t, c.args...)
-		want := "stopped:usage (flags go before the target: " + c.want + ")"
-		if code != 2 || !strings.Contains(errb, want) {
-			t.Errorf("%v: exit %d, stderr %q\nwant %q", c.args, code, errb, want)
+		wantCode, wantOut, wantErr := runCapture(t, c.leading...)
+		code, out, errb := runCapture(t, c.trailing...)
+		if code != wantCode || out != wantOut || errb != wantErr {
+			t.Errorf("%v vs %v:\n leading: exit %d, stdout %q, stderr %q\ntrailing: exit %d, stdout %q, stderr %q",
+				c.leading, c.trailing, wantCode, wantOut, wantErr, code, out, errb)
 		}
-		if !strings.Contains(out, want) {
-			t.Errorf("%v: stdout %q does not carry the stop", c.args, out)
-		}
+	}
+}
+
+// TestUndefinedTrailingFlagStillRefuses: an undefined flag typed after the
+// target hoists alongside the defined ones, but fs.Lookup finds nothing
+// for it, so it carries no operand and Parse refuses it with the flag
+// package's own message — the same as if it had been typed first.
+func TestUndefinedTrailingFlagStillRefuses(t *testing.T) {
+	code, _, errb := runCapture(t, "inspect", fixturePath("current-shape.md"), "--ids")
+	if code != 2 || !strings.Contains(errb, "flag provided but not defined: -ids") {
+		t.Errorf("exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestTrailingValueFlagWithDashOperand: a value-taking flag's operand can
+// itself start with `-` (a seed label, a select id); hoistFlags must keep
+// it paired with its flag rather than treating it as a second flag token.
+func TestTrailingValueFlagWithDashOperand(t *testing.T) {
+	wantCode, wantOut, wantErr := runCapture(t, "inspect", "--grep", "-seed-label", fixturePath("current-shape.md"))
+	code, out, errb := runCapture(t, "inspect", fixturePath("current-shape.md"), "--grep", "-seed-label")
+	if code != wantCode || out != wantOut || errb != wantErr {
+		t.Errorf("trailing --grep -seed-label diverged:\n want: exit %d, stdout %q, stderr %q\n got:  exit %d, stdout %q, stderr %q",
+			wantCode, wantOut, wantErr, code, out, errb)
+	}
+}
+
+// TestDoubleDashKeepsFollowingTokenPositional: a literal `--` stops the
+// hoist scan; it and everything after it stay in place as positionals, so
+// a target that happens to start with `-` is not mistaken for a flag.
+func TestDoubleDashKeepsFollowingTokenPositional(t *testing.T) {
+	wantCode, wantOut, wantErr := runCapture(t, "inspect", fixturePath("current-shape.md"))
+	code, out, errb := runCapture(t, "inspect", "--", fixturePath("current-shape.md"))
+	if code != wantCode || out != wantOut || errb != wantErr {
+		t.Errorf("`--` form diverged:\n want: exit %d, stdout %q, stderr %q\n got:  exit %d, stdout %q, stderr %q",
+			wantCode, wantOut, wantErr, code, out, errb)
 	}
 }
 
