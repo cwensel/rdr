@@ -87,8 +87,8 @@ contract-level deviation (spec defect, deferred-scope decision,
 accept-or-fix call). Never ask for permission to proceed between
 phases, never ask whether to run the next phase, never ask about
 mechanical translations the sub-agent can record and continue past.
-If a precondition fails (predecessor not COMPLETE, on-disk artifacts
-inconsistent, red-before-green gate fails), write
+If a precondition fails (predecessor not COMPLETE, baseline red, on-disk
+artifacts inconsistent, red-before-green gate fails), write
 `<art>/status.md` as INCOMPLETE with the named blocker and halt —
 that is a halt, not a question.
 
@@ -99,16 +99,20 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   or contradicts the artifacts. If artifacts are inconsistent (e.g.,
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
   inconsistency: <detail>") and halt.
-- Predecessors: one call, the answer applied as a value (the `precheck` group
-  of `$RDR_HOME/models/rdr-launch.toml`; `intrastate lint` proves every cell):
+- Predecessors + baseline: one call, the answer applied as a value (the
+  `precheck` group of `$RDR_HOME/models/rdr-launch.toml`; `intrastate lint`
+  proves every cell):
   IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
   "$RDR_HOME/bin/rdr" status --tags <slug> >/dev/null || exit 2   # rdr-common §intrastate: never substitute a refused read
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome precheck --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>)
-  `emit.next` = `proceed` → continue; a `stopped:*` halts as INCOMPLETE with
-  `emit.why`, naming `predecessors_incomplete` (`"$RDR_HOME/bin/rdr" status
-  --json --filter predecessors_incomplete <slug>` — an unresolvable record and
-  an absent capsule are members; nothing looked is not COMPLETE). Record the
+    $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>) \
+    --tag baseline=<green|red|none>   # fresh run: none; resume: the capsule's `baseline:` line
+  `emit.next` = `run-baseline` → run the full suite once (the capsule's
+  `validate:` command) and re-ask with `baseline=green|red` from its exit;
+  `proceed` → continue; a `stopped:*` halts as INCOMPLETE with `emit.why`,
+  naming `predecessors_incomplete` (`"$RDR_HOME/bin/rdr" status --json
+  --filter predecessors_incomplete <slug>` — an unresolvable record and an
+  absent capsule are members; nothing looked is not COMPLETE). Record the
   predecessors' artifact paths to pass to Phase 0 and Phase 1.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
@@ -201,7 +205,8 @@ advance to Phase 2.
 PHASE 2 — Implementation [DELEGATE to sub-agent: "Phase 2 implementer"]
 Brief the sub-agent with:
   - `<art>/req-list.md`, `<art>/coverage.md`, the test file paths
-    from Phase 1, the source tree root, and the test framework.
+    from Phase 1, the predecessors' test files (executable ground truth,
+    §Predecessor Convention), the source tree root, and the test framework.
   - The RDR path (sub-agent reads as needed for context, not as
     primary input).
   - `{RDR_RESOURCES}` — the evidence index to ground any apparent
@@ -209,10 +214,15 @@ Brief the sub-agent with:
     before escalating.
   - Authority to write `<art>/deviations.md` (always, even empty) and
     update it for any classified deviation it encounters.
-Sub-agent's task: write the minimum code to turn the tests green. No
-features, validation, error handling, or abstractions no REQ-N
-demands. Owns its own write/test/iterate loop until either all tests
-are green OR a deviation blocks progress. When a gap appears that the
+Sub-agent's task: write the minimum code to turn the Phase 1 tests
+green with the FULL suite green. No features, validation, error
+handling, or abstractions no REQ-N demands. Owns its own
+write/test/iterate loop until either the full suite is green OR a
+deviation blocks progress. The baseline was green, so a predecessor
+test now red is this change's regression: fix it, or — if a REQ-N
+forbids — record SPEC-DEFECT / DEPENDENCY-LIMIT citing the predecessor
+REQ for author decision. Never TEST-FIXTURE, never "pre-existing".
+When a gap appears that the
 sub-agent can resolve mechanically (rename, path difference, type
 shape mismatch, append-only enum extension), it records a classified
 entry in `deviations.md` with "Status: mechanical translation" and
@@ -253,9 +263,9 @@ green, it runs REQ-MVV end-to-end and records the actual output in
 `<art>/coverage.md` under a heading spelled exactly `## REQ-MVV output`
 (a runner/command line, if kept, sits under a separate
 `## REQ-MVV runner`).
-Sub-agent returns a §return-packet; verdict=NEEDS_DECISION if any
-needs-author-decision deviation, summary_50w gives green,
-evidence_paths cite each open deviation.
+Sub-agent returns a §return-packet; verdict=PASS only with the full
+suite green, NEEDS_DECISION if any needs-author-decision deviation,
+summary_50w gives green, evidence_paths cite each open deviation.
 If needs-author-decision deviations are non-empty, the orchestrator
 asks the user one consolidated question listing each gap with the
 sub-agent's recommendation, records each resolution by REWRITING that
@@ -306,7 +316,7 @@ COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
   IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome complete --plan-only \
     $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded <slug>) \
-    --tag suite_green=<true|false>    # the last packet's verdict: PASS → true
+    --tag suite_green=<true|false>    # the last packet's verdict: PASS → true (full suite, predecessors included)
 The `complete` group proves every cell — green tests, no orphans either way,
 REQ-MVV output recorded, no open needs-author-decision line — and an unread
 ledger file is a named stop, never a pass. Write `<art>/status.md` state from
@@ -326,6 +336,7 @@ last: <last completed phase action, ≤1 line>
 blocker: <named blocker | none>
 changed: <comma-sep paths touched this run | none yet>
 validate: <exact test/suite command>
+baseline: <green | red> @<commit>       # PRECHECKS' full-suite run, before Phase 1
 next: <exact next phase or $rdr-status NNNN re-entry command>
 session: <ISO8601 ts | session id>
 artifacts: req-list.md coverage.md verification.md deviations.md
@@ -368,9 +379,10 @@ earlier RDR, list the load-bearing predecessors in the RDR's Metadata:
 
 The launch prompt's PRECHECKS step gates on each predecessor's
 `status.md` being `COMPLETE` (hard stop otherwise) and surfaces their
-`req-list.md` + `deviations.md` to the Phase 1 sub-agent. Predecessor
-test files in the source tree are the executable ground truth — read
-like any other code, not as a launch artifact. Predecessor
+`req-list.md` + `deviations.md` to the Phase 1 sub-agent, and their
+test files to Phase 2. Predecessor test files in the source tree are
+the executable ground truth — read like any other code, not as a
+launch artifact. Predecessor
 `verification.md` and `coverage.md` do not feed forward; they were
 closed during that RDR's launch.
 

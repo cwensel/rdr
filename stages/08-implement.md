@@ -37,6 +37,9 @@ they consume — state it once, here:
   `stopped:predecessor-incomplete:<predecessors_incomplete>` otherwise). This is
   the same gate the TEMPLATE's Predecessors field names; launch.md's PRECHECKS
   resolve it and halt otherwise.
+- **Baseline green** — the full suite green before Phase 1 writes a test
+  (`stopped:baseline-red`); a red predecessor test in Phase 2 is then a
+  regression, never "pre-existing".
 
 If any of these is not true, the RDR is not ready to implement — an unlocked
 record goes where `/rdr-status` routes it, and an unreconciled assumption is a
@@ -71,8 +74,8 @@ from artifact headers, not a re-read.
   and `deviations.md` has no open needs-author-decision entries. This is the
   terminus — proceed to Close (workflow step 7): write the post-mortem.
 - **`status.md` == INCOMPLETE?** It names the blocker. A precondition failure
-  (predecessor not COMPLETE, artifacts inconsistent, Phase 1 red-before-green
-  gate failed) is a halt, not a question — fix the named condition and
+  (predecessor not COMPLETE, baseline red, artifacts inconsistent, Phase 1
+  red-before-green gate failed) is a halt, not a question — fix the named condition and
   re-enter the stage; the resume logic picks up at the next phase.
 - **A contract-level deviation** (`SPEC-DEFECT`, or a `SPEC-UNDER` no reading
   resolves) means the locked RDR is wrong. **Do not edit the RDR.** Abandon

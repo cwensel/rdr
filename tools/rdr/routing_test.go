@@ -53,8 +53,9 @@ var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
 	// The launch orchestrator's own observations this run: source files
 	// touched, a suite run over the output cap, context pressure, and the
-	// last packet's verdict. Its six other tags are facts and stay policed.
-	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true},
+	// last packet's verdict, and the pre-Phase-1 suite baseline. Its six
+	// other tags are facts and stay policed.
+	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true},
 	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true},
 	// The loop caps: every tag is a value the caller holds from a tool
 	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
@@ -1042,17 +1043,20 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		t.Errorf("completion gate on 0021 (no ledger): rule %q next %q, want complete-coverage-unread", rule, next)
 	}
 
-	// The precheck: status x predecessors_state, every row reachable from
-	// a fixture. 0020 is Draft; 0032 names a record the dir lacks; 0031
-	// names one with no capsule; 0030 names none and proceeds.
-	for _, c := range []struct{ rec, rule, next string }{
-		{"0020", "precheck-not-final", "stopped:not-final"},
-		{"0032", "precheck-unresolved", "stopped:predecessor-unresolved"},
-		{"0031", "precheck-incomplete", "stopped:predecessor-incomplete"},
-		{"0030", "precheck-ok", "proceed"},
+	// The precheck: status x predecessors_state x baseline, every row
+	// reachable from a fixture. 0020 is Draft; 0032 names a record the dir
+	// lacks; 0031 names one with no capsule; 0030 names none, so the
+	// baseline decides: unrun re-asks, red stops, green proceeds.
+	for _, c := range []struct{ rec, baseline, rule, next string }{
+		{"0020", "none", "precheck-not-final", "stopped:not-final"},
+		{"0032", "none", "precheck-unresolved", "stopped:predecessor-unresolved"},
+		{"0031", "none", "precheck-incomplete", "stopped:predecessor-incomplete"},
+		{"0030", "none", "precheck-baseline-unrun", "run-baseline"},
+		{"0030", "red", "precheck-baseline-red", "stopped:baseline-red"},
+		{"0030", "green", "precheck-ok", "proceed"},
 	} {
 		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state")
-		if rule, next := resolve("precheck", argv); rule != c.rule || next != c.next {
+		if rule, next := resolve("precheck", argv, "baseline", c.baseline); rule != c.rule || next != c.next {
 			t.Errorf("precheck on %s: rule %q next %q, want %s/%s", c.rec, rule, next, c.rule, c.next)
 		}
 	}

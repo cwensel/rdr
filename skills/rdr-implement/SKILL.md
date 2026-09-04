@@ -57,6 +57,8 @@ Refuse with the named code if any is false (the RDR is not ready — return to
 - **MVV in scope** — Phase 1 turns it into `REQ-MVV` (`stopped:mvv-deferred`).
 - **Predecessors COMPLETE** — `predecessors_state=complete`
   (`stopped:predecessor-incomplete:<predecessors_incomplete>`).
+- **Baseline green** — the full suite green before Phase 1 writes a test
+  (`stopped:baseline-red`).
 
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**

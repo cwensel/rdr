@@ -18,7 +18,8 @@
 # never estimated — and passes as `--tag k=v`: `files` (source files in
 # the packets' changed_paths so far), `suite` (whether any suite run has
 # exceeded the output cap), `pressure` (context nearing the orchestrator
-# limit), `suite_green` (the last packet's verdict). At PRECHECKS nothing
+# limit), `suite_green` (the last packet's verdict), `baseline` (the full
+# suite before Phase 1 writes a test). At PRECHECKS nothing
 # has happened, so the three size tags are their floor values and
 # `req_count` is `none`: the row for that cell is what makes the inline
 # path honest rather than a guess. `tools/rdr/routing_test.go` names
@@ -64,8 +65,8 @@ kind = "enum"
 [emit.next.domain]
 route = ["inline", "delegated"]
 done  = ["COMPLETE"]
-go    = ["proceed"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete"]
+go    = ["proceed", "run-baseline"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:baseline-red"]
 
 [emit.why]
 kind = "scalar"
@@ -154,10 +155,21 @@ single_valued = true
 required      = true
 
 # The last §return-packet's verdict — Phase 2's, or Phase 3c's when it ran:
-# PASS is `true`, anything else `false`.
+# PASS is `true`, anything else `false`. PASS means the FULL suite,
+# predecessors included: the baseline was green, so a red predecessor test
+# is this change's regression, never "pre-existing".
 [tags.suite_green]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# The full suite before any Phase 1 test exists: `none` until run (the
+# precheck answers `run-baseline`); on resume, the capsule's `baseline:` line.
+[tags.baseline]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["green", "red", "none"]
 single_valued = true
 required      = true
 
@@ -454,11 +466,14 @@ why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output reco
 # precheck — the record may be implemented
 # ===========================================================================
 #
-# status x predecessors_state = 36 cells. Not Final stops first; then the
-# predecessor gate in the prompt's own order: a predecessor that did not
-# resolve, then one whose capsule is absent or not COMPLETE. `none` (no
-# Predecessors field) proceeds with `complete`. The set behind the word is
-# `predecessors_incomplete`, which the halt line names.
+# status x predecessors_state x baseline = 108 cells. Not Final stops first;
+# then the predecessor gate in the prompt's own order: a predecessor that did
+# not resolve, then one whose capsule is absent or not COMPLETE. `none` (no
+# Predecessors field) counts as complete. The set behind the word is
+# `predecessors_incomplete`, which the halt line names. Last, the baseline —
+# the cheap reads having passed, the suite runs once: `none` re-asks with
+# the result (`run-baseline`), `red` is a named stop (a regression cannot be
+# told from a pre-existing failure), `green` proceeds.
 
 [[rule]]
 id = "precheck-not-final"
@@ -495,6 +510,34 @@ next = "stopped:predecessor-incomplete"
 why  = "A predecessor's capsule is absent or not COMPLETE; predecessors_incomplete names them — implement those first."
 
 [[rule]]
+id = "precheck-baseline-unrun"
+[rule.match.recognized]
+eq = "precheck"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.predecessors_state]
+in = ["complete", "none"]
+[rule.guard.all.baseline]
+eq = "none"
+[rule.emit]
+next = "run-baseline"
+why  = "Final and predecessors COMPLETE: run the full suite once before any test is written, then re-ask with baseline=green|red."
+
+[[rule]]
+id = "precheck-baseline-red"
+[rule.match.recognized]
+eq = "precheck"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.predecessors_state]
+in = ["complete", "none"]
+[rule.guard.all.baseline]
+eq = "red"
+[rule.emit]
+next = "stopped:baseline-red"
+why  = "The suite is red before this RDR writes a test: a regression could not be told from a pre-existing failure. Make the tree green, then re-run."
+
+[[rule]]
 id = "precheck-ok"
 [rule.match.recognized]
 eq = "precheck"
@@ -502,6 +545,8 @@ eq = "precheck"
 eq = "Final"
 [rule.guard.all.predecessors_state]
 in = ["complete", "none"]
+[rule.guard.all.baseline]
+eq = "green"
 [rule.emit]
 next = "proceed"
-why  = "Final, and every predecessor COMPLETE (or none declared): the launch may run."
+why  = "Final, every predecessor COMPLETE (or none declared), and the baseline green: the launch may run."
