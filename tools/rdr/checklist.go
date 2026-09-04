@@ -245,6 +245,9 @@ func checklistCell(stage string, v *factView) (string, string) {
 		if v.is("gate_stale") {
 			return glyphJudged, "gate.md stale — predates the re-entry, owed again"
 		}
+		if v.value1("rulings_open") == "1+" {
+			return glyphJudged, "rulings open — absorb evidence/rulings.md before the lock"
+		}
 		return glyphDone, "gate.md"
 
 	case "7.1 Cluster":
@@ -303,6 +306,9 @@ func prelockCell(v *factView) (string, string) {
 		}
 		ran++
 		switch {
+		case v.value1("lens_stale") == l.name:
+			owing++
+			parts = append(parts, glyphJudged+" "+l.name+" (stale — predates the re-entry, owed again)")
 		case l.name == "critique" && v.is("lens_critique_single") && !v.is("lens_critique_diff") &&
 			v.value1("profile") == "foundational":
 			owing++
@@ -331,8 +337,11 @@ func prelockCell(v *factView) (string, string) {
 			parts = append(parts, "Determinacy: unjudged")
 		}
 	}
-	if v.is("iter_2") {
-		parts = append(parts, "iter-2")
+	if n := v.value1("iter_depth"); n != "" && n != "0" && n != "1" {
+		parts = append(parts, "iter-"+n)
+	}
+	if n := v.value1("lens_findings_open"); n != "" && n != "0" {
+		parts = append(parts, "open findings: "+n)
 	}
 	// The pre-migration file shape holds real lens output the folder
 	// probes cannot see; naming it keeps `–` from reading as un-run.

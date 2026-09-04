@@ -55,10 +55,12 @@ NOT READY, class `determinacy`, with `emit.surface` quoted.
 
 Joint-decision fence: before the lock, re-run propose's arms 1 and 2 as one
 rdr-common §rdr-write call,
-`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited NNNN)`;
+`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited,rulings_open NNNN)`;
 it must emit `op = none`. `stopped:overlap-uncited` is NOT READY (a shared
 decision nobody fired on — fire it, do not sync the copies), and
-`stopped:overlap-unchecked` means nothing looked. The lock itself refuses
+`stopped:overlap-unchecked` means nothing looked. `stopped:rulings-open` is NOT
+READY too: a `rulings.md` line (rdr-common §run-prompt) no stage marked
+absorbed — apply it at the stage it names, mark it, re-run. The lock itself refuses
 `joint_check_home` = `open` (`stopped:joint-decision-open`) — a fire must be
 homed before Final; homing is a JDR/owner-clause edit, never a wording tweak
 to a peer's Final. `unhomed` locks: the home names something the tool cannot

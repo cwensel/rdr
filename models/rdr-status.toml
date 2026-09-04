@@ -79,7 +79,7 @@
 # missing, exactly as §stop-packet requires — a skipped check must never
 # read as a passed one.
 
-outcomes = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy"]
+outcomes = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy", "after-lock"]
 
 [model]
 id          = "rdr-status"
@@ -107,10 +107,17 @@ facts  = "models/rdr-facts.toml"
 [emit.next]
 kind = "enum"
 [emit.next.domain]
-route = ["/rdr-cluster-reconcile", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability 1", "/rdr-prelock repeatability 2", "/rdr-prelock repeatability 3", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
+route = ["/rdr-cluster-reconcile", "/rdr-draft-to-lock", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability 1", "/rdr-prelock repeatability 2", "/rdr-prelock repeatability 3", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
 chain = ["resolve:lens", "resolve:reentry", "resolve:determinacy"]
 none  = ["none"]
 stop  = ["stopped:assumption-list-unreadable", "stopped:check-the-joint-decision-home", "stopped:deferred-without-condition", "stopped:determinacy-trigger-unjudged", "stopped:no-profile", "stopped:profile-below-floor", "stopped:repeatability-variant-unstamped", "stopped:seam-lineage-count-unread"]
+
+# The outcome to run once the stage `next` names has re-run. On a
+# re-entered Draft the lens row's stale rows say what Stage 5 still owes,
+# and without this chain the documented call path never reached them.
+[emit.then]
+kind   = "enum"
+domain = ["resolve:lens"]
 
 # The `lens` group's second answer: the row STILL OWED, headed by
 # `emit.next`, in order — or `none` when the row is complete (or empty at
@@ -131,7 +138,7 @@ kind = "scalar"
 
 [emit.next_arg]
 kind   = "enum"
-domain = ["cluster"]
+domain = ["cluster", "sibling"]
 
 # The `floor` group's answer: `raise` (Profile sits one tier above its
 # contract axis) or `none`.
@@ -148,7 +155,7 @@ domain = ["raise", "none"]
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy"]
+domain        = ["locate", "reentry", "lens", "critique", "repeatability", "floor", "determinacy", "after-lock"]
 single_valued = true
 required      = true
 
@@ -221,6 +228,25 @@ required      = true
 [tags.clustered]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# The `after-lock` group's two dimensions, both ON DEMAND — the caller
+# filters both by name. `related_final_unimplemented` is Finalize's
+# "reconcile before implement" question; `cluster_members_in_flight` is
+# the other half, caught BEFORE that pass: a Draft sibling still in
+# flight.
+[tags.related_final_unimplemented]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+"]
+single_valued = true
+required      = true
+
+[tags.cluster_members_in_flight]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+"]
 single_valued = true
 required      = true
 
@@ -733,6 +759,7 @@ eq = "reentry"
 eq = "propose"
 [rule.emit]
 next    = "/rdr-propose"
+then    = "resolve:lens"
 why     = "The qualifier names @propose — the approach is reopened, so Stage 2 re-walks it."
 surface = "the qualifier, so the human knows the run is a delta"
 
@@ -744,6 +771,7 @@ eq = "reentry"
 eq = "refine"
 [rule.emit]
 next    = "/rdr-refine"
+then    = "resolve:lens"
 why     = "The qualifier names @refine — the fix is a design-body edit, so Stage 3 lands it before any re-verify."
 surface = "the qualifier, so the human knows the run is a delta"
 
@@ -755,6 +783,7 @@ eq = "reentry"
 eq = "resolve"
 [rule.emit]
 next    = "/rdr-resolve"
+then    = "resolve:lens"
 why     = "The qualifier names @resolve — /rdr-resolve self-scopes to the listed IDs."
 surface = "the qualifier, so the human knows the run is a delta"
 
@@ -2074,3 +2103,53 @@ eq = "fired"
 next    = "/rdr-prelock repeatability 1"
 why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed and run 1 starts it."
 surface = "stamp `variant: lite (profile: large)` into run-1's header at generation"
+
+# ===========================================================================
+# `after-lock` — Finalize's Next after the lock
+# ===========================================================================
+#
+# Dimensions: cluster_members_in_flight × related_final_unimplemented =
+# 2 × 2 = 4 cells, three rows.
+#
+# The finalize close used to read `related_final_unimplemented` alone and
+# dispatch 7.1 while a cluster sibling was still Draft, so the pass
+# re-fired when the sibling locked (0138-0139-0141: 4 iterations, 0141
+# demoted 3 times). A Draft sibling is checked FIRST — lock it before any
+# 7.1 pass runs, so the pass covers the whole set once.
+
+[[rule]]
+id = "after-lock-sibling-draft"
+[rule.match.recognized]
+eq = "after-lock"
+[rule.guard.all.cluster_members_in_flight]
+eq = "1+"
+[rule.emit]
+next     = "/rdr-draft-to-lock"
+next_arg = "sibling"
+why      = "A cluster sibling is still Draft — 7.1 on a partial set re-runs when it locks; lock the sibling first."
+surface  = "the `status=Draft` members of `index --json --cluster-of NNNN`; 7.1 runs once over the whole set after they lock"
+
+[[rule]]
+id = "after-lock-reconcile"
+[rule.match.recognized]
+eq = "after-lock"
+[rule.guard.all.cluster_members_in_flight]
+eq = "0"
+[rule.guard.all.related_final_unimplemented]
+eq = "1+"
+[rule.emit]
+next = "/rdr-cluster-reconcile"
+next_arg = "cluster"
+why  = "Every member is locked and a related Final is unimplemented — reconcile the set before any of it implements."
+
+[[rule]]
+id = "after-lock-implement"
+[rule.match.recognized]
+eq = "after-lock"
+[rule.guard.all.cluster_members_in_flight]
+eq = "0"
+[rule.guard.all.related_final_unimplemented]
+eq = "0"
+[rule.emit]
+next = "/rdr-implement"
+why  = "No cluster work is owed — implement is next."

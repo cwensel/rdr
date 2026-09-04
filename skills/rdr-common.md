@@ -143,10 +143,17 @@ reach it has no routing answer — so it **stops** rather than inferring one.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+"$RDR_HOME/bin/rdr" status --tags NNNN >/dev/null || exit 2   # test the read before substituting it
 ```
 
 Resolution order is `$RDR_INTRASTATE` (marker var, for a binary off PATH), else
 PATH. `/rdr-init` installs it and `/rdr-doctor` check 12 FAILs without it.
+
+The third line guards every `$("$RDR_HOME/bin/rdr" status --tags …)` below: a
+refused read lands its `stopped:…` line in intrastate's argv, which answers
+`unknown command "stopped:…"` and the real refusal is gone. The substitution
+stays inline (zsh does not word-split a captured `$T`), so the read is tested
+first, once per run.
 
 ## §rdr-resolve — RDR number → file path
 
@@ -222,6 +229,7 @@ by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 ```sh
 # §rdr-write — one call. $RDR_HOME comes from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+"$RDR_HOME/bin/rdr" status --tags NNNN >/dev/null || exit 2   # §intrastate
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
   --outcome <claim|readme|lock|demote|profile|return|fence|ground> [--tag k=v …] \
   $("$RDR_HOME/bin/rdr" status --tags NNNN)
@@ -238,7 +246,7 @@ Six tags are the caller's, not facts, and only the rows that read them demand
 them: `profile` takes `floor` (§lens-row's `emit.floor`, passed through as a
 value), `user_facing=<yes|no|unknown>` and `locks=<none|contract|format|cross-rdr|unknown>`
 — Resolve's two judgements; `demote` and `return` take
-`blocker_class=<approach|contradiction|contract|assumption-gap|assumption-disturbed|spike|determinacy|wording|none>`;
+`blocker_class=<approach|contradiction|contract|proportionality|assumption-gap|assumption-disturbed|spike|determinacy|wording|none>`;
 `ground` takes `searched=<none|code|cluster|corpus|rfd>` and `found=<true|false>`.
 `unknown` and `none` are declared members that stop by name — never default them.
 
@@ -284,8 +292,9 @@ The evidence tree is **per-RDR-first**, rooted at `$RDR_EVIDENCE` (the contract 
 and symmetric with the per-RDR `{ARTIFACT_DIR}` under `$RDR_RECORDS`: every RDR owns
 `<RDR_EVIDENCE>/<RDR_SLUG>/evidence/`, holding one folder per lens
 (`grounding`, `3amigo`, `critique`, `repeatability`, `cove`) plus siblings `reconcile/`,
-`spikes/`, `tooling-pass/`, `action-items/` and `propose-premortem/` (Stage 2's
-hardened-critic output — a sibling, not a Stage-5 lens signal). Cluster reconcile
+`spikes/`, `tooling-pass/`, `action-items/`, `propose-premortem/` (Stage 2's
+hardened-critic output — a sibling, not a Stage-5 lens signal) and the file
+`rulings.md` (§run-prompt). Cluster reconcile
 output is the one thing NOT under the record: it is keyed by the cluster, at
 `<RDR_EVIDENCE>/cluster-reconcile/<key>/`, because the report is about the set,
 not about any one member. The key is the members' record numbers joined and
@@ -355,6 +364,15 @@ Honor the prompt's own **self-detected re-entry**: stages 4/5/9 read the RDR
 `Status:` line (`Draft [revised from Final …; re-verify <IDs>]`) or `status.md`
 and scope themselves. The skills carry **no `--resume` flag** — re-entry is a
 property of the RDR's on-disk state, which the prompt already inspects.
+
+**Author rulings live in `rulings.md`** at the record's evidence base
+(`eval "$("$RDR_HOME/bin/rdr" paths NNNN)"` → `$RDR_ROOT_EVIDENCE/rulings.md`), one
+`- **<Qn|fixture|fork>** — RULED: <verbatim>` line each under a `## <date> — <asking
+stage>` heading. A stage reads it before the record, applies every line with no
+`absorbed @` tail, and appends ` — absorbed @<stage> <date>` to each it applied.
+`rulings_open` (rdr-facts.toml) counts the rest; the lock fence refuses on it. A
+ruling written anywhere else is read by nothing (cli/0113 locked over one in
+run-plan.md).
 
 ## §delegation — who reads, who writes, what spawns
 
@@ -562,6 +580,7 @@ one rule, which is a guarantee prose cannot give.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+"$RDR_HOME/bin/rdr" status --tags "$NNNN" >/dev/null || exit 2   # §intrastate
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
   --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \

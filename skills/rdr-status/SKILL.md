@@ -35,6 +35,7 @@ roots. Then derive position as below. Do **not** edit any file.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
 M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
+"$R" status --tags NNNN >/dev/null || exit 2   # rdr-common §intrastate: a refused read must not be substituted
 "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
 ```
 
@@ -65,7 +66,10 @@ question). Every other row answers completely, so a second call adds a duplicate
 `Draft [revised from Final …]`. That group reads the qualifier's `@<stage>`
 (`reentry_target`) and answers /rdr-propose, /rdr-refine or /rdr-resolve; with no
 `@<stage>` it answers /rdr-resolve and its `surface` tells you to read the note's
-TARGET RE-ENTRY STAGE first — print that verbatim, do not skip it.
+TARGET RE-ENTRY STAGE first — print that verbatim, do not skip it. Its
+`emit.then` (`resolve:lens`) is the outcome to run once that stage has re-run:
+the lens row's stale rows name what Stage 5 still owes on a re-entered Draft.
+Print its answer as the line after Next.
 
 Keep `$(…)` **inline**. Unquoted is safe — every fact is one shell word and prose
 facts are not rendered — but zsh does not word-split an unquoted *variable*, so
@@ -121,10 +125,10 @@ the guarantee prose cannot give, and where a gap becomes a test failure.
 | 2 Propose | `premortem_line`, `ground_sweep_line`, `joint_checks` | Legacy records predate the verdict lines: absence alone does not reopen propose when the sections are filled, but **surface the unrun check as a Caveat** — a skipped gate item otherwise reads as a passed one. A *paused* joint-decision fire is propose-not-done. |
 | 3 Refine | `ca_verified`, `ca_pending`, `spikes` | Human-judged, certified only by **Stage 4's product** — a Verified assumption, or spikes. A `Method:`/`Evidence:` line is not a signal (TEMPLATE ships both as skeleton labels). All-`Pending` means Refine is un-run. |
 | 4 Resolve | `ca` (rollup), `spikes` | `Pending`-with-plan counts as terminal; the plan is prose, so you read it. A pure source-search resolve names no spikes and writes **no** folder — an absent dir is expected, not a sign Resolve is unrun. An MVV-critical assumption left `Pending` resolves here — Caveat it, don't mark Resolve unrun. |
-| 5+6 Pre-Lock (review+resolve) | `profile`, `seam_lineage_count`, `seam_lineage`, `accretion_disposition` (the floor's inputs), `contracts`, `lens_grounding`, `lens_3amigo`, `lens_critique`, `lens_cove`, `lens_repeatability` (ran); `lens_grounding_findings`, `lens_cove_findings`, `lens_3amigo_consolidation`, `lens_critique_single`, `lens_critique_modelb`, `lens_critique_diff`, `lens_repeatability_run1`/`run2`/`run3`, `lens_repeatability_diff` (finished); `determinacy` (the `Determinacy:` line); `reconcile`, `iter_2` | Review + resolve are one cycle. Resolution is human-judged: a lens converged if the next lens's folder exists, or `reconcile`. `critique` on a `foundational` RDR owes the dual-model diff — a lone `lens_critique_single` is in-progress, not done. |
+| 5+6 Pre-Lock (review+resolve) | `profile`, `seam_lineage_count`, `seam_lineage`, `accretion_disposition` (the floor's inputs), `contracts`, `lens_grounding`, `lens_3amigo`, `lens_critique`, `lens_cove`, `lens_repeatability` (ran); `lens_grounding_findings`, `lens_cove_findings`, `lens_3amigo_consolidation`, `lens_critique_single`, `lens_critique_modelb`, `lens_critique_diff`, `lens_repeatability_run1`/`run2`/`run3`, `lens_repeatability_diff` (finished); `determinacy` (the `Determinacy:` line); `reconcile`, `iter_depth`, `lens_findings_open` | Review + resolve are one cycle. Resolution is human-judged: a lens converged if the next lens's folder exists, or `reconcile`. `critique` on a `foundational` RDR owes the dual-model diff — a lone `lens_critique_single` is in-progress, not done. |
 | 6 Reconcile | `reconcile`, `reconcile_report{,_alt,_alt2}` | A bare folder with no report is a real state: the stage started and left nothing. |
-| 7 Finalize | `status`, `gate_written`, `gate_stale` | Legacy records carry all five gate responses inline — either satisfies. `gate_stale` = the file predates a re-entry's demote date: the gate is owed again. The README index row is not a fact; do not claim it. |
-| 7.1 Cluster | `cluster` (declared), `clustered`, `cluster_reconciled`, `cluster_key` | Read both booleans, or a solo Final routes to a stage with nothing to reconcile. `cluster` is a Propose-time claim, **not the membership** — print it as what the record declares, never as the cluster; Stage 7.1 builds its own set. `cluster_key` is the membership a run actually resolved (absent until one has); it is the directory's own name, so it needs no re-derivation. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
+| 7 Finalize | `status`, `gate_written`, `gate_stale`, `rulings_open` | Legacy records carry all five gate responses inline — either satisfies. `gate_stale` = the file predates a re-entry's demote date: the gate is owed again. The README index row is not a fact; do not claim it. |
+| 7.1 Cluster | `cluster` (declared), `clustered`, `cluster_reconciled`, `cluster_key`; `cluster_members_in_flight` (on demand — finalize's `after-lock` call) | Read both booleans, or a solo Final routes to a stage with nothing to reconcile. `cluster` is a Propose-time claim, **not the membership** — print it as what the record declares, never as the cluster; Stage 7.1 builds its own set. `cluster_key` is the membership a run actually resolved (absent until one has); it is the directory's own name, so it needs no re-derivation. The topical epoch (`dml-purpose`) is keyed by subject, reads `false`, and is out of scope — all its records are terminal. |
 | 8 Implement | `impl_capsule`, `impl_state`, `lines`, `req_count`, `impl_orphans`, `impl_open_decisions`, `impl_mvv_recorded` | `impl_state` is the capsule header's own state word. Open req-list/coverage/verification.md **only** if it is absent or contradicts the tree. |
 
 `propose_premortem` is Stage 2's critic output, a non-lens sibling — never count it

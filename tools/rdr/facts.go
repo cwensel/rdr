@@ -141,6 +141,13 @@ type FactDecl struct {
 	Select string
 	// Label is the verdict-line prefix a verdict-line fact looks for.
 	Label string
+	// Entry is a ledger-tally's line-matcher: a line matching it is one
+	// ledger entry. Open and Closed are mutually exclusive: exactly one
+	// names the regex that decides an entry is OPEN — Open matching it
+	// directly, Closed by its ABSENCE.
+	Entry  string
+	Open   string
+	Closed string
 	// Prose marks a fact whose value is free text rather than a token: a
 	// sentence, a rationale tail, anything an author wrote for a reader.
 	//
@@ -224,6 +231,10 @@ var factSources = map[string]bool{
 	"joint-check-home": true, "overlap-uncited": true,
 	// the rollups: facts about the record's peers, read through FactEnv.Peer
 	"predecessor-rollup": true, "cluster-proposed": true, "related-rollup": true,
+	// the ledger readers: a lens's dispositions.md or evidence/rulings.md,
+	// tallied by an entry/open-or-closed regex pair; and the deepest
+	// iter-N segment reached under a tree.
+	"ledger-tally": true, "iter-max": true,
 }
 
 // rootedSource are the sources whose paths hang under a declared root,
@@ -235,7 +246,7 @@ var rootedSource = map[string]bool{
 	"probe": true, "probe-any": true, "cluster-member": true,
 	"cluster-key": true, "header-field": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "impl-artifact": true,
-	"spike-diff": true,
+	"spike-diff": true, "ledger-tally": true, "iter-max": true,
 }
 
 // LoadFactTable reads and validates a fact table.
@@ -346,6 +357,9 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		Transform:   tbl.Str("transform"),
 		Select:      tbl.Str("select"),
 		Label:       tbl.Str("label"),
+		Entry:       tbl.Str("entry"),
+		Open:        tbl.Str("open"),
+		Closed:      tbl.Str("closed"),
 		Description: tbl.Str("description"),
 	}
 	if v, ok := tbl.Scalar("min"); ok {
@@ -373,7 +387,8 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 	for _, k := range tbl.Keys() {
 		switch k {
 		case "kind", "source", "path", "paths", "root", "domain",
-			"equals", "transform", "select", "label", "min", "prose", "on_demand", "absent", "description":
+			"equals", "transform", "select", "label", "min", "prose", "on_demand", "absent", "description",
+			"entry", "open", "closed":
 		default:
 			return d, fmt.Errorf("fact %q: unknown key %q", name, k)
 		}
@@ -546,10 +561,51 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		if d.Kind != "enum" {
 			return d, fmt.Errorf("fact %q: a related-rollup is an enum", name)
 		}
+		switch d.Select {
+		case "", "final-unimplemented", "draft":
+		default:
+			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented or draft, got %q", name, d.Select)
+		}
 		for _, m := range relatedRollupMembers {
 			if !slices.Contains(d.Domain, m) {
 				return d, fmt.Errorf("fact %q: domain does not declare %q, which related-rollup can emit", name, m)
 			}
+		}
+	case "ledger-tally":
+		if d.Root == "" || d.Path == "" || d.Entry == "" {
+			return d, fmt.Errorf("fact %q: a ledger-tally names a root, a path and an entry", name)
+		}
+		if (d.Open == "") == (d.Closed == "") {
+			return d, fmt.Errorf("fact %q: a ledger-tally names exactly one of open or closed", name)
+		}
+		if _, err := regexp.Compile(d.Entry); err != nil {
+			return d, fmt.Errorf("fact %q: entry %q does not compile: %v", name, d.Entry, err)
+		}
+		if d.Open != "" {
+			if _, err := regexp.Compile(d.Open); err != nil {
+				return d, fmt.Errorf("fact %q: open %q does not compile: %v", name, d.Open, err)
+			}
+		}
+		if d.Closed != "" {
+			if _, err := regexp.Compile(d.Closed); err != nil {
+				return d, fmt.Errorf("fact %q: closed %q does not compile: %v", name, d.Closed, err)
+			}
+		}
+		switch d.Kind {
+		case "int":
+		case "enum":
+			if !slices.Contains(d.Domain, "0") || !slices.Contains(d.Domain, "1+") {
+				return d, fmt.Errorf("fact %q: an enum ledger-tally declares domain 0 and 1+", name)
+			}
+		default:
+			return d, fmt.Errorf("fact %q: a ledger-tally is an int or an enum, got %q", name, d.Kind)
+		}
+	case "iter-max":
+		if d.Root == "" {
+			return d, fmt.Errorf("fact %q: an iter-max names a root", name)
+		}
+		if d.Kind != "int" {
+			return d, fmt.Errorf("fact %q: an iter-max is an int", name)
 		}
 	case "seam-lineage":
 		// The three selects are the three shapes the floor reads, and an
@@ -823,6 +879,10 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.clusterProposed(d)
 	case "related-rollup":
 		return e.relatedRollup(d)
+	case "ledger-tally":
+		return e.ledgerTally(d)
+	case "iter-max":
+		return e.iterMax(d)
 	}
 	return Fact{}, false
 }
@@ -2750,9 +2810,14 @@ func (e *FactEnv) clusterProposed(d FactDecl) (Fact, bool) {
 }
 
 // relatedRollup counts the record's asserted cluster members (ClusterOf,
-// candidates excluded) that are Final and not COMPLETE — Finalize's
-// "reconcile before implement" question. On demand: it walks the corpus.
-// Absent with no corpus bound.
+// candidates excluded), by `select`:
+//
+//	final-unimplemented  Final and not COMPLETE — Finalize's "reconcile
+//	                      before implement" question
+//	draft                still Status Draft — a 7.1 pass run now would
+//	                      cover a partial set
+//
+// On demand: it walks the corpus. Absent with no corpus bound.
 func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 	if e.Doc == nil || e.Corpus == nil {
 		return Fact{}, false
@@ -2763,17 +2828,27 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 	}
 	n := 0
 	for _, m := range scan.ClusterOf(docs, e.Doc.Record) {
-		if m.Record == e.Doc.Record || m.Candidate || m.Status != "Final" {
+		if m.Record == e.Doc.Record || m.Candidate {
 			continue
 		}
-		state := ""
-		if e.Peer != nil {
-			if peer, ok := e.Peer(m.Record); ok {
-				state = capsuleStateOf(e.table, peer)
+		switch d.Select {
+		case "draft":
+			if m.Status == "Draft" {
+				n++
 			}
-		}
-		if state != "COMPLETE" {
-			n++
+		default: // "final-unimplemented", and "" for a table predating the key
+			if m.Status != "Final" {
+				continue
+			}
+			state := ""
+			if e.Peer != nil {
+				if peer, ok := e.Peer(m.Record); ok {
+					state = capsuleStateOf(e.table, peer)
+				}
+			}
+			if state != "COMPLETE" {
+				n++
+			}
 		}
 	}
 	v := "0"
@@ -2781,4 +2856,159 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 		v = "1+"
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// --- the ledger readers -----------------------------------------------------
+//
+// Two facts about a written ledger: how many of its rows are still open
+// (ledgerTally), and the deepest iter-N pass any of a set of trees
+// reached (iterMax). Both read the CURRENT file only — the one under the
+// highest iter-N segment, or the loose one — never merge history across
+// passes, for the same reason a probe names one path: a signal that
+// silently folds an old pass into a new one is wrong in the direction
+// nothing catches.
+
+// iterOf is e.table.Iter, safe over a nil table — a test env built by
+// hand rather than NewFactEnv. A nil Iter's empty Segment makes
+// iterSegmentRE return nil, which both readers treat as "no segments to
+// find", the same answer a table declaring no [iteration] gives.
+func (e *FactEnv) iterOf() Iteration {
+	if e.table == nil {
+		return Iteration{}
+	}
+	return e.table.Iter
+}
+
+// currentLedgerFile finds the ledger `name` under `dir`: the file under
+// the highest iter-N segment that contains it, else the loose file
+// directly under dir. "" when neither exists. `dir` may be "" (the root
+// itself, ledger-tally's no-`paths` case).
+func (e *FactEnv) currentLedgerFile(base, dir, name string, it Iteration) string {
+	root := base
+	if dir != "" {
+		root = filepath.Join(base, dir)
+	}
+	re := iterSegmentRE(it.Segment)
+	best, bestN := "", -1
+	if re != nil && e.readDir != nil {
+		if entries, err := e.readDir(root); err == nil {
+			for _, ent := range entries {
+				if !ent.IsDir() {
+					continue
+				}
+				m := re.FindStringSubmatch(ent.Name())
+				if m == nil {
+					continue
+				}
+				n, err := strconv.Atoi(m[1])
+				if err != nil {
+					continue
+				}
+				candidate := filepath.Join(root, ent.Name(), name)
+				if _, err := e.statPath(candidate); err != nil {
+					continue
+				}
+				if n > bestN {
+					bestN, best = n, candidate
+				}
+			}
+		}
+	}
+	if best != "" {
+		return best
+	}
+	loose := filepath.Join(root, name)
+	if _, err := e.statPath(loose); err == nil {
+		return loose
+	}
+	return ""
+}
+
+// ledgerTally counts a ledger's entries and its open ones, summed over
+// `paths` (or the single root itself when `paths` is absent), reading
+// only the CURRENT file per dir. A bound root with no ledger anywhere
+// answers 0 — looked, none — not absent; only an unbound root is absent.
+func (e *FactEnv) ledgerTally(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	entryRE := regexp.MustCompile(d.Entry)
+	var openRE *regexp.Regexp
+	if d.Open != "" {
+		openRE = regexp.MustCompile(d.Open)
+	} else {
+		openRE = regexp.MustCompile(d.Closed)
+	}
+	dirs := d.Paths
+	if len(dirs) == 0 {
+		dirs = []string{""}
+	}
+	total, open := 0, 0
+	for _, dir := range dirs {
+		full := e.currentLedgerFile(base, dir, d.Path, e.iterOf())
+		if full == "" {
+			continue
+		}
+		raw, err := e.readFile(full)
+		if err != nil {
+			continue
+		}
+		for _, ln := range strings.Split(string(raw), "\n") {
+			if !entryRE.MatchString(ln) {
+				continue
+			}
+			total++
+			isOpen := openRE.MatchString(ln)
+			if d.Closed != "" {
+				isOpen = !isOpen
+			}
+			if isOpen {
+				open++
+			}
+		}
+	}
+	if d.Kind == "enum" {
+		v := "0"
+		if open > 0 {
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(open)}, true
+}
+
+// iterMax is the deepest iter-N segment found under any of `paths`, or 1
+// (the loose first pass, [iteration]'s `first = "loose"`) when none of
+// them has a segment. Absent when the root is unbound.
+func (e *FactEnv) iterMax(d FactDecl) (Fact, bool) {
+	base, ok := e.Roots[d.Root]
+	if !ok {
+		return Fact{}, false
+	}
+	re := iterSegmentRE(e.iterOf().Segment)
+	max := 1
+	if re != nil && e.readDir != nil {
+		for _, dir := range d.Paths {
+			root := filepath.Join(base, dir)
+			entries, err := e.readDir(root)
+			if err != nil {
+				continue
+			}
+			for _, ent := range entries {
+				if !ent.IsDir() {
+					continue
+				}
+				m := re.FindStringSubmatch(ent.Name())
+				if m == nil {
+					continue
+				}
+				n, err := strconv.Atoi(m[1])
+				if err == nil && n > max {
+					max = n
+				}
+			}
+		}
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(max)}, true
 }

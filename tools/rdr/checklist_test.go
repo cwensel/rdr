@@ -354,3 +354,91 @@ func TestChecklistPrelockNamesTheDeterminacyAddOn(t *testing.T) {
 		t.Errorf("mid + fired + no run: got %s %q; want %s naming the owed run", glyph, note, glyphJudged)
 	}
 }
+
+// TestChecklistPrelockNamesTheStaleLens: `lens_stale` takes precedence
+// over the done/owed arms for the lens it names — a re-entry's evidence
+// that predates the demote reads "stale, owed again", not "done", even
+// though the completion probe for that lens is true.
+func TestChecklistPrelockNamesTheStaleLens(t *testing.T) {
+	tbl := loadRealTable(t)
+	facts := []Fact{
+		{Name: "profile", Kind: "enum", Value: "small"},
+		{Name: "lens_grounding", Kind: "bool", Value: "true"},
+		{Name: "lens_grounding_findings", Kind: "bool", Value: "true"},
+		{Name: "lens_3amigo", Kind: "bool", Value: "true"},
+		{Name: "lens_3amigo_consolidation", Kind: "bool", Value: "true"},
+		{Name: "lens_stale", Kind: "enum", Value: "grounding"},
+		{Name: "reconcile", Kind: "bool", Value: "true"},
+	}
+	glyph, note := prelockCell(newFactView(tbl, facts, map[string]string{"evidence": "bound"}))
+	if glyph != glyphJudged {
+		t.Errorf("a stale lens leaves the row judged, got %s", glyph)
+	}
+	if !strings.Contains(note, "~ grounding (stale — predates the re-entry, owed again)") {
+		t.Errorf("note %q does not name grounding stale, though lens_grounding_findings=true", note)
+	}
+	if strings.Contains(note, "✓ grounding") {
+		t.Errorf("note %q reads grounding done; the stale arm must win over the completion probe", note)
+	}
+
+	// iter_depth and lens_findings_open ride beside the lens list, only
+	// when they carry something to say.
+	facts = append(facts,
+		Fact{Name: "iter_depth", Kind: "int", Value: "3"},
+		Fact{Name: "lens_findings_open", Kind: "int", Value: "2"},
+	)
+	_, note = prelockCell(newFactView(tbl, facts, map[string]string{"evidence": "bound"}))
+	if !strings.Contains(note, "iter-3") {
+		t.Errorf("note %q does not carry iter-3 for iter_depth=3", note)
+	}
+	if !strings.Contains(note, "open findings: 2") {
+		t.Errorf("note %q does not carry the open-findings count", note)
+	}
+}
+
+// TestChecklistFinalizeNamesOpenRulings: `rulings_open` stops the row
+// after gate_stale — an author ruling nobody has absorbed is a reason to
+// hold the lock even over a fresh gate.md, but gate_stale keeps
+// precedence over it (a re-entry's stale gate is owed before any ruling
+// is read).
+func TestChecklistFinalizeNamesOpenRulings(t *testing.T) {
+	tbl := loadRealTable(t)
+	for _, c := range []struct {
+		name          string
+		facts         []Fact
+		glyph, wantIn string
+	}{
+		{
+			"a fresh gate with an open ruling stops on the ruling",
+			[]Fact{
+				{Name: "gate_written", Kind: "bool", Value: "true"},
+				{Name: "gate_stale", Kind: "bool", Value: "false"},
+				{Name: "rulings_open", Kind: "enum", Value: "1+"},
+			},
+			glyphJudged, "rulings open — absorb evidence/rulings.md before the lock",
+		},
+		{
+			"gate_stale keeps precedence over an open ruling",
+			[]Fact{
+				{Name: "gate_written", Kind: "bool", Value: "true"},
+				{Name: "gate_stale", Kind: "bool", Value: "true"},
+				{Name: "rulings_open", Kind: "enum", Value: "1+"},
+			},
+			glyphJudged, "gate.md stale",
+		},
+		{
+			"no open ruling reads done",
+			[]Fact{
+				{Name: "gate_written", Kind: "bool", Value: "true"},
+				{Name: "gate_stale", Kind: "bool", Value: "false"},
+				{Name: "rulings_open", Kind: "enum", Value: "0"},
+			},
+			glyphDone, "gate.md",
+		},
+	} {
+		glyph, note := checklistCell("7 Finalize", newFactView(tbl, c.facts, map[string]string{"artifacts": "bound"}))
+		if glyph != c.glyph || !strings.Contains(note, c.wantIn) {
+			t.Errorf("%s: got %s %q, want %s containing %q", c.name, glyph, note, c.glyph, c.wantIn)
+		}
+	}
+}

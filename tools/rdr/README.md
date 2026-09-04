@@ -1251,6 +1251,7 @@ seam, and a navigator that writes is no longer derivable-from-disk.
 
 The composition this exists for is one Bash call:
 
+    rdr status --tags NNNN >/dev/null || exit 2    # a refusal splatted into argv is lost
     intrastate flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
       $(rdr status --tags NNNN)
 

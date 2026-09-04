@@ -872,22 +872,24 @@ root = "evidence"
 path = "reconcile/reconcile-report.md"
 description = "The reconcile report, third corpus spelling."
 
-# A re-entry pass appends iter-N/ beside the loose iteration-1 files. Two
-# is the one that says a lens was re-entered at all; deeper iterations are
-# the same signal and the skill reports the highest it finds.
-[fact.iter_2]
-kind = "bool"
-source = "probe-any"
+# A re-entry pass appends iter-N/ beside the loose iteration-1 files. The
+# boolean collapsed one extra pass and four into one signal; the cap rows
+# live in rdr-loop.toml on ITER_BUCKET, so this routes nothing and is for
+# the checklist reader.
+[fact.iter_depth]
+kind = "int"
+source = "iter-max"
 root = "evidence"
 paths = [
-  "grounding/iter-2",
-  "3amigo/iter-2",
-  "critique/iter-2",
-  "repeatability/iter-2",
-  "cove/iter-2",
-  "reconcile/iter-2",
+  "grounding",
+  "3amigo",
+  "critique",
+  "repeatability",
+  "cove",
+  "reconcile",
 ]
-description = "Some lens was re-entered for a second iteration."
+min = 1
+description = "The deepest iter-N any lens or reconcile pass reached; 1 is the loose first pass."
 
 # The pre-migration evidence shapes, probed so that a legacy folder can
 # never silently read as "lens un-run".
@@ -953,6 +955,20 @@ domain      = ["none", "cove", "grounding", "3amigo", "critique", "repeatability
 absent      = "none"
 description = "The first lens whose evidence predates the re-entry's demote date; none when fresh or not re-entered."
 
+# The ledger vocabulary is 05-prelock-resolve.prompt.md's — fixed /
+# dismissed-with-cite / charted-to-successor / needs-tiebreaker — and only
+# the last is open; the newest iteration's ledger is the current one.
+[fact.lens_findings_open]
+kind        = "int"
+source      = "ledger-tally"
+root        = "evidence"
+paths       = ["grounding", "3amigo", "critique", "repeatability", "cove"]
+path        = "dispositions.md"
+entry       = "^\\| *`"
+open        = "needs-tiebreaker"
+min         = 0
+description = "Open findings in each lens's newest dispositions ledger: rows still at needs-tiebreaker."
+
 # The gate responses predate the demote. `gate_written` beside it says the
 # file exists; a Draft re-entered after its lock keeps that file, and a
 # re-lock that reads it as discharged is the same folder-existence error
@@ -965,6 +981,19 @@ root        = "artifacts"
 path        = "gate.md"
 absent      = "false"
 description = "artifacts/gate.md predates the re-entry's demote date."
+
+# An author ruling used to live in {ARTIFACT_DIR}/run-plan.md, which no
+# lens reads — cli/0113's Stage-7 punt; rdr-write's fence stops on 1+.
+[fact.rulings_open]
+kind        = "enum"
+source      = "ledger-tally"
+root        = "evidence"
+path        = "rulings.md"
+entry       = "^- \\*\\*"
+closed      = "absorbed @"
+domain      = ["0", "1+", "unchecked"]
+absent      = "unchecked"
+description = "Author rulings in evidence/rulings.md no stage has marked absorbed; unchecked when no evidence root is bound."
 
 # --- the artifact half -----------------------------------------------------
 
@@ -1367,6 +1396,19 @@ description = "How many declared Cluster siblings carry an authored Implementati
 [fact.related_final_unimplemented]
 kind        = "enum"
 source      = "related-rollup"
+select      = "final-unimplemented"
 on_demand   = true
 domain      = ["0", "1+"]
 description = "Asserted cluster members that are Final with no COMPLETE capsule; 1+ routes to /rdr-cluster-reconcile first."
+
+# Finalize's close used to dispatch 7.1 on `related_final_unimplemented`
+# alone, so a run fired while a sibling was still Draft and re-fired when
+# the sibling later locked. This is the other half: a Draft sibling caught
+# BEFORE that pass, not after.
+[fact.cluster_members_in_flight]
+kind        = "enum"
+source      = "related-rollup"
+select      = "draft"
+on_demand   = true
+domain      = ["0", "1+"]
+description = "Asserted cluster members still Draft; 1+ means a 7.1 pass now would run on a partial set."

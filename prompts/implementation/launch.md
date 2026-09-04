@@ -102,6 +102,7 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
 - Predecessors: one call, the answer applied as a value (the `precheck` group
   of `$RDR_HOME/models/rdr-launch.toml`; `intrastate lint` proves every cell):
   IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+  "$RDR_HOME/bin/rdr" status --tags <slug> >/dev/null || exit 2   # rdr-common §intrastate: never substitute a refused read
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome precheck --plan-only \
     $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>)
   `emit.next` = `proceed` → continue; a `stopped:*` halts as INCOMPLETE with

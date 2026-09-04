@@ -75,10 +75,10 @@ from that target to a scope; `intrastate lint` proves every target has a row.
 One chained call answers it — the same facts, no second projection:
 
 ```sh
-IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-status.toml"
-T=$("$RDR_HOME/bin/rdr" status --tags NNNN)
-"$IS" flow resolve --model "$M" --outcome locate  --plan-only $T   # emit.next == resolve:reentry on a demoted Draft
-"$IS" flow resolve --model "$M" --outcome reentry --plan-only $T
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
+"$R" status --tags NNNN >/dev/null || exit 2   # rdr-common §intrastate; the substitution stays inline (zsh)
+"$IS" flow resolve --model "$M" --outcome locate  --plan-only $("$R" status --tags NNNN)   # emit.next == resolve:reentry on a demoted Draft
+"$IS" flow resolve --model "$M" --outcome reentry --plan-only $("$R" status --tags NNNN)
 ```
 
 Read `emit.next` and `rule` as values. Only one scope is this skill's:
@@ -142,10 +142,12 @@ can sit at different N) and the stage skill assigns it. Name the delta; let each
 lens number itself.
 
 Then a **Ledger** — one row per planned stage (`verdict`, `blocking`, one-line
-note), appended as each packet lands, and any **decided fork disposition** with
-the consequence the RDR still owes. It carries what only this run knows —
-verdicts, parks, dispositions, the `--to` bound — and what a human reads to see
-where the run got to. **Never a position**: that is derived (Re-entry below).
+note), appended as each packet lands. It carries what only this run knows —
+verdicts, parks, the `--to` bound — and what a human reads to see where the run
+got to. **Never a position**: that is derived (Re-entry below). **Never a
+ruling**: what the user decides at a fork is appended to `rulings.md`
+(rdr-common §run-prompt — the file every stage reads; nothing reads this plan),
+and the Ledger row points at it.
 
 The plan file is the durable state — **re-read it each hop, never carry it in
 context** (§no-heartbeat). Profile can change under you: Stage 4 rewrites it
@@ -162,9 +164,9 @@ running the same command again. **The resume point is `emit.next`** — the same
 call §lens-row already makes — never the Ledger: a stage's evidence is what the
 router reads, so there is no skip guard and no tiebreak, and `/rdr-status NNNN`
 alone names the next command with this skill deleted. Read the plan for the
-`--to` bound and the forks this run settled, and brief the re-run stage with any
-fork the user has since decided. No plan file → Phase 0 from scratch: that loses
-the run's bookkeeping, never its position.
+`--to` bound and the forks this run settled; the re-run stage reads `rulings.md`
+itself. No plan file → Phase 0 from scratch: that loses the run's bookkeeping,
+never its position.
 
 ## The loop — one stage per sub-agent
 
@@ -229,7 +231,8 @@ Relaying it takes the **one read carve-out** here: a §return-packet can't carry
 the round's items and their grounding, so resolve **writes the round to a file**
 and returns its path in `evidence_paths` with `verdict: NEEDS_DECISION`. Read
 **that file only** and put it to the user unedited — fixtures and questions alike. Without the carve-out the round degrades to a
-summary, which is the same forgery by a slower route.
+summary, which is the same forgery by a slower route. Their answers go to
+`rulings.md` (§run-prompt), never into a brief.
 
 Before escalating a *judgment* fork (not the author's round, not a mechanical stop),
 run **§strong-consult** once — a fresh strongest-tier look may collapse it. Its
@@ -295,8 +298,8 @@ under `--auto`: that span and that fan-out are where the cost lands.
   (`/rdr-joint-propose`) or after the lock (7.1 needs **Final** members, so a
   Draft can't be in a cluster). Final-and-unimplemented peers are a `Continue
   check:` note, never a reason to defer.
-- Ran to `Final` → `Next: /rdr-implement NNNN` (name any parked non-blocking
-  forks in `Deviations:`; if peers are Final-and-unimplemented, 7.1 comes first).
+- Ran to `Final` → the finalize packet's `after-lock` answer is `Next:` (name any
+  parked non-blocking forks in `Deviations:`).
 - Parked at a fork → `Next:` is the stage that owns it (the named return stage
   for a route-back), with the fork stated as the reason.
 - `Continue check:` names what judgment remains — this skill's close packet

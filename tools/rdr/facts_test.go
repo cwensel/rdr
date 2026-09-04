@@ -163,7 +163,7 @@ func TestUnboundRootLeavesTheFactAbsent(t *testing.T) {
 	env := testEnv(t, tbl, slug, "", records)
 	facts := tbl.Evaluate(env)
 
-	for _, name := range []string{"lens_grounding", "lens_critique", "spikes", "reconcile", "iter_2"} {
+	for _, name := range []string{"lens_grounding", "lens_critique", "spikes", "reconcile", "iter_depth"} {
 		if v, ok := factValue(facts, name); ok {
 			t.Errorf("%s = %q with no evidence root bound; want the fact absent — "+
 				"false says \"looked, not there\" and nothing looked", name, v)
@@ -863,7 +863,7 @@ var stageFacts = map[string][]string{
 		"lens_grounding_findings", "lens_cove_findings", "lens_3amigo_consolidation",
 		"lens_critique_single", "lens_critique_modelb", "lens_critique_diff",
 		"lens_repeatability_run1", "lens_repeatability_run2", "lens_repeatability_run3",
-		"lens_repeatability_diff", "iter_2", "reconcile",
+		"lens_repeatability_diff", "iter_depth", "lens_findings_open", "reconcile",
 		// Completion, as opposed to "the lens ran": which models wrote
 		// critique's two passes, and which variant run-1 declares. The
 		// `critique` and `repeatability` outcome groups route on these.
@@ -880,7 +880,7 @@ var stageFacts = map[string][]string{
 	// The anchor and peer-evidence tallies are §mechanical-gate's
 	// numbers; three-valued, so unlooked travels with total.
 	// On demand: evaluated only when --filter names them.
-	"7 Finalize": {"status", "gate_written", "gate_stale",
+	"7 Finalize": {"status", "gate_written", "gate_stale", "rulings_open",
 		"anchors_total", "anchors_unresolved", "anchors_unlooked", "peer_evidence_unresolved"},
 	// 7.1 Cluster reads three different things, and all are facts.
 	// `cluster` is what the record DECLARES, which is what the tandem
@@ -961,6 +961,7 @@ var routingFacts = map[string]string{
 	"predecessors_incomplete":     "the predecessors the launch precheck's stopped:predecessor-incomplete names",
 	"cluster_members_proposed":    "the Stage-2 tandem barrier: every sibling's plan authored",
 	"related_final_unimplemented": "Finalize's next step: a related Final still unimplemented routes to 7.1 first",
+	"cluster_members_in_flight":   "the after-lock group's other half: a cluster sibling still Draft, caught before a 7.1 pass runs on a partial set",
 }
 
 // TestEveryStageRowIsExpressedAsFacts is the issue's acceptance criterion,
@@ -2431,5 +2432,161 @@ func TestJointCheckHomeFoldsWorstFirst(t *testing.T) {
 	code, out, errb := runCapture(t, "status", "--facts", factTableForTest(t), "--tags", "--filter", "overlap_uncited", byRec["0025"].Path)
 	if code != 0 || strings.TrimSpace(out) != "--tag\noverlap_uncited=unchecked" {
 		t.Errorf("unbound corpus: exit %d, tags %q (%s), want overlap_uncited=unchecked", code, out, errb)
+	}
+}
+
+// --- ledger-tally and iter-max ----------------------------------------------
+
+// TestLedgerTallyReadsTheCurrentIteration covers the reader's shape: an
+// open vs an absorbed/fixed line, the newest iteration beating the loose
+// file, the int and enum renderings, and the two absence cases — a bound
+// root with no ledger anywhere is 0 (looked, none), an unbound root is
+// absent.
+func TestLedgerTallyReadsTheCurrentIteration(t *testing.T) {
+	tbl := loadRealTable(t)
+	slug := "0040-synthetic-ledger"
+
+	t.Run("rulings.md: an absorbed line is closed, an unmarked one is open", func(t *testing.T) {
+		evidence, records := newEvidenceTree(t, slug, nil, nil)
+		writeEvidence(t, evidence, slug, "rulings.md",
+			"- **R1**: use the shared adapter — absorbed @refine 2026-08-20\n"+
+				"- **R2**: keep the legacy path — still open\n")
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.table, e.readDir = tbl, os.ReadDir
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "rulings_open"); !ok || v != "1+" {
+			t.Fatalf("rulings_open = %q (%v), want 1+ (R2 carries no `absorbed @`)", v, ok)
+		}
+	})
+
+	t.Run("dispositions.md under the newest iter-N beats the loose file", func(t *testing.T) {
+		evidence, records := newEvidenceTree(t, slug, nil, nil)
+		writeEvidence(t, evidence, slug, "grounding/dispositions.md",
+			"| `F1` | fixed | ok |\n| `F2` | needs-tiebreaker | ok |\n")
+		writeEvidence(t, evidence, slug, "grounding/iter-3/dispositions.md",
+			"| `F3` | needs-tiebreaker | ok |\n")
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.table, e.readDir = tbl, os.ReadDir
+		facts := tbl.Evaluate(e)
+		// Only the iter-3 file is read: one entry, one open — the loose
+		// file's two rows (one open) must not also be counted.
+		if v, ok := factValue(facts, "lens_findings_open"); !ok || v != "1" {
+			t.Fatalf("lens_findings_open = %q (%v), want 1 (iter-3 is current, the loose file is superseded)", v, ok)
+		}
+	})
+
+	t.Run("a bound root with no ledger anywhere answers 0, not absent", func(t *testing.T) {
+		evidence, records := newEvidenceTree(t, slug, nil, nil)
+		if err := os.MkdirAll(filepath.Join(evidence, slug, "evidence"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.table, e.readDir = tbl, os.ReadDir
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "rulings_open"); !ok || v != "0" {
+			t.Errorf("rulings_open = %q (%v), want 0 (looked, no rulings.md)", v, ok)
+		}
+		if v, ok := factValue(facts, "lens_findings_open"); !ok || v != "0" {
+			t.Errorf("lens_findings_open = %q (%v), want 0 (looked, no dispositions.md in any lens dir)", v, ok)
+		}
+	})
+
+	t.Run("an unbound root is absent", func(t *testing.T) {
+		e := &FactEnv{Slug: slug, Roots: map[string]string{}, table: tbl,
+			readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "rulings_open"); ok {
+			t.Errorf("rulings_open = %q with no evidence root bound, want absent", v)
+		}
+		if v, ok := factValue(facts, "lens_findings_open"); ok {
+			t.Errorf("lens_findings_open = %q with no evidence root bound, want absent", v)
+		}
+	})
+}
+
+// TestIterMaxFindsTheDeepestSegment: loose files only is depth 1 (the
+// declared first pass), the highest iter-N segment across the swept dirs
+// wins over a shallower one elsewhere, and an unbound root is absent.
+func TestIterMaxFindsTheDeepestSegment(t *testing.T) {
+	tbl := loadRealTable(t)
+	slug := "0041-synthetic-iter-max"
+
+	t.Run("loose files only is depth 1", func(t *testing.T) {
+		evidence, records := newEvidenceTree(t, slug, []string{"grounding/findings.md"}, nil)
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.table, e.readDir = tbl, os.ReadDir
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "iter_depth"); !ok || v != "1" {
+			t.Fatalf("iter_depth = %q (%v), want 1", v, ok)
+		}
+	})
+
+	t.Run("the deepest segment across the swept dirs wins", func(t *testing.T) {
+		evidence, records := newEvidenceTree(t, slug, nil, nil)
+		writeEvidence(t, evidence, slug, "grounding/iter-2/findings.md", "Model: m\n")
+		writeEvidence(t, evidence, slug, "cove/iter-5/findings.md", "Model: m\n")
+		writeEvidence(t, evidence, slug, "critique/iter-3/critique.md", "Model: m\n")
+		e := testEnv(t, tbl, slug, evidence, records)
+		e.table, e.readDir = tbl, os.ReadDir
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "iter_depth"); !ok || v != "5" {
+			t.Fatalf("iter_depth = %q (%v), want 5 (cove/iter-5 is the deepest of the three)", v, ok)
+		}
+	})
+
+	t.Run("an unbound root is absent", func(t *testing.T) {
+		e := &FactEnv{Slug: slug, Roots: map[string]string{}, table: tbl,
+			readFile: os.ReadFile, statPath: os.Stat, readDir: os.ReadDir}
+		facts := tbl.Evaluate(e)
+		if v, ok := factValue(facts, "iter_depth"); ok {
+			t.Errorf("iter_depth = %q with no evidence root bound, want absent", v)
+		}
+	})
+}
+
+// TestRelatedRollupSelectsDraftMembers: `select = "draft"` counts an
+// asserted cluster member (ClusterOf, mutual `Cluster:`) that is still
+// Status Draft; a mutual-mentions candidate is excluded, same as the
+// final-unimplemented select.
+func TestRelatedRollupSelectsDraftMembers(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	dir := t.TempDir()
+	head := func(num, title, status, cluster string) string {
+		return "# Recommendation " + num + ": " + title + "\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status +
+			"\n- **Cluster**: " + cluster + "\n\n## Problem Statement\n\nSynthetic.\n"
+	}
+	for name, body := range map[string]string{
+		"0001-a.md": head("0001", "A", "Final", "0002-b, 0003-c"),
+		"0002-b.md": head("0002", "B", "Draft", "0001-a"),
+		"0003-c.md": head("0003", "C", "Final", "0001-a"),
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A mutual-mentions candidate: 0004 names 0001 in prose, 0001 does not
+	// declare it back, so ClusterOf marks it Candidate and the select must
+	// exclude it even though it is Draft.
+	if err := os.WriteFile(filepath.Join(dir, "0004-d.md"),
+		[]byte("# Recommendation 0004: D\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n\n"+
+			"## Problem Statement\n\nSee 0001 for background.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out, errb := runCapture(t, "status", "--facts", table, "--records", dir, "--filter", "cluster_members_in_flight", "0001")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "cluster_members_in_flight    enum    1+") {
+		t.Errorf("0001's cluster has one Draft member (0002) and one Final (0003), want 1+:\n%s", out)
+	}
+	// ClusterOf is one hop from the seed: 0003 declares Cluster only to
+	// 0001, not to 0002, so from 0003's own seat the Draft sibling is
+	// simply not a member and the select correctly reads 0.
+	code, out, errb = runCapture(t, "status", "--facts", table, "--records", dir, "--filter", "cluster_members_in_flight", "0003")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "cluster_members_in_flight    enum    0") {
+		t.Errorf("0003 declares Cluster only to 0001 (Final) — no direct Draft member, want 0:\n%s", out)
 	}
 }

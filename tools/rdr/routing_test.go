@@ -431,6 +431,14 @@ func TestRoutingDimensionsAreAlwaysRendered(t *testing.T) {
 	for _, rec := range routingFixtures {
 		rendered := fixtureTags(t, table, rec)
 		for key := range dims {
+			// An on-demand fact is never evaluated by an unfiltered call
+			// (TestStatusTagsRenderAnOnDemandSentinelOnlyWhenAsked) — its
+			// group is reached only through `--filter`, the same way the
+			// write model's `overlap_uncited` is, so totality here is
+			// proved over `--filter`, not the bare vector.
+			if decl[key].OnDemand {
+				continue
+			}
 			if _, ok := rendered[key]; ok {
 				continue
 			}
@@ -1392,7 +1400,16 @@ func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 	if !containsString(m.Outcomes, "fence") {
 		t.Fatalf("outcomes %v carry no fence", m.Outcomes)
 	}
-	fence := map[string]string{"fence-clear": "none", "fence-uncited": "stopped:overlap-uncited", "fence-unchecked": "stopped:overlap-unchecked"}
+	fence := map[string]string{
+		"fence-clear":             "none",
+		"fence-uncited":           "stopped:overlap-uncited",
+		"fence-unchecked":         "stopped:overlap-unchecked",
+		"fence-rulings-open":      "stopped:rulings-open",
+		"fence-rulings-unchecked": "stopped:rulings-unchecked",
+	}
+	// The two rulings rows guard on rulings_open alone (any overlap_uncited);
+	// the three overlap rows now carry both dimensions.
+	fenceOverlapDims := map[string]bool{"fence-clear": true, "fence-uncited": true, "fence-unchecked": true}
 	for _, id := range m.RuleIDs {
 		if !strings.HasPrefix(id, "fence-") {
 			continue
@@ -1406,15 +1423,19 @@ func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 		if op := m.Emits[id]["op"]; op != want {
 			t.Errorf("%s emits op %q, want %s", id, op, want)
 		}
-		if g := guards[id]; len(g) != 1 || len(g["overlap_uncited"]) != 1 {
-			t.Errorf("%s guards %v, want exactly one overlap_uncited literal", id, g)
+		if fenceOverlapDims[id] {
+			if g := guards[id]; len(g["overlap_uncited"]) != 1 || len(g["rulings_open"]) != 1 {
+				t.Errorf("%s guards %v, want exactly one overlap_uncited literal and one rulings_open literal", id, g)
+			}
+		} else if g := guards[id]; len(g["rulings_open"]) != 1 {
+			t.Errorf("%s guards %v, want exactly one rulings_open literal", id, g)
 		}
 	}
 	for id := range fence {
 		t.Errorf("fence row %q is missing", id)
 	}
 	stops := m.EmitDomains["op.stop"]
-	for _, tok := range []string{"stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked"} {
+	for _, tok := range []string{"stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked"} {
 		if !containsString(stops, tok) {
 			t.Errorf("%s is emitted but not a declared stop disposition (%v)", tok, stops)
 		}
@@ -1469,12 +1490,18 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 		{"0025", "fence-uncited", "stopped:overlap-uncited"},
 		{"0033", "fence-clear", "none"},
 	} {
-		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited")
+		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited,rulings_open")
 		if rule, op := resolve("fence", argv); rule != c.rule || op != c.op {
 			t.Errorf("fence on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
 		}
 	}
-	if rule, op := resolve("fence", nil, "overlap_uncited", "unchecked"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
+	if rule, op := resolve("fence", nil, "overlap_uncited", "unchecked", "rulings_open", "0"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
 		t.Errorf("fence unchecked: rule %q op %q", rule, op)
+	}
+	if rule, op := resolve("fence", nil, "overlap_uncited", "0", "rulings_open", "1+"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
+		t.Errorf("fence rulings open: rule %q op %q", rule, op)
+	}
+	if rule, op := resolve("fence", nil, "overlap_uncited", "0", "rulings_open", "unchecked"); rule != "fence-rulings-unchecked" || op != "stopped:rulings-unchecked" {
+		t.Errorf("fence rulings unchecked: rule %q op %q", rule, op)
 	}
 }

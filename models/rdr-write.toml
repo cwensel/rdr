@@ -118,7 +118,7 @@ kind = "enum"
 [emit.op.domain]
 edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return", "ground"]
 none = ["none"]
-stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked"]
+stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked"]
 
 [emit.target]
 kind   = "enum"
@@ -294,12 +294,22 @@ domain        = ["none", "clear", "homed", "open", "unhomed"]
 single_valued = true
 required      = true
 
-# --- the `fence` group's one dimension ---------------------------------------
+# --- the `fence` group's dimensions -----------------------------------------
 #
 # Propose's overlap arms re-run at lock, scoped to this record
 # (`overlap_uncited`, ON DEMAND — the caller filters for it by name).
 # `unchecked` is the declared sentinel for no corpus bound.
 [tags.overlap_uncited]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "unchecked"]
+single_valued = true
+required      = true
+
+# An author ruling in evidence/rulings.md no stage has marked absorbed
+# (`rdr-facts.toml`'s `rulings_open`). `unchecked` is the declared
+# sentinel for no evidence root bound.
+[tags.rulings_open]
 provenance    = "observed"
 kind          = "enum"
 domain        = ["0", "1+", "unchecked"]
@@ -366,12 +376,14 @@ required      = true
 # ladders' own: an approach or scope/MVV gap (`approach`), a
 # `contradiction`, a `contract` edit, an `assumption-gap` Stage 4 must
 # re-verify, a round-disturbed assumption or open spike Stage 6 must
-# close, a missing `determinacy` disposition, or `wording` a re-lock
-# fixes in pass. `none` is the declared "unclassed" member and stops.
+# close, a missing `determinacy` disposition, `wording` a re-lock fixes
+# in pass, or a `proportionality` finding — a self-flagged split not
+# executed, a cost unweighed — Stage 3 owns it. `none` is the declared
+# "unclassed" member and stops.
 [tags.blocker_class]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["approach", "contradiction", "contract", "assumption-gap", "assumption-disturbed", "spike", "determinacy", "wording", "none"]
+domain        = ["approach", "contradiction", "contract", "proportionality", "assumption-gap", "assumption-disturbed", "spike", "determinacy", "wording", "none"]
 single_valued = true
 required      = true
 
@@ -961,13 +973,37 @@ surface = "the status, verbatim"
 # fence — propose's overlap arms, re-run at lock
 # ===========================================================================
 #
-# Dimension: overlap_uncited = 3 cells, three rows. Propose's joint
-# check runs once, before refine, over the peers open THEN; a peer
-# proposed later shares the anchor and nobody re-asked. This group asks
-# again at lock, scoped to the record (`rdr-facts.toml`'s
+# Dimensions: overlap_uncited × rulings_open = 3 × 3 = 9 cells, five rows.
+# Propose's joint check runs once, before refine, over the peers open
+# THEN; a peer proposed later shares the anchor and nobody re-asked. This
+# group asks again at lock, scoped to the record (`rdr-facts.toml`'s
 # `overlap_uncited`, filtered by name), and never edits: `none` is the
-# fence holding, and either stop is NOT READY. It refuses to sync the
+# fence holding, and every stop is NOT READY. It refuses to sync the
 # copies — the answer to an uncited overlap is the joint check, fired.
+# `rulings_open` rides beside it: an author ruling nobody has applied is
+# the same "not ready to lock" shape.
+
+[[rule]]
+id = "fence-rulings-open"
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.rulings_open]
+eq = "1+"
+[rule.emit]
+op   = "stopped:rulings-open"
+why  = "An author ruling in evidence/rulings.md is marked absorbed by no stage — the design may not carry it, and a lock over it is cli/0113's punt."
+surface = "each open line of rulings.md; apply it at the stage the ruling names, mark the line `absorbed @<stage> <date>`, re-run"
+
+[[rule]]
+id = "fence-rulings-unchecked"
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.rulings_open]
+eq = "unchecked"
+[rule.emit]
+op   = "stopped:rulings-unchecked"
+why  = "No evidence root was bound, so rulings.md was never looked for."
+surface = "bind $RDR_EVIDENCE (rdr-common §seam-bind) and re-run"
 
 [[rule]]
 id = "fence-clear"
@@ -975,9 +1011,11 @@ id = "fence-clear"
 eq = "fence"
 [rule.guard.all.overlap_uncited]
 eq = "0"
+[rule.guard.all.rulings_open]
+eq = "0"
 [rule.emit]
 op  = "none"
-why = "Every open-peer overlap touching this record is cross-cited — no second copy of a decision another open record fences."
+why = "Every open-peer overlap touching this record is cross-cited, and no author ruling is unabsorbed — no second copy of a decision another open record fences."
 
 [[rule]]
 id = "fence-uncited"
@@ -985,6 +1023,8 @@ id = "fence-uncited"
 eq = "fence"
 [rule.guard.all.overlap_uncited]
 eq = "1+"
+[rule.guard.all.rulings_open]
+eq = "0"
 [rule.emit]
 op   = "stopped:overlap-uncited"
 why  = "An open peer shares an anchor or contract literal with this record and neither cites the other — a joint decision nobody fired on, or a propose-time `clear` a later peer made stale."
@@ -996,6 +1036,8 @@ id = "fence-unchecked"
 eq = "fence"
 [rule.guard.all.overlap_uncited]
 eq = "unchecked"
+[rule.guard.all.rulings_open]
+eq = "0"
 [rule.emit]
 op   = "stopped:overlap-unchecked"
 why  = "No records dir was bound, so the overlap arms never ran — unchecked is not clear."
@@ -1057,14 +1099,14 @@ eq = "demote"
 [rule.guard.all.status]
 eq = "Final"
 [rule.guard.all.blocker_class]
-in = ["contradiction", "contract"]
+in = ["contradiction", "contract", "proportionality"]
 [rule.emit]
 op     = "demote"
 target = "record"
 stage  = "refine"
 edit   = "s/^- \\*\\*Status\\*\\*: Final.*$/- **Status**: Draft [revised from Final <YYYY-MM-DD>; re-verify <assumption IDs> @refine — <one-line reason>]/"
 sections = "append `## Refinement Context (cluster re-entry — delete on re-lock)` at the END of the document, after `## References`, carrying cluster + date, the peer pair, the defect with the offending lines quoted, TARGET RE-ENTRY STAGE (3, STAGE-SCOPED), resolution direction, and a pointer to the report"
-why    = "A contradiction or a contract edit is Stage 3's — flip with the scope qualifier naming it, then land the note."
+why    = "A contradiction, a contract edit, or a proportionality finding is Stage 3's — flip with the scope qualifier naming it, then land the note."
 surface = "that the README row follows in the same pass (`--outcome readme`), and that leaving it Final would contradict the report"
 
 [[rule]]
@@ -1426,7 +1468,7 @@ surface = "the `user-facing` disposition to write: yes | no"
 # return — the stage a blocker sends the record back to
 # ===========================================================================
 #
-# Dimensions: blocker_class = 9 cells, eight rows. Decide-only: the
+# Dimensions: blocker_class = 10 cells, eight rows. Decide-only: the
 # answer is the packet's `next_action` (rdr-cascade.toml reads it as
 # `action=stage`), and nothing here writes the record. `consult` names a
 # §strong-consult owed before the human on the two rows that reopen an
@@ -1471,13 +1513,13 @@ id = "return-refine-contract"
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
-eq = "contract"
+in = ["contract", "proportionality"]
 [rule.emit]
 op          = "return"
 target      = "packet"
 stage       = "refine"
 next_action = "/rdr-refine"
-why         = "A contract edit — Stage 3 owns it."
+why         = "A contract edit or a proportionality finding (a self-flagged split unexecuted, a cost unweighed) — Stage 3 owns it."
 
 [[rule]]
 id = "return-resolve"
@@ -1540,7 +1582,7 @@ eq = "none"
 [rule.emit]
 op   = "stopped:no-blocker-class"
 why  = "The blocker carries no class — no stage can be named for it."
-surface = "the blocker, so the gate classes it (approach | contradiction | contract | assumption-gap | assumption-disturbed | spike | determinacy | wording)"
+surface = "the blocker, so the gate classes it (approach | contradiction | contract | proportionality | assumption-gap | assumption-disturbed | spike | determinacy | wording)"
 
 # ===========================================================================
 # ground — the search ladder an open author question walks first
