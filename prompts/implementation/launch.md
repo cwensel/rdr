@@ -48,9 +48,8 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 This `NNNN-slug/artifacts/` directory is the RDR flow's `{ARTIFACT_DIR}` (defined under
 *Output staging* in the flow's path map, `{RDR_ENV}` — resolved via the
 workspace marker, see the flow README *Where the seam lives*). The prompt
-derives the path itself — `<art>` = `artifacts/` under the directory next to
-the RDR named after its basename — so it stays standalone-pasteable; the flow simply gives that
-same location a name. These implementation artifacts stay tracked beside the
+derives `<art>` itself (below) so it stays standalone-pasteable; the flow
+simply names that location. These implementation artifacts stay tracked beside the
 RDR; the flow's pre-lock evidence (`{SPIKE_DIR}`/`{EVIDENCE_DIR}`) is separate, and
 its location is whatever `{RDR_ENV}` defines (a tracked evidence tree where the
 project pins one; gitignored `.rdr/` scratch only in the generic default).
@@ -59,8 +58,7 @@ project pins one; gitignored `.rdr/` scratch only in the generic default).
 
 Replace `{RDR_PATH}` with the RDR file's path
 (e.g. `<rdr-dir>/0001-slug.md`) and `{RDR_RESOURCES}` with the flow's
-evidence index (resolved via the workspace marker — see the flow README *Where
-the seam lives*) — the same corpora, design docs, and anchors the flow grounded
+evidence index (via the marker, as above) — the same corpora, design docs, and anchors the flow grounded
 the spec against, so a sub-agent facing a defect can verify and reason rather
 than ask:
 
@@ -78,8 +76,8 @@ authoritative record; if you and the artifacts disagree, the
 artifacts are right.
 
 `<art>` = `artifacts/` under the directory next to the RDR named after its
-basename without `.md`. Create if missing. The sub-agents write/update inside it: req-list.md,
-impact.md, coverage.md, verification.md, deviations.md, status.md.
+basename without `.md`. Create if missing; the sub-agents write the
+artifacts listed above inside it.
 
 ESCALATION RULE
 Only stop to ask the user when a DESIGN DECISION is required:
@@ -95,7 +93,8 @@ that is a halt, not a question.
 
 PRECHECKS (orchestrator runs these directly — cheap reads only)
 - Resume: read the `<art>/status.md` capsule header (phase/next/blocker)
-  in one pass; if it names a phase, resume at the next phase. Fall through
+  in one pass; if it names a phase, resume where its `next:` line points
+  (a Phase 2 leg's included). Fall through
   to req-list/coverage/verification only if the header is missing, stale,
   or contradicts the artifacts. If artifacts are inconsistent (e.g.,
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
@@ -128,17 +127,16 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome size --plan-only \
     $("$RDR_HOME/bin/rdr" status --tags --filter profile,lines,req_count <slug>) \
     --tag files=<0-3|4+> --tag suite=<quick|long> --tag pressure=<true|false>
-  The three `--tag`s are what this run has observed, never estimated: source
-  files in the packets' changed_paths so far; a suite run over ~200 lines of
-  output; context nearing the orchestrator limit (at PRECHECKS: `0-3`, `quick`,
-  `false`). `emit.next` = `inline` → run the phases in this session, no
-  sub-agent spawn; `delegated` → spawn. Print `STAGE-8 ROUTE: <next> — <why>`.
+  The three `--tag`s are what this run has observed, never estimated (the
+  model's tag comments say how; at PRECHECKS: `0-3`, `quick`, `false`).
+  `emit.next` = `inline` → run the phases in this session, no sub-agent
+  spawn; `delegated` → spawn. Print `STAGE-8 ROUTE: <next> — <why>`.
   FALLBACK: while inline, re-ask at every phase boundary with the tags
   re-observed (Phase 0 writes req-list.md, so `req_count` becomes real). A
   `delegated` answer mid-run: do **not** unwind — keep every artifact already
   written and the `status.md` capsule, print `STAGE-8 ESCALATE: <why> —
   resuming delegated from <phase>`, and re-enter delegated from the next phase
-  via the Resume precheck above. The fast-path writes the same five artifacts
+  via the Resume precheck above. The fast-path writes the same artifacts
   and passes the same completion gate.
 
 PHASE 0 — Spec audit [DELEGATE to sub-agent: "Phase 0 auditor"]
@@ -173,9 +171,8 @@ Sub-agent's task:
      (override + predecessor records are read from the record; a
      `stopped:*` is a halt in the packet's next_action, never an empty file).
 Sub-agent returns a §return-packet (rdr-common); summary_50w carries REQ
-count + REQ-MVV id + impact.md's `rows:` count, QUESTIONS go to
-next_action if non-empty. If QUESTIONS
-is non-empty, the orchestrator asks the
+count + REQ-MVV id + impact.md's `rows:` count. QUESTIONS, if non-empty,
+go to next_action, and the orchestrator asks the
 user one consolidated question, records the answers as additional
 ASSUMPTION lines in `req-list.md`, and re-briefs the auditor if the
 answers change REQ wording; otherwise advance.
@@ -206,51 +203,64 @@ its row with column 2 EMPTY (that empty cell is the orphan mark — never
 "—", "none" or prose), and a test with no REQ gets a row under its own
 REQ id.
 Sub-agent returns a §return-packet; verdict=INCOMPLETE if red-confirmed is
-no, evidence_paths list test files + REQ-MVV runner, changed_paths the
-coverage.md. If red-confirmed is
-no, write INCOMPLETE("Phase 1 red gate failed") and halt — do not
-advance to Phase 2.
+no — then the orchestrator writes INCOMPLETE("Phase 1 red gate failed")
+and halts, never advancing to Phase 2; evidence_paths list test files +
+REQ-MVV runner, changed_paths the coverage.md.
 
-PHASE 2 — Implementation [DELEGATE to sub-agent: "Phase 2 implementer"]
-Brief the sub-agent with:
+PHASE 2 — Implementation [DELEGATE: a FRESH "Phase 2 implementer" per
+leg of one fixed worklist]
+Worklist (orchestrator, one call, the answer applied as a value — the
+`shard` group of `$RDR_HOME/models/rdr-launch.toml`):
+  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
+  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome shard --plan-only \
+    $("$RDR_HOME/bin/rdr" status --tags --filter impact_families <slug>)
+`emit.next` = `single` → the Phase 1 tests, then the full suite; `sharded`
+→ the Phase 1 tests, then impact.md's families in file order, then the
+full suite; a `stopped:*` is INCOMPLETE with `emit.why`.
+Brief each leg with:
   - `<art>/req-list.md`, `<art>/coverage.md`, the test file paths
     from Phase 1, the predecessors' test files (executable ground truth,
     §Predecessor Convention), the source tree root, and the test framework.
-  - The RDR path (sub-agent reads as needed for context, not as
-    primary input).
-  - `{RDR_RESOURCES}` — the evidence index to ground any apparent
-    defect against (Source Search the corpora, check the design docs)
-    before escalating.
-  - `<art>/impact.md` — the predicted predecessor tests. A row that goes
-    red takes the rule below (re-cut only where a CHANGE REQ names it,
-    else regression, else SPEC-DEFECT), recorded against the list rather
-    than a suite dump; a row that stays green needs nothing.
+  - The RDR path (read as needed for context, not as primary input) and
+    `{RDR_RESOURCES}`.
+  - `<art>/impact.md` — the predicted predecessor tests; a leg works a
+    family by its own `## <Family>` section (an artifact: grep it). A row
+    that goes red takes the rule below (re-cut only where a CHANGE REQ
+    names it, else regression, else SPEC-DEFECT), recorded against the
+    list rather than a suite dump; a row that stays green needs nothing.
   - Authority to write `<art>/deviations.md` (always, even empty) and
     update it for any classified deviation it encounters.
+  - Its worklist position (on a respawn: the capsule's `next:` line), the
+    leg's start SHA (`git rev-parse --short HEAD`) and start epoch
+    (`date -u +%s`), and the budget call:
+    "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome budget --plan-only \
+      --tag commits=<0-5|6+> --tag elapsed=<0-30|31+> --tag suite_green=<true|false>
+    commits: `git rev-list --count <start_sha>..HEAD`; elapsed:
+    `$(( ($(date -u +%s) - <start_epoch>) / 60 ))`; suite_green: the
+    last full-suite exit. Asked after every commit and suite run.
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
-handling, or abstractions no REQ-N demands. Owns its own
-write/test/iterate loop until either the full suite is green OR a
-deviation blocks progress. The baseline was green, so a predecessor
+handling, or abstractions no REQ-N demands. It walks the worklist from
+its position, committing as it goes, and applies `emit.next` as a value:
+`continue` → the next item; `return-green` → REQ-MVV (below), then PASS;
+`return-partial` → commit the tree (a `wip:` subject if red, so the
+successor starts from git, not a diff), overwrite the `status.md` capsule
+(`phase: 2 — implementation`; `next:` the worklist position — leg number,
+family or "full suite"; `changed:`), and return verdict=INCOMPLETE with
+next_action `respawn Phase 2 from the capsule` — the orchestrator spawns
+the next leg. The baseline was green, so a predecessor
 test now red is this change's regression: fix it, or — if a REQ-N
 forbids — record SPEC-DEFECT / DEPENDENCY-LIMIT citing the predecessor
 REQ for author decision. Never TEST-FIXTURE, never "pre-existing".
-When a gap appears that the
-sub-agent can resolve mechanically (rename, path difference, type
-shape mismatch, append-only enum extension), it records a classified
-entry in `deviations.md` with "Status: mechanical translation" and
-continues. When a gap looks contract-level (spec wording wrong,
-behaviour under-specified in a load-bearing way, scope deferral
-needed), it first grounds the gap against `{RDR_RESOURCES}` — Source
-Search the corpora for the owning behaviour (PG/standard → DevRef,
-dependency/peer source → DevRefOS/SchemaEvoOS), check the design docs
-and anchors — and ultrathinks a resolution the spec's own evidence
-base supports, recording that evidence on the entry. Only a genuine
-design decision the evidence cannot resolve gets "Status: needs author
-decision" and returns without forcing green; a gap the evidence
-resolves is recorded with its Type, the evidence, and "Status:
-mechanical translation" (or the derived choice), then continue. Every entry uses exactly
-one Type:
+A gap the leg can resolve mechanically (rename, path difference, type
+shape mismatch, append-only enum extension) gets a classified entry in
+`deviations.md` with "Status: mechanical translation", and it continues.
+A contract-level gap (spec wording wrong, load-bearing under-
+specification, scope deferral) is grounded first (GUARDRAILS): resolved,
+it is recorded with its Type, the evidence and "Status: mechanical
+translation" (or the derived choice); only a design decision the
+evidence cannot resolve gets "Status: needs author decision" and returns
+without forcing green. Every entry uses exactly one Type:
   - SPEC-DEFECT — the locked RDR is impossible, internally wrong, or
     contradicts verified facts.
   - SPEC-UNDER — the RDR left a load-bearing choice open.
@@ -260,25 +270,23 @@ one Type:
     platform path is wrong.
   - IMPL-DECISION — valid implementation latitude; record only when
     it affects future interpretation.
-ADDITIVE IS NOT EXEMPT. Any NEW public surface (function, accessor,
-output format, flag, error code) that is not named in the RDR's
-Normative Contracts is a SPEC-UNDER deviation requiring author
-decision — even when it only ADDS and breaks nothing. A surface the
-RDR did not name has no REQ-N, so the red-before-green gate is blind
-to it and it would ship untested and unspecified. Record it in
-deviations.md with "Status: needs author decision" and escalate; do
-not add it silently. (A purely mechanical append-only enum extension
-already covered above stays mechanical; a new public surface does
-not.)
+ADDITIVE IS NOT EXEMPT. A NEW public surface (function, accessor, output
+format, flag, error code) the RDR's Normative Contracts do not name is a
+SPEC-UNDER needing author decision even when it only ADDS: it has no
+REQ-N, so the red-before-green gate is blind to it and it would ship
+untested and unspecified. Record it, escalate, never add it silently. (A
+mechanical append-only enum extension stays mechanical; a new surface
+does not.)
 Do not record ordinary implementation choices unless they affect
-contract, validation, or future interpretation. After the suite is
-green, it runs REQ-MVV end-to-end and records the actual output in
+contract, validation, or future interpretation. On `return-green` it
+runs REQ-MVV end-to-end and records the actual output in
 `<art>/coverage.md` under a heading spelled exactly `## REQ-MVV output`
 (a runner/command line, if kept, sits under a separate
 `## REQ-MVV runner`).
 Sub-agent returns a §return-packet; verdict=PASS only with the full
 suite green, NEEDS_DECISION if any needs-author-decision deviation,
-summary_50w gives green, evidence_paths cite each open deviation.
+INCOMPLETE only from `return-partial`, summary_50w gives green,
+evidence_paths cite each open deviation.
 If needs-author-decision deviations are non-empty, the orchestrator
 asks the user one consolidated question listing each gap with the
 sub-agent's recommendation, records each resolution by REWRITING that
@@ -295,9 +303,8 @@ PHASE 3a [DELEGATE to sub-agent: "CoVe verifier"]
 Brief: RDR path and `<art>/req-list.md` only. NO implementation,
 NO tests. Sub-agent's task: for each REQ-N, name an input that
 would make a correct implementation visibly violate it. Then run
-those inputs against the actual implementation (the sub-agent has
-the source tree but is forbidden from reading the Phase 1 tests).
-Any actual violation gets appended to `<art>/verification.md` as a
+those inputs against the actual implementation (source tree in hand,
+Phase 1 tests unread). Any actual violation gets appended to `<art>/verification.md` as a
 FAIL-N entry with the failing input and observed behaviour.
 Sub-agent returns a §return-packet (verdict=BLOCK if FAIL-N; summary_50w lists the FAIL-N entries one line each).
 
@@ -338,9 +345,9 @@ ledger file is a named stop, never a pass. Write `<art>/status.md` state from
 Do not declare success on INCOMPLETE.
 
 RESUME CAPSULE (orchestrator writes status.md as the cheap one-pass
-resume state). Each phase boundary AND the completion gate overwrite
-`<art>/status.md` with the fixed header block below, then the verdict
-line. Overwrite, never append. This is the ONLY Stage-8 durable read on
+resume state). Each phase boundary, the completion gate, AND a Phase 2
+leg's `return-partial` overwrite `<art>/status.md` with the fixed header
+block below, then the verdict line. Overwrite, never append. This is the ONLY Stage-8 durable read on
 re-entry — keep it ≤12 lines so a new session rehydrates in one read.
 
 ```text
@@ -356,10 +363,8 @@ artifacts: req-list.md impact.md coverage.md verification.md deviations.md
 ```
 
 GUARDRAILS
-- Phase sub-agents own their own reading. The orchestrator never
-  reads the RDR text, implementation files, or test files.
-  Re-reading the same files in two contexts is the bug we are
-  avoiding.
+- Phase sub-agents own their own reading (your role, above): re-reading
+  the same files in two contexts is the bug we are avoiding.
 - Every phase return is a §return-packet; the orchestrator rejects a
   malformed packet and re-asks for the packet alone, not a re-run.
 - If a test needs information not in the spec, the sub-agent first
@@ -412,34 +417,24 @@ prompt only needs to know which predecessors to gate on.
   is what distinguishes "tests verify the spec" from "tests verify
   what the LLM wrote."
 - **Orchestrator-of-sub-agents architecture is what keeps the main
-  context small.** The orchestrator holds only artifact paths and
-  per-phase summaries (≤200–300 words each). Every phase that touches
-  the RDR text, source tree, or test files runs in its own sub-agent
-  whose context is discarded on return. This is the primary defence
-  against the 1M-token blowup that happens when one agent accumulates
-  every file it ever read across all phases. The on-disk artifacts
-  (`<art>/*.md`) are the durable record between phases.
-- **Sub-agent briefs enforce independence structurally.** Phase 1
-  test author cannot see implementation; Phase 3a CoVe verifier
-  cannot see Phase 1 tests; Phase 3b adversarial reviewer cannot see
-  Phase 3a findings. Asking a single agent to "ignore what you just
+  context small.** Every phase that touches the RDR text, source tree,
+  or test files runs in its own sub-agent whose context is discarded on
+  return, and the `budget` rows bound each Phase 2 leg the same way — a
+  fresh leg per cut, resuming from the on-disk artifacts (`<art>/*.md`),
+  the durable record between phases.
+- **Sub-agent briefs enforce independence structurally** (GUARDRAILS
+  lists the exclusions). Asking a single agent to "ignore what you just
   wrote" is aspirational — isolation is enforceable only via
   brief-scoping at spawn time.
-- **Hard COMPLETE/INCOMPLETE gate** makes "done" computable from disk,
-  which is what manual sequencing across long gaps requires. The
-  orchestrator computes the gate from the `complete` row over the ledger
-  facts, not by re-reading content.
-- **Escalation to the user is for design decisions, not continuation.**
-  Spec ambiguity that no reading resolves, and contract-level
-  deviations (spec defect, deferred-scope), surface as user questions.
-  Phase transitions, framework inference, mechanical deviation
-  resolution, and precondition failures (which become INCOMPLETE
-  halts) never ask.
+- **Hard COMPLETE/INCOMPLETE gate** makes "done" computable from disk
+  (the `complete` row), which is what manual sequencing across long
+  gaps requires.
+- **Escalation to the user is for design decisions, not continuation**
+  (the ESCALATION RULE above).
 - **Inline fast-path for small RDRs** is the PRECHECKS **Size gate**
   above — the `size` row of `$RDR_HOME/models/rdr-launch.toml`
-  (profile=`small` + hard caps), not an ad-hoc "trivial surface" judgment,
-  and it falls back to delegated on any cap breach. The red-before-green
-  gate still applies inline.
+  (profile=`small` + hard caps), not an ad-hoc "trivial surface" judgment
+  (FALLBACK re-asks it). The red-before-green gate still applies inline.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
   DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
   taxonomy the RDR process uses for post-mortem drift classification

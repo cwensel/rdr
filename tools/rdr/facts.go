@@ -474,13 +474,13 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 			return d, fmt.Errorf("fact %q: a spike-diff is a set naming a root", name)
 		}
 	case "impl-artifact":
-		// The four selects are the four ledger reads; an unknown one
+		// The five selects are the five ledger reads; an unknown one
 		// would evaluate to nothing while reading as declared, the same
 		// failure seam-lineage's select guards against.
 		switch d.Select {
-		case "req-count", "orphans", "open-decisions", "mvv-recorded":
+		case "req-count", "orphans", "open-decisions", "mvv-recorded", "impact-families":
 		default:
-			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions or mvv-recorded, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded or impact-families, got %q", name, d.Select)
 		}
 		if d.Root == "" {
 			return d, fmt.Errorf("fact %q: an impl-artifact names a root", name)
@@ -1314,9 +1314,10 @@ func (e *FactEnv) capsuleState(d FactDecl) (Fact, bool) {
 // checked against the declared domain at load — the same closed-domain
 // discipline stale-lens applies to its own paths.
 var implArtifactMembers = map[string][]string{
-	"req-count":      {"0-10", "11+"},
-	"orphans":        {"0", "1+"},
-	"open-decisions": {"0", "1+", "midline"},
+	"req-count":       {"0-10", "11+"},
+	"orphans":         {"0", "1+"},
+	"open-decisions":  {"0", "1+", "midline"},
+	"impact-families": {"0", "1+"},
 }
 
 // implArtifact answers the Stage-8 launch-gate signals, read from the
@@ -1404,8 +1405,43 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 			return Fact{}, false
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(labelledLine(raw, d.Label))}, true
+	case "impact-families":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		n, ok := impactFamilies(raw)
+		if !ok {
+			// A file with no readable `families:` line is not the
+			// projection's output: unread, so the shard route stops on
+			// it rather than reading a stray file as an empty radius.
+			return Fact{}, false
+		}
+		v := "0"
+		if n > 0 {
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
 	}
 	return Fact{}, false
+}
+
+// impactFamilies reads the `families: N` header line `rdr impact` writes
+// (emitImpact); the first such line decides, and a file without one, or
+// with a non-integer after the key, is unreadable.
+func impactFamilies(raw []byte) (int, bool) {
+	for _, ln := range strings.Split(string(raw), "\n") {
+		rest, ok := strings.CutPrefix(ln, "families:")
+		if !ok {
+			continue
+		}
+		n, err := strconv.Atoi(strings.TrimSpace(rest))
+		if err != nil || n < 0 {
+			return 0, false
+		}
+		return n, true
+	}
+	return 0, false
 }
 
 // recordLinesCap is the size gate's line cap: a record at or under it is

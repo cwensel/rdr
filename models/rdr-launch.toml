@@ -1,10 +1,12 @@
-# rdr-launch.toml — the launch prompt's two gates, as proven rows.
+# rdr-launch.toml — the launch prompt's gates, as proven rows.
 #
-# `prompts/implementation/launch.md` routed Stage 8 by two AND-gates in
+# `prompts/implementation/launch.md` routed Stage 8 by AND-gates in
 # prose: the SIZE gate (five caps deciding inline fast-path vs delegated,
-# plus four mid-run FALLBACK triggers) and the COMPLETION gate (four
-# conditions deciding COMPLETE vs INCOMPLETE). This table is both;
-# `intrastate lint --model` proves every cell of each.
+# plus four mid-run FALLBACK triggers), the COMPLETION gate (four
+# conditions deciding COMPLETE vs INCOMPLETE), the predecessor PRECHECK,
+# and — inside Phase 2 — the SHARD route (what the implementer's worklist
+# is) and the BUDGET (when a Phase 2 leg returns so a fresh one resumes).
+# This table is all of them; `intrastate lint --model` proves every cell.
 #
 # DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
 # accessors. The caller acts on `emit`; nothing here writes.
@@ -12,18 +14,19 @@
 # WHERE EVERY DIMENSION COMES FROM. Facts are rendered by `rdr status
 # --tags --filter …` and declared in rdr-facts.toml, whose names are the
 # contract (`profile`, `lines`, `req_count`, `impl_orphans`,
-# `impl_open_decisions`, `impl_mvv_recorded`); each is total by a declared
-# sentinel or by construction. The rest are CALLER-SUPPLIED `observed`
-# tags the orchestrator binds from what it has already seen this run —
-# never estimated — and passes as `--tag k=v`: `files` (source files in
-# the packets' changed_paths so far), `suite` (whether any suite run has
-# exceeded the output cap), `pressure` (context nearing the orchestrator
-# limit), `suite_green` (the last packet's verdict), `baseline` (the full
-# suite before Phase 1 writes a test). At PRECHECKS nothing
-# has happened, so the three size tags are their floor values and
-# `req_count` is `none`: the row for that cell is what makes the inline
-# path honest rather than a guess. `tools/rdr/routing_test.go` names
-# these caller tags in its allowlist.
+# `impl_open_decisions`, `impl_mvv_recorded`, `impact_families`); each is
+# total by a declared sentinel or by construction. The rest are
+# CALLER-SUPPLIED `observed` tags the caller binds from what the world
+# shows it — never estimated, never remembered — and passes as `--tag
+# k=v`: `files` (source files in the packets' changed_paths so far),
+# `suite` (whether any suite run has exceeded the output cap), `pressure`
+# (context nearing the orchestrator limit), `suite_green` (is the full
+# suite green now), `baseline` (the full suite before Phase 1 writes a
+# test), `commits` and `elapsed` (git and the clock since a Phase 2 leg
+# began). At PRECHECKS nothing has happened, so the three size tags are
+# their floor values and `req_count` is `none`: the row for that cell is
+# what makes the inline path honest rather than a guess.
+# `tools/rdr/routing_test.go` names these caller tags in its allowlist.
 #
 # THE FALLBACK IS THE SAME ROW, RE-ASKED. The prose armed four mid-run
 # triggers (a 4th file, >10 REQ, a long suite run, context pressure); each
@@ -43,17 +46,21 @@
 # THE ANSWER IS `emit.next`, applied as a value. `size`: `inline` runs
 # the phases in this session, `delegated` spawns them (or, mid-run, hands
 # off on disk). `complete`: `COMPLETE` is the capsule's state word; a
-# `stopped:*` member is the INCOMPLETE blocker, named. `why` is the line
-# the caller prints beside it. No interpolation: the record number, the
-# phase and the file names are the caller's.
+# `stopped:*` member is the INCOMPLETE blocker, named. `shard`: `single`
+# or `sharded` is the worklist the Phase 2 legs walk. `budget`: `continue`
+# is the next worklist item, `return-green` the PASS packet,
+# `return-partial` the cut — commit, capsule, INCOMPLETE packet, and the
+# orchestrator spawns a fresh leg. `why` is the line the caller prints
+# beside it. No interpolation: the record number, the phase and the file
+# names are the caller's.
 
-outcomes = ["size", "complete", "precheck"]
+outcomes = ["size", "complete", "precheck", "shard", "budget"]
 
 [model]
 id          = "rdr-launch"
 version     = 1
 class       = "decision-table"
-description = "Stage-8 launch: the size gate's route and the completion gate's verdict, from facts plus what the run has observed."
+description = "Stage-8 launch: the size gate's route, the precheck, the Phase 2 worklist and leg budget, and the completion gate's verdict, from facts plus what the run has observed."
 
 [model.metadata]
 owner  = "rdr"
@@ -63,10 +70,11 @@ facts  = "models/rdr-facts.toml"
 [emit.next]
 kind = "enum"
 [emit.next.domain]
-route = ["inline", "delegated"]
+route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:baseline-red"]
+loop  = ["continue", "return-green", "return-partial"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -74,7 +82,7 @@ kind = "scalar"
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["size", "complete", "precheck"]
+domain        = ["size", "complete", "precheck", "shard", "budget"]
 single_valued = true
 required      = true
 
@@ -129,6 +137,15 @@ kind          = "bool"
 single_valued = true
 required      = true
 
+# impact.md's `families:` header count, bucketed; rendered by `rdr status
+# --tags --filter impact_families`. `none` = impact.md unread.
+[tags.impact_families]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
+single_valued = true
+required      = true
+
 # --- caller-supplied, observed so far this run -------------------------------
 
 # Source files touched, from the packets' changed_paths; `0-3` at PRECHECKS.
@@ -154,10 +171,12 @@ kind          = "bool"
 single_valued = true
 required      = true
 
-# The last §return-packet's verdict — Phase 2's, or Phase 3c's when it ran:
-# PASS is `true`, anything else `false`. PASS means the FULL suite,
-# predecessors included: the baseline was green, so a red predecessor test
-# is this change's regression, never "pre-existing".
+# Is the full suite green now. Inside Phase 2 it is the leg's last
+# full-suite exit; at the completion gate the last §return-packet's
+# verdict — Phase 2's, or Phase 3c's when it ran: PASS is `true`, anything
+# else `false`. PASS means the FULL suite, predecessors included: the
+# baseline was green, so a red predecessor test is this change's
+# regression, never "pre-existing".
 [tags.suite_green]
 provenance    = "observed"
 kind          = "bool"
@@ -170,6 +189,31 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["green", "red", "none"]
+single_valued = true
+required      = true
+
+# --- the Phase 2 leg's caps, observed from the world at every ask ----------
+#
+# The caps ARE the domain boundaries, as `lines` is `0-400`/`401+`: 6
+# commits, 30 minutes. Measured over retrofit's recorded Phase 2 agents,
+# context grew ~10k tokens/min, so 30 min ≈ 300k — under the 400k line
+# every 60–159-min run crossed; at the median 8.5 min per commit the
+# elapsed cap binds first and the commit cap catches a fast run.
+
+# `git rev-list --count <start_sha>..HEAD` since the leg's start SHA.
+[tags.commits]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0-5", "6+"]
+single_valued = true
+required      = true
+
+# Minutes since the leg's start, from epoch seconds: `date -u +%s` now
+# minus the start the brief carries, over 60.
+[tags.elapsed]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0-30", "31+"]
 single_valued = true
 required      = true
 
@@ -550,3 +594,107 @@ eq = "green"
 [rule.emit]
 next = "proceed"
 why  = "Final, every predecessor COMPLETE (or none declared), and the baseline green: the launch may run."
+
+# ===========================================================================
+# shard — the Phase 2 worklist, named once
+# ===========================================================================
+#
+# impact_families = 3 cells, asked once by the orchestrator after Phase 1.
+# Phase 0 wrote impact.md from `rdr impact` or halted, so an unread one is
+# an artifact inconsistency (the Resume precheck's word), never an empty
+# blast radius. The worklist is fixed here and every Phase 2 leg walks it
+# from the position its brief carries: the Phase 1 tests, then each
+# family in impact.md's file order (sharded only), then the full suite.
+
+[[rule]]
+id = "shard-impact-unread"
+[rule.match.recognized]
+eq = "shard"
+[rule.guard.all.impact_families]
+eq = "none"
+[rule.emit]
+next = "stopped:impact-unread"
+why  = "impact.md was not read: Phase 0 writes it or halts, so an unread one is an artifact inconsistency, never an empty blast radius."
+
+[[rule]]
+id = "shard-single"
+[rule.match.recognized]
+eq = "shard"
+[rule.guard.all.impact_families]
+eq = "0"
+[rule.emit]
+next = "single"
+why  = "No family predicted: the worklist is the Phase 1 tests, then the full suite."
+
+[[rule]]
+id = "shard-sharded"
+[rule.match.recognized]
+eq = "shard"
+[rule.guard.all.impact_families]
+eq = "1+"
+[rule.emit]
+next = "sharded"
+why  = "Families predicted: the worklist is the Phase 1 tests, then impact.md's families in file order, then the full suite."
+
+# ===========================================================================
+# budget — when a Phase 2 leg returns
+# ===========================================================================
+#
+# suite_green x elapsed x commits = 8 cells, asked by the Phase 2 leg after
+# every commit and every suite run. Every dimension is observed from the
+# world — the last suite exit, the clock, git — never remembered, so a
+# long-context agent cannot mis-track them. Green returns whatever the
+# caps say; over either cap, `return-partial` is the cut that replaces
+# the harness's auto-compaction: a fresh leg resumes from the capsule
+# instead of a compacted context re-reading its own state. Each row's
+# `why` is the line the leg prints.
+
+[[rule]]
+id = "budget-green"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.emit]
+next = "return-green"
+why  = "The full suite is green: run REQ-MVV, record it, and return PASS."
+
+[[rule]]
+id = "budget-elapsed"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.guard.all.elapsed]
+eq = "31+"
+[rule.emit]
+next = "return-partial"
+why  = "Over 30 minutes on this leg: commit the tree, write the capsule's next: line, and return INCOMPLETE for a fresh leg to resume."
+
+[[rule]]
+id = "budget-commits"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.guard.all.elapsed]
+eq = "0-30"
+[rule.guard.all.commits]
+eq = "6+"
+[rule.emit]
+next = "return-partial"
+why  = "A 6th commit on this leg: commit the tree, write the capsule's next: line, and return INCOMPLETE for a fresh leg to resume."
+
+[[rule]]
+id = "budget-continue"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.guard.all.elapsed]
+eq = "0-30"
+[rule.guard.all.commits]
+eq = "0-5"
+[rule.emit]
+next = "continue"
+why  = "Red and under both caps: take the next worklist item."

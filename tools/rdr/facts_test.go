@@ -2144,6 +2144,35 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	// impact_families reads only the `families:` header line `rdr impact`
+	// writes; the sections below it are the Phase 2 leg's, not the fact's.
+	// A file without that line was not the projection's output and is
+	// unread — the shard route must stop on it, not read it as `0`.
+	t.Run("impact families", func(t *testing.T) {
+		for _, c := range []struct{ name, body, want string }{
+			{"none predicted", "# Impact — 0099\n\nfamilies: 0\nrows: 0\nrecords: none\n", "0"},
+			{"predicted", "# Impact — 0099\n\nfamilies: 3\nrows: 7\nrecords: 0021\n\n## TestX (7 tests, 2 files)\n", "1+"},
+		} {
+			e := implArtifactEnv(t, tbl, map[string]string{"impact.md": c.body})
+			if got, _ := factValue(tbl.Evaluate(e), "impact_families"); got != c.want {
+				t.Errorf("%s: impact_families = %q, want %q", c.name, got, c.want)
+			}
+		}
+		for _, c := range []struct{ name, body string }{
+			{"no header line", "# Impact — 0099\n\n## TestX (1 tests, 1 files)\n"},
+			{"unparseable count", "families: many\n"},
+		} {
+			e := implArtifactEnv(t, tbl, map[string]string{"impact.md": c.body})
+			if v, ok := factValue(tbl.Evaluate(e), "impact_families"); ok {
+				t.Errorf("%s: impact_families = %q; a file with no readable families: line must be absent", c.name, v)
+			}
+		}
+		e := implArtifactEnv(t, tbl, map[string]string{})
+		if v, ok := factValue(tbl.Evaluate(e), "impact_families"); ok {
+			t.Errorf("impact_families = %q; with no impact.md the fact must be absent", v)
+		}
+	})
+
 	t.Run("open decisions, legacy spellings", func(t *testing.T) {
 		cases := []struct {
 			name string

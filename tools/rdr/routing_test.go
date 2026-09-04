@@ -51,11 +51,12 @@ var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-casca
 // ladder position (`searched`, `found`).
 var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
-	// The launch orchestrator's own observations this run: source files
-	// touched, a suite run over the output cap, context pressure, and the
-	// last packet's verdict, and the pre-Phase-1 suite baseline. Its six
-	// other tags are facts and stay policed.
-	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true},
+	// The launch run's own observations: source files touched, a suite
+	// run over the output cap, context pressure, whether the full suite
+	// is green now, the pre-Phase-1 suite baseline, and a Phase 2 leg's
+	// commits (git) and elapsed minutes (the clock) since it began. Its
+	// seven other tags are facts and stay policed.
+	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true, "commits": true, "elapsed": true},
 	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true},
 	// The loop caps: every tag is a value the caller holds from a tool
 	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
@@ -895,13 +896,15 @@ func emitNextDomain(t *testing.T, name string) map[string][]string {
 // applied as inline-or-delegated, `done` is the capsule's state word, and
 // `stop` is the INCOMPLETE blocker — never on a string it has to
 // recognise. Backward: every declared member is emitted by some row, so
-// the domain carries no stop token nothing can ever produce. And the two
-// gates keep their own vocabularies: a size row never stops (the prose
-// gate routed, it did not halt) and a completion row never routes.
+// the domain carries no stop token nothing can ever produce. And each
+// group keeps its own vocabulary: a size row never stops (the prose gate
+// routed, it did not halt), a completion row never routes, a shard row
+// names a worklist or stops on the unread projection, and a budget row
+// only ever says what the leg does next (`loop`).
 func TestLaunchEmitsAreDeclaredDispositions(t *testing.T) {
 	m := loadRoutingModelNamed(t, launchModelName)
 	domain := emitNextDomain(t, launchModelName)
-	for _, part := range []string{"route", "done", "go", "stop"} {
+	for _, part := range []string{"route", "done", "go", "loop", "stop"} {
 		if len(domain[part]) == 0 {
 			t.Errorf("[emit.next.domain] declares no %q partition", part)
 		}
@@ -937,8 +940,16 @@ func TestLaunchEmitsAreDeclaredDispositions(t *testing.T) {
 			if part != "go" && part != "stop" {
 				t.Errorf("precheck row %q emits %q (%s); the precheck proceeds or stops, it neither routes nor completes", id, next, part)
 			}
+		case strings.HasPrefix(id, "shard"):
+			if part != "route" && part != "stop" {
+				t.Errorf("shard row %q emits %q (%s); the shard route names a worklist or stops on an unread impact.md", id, next, part)
+			}
+		case strings.HasPrefix(id, "budget"):
+			if part != "loop" {
+				t.Errorf("budget row %q emits %q (%s); a budget row says what the leg does next and nothing else", id, next, part)
+			}
 		default:
-			t.Errorf("rule %q belongs to none of the size, complete or precheck groups by id", id)
+			t.Errorf("rule %q belongs to none of the size, complete, precheck, shard or budget groups by id", id)
 		}
 	}
 	for v := range member {
@@ -1058,6 +1069,39 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state")
 		if rule, next := resolve("precheck", argv, "baseline", c.baseline); rule != c.rule || next != c.next {
 			t.Errorf("precheck on %s: rule %q next %q, want %s/%s", c.rec, rule, next, c.rule, c.next)
+		}
+	}
+
+	// The shard route reads one fact: 0030's artifacts carry an impact.md
+	// in `rdr impact`'s shape with `families: 2`, so the worklist is
+	// sharded; 0021 has no artifacts dir, so the fact renders its sentinel
+	// and the route stops on the unread projection rather than reading
+	// nothing as an empty radius.
+	argv = filteredTagArgv(t, table, "0030", "impact_families")
+	if rule, next := resolve("shard", argv); rule != "shard-sharded" || next != "sharded" {
+		t.Errorf("shard on 0030: rule %q next %q, want shard-sharded/sharded", rule, next)
+	}
+	argv = filteredTagArgv(t, table, "0021", "impact_families")
+	if rule, next := resolve("shard", argv); rule != "shard-impact-unread" || next != "stopped:impact-unread" {
+		t.Errorf("shard on 0021 (no impact.md): rule %q next %q, want shard-impact-unread/stopped:impact-unread", rule, next)
+	}
+
+	// The budget is caller tags only — the leg observes git, the clock
+	// and its last suite exit — so every one of its 8 cells resolves
+	// with no fixture: green returns whatever the caps say, either cap
+	// over cuts the leg, under both continues.
+	for _, c := range []struct{ green, elapsed, commits, rule, next string }{
+		{"true", "0-30", "0-5", "budget-green", "return-green"},
+		{"true", "0-30", "6+", "budget-green", "return-green"},
+		{"true", "31+", "0-5", "budget-green", "return-green"},
+		{"true", "31+", "6+", "budget-green", "return-green"},
+		{"false", "31+", "0-5", "budget-elapsed", "return-partial"},
+		{"false", "31+", "6+", "budget-elapsed", "return-partial"},
+		{"false", "0-30", "6+", "budget-commits", "return-partial"},
+		{"false", "0-30", "0-5", "budget-continue", "continue"},
+	} {
+		if rule, next := resolve("budget", nil, "suite_green", c.green, "elapsed", c.elapsed, "commits", c.commits); rule != c.rule || next != c.next {
+			t.Errorf("budget suite_green=%s elapsed=%s commits=%s: rule %q next %q, want %s/%s", c.green, c.elapsed, c.commits, rule, next, c.rule, c.next)
 		}
 	}
 }

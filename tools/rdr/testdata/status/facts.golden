@@ -606,6 +606,7 @@ req_count                    enum    0-10
 impl_orphans                 enum    0
 impl_open_decisions          enum    0
 impl_mvv_recorded            bool    true
+impact_families              enum    1+
 cluster_reconciled           bool    false
 contracts_prose              bool    false
 ca_pending_ids               set     []

@@ -1073,6 +1073,19 @@ label       = "REQ-MVV output"
 absent      = "false"
 description = "coverage.md carries a REQ-MVV output line; a runner line alone is not a recording."
 
+# Phase 0 writes impact.md from `rdr impact`; the launch table's shard
+# route reads only the header's `families:` count. Unread is `none`, a
+# named stop, never `0` — an empty blast radius was looked for.
+[fact.impact_families]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "impact-families"
+root        = "artifacts"
+paths       = ["impact.md"]
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "The families: count in impact.md's header, bucketed; none when the file is unread."
+
 # --- Stage 7.1, the cluster half ------------------------------------------
 #
 # 7.1's output is the one stage that does not live under the record. It is
