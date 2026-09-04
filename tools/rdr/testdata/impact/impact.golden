@@ -1,0 +1,29 @@
+# Impact — 0040-impact-fixture
+
+families: 4
+rows: 5
+records: 0103 0120
+literals: `.dml.sql` `dml-sidecar`
+repo: testdata/impact/repo
+convention: go
+
+## TestCorpus0103 (2 tests, 1 files)
+| test | file | arm |
+|---|---|---|
+| TestCorpus0103_REQ1_Import | internal/cli/import_test.go | record:0103;literal:.dml.sql |
+| TestCorpus0103_REQ2_Rows | internal/cli/import_test.go | record:0103;literal:.dml.sql |
+
+## TestExport0120 (1 tests, 1 files)
+| test | file | arm |
+|---|---|---|
+| TestExport0120_REQ1_Write | internal/cli/export_test.go | record:0120 |
+
+## import_test.go (1 tests, 1 files)
+| test | file | arm |
+|---|---|---|
+| TestImportHelper | internal/cli/import_test.go | record:0103;literal:.dml.sql |
+
+## plain_test.go (1 tests, 1 files)
+| test | file | arm |
+|---|---|---|
+| TestPlainRoundTrip | internal/cli/plain_test.go | literal:dml-sidecar |

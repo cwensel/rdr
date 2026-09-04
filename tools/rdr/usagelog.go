@@ -361,6 +361,21 @@ func usageFacet(cmd string, f *flags, target string) string {
 			return which + ":files"
 		}
 		return which
+	case "impact":
+		// Named so the Phase 0 uptake is auditable: the verb exists so
+		// the implementer meets the predecessor list up front, and a
+		// facet the log cannot name reads as never called. Whether
+		// literals rode along is carried because that is the half the
+		// auditor supplies by judgement — a bare call predicts from the
+		// record's edges alone.
+		which := "records"
+		if len(f.literal.values) > 0 {
+			which = "records+literals"
+		}
+		if f.json != nil && *f.json {
+			return which + ":json"
+		}
+		return which
 	case "lint":
 		// Two facets, because two things call lint: a gate, which needs
 		// the verdict, and a stage reading mid-flow, which needs the

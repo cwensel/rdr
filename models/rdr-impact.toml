@@ -1,0 +1,58 @@
+# rdr-impact.toml — the test-naming conventions `rdr impact` reads, as data.
+#
+# Stage 8's Phase 0 auditor owes the implementer a blast radius: which
+# predecessor tests will a locked record's contract changes turn red. The
+# answer used to be nothing — the implementer met each red test mid-loop
+# and had to decide, one at a time, whether it was a regression or a
+# retired contract. `rdr impact` predicts the set up front from two
+# things the corpus already carries: the records the RDR states it
+# overrides or succeeds (its Metadata edges), and the literals the change
+# retires (the caller names those; they are judgement).
+#
+# Turning a record number into a test name is a CONVENTION of the source
+# repo, not of the record, and it differs by language: a Go suite writes
+# `TestCorpus0103_REQ44_…`, another family will spell its pin some other
+# way. So the convention is declared here rather than compiled in: the
+# binary is pointed at more than one tree, and teaching it a second
+# language is a table below, never a Go branch.
+#
+# What the verb reads from a convention:
+#
+#   detect — one path, relative to the repo root, whose existence says
+#            the tree is this language. Conventions are tried by `order`
+#            and the first whose detect file exists is the one used. No
+#            detect file present is a STOP, never an empty prediction —
+#            a tree nothing looked at must not read as a tree with no
+#            impact.
+#   glob   — which files are test files: `**/` then a basename pattern
+#            (filepath.Match), walked with the resolver's own skip-dirs
+#            (.git, node_modules, vendor, target, dist, build) and its
+#            4 MiB cap. ONLY files matching the glob are opened; a source
+#            file that happens to carry a literal is not a test and is
+#            never read.
+#   func   — the line shape of a RECORD-NAMED test: group 1 is the test
+#            name, group 2 the four-digit record it pins.
+#   tests  — the line shape of ANY test, group 1 the name, so every test
+#            in a predicted file becomes a row and not only the pinned
+#            ones.
+#   family — group 1 over a test name is the key rows group under; a
+#            name that matches no family groups under its file's basename.
+#
+# Regex values are Go syntax; this TOML subset's strings are double
+# quoted, so a backslash is written `\\`.
+#
+# `[[convention]]` (array of tables) is outside the in-house TOML subset,
+# so each convention is a keyed table `[convention.<name>]` with an
+# `order` key; the name is what the projection prints as `convention:`.
+
+[impact]
+version = 1
+description = "test-naming conventions the impact projection reads: which test files, and how a test's name carries the record it pins"
+
+[convention.go]
+order  = 1
+detect = "go.mod"
+glob   = "**/*_test.go"
+func   = "^func (Test[A-Za-z]*?(\\d{4})_[A-Za-z0-9_]*)\\("
+tests  = "^func (Test[A-Za-z0-9_]*)\\("
+family = "^(Test[A-Za-z]*?\\d{4})_"

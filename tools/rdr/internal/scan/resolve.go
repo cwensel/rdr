@@ -369,8 +369,7 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 			return nil
 		}
 		if e.IsDir() {
-			switch e.Name() {
-			case ".git", "node_modules", "vendor", "target", "dist", "build":
+			if SkipDir(e.Name()) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -379,7 +378,7 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 			return nil
 		}
 		info, err := e.Info()
-		if err != nil || info.Size() > maxSearchBytes {
+		if err != nil || info.Size() > MaxSearchBytes {
 			return nil
 		}
 		body, err := os.ReadFile(p)
@@ -397,10 +396,23 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 	})
 }
 
-// maxSearchBytes skips a file too large to be source. A generated blob is
+// MaxSearchBytes skips a file too large to be source. A generated blob is
 // not where a cited symbol is defined, and reading it costs more than the
-// whole rest of the walk.
-const maxSearchBytes = 4 << 20
+// whole rest of the walk. Exported so every walk over the repo — this
+// resolver's and `rdr impact`'s — draws the same line.
+const MaxSearchBytes = 4 << 20
+
+// SkipDir is the one list of directories no repo walk descends into:
+// the VCS store and the dependency and build trees, where a symbol is
+// never defined and a test never pins a record. One list, so a walk
+// added later cannot skip a different set and disagree with this one.
+func SkipDir(name string) bool {
+	switch name {
+	case ".git", "node_modules", "vendor", "target", "dist", "build":
+		return true
+	}
+	return false
+}
 
 // searchable skips the extensions a symbol is never defined in, so the
 // walk reads source rather than every asset in the tree.

@@ -30,6 +30,7 @@ first non-flag word.
     rdr index --coverage --records ../rdr/cli
     rdr index --unresolved --records ../rdr/cli --repo ../src
     rdr index --cluster-of 0130 --records ../rdr/cli
+    rdr impact 0113 --literal '.dml.sql'   # the predecessor tests the record's changes will turn red: rows by family, from its override/predecessor edges and the retired literals
 
 Go stdlib only — no third-party dependencies, by design. RDR markdown is
 line-oriented (headings, fences, bullet trees with bold labels), so a line
@@ -1094,6 +1095,37 @@ what a ledger row points at after a reword. Output is byte-ordered so two
 outputs `comm` without a locale in the way (`LC_ALL=C comm` in the prompts
 makes that explicit).
 
+## Impact
+
+`rdr impact <record> [--literal TOKEN]...` predicts which predecessor
+tests a locked record's contract changes will turn red, so Stage 8's
+implementer meets the list up front instead of one red test at a time
+inside its loop. The launch precheck proves the baseline green, so every
+predecessor test that goes red is this change's doing; the per-test call
+— regression to fix, or a contract the record retires — was made mid-loop
+with no list, and Phase 0 now writes `<art>/impact.md` from this verb's
+stdout (`prompts/implementation/launch.md`).
+
+It predicts by FILE from two sources: the records the RDR states it
+overrides or succeeds — its own Metadata edges, read the way `status`
+reads a record and never resolved — and the literals the change retires,
+which the caller names with `--literal` because deciding what a REQ
+retires is judgement. A test file is predicted when a test in it pins a
+set member by name or its body carries a literal; every test in a
+predicted file is then a row (arm: `record:NNNN` and/or `literal:<tok>`),
+grouped by family. How a test's name pins a record, and which files are
+tests, is a convention of the SOURCE repo and lives in
+`models/rdr-impact.toml` — `detect` file, `glob`, three regexes — chosen
+by whichever convention's detect file the repo holds; a second language
+is a table there, not a branch here.
+
+Only files the glob names are opened, each once, under the resolver's
+own skip-dirs and size cap; a source file that carries a literal is not a
+test and is never read (the read count is what the test pins). An unbound
+`--repo` or a repo no convention detects is a `stopped:` line, never
+`rows: 0` — a tree nothing looked at must not read as a tree with no
+impact. It never writes; the caller redirects stdout to `impact.md`.
+
 ## Facts
 
 `models/rdr-facts.toml` declares the signals `rdr-status` reads, and the
@@ -1555,6 +1587,7 @@ could break an answer would be worse than no log.
       env.go               `rdr env`: publishes the bound seam, marker-authoritative
       paths.go             `rdr paths`: the evidence dir and the iteration, from the same table the facts read
       status.go            the navigator's read: facts evaluated, rendered three ways
+      impact.go            `rdr impact`: the predecessor tests a record's changes will turn red, by the convention models/rdr-impact.toml declares
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars

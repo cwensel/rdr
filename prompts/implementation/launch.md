@@ -37,6 +37,7 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 ├── NNNN-slug/artifacts/         # implementation artifacts (output)
 │   ├── gate.md                  # Finalization Gate responses (already there)
 │   ├── req-list.md              # REQ-N quotes + ASSUMPTIONs
+│   ├── impact.md                # predicted predecessor blast radius (Phase 0)
 │   ├── coverage.md              # REQ-N × test-name + REQ-MVV output
 │   ├── verification.md          # Phase 3 CoVe + adversarial findings
 │   ├── deviations.md            # classified deviations
@@ -78,7 +79,7 @@ artifacts are right.
 
 `<art>` = `artifacts/` under the directory next to the RDR named after its
 basename without `.md`. Create if missing. The sub-agents write/update inside it: req-list.md,
-coverage.md, verification.md, deviations.md, status.md.
+impact.md, coverage.md, verification.md, deviations.md, status.md.
 
 ESCALATION RULE
 Only stop to ask the user when a DESIGN DECISION is required:
@@ -164,8 +165,16 @@ Sub-agent's task:
      materially different behaviour, no precedent in predecessors),
      record it under a `QUESTIONS` section in `req-list.md` and
      surface it in the return summary.
+  4. Write `<art>/impact.md` from the projection, not from reading tests:
+     name the retired literals — the exact tokens (marker strings,
+     extensions, error codes) the CHANGE-tagged REQs retire or rename,
+     ≤10, judgement — then
+     `"$RDR_HOME/bin/rdr" impact <slug> --literal '<tok>' … > <art>/impact.md`
+     (override + predecessor records are read from the record; a
+     `stopped:*` is a halt in the packet's next_action, never an empty file).
 Sub-agent returns a §return-packet (rdr-common); summary_50w carries REQ
-count + REQ-MVV id, QUESTIONS go to next_action if non-empty. If QUESTIONS
+count + REQ-MVV id + impact.md's `rows:` count, QUESTIONS go to
+next_action if non-empty. If QUESTIONS
 is non-empty, the orchestrator asks the
 user one consolidated question, records the answers as additional
 ASSUMPTION lines in `req-list.md`, and re-briefs the auditor if the
@@ -212,6 +221,10 @@ Brief the sub-agent with:
   - `{RDR_RESOURCES}` — the evidence index to ground any apparent
     defect against (Source Search the corpora, check the design docs)
     before escalating.
+  - `<art>/impact.md` — the predicted predecessor tests. A row that goes
+    red takes the rule below (re-cut only where a CHANGE REQ names it,
+    else regression, else SPEC-DEFECT), recorded against the list rather
+    than a suite dump; a row that stays green needs nothing.
   - Authority to write `<art>/deviations.md` (always, even empty) and
     update it for any classified deviation it encounters.
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
@@ -339,7 +352,7 @@ validate: <exact test/suite command>
 baseline: <green | red> @<commit>       # PRECHECKS' full-suite run, before Phase 1
 next: <exact next phase or $rdr-status NNNN re-entry command>
 session: <ISO8601 ts | session id>
-artifacts: req-list.md coverage.md verification.md deviations.md
+artifacts: req-list.md impact.md coverage.md verification.md deviations.md
 ```
 
 GUARDRAILS

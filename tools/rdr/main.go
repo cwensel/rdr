@@ -9,6 +9,7 @@
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
+//	rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
 //	rdr env [--json]
 //	rdr version
 //
@@ -66,6 +67,7 @@ usage:
   rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
+  rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
   rdr env [--json]
   rdr version
 
@@ -182,6 +184,22 @@ comm rather than re-read side by side. A peer record's id is a citation,
 not an anchor, and is skipped; --unresolved prints instead the tokens
 shaped like this record's ids that name nothing it mints.
 
+impact predicts which predecessor tests the record's contract changes
+will turn red — the list Stage 8's implementer meets up front rather
+than one red test at a time. It reads the override and predecessor
+records off the record's own Metadata edges (never resolved), and
+--literal names the tokens the change retires (repeatable, fixed string,
+case-sensitive). Which files are tests and how a name pins a record is
+a convention of the SOURCE repo, declared in models/rdr-impact.toml
+(--model; default $RDR_HOME/models, else beside the binary) and chosen
+by its detect file. Only files the convention's glob names are opened,
+each once; a file is predicted when a test in it pins a set member or
+its body carries a literal, and every test in a predicted file is a
+row, grouped by family. Text is the body of <art>/impact.md; --json the
+same with stable keys. An unbound --repo or a repo no convention detects
+is a stop, never rows: 0 — a tree nothing looked at must not read as a
+tree with no impact. It never writes.
+
 env prints the seam this cwd binds — every marker var, plus
 RDR_MARKER and RDR_PROJECT, one quoted k=v per line for eval, or --json.
 It answers from the MARKER, not the environment: every other seam read
@@ -211,7 +229,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
 		return 0
 
-	case "inspect", "index", "lint", "receipt", "status", "env", "paths", "anchors":
+	case "inspect", "index", "lint", "receipt", "status", "env", "paths", "anchors", "impact":
 		fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
@@ -377,6 +395,8 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		return pathsCmd(fs.Args(), f, stdout, stderr)
 	case "anchors":
 		return anchorsCmd(fs.Args(), f, stdout, stderr)
+	case "impact":
+		return impactCmd(fs.Args(), f, stdout, stderr)
 	}
 	fmt.Fprintf(stderr, "stopped:not-implemented (%s)\n", cmd)
 	return 2
@@ -448,16 +468,18 @@ type flags struct {
 	openJoint, cycles   *bool
 	record              *string // index: scope the pair facets to one record
 	locking             *bool
-	since               *string // receipt: the instant a lint must postdate
-	tags                *bool   // status: render the facts as a resolver's argv
-	checklist           *bool   // status: render the stage checklist (one record)
-	argv                *bool   // status: one tab-separated line per record with its argv
-	facts               *string // status/paths: the fact table to evaluate
-	lens                *string // paths: the per-lens iteration tree
-	cluster             *string // paths: Stage 7.1's cluster-keyed tree
-	tree                *string // paths: any declared tree, as <name>[=<operand>]
-	nextIter            *bool   // paths: list the base, report the next iteration
-	template            *string // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
+	since               *string     // receipt: the instant a lint must postdate
+	tags                *bool       // status: render the facts as a resolver's argv
+	checklist           *bool       // status: render the stage checklist (one record)
+	argv                *bool       // status: one tab-separated line per record with its argv
+	facts               *string     // status/paths: the fact table to evaluate
+	lens                *string     // paths: the per-lens iteration tree
+	cluster             *string     // paths: Stage 7.1's cluster-keyed tree
+	tree                *string     // paths: any declared tree, as <name>[=<operand>]
+	nextIter            *bool       // paths: list the base, report the next iteration
+	model               *string     // impact: the convention table to read
+	literal             multiString // impact: every --literal, in order
+	template            *string     // the schema: TEMPLATE.md (default $RDR_HOME, else beside the binary)
 }
 
 // multiString is a flag given several times. The flag package's String
@@ -529,6 +551,10 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "anchors":
 		f.record = fs.String("record", "", "the record whose ids the files are read against (NNNN, slug or path)")
 		f.unresolved = fs.Bool("unresolved", false, "print instead the tokens shaped like this record's ids that name no element it mints")
+	case "impact":
+		f.json = fs.Bool("json", false, "emit the prediction as JSON")
+		f.model = fs.String("model", "", "the convention table to read (default $RDR_HOME/models/rdr-impact.toml, else beside the binary)")
+		fs.Var(&f.literal, "literal", "a token the change retires (fixed string, case-sensitive); a test file carrying it is predicted; repeat for several")
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")
