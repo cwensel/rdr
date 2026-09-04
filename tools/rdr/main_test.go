@@ -60,6 +60,43 @@ func TestSelectRoundTripsToBytes(t *testing.T) {
 	}
 }
 
+// TestSelectMissWithNoHintListsFacets: a --select token with no near-miss
+// hint at all — nothing one edit away, nothing verbatim in the body — is
+// otherwise a stop with no clue what else --select takes. It gets a
+// "facets:" clause naming the named facets, on the same line; a token
+// that DOES get a near-miss hint keeps today's message, unchanged.
+func TestSelectMissWithNoHintListsFacets(t *testing.T) {
+	code, _, errb := runCapture(t, "inspect", "--select", "ca", fixturePath("current-shape.md"))
+	want := "stopped:no-such-element (ca in 0004; facets: outline elements edges warnings metadata fields anchors assumptions)\n"
+	if code != 2 || errb != want {
+		t.Errorf("no-hint miss should list facets: exit %d, stderr %q, want %q", code, errb, want)
+	}
+
+	// A token that resolves to a near-miss hint must not also get the
+	// facets clause appended.
+	code, _, errb = runCapture(t, "inspect", "--select", "0004:C9", fixturePath("current-shape.md"))
+	if code != 2 || strings.Contains(errb, "facets:") {
+		t.Errorf("a near-miss hint must not also carry facets: exit %d, stderr %q", code, errb)
+	}
+}
+
+// TestSelectHelpNamesEveryFacet: the --select help string and the
+// no-such-element "facets:" hint both come from selectFacets, so they
+// cannot drift; this pins that the help text still names every one.
+func TestSelectHelpNamesEveryFacet(t *testing.T) {
+	fs := flag.NewFlagSet("inspect", flag.ContinueOnError)
+	declareFlags("inspect", fs)
+	var buf bytes.Buffer
+	fs.SetOutput(&buf)
+	fs.PrintDefaults()
+	help := buf.String()
+	for _, facet := range selectFacets {
+		if !strings.Contains(help, facet) {
+			t.Errorf("--select help is missing facet %q:\n%s", facet, help)
+		}
+	}
+}
+
 // TestSelectReachesAClause: the corpus cites one grain below the contract
 // (`cli/0112 §Normative Contracts L-3`) and `--select 0112:L-3` refused
 // with no-such-element, so a session guessed six ids and then sed-sliced
@@ -510,6 +547,28 @@ func TestIndexBacklinksToTarget(t *testing.T) {
 	code, out, _ = runCapture(t, "index", "--backlinks", "--records", dir)
 	if code != 0 || !strings.Contains(out, "0001") {
 		t.Errorf("the bare form is still the whole table:\n%s", out)
+	}
+}
+
+// TestIndexBacklinksUnpaddedRecord: an unpadded record number in
+// --backlinks answers exactly what the padded form does, both bare and
+// with an :element suffix — every other verb accepts `1` for `0001`, and
+// --backlinks was the one holdout.
+func TestIndexBacklinksUnpaddedRecord(t *testing.T) {
+	dir := corpusDir(t)
+
+	padCode, padOut, padErr := runCapture(t, "index", "--backlinks=0001", "--records", dir)
+	rawCode, rawOut, rawErr := runCapture(t, "index", "--backlinks=1", "--records", dir)
+	if padCode != rawCode || padOut != rawOut || padErr != rawErr {
+		t.Errorf("unpadded record --backlinks=1 diverged from --backlinks=0001:\ncode %d vs %d\nstdout %q vs %q\nstderr %q vs %q",
+			rawCode, padCode, rawOut, padOut, rawErr, padErr)
+	}
+
+	padCode, padOut, padErr = runCapture(t, "index", "--backlinks=0001:A1", "--records", dir)
+	rawCode, rawOut, rawErr = runCapture(t, "index", "--backlinks=1:A1", "--records", dir)
+	if padCode != rawCode || padOut != rawOut || padErr != rawErr {
+		t.Errorf("unpadded element --backlinks=1:A1 diverged from --backlinks=0001:A1:\ncode %d vs %d\nstdout %q vs %q\nstderr %q vs %q",
+			rawCode, padCode, rawOut, padOut, rawErr, padErr)
 	}
 }
 

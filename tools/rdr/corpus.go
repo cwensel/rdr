@@ -191,12 +191,37 @@ func qualifier(s scan.Summary) string {
 	return "[" + s.Status.Qualifier + "]"
 }
 
+// padRecordHalf zero-pads a bare record number inside a --backlinks
+// target, so `26`, `26:C4` and `cli/26:C4` reach the same row as `0026`,
+// `0026:C4` and `cli/0026:C4`. Only the record half — before any `:`,
+// after any `qualifier/` prefix — is a candidate, and only when
+// shortRecordNumber accepts it as a bare number; anything else (already
+// four digits, or not a number at all) passes through unchanged so the
+// usage check below still refuses it.
+func padRecordHalf(target string) string {
+	prefix := ""
+	rest := target
+	if before, after, ok := strings.Cut(target, "/"); ok {
+		prefix, rest = before+"/", after
+	}
+	record, suffix, hasColon := strings.Cut(rest, ":")
+	padded := shortRecordNumber(record)
+	if padded == "" {
+		return target
+	}
+	if hasColon {
+		return prefix + padded + ":" + suffix
+	}
+	return prefix + padded
+}
+
 // backlinksTo answers the impact question for one target — "who cites
 // 0055:C4?" — or, given a bare record, for the record and every element
 // in it. Mentions are included here and marked, because an impact
 // analysis wants every reader, typed or not; the whole-table form stays
 // typed-only so it remains readable.
 func backlinksTo(docs []*scan.Document, target string, f *flags, stdout, stderr io.Writer) int {
+	target = padRecordHalf(target)
 	if !ident.RecordNumber.MatchString(recordOfID(target)) {
 		fmt.Fprintf(stderr, "stopped:usage (--backlinks takes NNNN or NNNN:<element>, got %q)\n", target)
 		return 2

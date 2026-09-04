@@ -482,7 +482,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	switch cmd {
 	case "inspect":
 		f.json = fs.Bool("json", false, "emit the JSON envelope")
-		fs.Var(&f.sel, "select", "project a facet: outline|elements|edges|warnings|metadata|fields|anchors|assumptions|<element-id>; repeat for several, answered in order")
+		fs.Var(&f.sel, "select", "project a facet: "+strings.Join(selectFacets, "|")+"|<element-id>; repeat for several, answered in order")
 		f.grep = fs.String("grep", "", "name the elements whose lines carry this literal (case-sensitive, fixed string); no-match answers exit 0; not with --select or --filter")
 		f.touchedSince = fs.String("touched-since", "", "name the ids whose lines the diff from REV to the working tree touches (git diff -U0, post-image hunks); a rev git cannot diff stops; not with --grep or --select")
 		f.filter = fs.String("filter", "", "comma-separated envelope keys to keep (metadata,counts,…); identity keys are always included")
@@ -1173,6 +1173,8 @@ func noSuchElement(doc *scan.Document, missing []string) error {
 	msg := fmt.Sprintf("stopped:no-such-element (%s in %s", strings.Join(missing, ", "), doc.Record)
 	if len(hints) > 0 {
 		msg += "; " + strings.Join(hints, "; ")
+	} else {
+		msg += "; facets: " + strings.Join(selectFacets, " ")
 	}
 	return errors.New(msg + ")")
 }
@@ -1443,6 +1445,14 @@ func oneEditApart(a, b string) bool {
 		i++
 	}
 	return long[i+1:] == short[i:]
+}
+
+// selectFacets names every --select word besides an element id, in the
+// order they are offered. It is the single source for both the --select
+// help string and the no-such-element refusal's "facets:" hint, so the
+// two cannot drift apart.
+var selectFacets = []string{
+	"outline", "elements", "edges", "warnings", "metadata", "fields", "anchors", "assumptions",
 }
 
 // facetOf is the named-facet half of --select: the projection's own
