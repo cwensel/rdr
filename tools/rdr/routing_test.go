@@ -45,16 +45,17 @@ var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-casca
 // fact) rather than reading a fact `rdr-facts.toml` declares. The model
 // header is the contract for these, not the fact table, so the fact-match
 // checks below skip them. `ask_each` is declared now for the sibling
-// `posture` group `rdr-cascade.toml` will grow. The write model's four
+// `posture` group `rdr-cascade.toml` will grow. The write model's six
 // are Resolve's two Profile judgements, rdr-status's `emit.floor` passed
-// through, and the verdict packet's blocker class.
+// through, the verdict packet's blocker class, and the `ground` group's
+// ladder position (`searched`, `found`).
 var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
 	// The launch orchestrator's own observations this run: source files
 	// touched, a suite run over the output cap, context pressure, and the
 	// last packet's verdict. Its six other tags are facts and stay policed.
 	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true},
-	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true},
+	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true},
 	// The loop caps: every tag is a value the caller holds from a tool
 	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
 	// `rdr anchors` and `comm` printed anything, the resolve's fix size,

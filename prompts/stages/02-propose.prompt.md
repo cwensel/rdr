@@ -222,6 +222,7 @@ Read the Problem Statement and Context, then:
    A `Final` peer is never edited (no-amend); its coupling rides to 7.1.
    Unwritten = *did not run*: absence reopens propose, since a later session
    can't tell a skipped gate item from a passed one.
+   Both PAUSEs below walk rdr-common §ground-before-ask first.
    On fire, PAUSE — emit §stop-packet `stopped:joint-decision:<the joint
    question>` and WAIT. This is a human-judgment fork, not a gate failure to
    report and move past: name the peer RDR(s) and both answers — hoist to the

@@ -223,7 +223,7 @@ by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 # §rdr-write — one call. $RDR_HOME comes from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
-  --outcome <claim|readme|lock|demote|profile|return|fence> [--tag k=v …] \
+  --outcome <claim|readme|lock|demote|profile|return|fence|ground> [--tag k=v …] \
   $("$RDR_HOME/bin/rdr" status --tags NNNN)
 ```
 
@@ -234,11 +234,12 @@ values are not edits: `none` (the state already holds — every op is idempotent
 and `stopped:*` (a shape the table refuses rather than guesses; surface per
 §stop-packet).
 
-Four tags are the caller's, not facts, and only the rows that read them demand
+Six tags are the caller's, not facts, and only the rows that read them demand
 them: `profile` takes `floor` (§lens-row's `emit.floor`, passed through as a
 value), `user_facing=<yes|no|unknown>` and `locks=<none|contract|format|cross-rdr|unknown>`
 — Resolve's two judgements; `demote` and `return` take
-`blocker_class=<approach|contradiction|contract|assumption-gap|assumption-disturbed|spike|determinacy|wording|none>`.
+`blocker_class=<approach|contradiction|contract|assumption-gap|assumption-disturbed|spike|determinacy|wording|none>`;
+`ground` takes `searched=<none|code|cluster|corpus|rfd>` and `found=<true|false>`.
 `unknown` and `none` are declared members that stop by name — never default them.
 
 The table routes structure and status, never judgement: the gate verdict, the
@@ -473,7 +474,18 @@ disposition. Format: `stopped:<code>:<≤80-word question — what's ambiguous +
 answer unblocks>`. Reuse the stage's own `stopped:*` codes where it names them.
 This boundary is inherent to the flow (mined: the recurring "I should stop and
 surface this rather than fake it"); the skill's job is to make the stop *crisp*,
-not to remove the human.
+not to remove the human. A design-call packet carries `searched=` (§ground-before-ask).
+
+## §ground-before-ask — search before the human
+
+Before any open author question or design-call §stop-packet (propose's
+joint-decision/bridge-choice stops, resolve's author's round, prelock-resolve's
+tiebreakers, reconcile's accept/defer), resolve `--outcome ground` (§rdr-write's
+one call) with `--tag searched=<none|code|cluster|corpus|rfd> --tag found=<true|false>`.
+`ground` names the next source to search and `surface` its command; run it,
+re-call with that rung, until `apply` (recommend with the cite; no question) or
+`ask` (the packet carries `searched=…; found: none`). Why: 74 of 75 open author
+questions since 2026-05 were already settled in one of these sources.
 
 ## §no-heartbeat — resume from state, not a timer
 
@@ -741,9 +753,10 @@ spent — at stage start nothing is written, so cancel is free. Resolve:
 ## §strong-consult — a stronger fresh look before the human
 
 At a *challenge* — a route-back reopening the approach, a tiebreaker the
-evidence won't collapse, verdict-flapping at the cap — consult ONE
-fresh-context sub-agent at the strongest reasoning tier available (the
-§model-ceiling resolution; none set → the strongest model this harness
+evidence won't collapse, verdict-flapping at the cap, or a `return` row that
+emits `consult: strong` (a route-back to Stage 2 or 3 over the approach or a
+contradiction) — consult ONE fresh-context sub-agent at the strongest
+reasoning tier available (the §model-ceiling resolution; none set → the strongest model this harness
 offers, judged conservatively) BEFORE escalating to the human. Factored
 brief: the fork/claims in tension + the new evidence, never the justifying
 prose or prior verdicts (precedent: a second-model critique pass refuted a

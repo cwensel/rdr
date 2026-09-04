@@ -1,10 +1,11 @@
 # rdr-write.toml — the flow's structural record edits, as data.
 #
-# Six operations the flow performed by hand, restated across prompt
+# Seven operations the flow performed by hand, restated across prompt
 # sites and re-derived by a model on every run: claim a number, add or
 # flip the README index row, lock at Stage 7, demote at 7.1, size the
-# Profile at Resolve, and name the stage a blocker returns to. They are
-# the largest edits in the flow and the most mechanical.
+# Profile at Resolve, name the stage a blocker returns to, and walk the
+# search ladder before an open author question. They are the largest
+# edits — and largest stops — in the flow, and the most mechanical.
 #
 # ---------------------------------------------------------------------
 # WHY THIS IS A TABLE AND NOT AN `rdr` SUBCOMMAND
@@ -61,20 +62,23 @@
 # over an empty product that any single row closes — green whether or not
 # it is complete.
 #
-# SEVEN OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
+# EIGHT OUTCOMES, BECAUSE THE PRODUCT BOUND IS PER GROUP. Each op asks a
 # different question over a different slice of the facts, and splitting
 # the question splits the product. `fence` is the one that never edits:
 # it re-runs propose's overlap arms at lock and only answers `none` or
-# stops.
+# stops. `ground` never edits either: it names the next rung of the
+# search ladder, decide-only like `return`.
 #
-# FOUR TAGS ARE CALLER-SUPPLIED, NOT FACTS — the `observed` provenance's
+# SIX TAGS ARE CALLER-SUPPLIED, NOT FACTS — the `observed` provenance's
 # ordinary shape, as rdr-cascade.toml's packet fields are. `user_facing`
 # and `locks` are Resolve's two judgements of the contract, written once
 # in the Profile clause; `floor` is rdr-status.toml's `emit.floor`, passed
-# through as a value so the accretion rule keeps its one home; and
-# `blocker_class` is the verdict packet's class of blocker. The resolver
-# demands a tag only where a row guards on it, so `claim`, `readme` and
-# `lock` run unchanged. `tools/rdr/routing_test.go` allowlists them.
+# through as a value so the accretion rule keeps its one home;
+# `blocker_class` is the verdict packet's class of blocker; and
+# `searched`/`found` are the `ground` group's ladder position. The
+# resolver demands a tag only where a row guards on it, so `claim`,
+# `readme` and `lock` run unchanged. `tools/rdr/routing_test.go`
+# allowlists them.
 #
 # ---------------------------------------------------------------------
 # WHAT THIS TABLE DOES NOT DECIDE
@@ -94,7 +98,7 @@
 # arrive as tags with `unknown` a declared member that stops by name.
 # The `profile` group maps them; it never infers them.
 
-outcomes = ["claim", "readme", "lock", "demote", "profile", "return", "fence"]
+outcomes = ["claim", "readme", "lock", "demote", "profile", "return", "fence", "ground"]
 
 [model]
 id          = "rdr-write"
@@ -112,7 +116,7 @@ description = "RDR write side: the record's facts to the one structural edit."
 [emit.op]
 kind = "enum"
 [emit.op.domain]
-edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return"]
+edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return", "ground"]
 none = ["none"]
 stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked"]
 
@@ -153,10 +157,25 @@ domain = ["propose", "refine", "resolve", "prelock", "reconcile", "finalize"]
 kind   = "enum"
 domain = ["/rdr-propose", "/rdr-refine", "/rdr-resolve", "/rdr-prelock repeatability 1", "/rdr-reconcile", "/rdr-finalize"]
 
+# The `ground` group's answer: the next rung of the search ladder, or the
+# two terminal dispositions — `apply` (found: recommend with the cite, no
+# author question) and `ask` (exhausted: the §stop-packet goes to the
+# author carrying `searched=`).
+[emit.ground]
+kind   = "enum"
+domain = ["code", "cluster", "corpus", "rfd", "apply", "ask"]
+
+# A `return` row over a reopened approach or a contradiction gets one
+# §strong-consult before the human; other blocker classes route back
+# without it.
+[emit.consult]
+kind   = "enum"
+domain = ["strong"]
+
 [tags.recognized]
 provenance    = "recognized"
 kind          = "enum"
-domain        = ["claim", "readme", "lock", "demote", "profile", "return", "fence"]
+domain        = ["claim", "readme", "lock", "demote", "profile", "return", "fence", "ground"]
 single_valued = true
 required      = true
 
@@ -353,6 +372,36 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["approach", "contradiction", "contract", "assumption-gap", "assumption-disturbed", "spike", "determinacy", "wording", "none"]
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — the `ground` group's ladder position. The highest rung
+# ALREADY searched for this question; the ladder is ordered (code, then
+# the cluster, then the corpora, then the RFDs/JDRs), so one scalar says
+# where the caller stands on it. `none` is "nothing searched yet".
+[tags.searched]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["none", "code", "cluster", "corpus", "rfd"]
+single_valued = true
+required      = true
+
+# CALLER-SUPPLIED — whether the rung named by `searched` settled the
+# question. `true` short-circuits straight to `apply`; `false` walks the
+# caller to the next rung.
+[tags.found]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# rdr-facts.toml's `clustered` — whether the record declares Cluster
+# siblings, the `ground` group's one observed FACT dimension. `rdr status
+# --tags` always renders it (`fact.clustered`'s `absent = "false"`), same
+# as `status` or `gate_written` above.
+[tags.clustered]
+provenance    = "observed"
+kind          = "bool"
 single_valued = true
 required      = true
 
@@ -1377,9 +1426,11 @@ surface = "the `user-facing` disposition to write: yes | no"
 # return — the stage a blocker sends the record back to
 # ===========================================================================
 #
-# Dimensions: blocker_class = 9 cells, seven rows. Decide-only: the
+# Dimensions: blocker_class = 9 cells, eight rows. Decide-only: the
 # answer is the packet's `next_action` (rdr-cascade.toml reads it as
-# `action=stage`), and nothing here writes the record.
+# `action=stage`), and nothing here writes the record. `consult` names a
+# §strong-consult owed before the human on the two rows that reopen an
+# already-decided approach.
 #
 # The ladder was stated at Stage 6 (NOT RECONCILED → 2/3/4), Stage 7 (NOT
 # READY: spike or disturbed assumption → 6, assumption gap → 4,
@@ -1398,20 +1449,35 @@ op          = "return"
 target      = "packet"
 stage       = "propose"
 next_action = "/rdr-propose"
-why         = "The approach, the scope or the MVV is wrong — Stage 2 owns it."
+consult     = "strong"
+why         = "The approach, the scope or the MVV is wrong — Stage 2 owns it, and reopening it consults before the human."
 
 [[rule]]
-id = "return-refine"
+id = "return-refine-contradiction"
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
-in = ["contradiction", "contract"]
+eq = "contradiction"
 [rule.emit]
 op          = "return"
 target      = "packet"
 stage       = "refine"
 next_action = "/rdr-refine"
-why         = "A contradiction or a contract edit — Stage 3 owns it."
+consult     = "strong"
+why         = "A contradiction — Stage 3 owns it, and a contradiction consults before the human."
+
+[[rule]]
+id = "return-refine-contract"
+[rule.match.recognized]
+eq = "return"
+[rule.guard.all.blocker_class]
+eq = "contract"
+[rule.emit]
+op          = "return"
+target      = "packet"
+stage       = "refine"
+next_action = "/rdr-refine"
+why         = "A contract edit — Stage 3 owns it."
 
 [[rule]]
 id = "return-resolve"
@@ -1475,3 +1541,132 @@ eq = "none"
 op   = "stopped:no-blocker-class"
 why  = "The blocker carries no class — no stage can be named for it."
 surface = "the blocker, so the gate classes it (approach | contradiction | contract | assumption-gap | assumption-disturbed | spike | determinacy | wording)"
+
+# ===========================================================================
+# ground — the search ladder an open author question walks first
+# ===========================================================================
+#
+# 57 sessions since 2026-05 stopped the flow 75 times to ask the author an
+# open design question; 74 of the 75 were already answered by an existing
+# source (code or a spike 46, a sibling RDR in the cluster 20, the arc
+# corpora 11, an RFD 6, a kata issue 3) — the author's own redirect
+# ("check prior art", "read the rfd") always landed one turn later. This
+# group is that ladder, proved exhaustive: code, then the cluster (if
+# clustered), then the corpora, then the RFDs/JDRs, then the one question
+# in 75 that is genuinely the author's to answer.
+#
+# Dimensions: searched × found × clustered = 5 × 2 × 2 = 20 cells, seven
+# rows. DECIDE-ONLY, like `return`: nothing here writes the record. The
+# caller re-calls this outcome at each rung — `--tag searched=<rung>
+# --tag found=<true|false>` — runs what `surface` names, and stops when
+# `ground` answers `apply` (the question is settled: recommend from the
+# source, with the cite, and ask nothing) or `ask` (every rung is
+# searched and none settled it — the §stop-packet is owed, carrying
+# `searched=`).
+
+[[rule]]
+id = "ground-found"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "true"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "apply"
+why     = "The question is settled in the source found — recommend from it, with the cite; no author question."
+surface = "the cite beside the recommendation: file:line, NNNN §element, corpus hit, or RFD §"
+
+[[rule]]
+id = "ground-code"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "none"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "code"
+why     = "Nothing searched yet — code and a cheap spike settle most author questions (46 of 75)."
+surface = "the source repo: `rg`/semble the symbol or behaviour; a spike where a run answers in minutes; one sub-agent (rdr-common §delegation) returning a §return-packet"
+
+[[rule]]
+id = "ground-cluster"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "code"
+[rule.guard.all.clustered]
+eq = "true"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "cluster"
+why     = "Code did not settle it and the record is clustered — a peer often already decided it (20 of 75)."
+surface = "`rdr index --cluster-of NNNN`, then per peer `rdr inspect --select MMMM:§decision-rationale MMMM` (and its open decisions: `rdr index --open-joint --record MMMM`)"
+
+[[rule]]
+id = "ground-corpus-standalone"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "code"
+[rule.guard.all.clustered]
+eq = "false"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "corpus"
+why     = "Code did not settle it and the record has no peers — the corpora are next."
+surface = "`arc search` the question's nouns over the corpora the {RDR_RESOURCES} file names; one sub-agent"
+
+[[rule]]
+id = "ground-corpus"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "cluster"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "corpus"
+why     = "The peers did not settle it — the corpora are next."
+surface = "`arc search` the question's nouns over the corpora the {RDR_RESOURCES} file names; one sub-agent"
+
+[[rule]]
+id = "ground-rfd"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "corpus"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "rfd"
+why     = "The corpora did not settle it — the RFDs and JDRs the resources index names are the last written source."
+surface = "the RFD/JDR sections the resources index names for this surface"
+
+[[rule]]
+id = "ground-ask"
+[rule.match.recognized]
+eq = "ground"
+[rule.guard.all.found]
+eq = "false"
+[rule.guard.all.searched]
+eq = "rfd"
+[rule.emit]
+op      = "ground"
+target  = "packet"
+ground  = "ask"
+why     = "Every written source is searched and none settles it — this is the one question in 75 the author must answer."
+surface = "the §stop-packet, with `searched=code[,cluster],corpus,rfd; found: none` in its body"
