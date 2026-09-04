@@ -192,6 +192,68 @@ func TestSymbolIsAWholeWord(t *testing.T) {
 	}
 }
 
+// TestWalkSkipsNestedRepo: a nested repository or worktree — a directory
+// holding its own `.git`, file or directory — is a border the resolver's
+// walk does not cross. A symbol defined only inside the nested copy must
+// stay unresolved, and the read counter proves the copy was never opened.
+func TestWalkSkipsNestedRepo(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		makeGit func(t *testing.T, gitPath string)
+	}{
+		{"file", func(t *testing.T, gitPath string) {
+			if err := os.WriteFile(gitPath, []byte("gitdir: /nowhere\n"), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		}},
+		{"dir", func(t *testing.T, gitPath string) {
+			if err := os.MkdirAll(gitPath, 0o755); err != nil {
+				t.Fatal(err)
+			}
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			repo := t.TempDir()
+			src := "package frame\n\nfunc Encode(p []byte) []byte { return p }\n"
+			if err := os.WriteFile(filepath.Join(repo, "frame.go"), []byte(src), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			nested := filepath.Join(repo, "nested")
+			if err := os.MkdirAll(nested, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			c.makeGit(t, filepath.Join(nested, ".git"))
+			// The symbol is defined ONLY inside the nested copy, never at
+			// the repo's own root: if the walk crosses the border this
+			// resolves true, a false positive.
+			nestedSrc := "package frame\n\nfunc OnlyInNested() {}\n"
+			if err := os.WriteFile(filepath.Join(nested, "frame.go"), []byte(nestedSrc), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			docs := corpus(t, map[string]string{
+				"0001-alpha.md": record("0001", "Alpha", "- **Seam Lineage**: `frame::Encode` and `frame::OnlyInNested`"),
+			})
+
+			reads := 0
+			r := NewResolver(docs, repo)
+			r.onRead = func() { reads++ }
+			r.ResolveAll(docs)
+
+			if reads != 1 {
+				t.Errorf("read %d files, want 1 (frame.go at the root only): the nested .git must stop the walk", reads)
+			}
+			found := findEdge(t, docs[0], edge.SourceAnchor, "frame::Encode")
+			if found.Resolved == nil || !*found.Resolved {
+				t.Errorf("frame::Encode is defined at the root but resolved = %v", show(found.Resolved))
+			}
+			nestedOnly := findEdge(t, docs[0], edge.SourceAnchor, "frame::OnlyInNested")
+			if nestedOnly.Resolved == nil || *nestedOnly.Resolved {
+				t.Errorf("frame::OnlyInNested is defined only inside the nested repo but resolved = %v", show(nestedOnly.Resolved))
+			}
+		})
+	}
+}
+
 // TestReceiverQualifiedSymbolResolvesToItsMember is CHECK 5 applied to a
 // `Type.Method` anchor. No language writes the qualifier adjacent to the
 // member at the definition, so grepping the dotted string whole reports a

@@ -1121,7 +1121,10 @@ is a table there, not a branch here.
 
 Only files the glob names are opened, each once, under the resolver's
 own skip-dirs and size cap; a source file that carries a literal is not a
-test and is never read (the read count is what the test pins). An unbound
+test and is never read (the read count is what the test pins). A
+directory holding its own `.git` (a nested clone or worktree) is a
+border the walk does not cross, so a consumer repo that carries
+worktrees is counted once. An unbound
 `--repo` or a repo no convention detects is a `stopped:` line, never
 `rows: 0` — a tree nothing looked at must not read as a tree with no
 impact. It never writes; the caller redirects stdout to `impact.md`.

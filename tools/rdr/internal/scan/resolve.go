@@ -369,7 +369,7 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 			return nil
 		}
 		if e.IsDir() {
-			if SkipDir(e.Name()) {
+			if SkipDir(e.Name()) || (p != r.repo && NestedRepo(p)) {
 				return filepath.SkipDir
 			}
 			return nil
@@ -412,6 +412,16 @@ func SkipDir(name string) bool {
 		return true
 	}
 	return false
+}
+
+// NestedRepo reports whether dir holds its own `.git` entry — a file for
+// a worktree or submodule, a directory for a nested clone. A nested
+// repository or worktree is never the tree it sits in: the walk stops
+// at its border the way it stops at `.git` itself, so a consumer repo
+// carrying worktrees (each a full copy of the tree) is counted once.
+func NestedRepo(dir string) bool {
+	_, err := os.Lstat(filepath.Join(dir, ".git"))
+	return err == nil
 }
 
 // searchable skips the extensions a symbol is never defined in, so the

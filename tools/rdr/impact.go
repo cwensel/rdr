@@ -289,7 +289,7 @@ func impactWalk(repo string, conv *ImpactConvention, set map[string]bool, litera
 			return nil
 		}
 		if e.IsDir() {
-			if p != repo && scan.SkipDir(e.Name()) {
+			if p != repo && (scan.SkipDir(e.Name()) || scan.NestedRepo(p)) {
 				return filepath.SkipDir
 			}
 			return nil

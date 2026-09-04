@@ -148,6 +148,93 @@ func TestImpactReadsOnlyGlobFiles(t *testing.T) {
 	}
 }
 
+// TestImpactSkipsNestedRepo: a repo carrying nested repositories — a
+// worktree (a directory whose `.git` is a plain FILE) and a nested clone
+// (a directory whose `.git` is a DIRECTORY) — each holding a copy of
+// import_test.go beside the real one. A path named `.git` cannot live in
+// this repo's own git history (git refuses to track it, worktree or
+// submodule alike), so the fixture is built fresh in a TempDir every run
+// by copying testdata/impact/repo and adding the two nested trees.
+// Neither copy is read (the counter proves it, the same way
+// TestImpactReadsOnlyGlobFiles does), and no row's file column starts
+// with the nested path: a repo that carries worktrees or nested clones
+// is counted once, on its own tree.
+func TestImpactSkipsNestedRepo(t *testing.T) {
+	records, model, srcRepo := impactFixture(t)
+	repo := t.TempDir()
+	if err := copyTree(srcRepo, repo); err != nil {
+		t.Fatal(err)
+	}
+	// A worktree: nested-file/.git is a plain file (as git itself writes
+	// for `git worktree add`), holding a copy of a globbed test file.
+	writeNested(t, filepath.Join(repo, "nested-file"), func(dir string) error {
+		return os.WriteFile(filepath.Join(dir, ".git"), []byte("gitdir: /nowhere\n"), 0o600)
+	})
+	// A nested clone: nested-dir/.git is a directory.
+	writeNested(t, filepath.Join(repo, "nested-dir"), func(dir string) error {
+		return os.MkdirAll(filepath.Join(dir, ".git"), 0o755)
+	})
+
+	before := scan.SourceReads.Load()
+	code, out, errb := runCapture(t, "impact", "--records", records, "--model", model, "--repo", repo, "--json", "--literal", ".dml.sql", "0040")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	if got := scan.SourceReads.Load() - before; got != 4 {
+		t.Errorf("read %d files, want 4: a nested .git (file or dir) must stop the walk at its border", got)
+	}
+	for _, bad := range []string{"nested-file/", "nested-dir/"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("output names a path under %q; the nested repo was walked:\n%s", bad, out)
+		}
+	}
+}
+
+// writeNested builds one nested-repo case under dir: the real subtree
+// (a copy of internal/cli/import_test.go, which the glob would otherwise
+// predict), then makeGit lays the `.git` entry across its border.
+func writeNested(t *testing.T, dir string, makeGit func(dir string) error) {
+	t.Helper()
+	cliDir := filepath.Join(dir, "internal", "cli")
+	if err := os.MkdirAll(cliDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body, err := os.ReadFile(filepath.Join("testdata", "impact", "repo", "internal", "cli", "import_test.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(cliDir, "import_test.go"), body, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := makeGit(dir); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// copyTree copies src to dst, file by file, preserving the tree shape.
+// The fixture repo under testdata/impact/repo carries no path a plain
+// copy cannot reproduce (no symlinks, no other `.git`).
+func copyTree(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, e os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if e.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, body, 0o600)
+	})
+}
+
 // TestImpactEmptySetIsHeaderOnly: a record with no override or
 // predecessor edge and no literal has nothing to look for. The header
 // says so — `records: none`, `rows: 0` — and no file is opened.
