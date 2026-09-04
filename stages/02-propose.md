@@ -52,8 +52,8 @@ peer, and only the true joint forks surfaced to the user.
   pass acted on and deleted. A proposal on a stale premise is wrong even if
   internally sound.
 - **Did the accretion gate run?** When `--outcome floor` (§lens-row's call)
-  answers `foundational`, the *undecided contract* is named **before** any
-  mechanism is chosen and Profile reads `foundational`. Proposing an Nth mechanism
+  answers `raise`, the *undecided contract* is named **before** any
+  mechanism is chosen (Resolve sizes the field). Proposing an Nth mechanism
   without naming the missing decision is the failure this gate exists to stop — re-run.
 - **Was the sibling-path check exhibited?** For any new discriminator, heuristic,
   switch case, or identity rule, confirm a grep for an existing sibling path was
@@ -154,8 +154,8 @@ Critical Assumptions list exists (Pending is fine), the `Premortem:` verdict
 line is recorded in Decision Rationale (any value — an absent verdict does
 not advance), and the design-body
 (Investigation, Implementation Plan) is authored — no `_Draft placeholder._`
-left in those two sections. If `floor` answered `foundational`, the undecided
-contract is named and Profile reads `foundational`.
+left in those two sections. If `floor` answered `raise`, the undecided
+contract is named (Resolve sizes Profile one tier above it).
 The `Joint-check:` and `Ground-sweep:` verdict lines are recorded in Decision
 Rationale (either absent does not advance — that check never ran). If it fired, the joint
 decision has a named home — the consumer's umbrella-decision record (e.g. an

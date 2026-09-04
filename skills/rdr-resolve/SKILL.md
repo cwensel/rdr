@@ -63,7 +63,7 @@ Claude: /rdr-resolve <NNNN>
   `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
   field** (the routing latch) via §rdr-write `--outcome profile`, fed
-  `--outcome floor`'s answer, which outranks the count (the prompt owns the call). Then **run
+  `--outcome floor`'s answer, which raises the count's tier by one (the prompt owns the call). Then **run
   §lens-row's call** for the next pointer — it reads the field this stage just
   wrote, and the first lens is profile-dependent (`foundational` leads with
   `cove`, not `grounding`), so an inferred row is how a lens gets skipped.

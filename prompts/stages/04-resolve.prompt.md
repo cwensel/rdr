@@ -161,8 +161,8 @@ two dispositions, written once, in the clause: is its surface user-facing
 enum/hash/format/grammar/destructive op | `cross-rdr` — a producer other RDRs
 consume, or one spanning modules). Then run rdr-common §rdr-write with
 `--outcome profile`, passing `--tag floor=<emit.floor of --outcome floor>`
-(§lens-row's call — the accretion floor outranks the count and is resolved
-there, never re-read here), `--tag user_facing=<yes|no>` and `--tag locks=<…>`,
+(§lens-row's call — `raise` lifts the count's tier by one, resolved there,
+never re-read here), `--tag user_facing=<yes|no>` and `--tag locks=<…>`,
 and apply `edit` as handed: the field becomes `<value> — <one clause naming the
 contract>; user-facing <yes|no>; locks <…>`; drop any matrix/provenance prose
 the template or Seed left (it lives in the template comment, not the instance).

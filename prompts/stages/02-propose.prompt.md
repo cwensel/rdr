@@ -23,11 +23,11 @@ Read the Problem Statement and Context, then:
 
 0.5 **Accretion gate.** Run rdr-common §lens-row's call, `--outcome floor`
    (it reads the `Seam Lineage` field's facts — do not re-read or count it).
-   `foundational` → this is a *missing design decision, not a missing patch*:
+   `raise` → this is a *missing design decision, not a missing patch*:
    before proposing any mechanism, write one sentence naming the **undecided
-   contract** the prior point-fixes all danced around, and set Profile to
-   `foundational` (the `lens` outcome then routes the row). Enumerate approaches
-   as answers to that contract question, not as the next patch. `none` → skip this step; a `stopped:*` → surface it (§stop-packet).
+   contract** the prior point-fixes all danced around (Resolve sizes Profile
+   one tier above it). Enumerate approaches as answers to that contract
+   question, not as the next patch. `none` → skip this step; a `stopped:*` → surface it (§stop-packet).
 
 1. **Read prior art FIRST — before naming any approach.** An LLM that enumerates
    first anchors on its training prior and won't reliably self-correct, so read

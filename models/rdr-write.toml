@@ -333,10 +333,11 @@ required      = true
 # rdr-common §lens-row), passed through as the value it is. The accretion
 # rule (two or more prior point-fixes, no disposition) lives in that one
 # group; this table reads its ANSWER and never restates the count.
+# `raise` lifts the contract-axis tier by one; `none` leaves it be.
 [tags.floor]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["foundational", "none"]
+domain        = ["raise", "none"]
 single_valued = true
 required      = true
 
@@ -1111,20 +1112,22 @@ surface = "the status, verbatim"
 # ===========================================================================
 #
 # Dimensions: contracts_durable × contracts_prose × user_facing × locks ×
-# floor = 3 × 2 × 3 × 5 × 2 = 180 cells, eleven rows.
+# floor = 3 × 2 × 3 × 5 × 2 = 180 cells, fourteen rows.
 #
 # Profile is sized by blast radius — the matrix at stages/README.md. It
 # was a four-line ladder Resolve re-derived from a hand count, with the
 # Transient exclusion, the split signal and the accretion floor chained
 # after it in prose. Here the count arrives subtracted and bucketed, the
 # floor arrives as rdr-status.toml's answer, and the two judgements arrive
-# as tags. THE FLOOR OUTRANKS THE COUNT: it claims every cell it holds
-# first. Then: two or more durable contracts is the split signal, not a
-# size; none is either unlabelled (stop by name — prose contracts cannot
-# be counted) or unauthored; exactly one is sized by what it locks and
-# whether it is user-facing, and a judgement not written stops rather
-# than defaulting. Seed's estimate is not an input: the field is
-# OVERWRITTEN from the verified count, so the edit replaces the line.
+# as tags. THE FLOOR RAISES THE COUNT'S TIER BY ONE (`raise`): the stop
+# rows fire whatever the floor says — an unreadable count or a split
+# signal is never sized around — and each sized row has a raised twin.
+# Two or more durable contracts is the split signal, not a size; none is
+# either unlabelled (stop by name — prose contracts cannot be counted) or
+# unauthored; exactly one is sized by what it locks and whether it is
+# user-facing, and a judgement not written stops rather than defaulting.
+# Seed's estimate is not an input: the field is OVERWRITTEN from the
+# verified count, so the edit replaces the line.
 #
 # THE ANSWER IS `profile`, applied as the field's value, and `edit` is
 # the field line — with the two dispositions written INTO the clause, so
@@ -1132,29 +1135,11 @@ surface = "the status, verbatim"
 # continuation to drop, since the template's matrix prose belongs in the
 # template comment and not the instance.
 
-# --- the floor holds: foundational, whatever the count --------------------
-[[rule]]
-id = "profile-floored"
-[rule.match.recognized]
-eq = "profile"
-[rule.guard.all.floor]
-eq = "foundational"
-[rule.emit]
-op      = "profile"
-target  = "record"
-profile = "foundational"
-edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: foundational — accretion floor; <one clause naming the contract(s)>/"
-then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
-why     = "The accretion floor holds — Profile is foundational whatever the contract axis counts; the count may raise a profile, never lower one the floor holds."
-surface = "the floor's `why` from `--outcome floor`, and the durable count beside it"
-
 # --- no durable contract: unlabelled, or unauthored --------------------------
 [[rule]]
 id = "profile-unlabelled"
 [rule.match.recognized]
 eq = "profile"
-[rule.guard.all.floor]
-eq = "none"
 [rule.guard.all.contracts_durable]
 eq = "0"
 [rule.guard.all.contracts_prose]
@@ -1168,8 +1153,6 @@ surface = "the section: label each independent contract `**Cn**` over its ```nor
 id = "profile-no-contracts"
 [rule.match.recognized]
 eq = "profile"
-[rule.guard.all.floor]
-eq = "none"
 [rule.guard.all.contracts_durable]
 eq = "0"
 [rule.guard.all.contracts_prose]
@@ -1184,8 +1167,6 @@ surface = "that the section is the template's own text; Propose and Refine autho
 id = "profile-split"
 [rule.match.recognized]
 eq = "profile"
-[rule.guard.all.floor]
-eq = "none"
 [rule.guard.all.contracts_durable]
 eq = "2+"
 [rule.emit]
@@ -1198,8 +1179,6 @@ surface = "the durable fences by label: one seam → clauses of one `**C1**`; se
 id = "profile-locks-unjudged"
 [rule.match.recognized]
 eq = "profile"
-[rule.guard.all.floor]
-eq = "none"
 [rule.guard.all.contracts_durable]
 eq = "1"
 [rule.guard.all.locks]
@@ -1213,8 +1192,6 @@ surface = "the `locks` disposition to write: none | contract | format (enum/hash
 id = "profile-cross-rdr"
 [rule.match.recognized]
 eq = "profile"
-[rule.guard.all.floor]
-eq = "none"
 [rule.guard.all.contracts_durable]
 eq = "1"
 [rule.guard.all.locks]
@@ -1246,6 +1223,24 @@ then    = "delete the field's wrapped continuation lines (indented, up to the ne
 why     = "One durable contract locking an enum, hash, format, grammar or destructive op — large."
 
 [[rule]]
+id = "profile-format-raised"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "raise"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "format"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "foundational"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: foundational — accretion raise; <one clause naming the contract>; user-facing <yes|no>; locks format/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract locking a format, raised one tier by the accretion axis — foundational."
+
+[[rule]]
 id = "profile-contract"
 [rule.match.recognized]
 eq = "profile"
@@ -1262,6 +1257,24 @@ profile = "mid"
 edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: mid — <one clause naming the contract>; user-facing <yes|no>; locks contract/"
 then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
 why     = "One durable contract that locks a contract — mid, whether or not it is user-facing."
+
+[[rule]]
+id = "profile-contract-raised"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "raise"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "contract"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "large"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: large — accretion raise; <one clause naming the contract>; user-facing <yes|no>; locks contract/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable contract locking a contract, raised one tier by the accretion axis — large."
 
 [[rule]]
 id = "profile-user-facing"
@@ -1282,6 +1295,26 @@ profile = "mid"
 edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: mid — <one clause naming the contract>; user-facing yes; locks none/"
 then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
 why     = "One durable contract with a user-facing surface — mid."
+
+[[rule]]
+id = "profile-user-facing-raised"
+[rule.match.recognized]
+eq = "profile"
+[rule.guard.all.floor]
+eq = "raise"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
+eq = "none"
+[rule.guard.all.user_facing]
+eq = "yes"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "large"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: large — accretion raise; <one clause naming the contract>; user-facing yes; locks none/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable user-facing contract, raised one tier by the accretion axis — large."
 
 [[rule]]
 id = "profile-internal"
@@ -1305,11 +1338,30 @@ why     = "One durable contract, internal, locking nothing — small; Stage 5 is
 surface = "that the next stage is Reconcile, not Pre-Lock"
 
 [[rule]]
-id = "profile-surface-unjudged"
+id = "profile-internal-raised"
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
+eq = "raise"
+[rule.guard.all.contracts_durable]
+eq = "1"
+[rule.guard.all.locks]
 eq = "none"
+[rule.guard.all.user_facing]
+eq = "no"
+[rule.emit]
+op      = "profile"
+target  = "record"
+profile = "mid"
+edit    = "s/^- \\*\\*Profile\\*\\*:.*$/- **Profile**: mid — accretion raise; <one clause naming the contract>; user-facing no; locks none/"
+then    = "delete the field's wrapped continuation lines (indented, up to the next `- **` bullet)"
+why     = "One durable internal contract, raised one tier by the accretion axis — mid; Stage 5 runs."
+surface = "that the next stage is Pre-Lock: the raise lifts a small record into the lens row"
+
+[[rule]]
+id = "profile-surface-unjudged"
+[rule.match.recognized]
+eq = "profile"
 [rule.guard.all.contracts_durable]
 eq = "1"
 [rule.guard.all.locks]

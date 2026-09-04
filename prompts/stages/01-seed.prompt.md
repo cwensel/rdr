@@ -29,8 +29,8 @@ the same design shape you judged to seed this as one RDR (the axes of
 the contract lock nothing, a contract, a format, or other RDRs). **Then the
 floor**: `--outcome floor` (rdr-common
 §lens-row's call — run it in the same block as the README row below) answering
-`foundational` IS the Profile, whatever you estimated. It is an
-early budget signal, provisional because the RDR is `Draft`; Stage 4 (Resolve)
+`raise` means the written Profile must sit one tier above that estimate. It is
+an early budget signal, provisional because the RDR is `Draft`; Stage 4 (Resolve)
 overwrites it from the verified count. Don't labor over it. ≥2 independent
 contracts across separate seams → flag a split, don't pick a profile.
 

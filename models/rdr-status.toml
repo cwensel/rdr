@@ -133,10 +133,11 @@ kind = "scalar"
 kind   = "enum"
 domain = ["cluster"]
 
-# The `floor` group's answer: the value Profile must carry, or `none`.
+# The `floor` group's answer: `raise` (Profile sits one tier above its
+# contract axis) or `none`.
 [emit.floor]
 kind   = "enum"
-domain = ["foundational", "none"]
+domain = ["raise", "none"]
 
 # --- the recognized outcome ------------------------------------------------
 #
@@ -791,11 +792,13 @@ surface = "the qualifier, and the TARGET RE-ENTRY STAGE line of the record's `##
 #
 # Profile is sized by blast radius, and a seam that already carries two or
 # more prior point-fixes is the matrix's cross-RDR trigger whatever the
-# contract axis says: the floor is `foundational`, and the only escape is
-# the written `Accretion disposition:` line in the same field. That rule
-# was prose at nine sites and a count a reader re-derived at Seed,
-# Propose, Resolve and Pre-Lock — three chained exact steps, four times
-# per record. It is this group now, and the sites cite it.
+# contract axis says: the floor is `raise` — Profile sits one tier above
+# its contract axis, and rdr-write.toml's `profile` rows apply the raise
+# where the two dispositions live — and the only escape is the written
+# `Accretion disposition:` line in the same field. That rule was prose at
+# nine sites and a count a reader re-derived at Seed, Propose, Resolve and
+# Pre-Lock — three chained exact steps, four times per record. It is this
+# group now, and the sites cite it.
 #
 # THIS GROUP IS ITS OWN OUTCOME, NOT TWO DIMENSIONS ON `lens`: the lens
 # product is 960 and the bound is 2048 per group, so folding the bucket
@@ -882,15 +885,15 @@ eq = "2+"
 [rule.guard.all.accretion_disposition]
 eq = "false"
 [rule.guard.all.profile]
-eq = "foundational"
+in = ["mid", "large", "foundational"]
 [rule.emit]
-floor = "foundational"
+floor = "raise"
 next  = "none"
-why   = "Two or more prior point-fixes and no disposition floor Profile at foundational; the field is at it."
+why   = "Two or more prior point-fixes and no disposition raise Profile one tier above its contract axis; the field is at a raised tier, and rdr-write's profile rows verify which."
 
-# A `none` Profile is below the floor too: the field is absent, and the
-# floor says what it must be written as, which is more than the `lens`
-# group's no-profile stop can say.
+# A `none` or `small` Profile is below every raised tier too: the field
+# is absent or unlifted, and the floor says a raise applies, which is
+# more than the `lens` group's no-profile stop can say.
 [[rule]]
 id = "floor-below"
 [rule.match.recognized]
@@ -900,12 +903,12 @@ eq = "2+"
 [rule.guard.all.accretion_disposition]
 eq = "false"
 [rule.guard.all.profile]
-in = ["small", "mid", "large", "none"]
+in = ["small", "none"]
 [rule.emit]
-floor   = "foundational"
+floor   = "raise"
 next    = "stopped:profile-below-floor"
-why     = "Two or more prior point-fixes and no disposition floor Profile at foundational; the field reads below it."
-surface = "write Profile `foundational` (Stage 4 owns the write); cove then leads the lens row"
+why     = "Two or more prior point-fixes and no disposition raise Profile one tier; the field reads below every raised tier."
+surface = "re-run rdr-write `--outcome profile` with `floor=raise` (Stage 4 owns the write)"
 
 # ===========================================================================
 # `lens` — the Stage-5 lens row (rdr-common.md §lens-row)

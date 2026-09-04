@@ -561,12 +561,12 @@ idiom for that, here as in §rdr-write; no grep filter.)
 
 **`--outcome floor` is the accretion floor**, resolved from the Seam Lineage
 facts (`seam_lineage`, `accretion_disposition`) by the model's `floor` group —
-the rule lives there, not here. `emit.floor` is the value Profile must carry
-(`foundational`, or `none`): apply it as a value wherever a stage writes
-Profile. `stopped:profile-below-floor` means the recorded field is below it
-and outranks the lens answer; `stopped:seam-lineage-count-unread` names a
-field whose count must be written in TEMPLATE.md's form before the floor can
-be resolved.
+the rule lives there, not here. `emit.floor` is `raise` (Profile sits one
+tier above its contract axis; rdr-write's `profile` rows apply it) or `none`.
+`stopped:profile-below-floor` means the recorded field is below every raised
+tier and outranks the lens answer; `stopped:seam-lineage-count-unread` names
+a field whose count must be written in TEMPLATE.md's form before the floor
+can be resolved.
 
 Substitute `--tags` inline as written — never capture it into a variable
 first: zsh does not word-split an unquoted `$TAGS`, so intrastate receives one

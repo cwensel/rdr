@@ -90,7 +90,7 @@ N/A-bulleted). -->
   rows (the rule's one home) from the durable contract
   count and two dispositions written in the clause:
   `user-facing <yes|no>; locks <none|contract|format|cross-rdr>`.
-  (2) accretion axis (HARD floor): resolved from `Seam
+  (2) accretion axis (a one-tier raise): resolved from `Seam
   Lineage` below by the routing model (rdr-status.toml's
   `floor` group — the rule's one home), never re-read here.
   Matrix: rdr/stages/README.md. Seed estimates from the design
