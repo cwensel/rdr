@@ -238,10 +238,15 @@ IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 
 `emit` is the answer (`--plan-only` drops the fact echo; the plan is unchanged): `op`
 (the operation), `target`, `edit` (the exact expression), `why`, `surface` (show verbatim). **Apply `edit` as handed** — it is
-data, not a description; retyping it makes the guarantee prose again. Two `op`
-values are not edits: `none` (the state already holds — every op is idempotent)
-and `stopped:*` (a shape the table refuses rather than guesses; surface per
-§stop-packet).
+data, not a description; retyping it makes the guarantee prose again.
+
+**Branch on `dispositions.op`, never on the `op` string.** The table declares
+`op`'s domain partitioned three ways (intrastate RDR 0024), so the envelope
+carries the branch already decided: `edit` (apply it), `none` (the state
+already holds — every op is idempotent), `stop` (a shape the table refuses
+rather than guesses; surface per §stop-packet). A caller testing the `op` value
+for a `stopped:` prefix is re-deriving in prose what the loader proved, and a
+token added to the `stop` list later would not reach it.
 
 Six tags are the caller's, not facts, and only the rows that read them demand
 them: `profile` takes `floor` (§lens-row's `emit.floor`, passed through as a

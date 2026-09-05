@@ -248,6 +248,25 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     else
       fail "12b intrastate at $IS predates --plan-only (RDR 0023) - the chained resolves in §rdr-write, rdr-status and rdr-draft-to-lock will refuse; reinstall intrastate from HEAD (make install in its repo)"
     fi
+    # 12c - the disposition surface §rdr-write branches on. RDR 0024 partitions
+    # `op`'s domain edit/none/stop and carries the branch in `dispositions.op`,
+    # so the caller never string-matches `stopped:`. `--help-all` does not
+    # mention dispositions, so the probe RESOLVES: a row whose emit is a stop,
+    # asserting the disposition rather than the token. That proves both halves
+    # the skills depend on - the binary emits the block AND rdr-write.toml
+    # declares the domain - where a help grep would prove neither. A binary or
+    # model that predates it emits no dispositions and every write reads as an
+    # edit: the one failure that routes a refusal as an instruction, so FAIL.
+    wm="$RDR_HOME/models/rdr-write.toml"
+    if [ ! -f "$wm" ]; then
+      warn "12c $wm is absent - the write table's disposition surface cannot be probed"
+    elif "$IS" flow resolve --model "$wm" --plan-only --outcome lock --as json \
+           --tag status=Implemented 2>/dev/null \
+         | grep -q '"dispositions":{"op":"stop"}'; then
+      pass "12c the write table carries emit dispositions (RDR 0024) - §rdr-write branches on dispositions.op, not on the op string"
+    else
+      fail "12c intrastate at $IS or $wm predates emit dispositions (RDR 0024) - §rdr-write cannot tell a stop from an edit without string-matching; reinstall intrastate from HEAD (make install in its repo)"
+    fi
   elif [ -z "$RDR_INTRASTATE" ]; then
     # Only when nothing was configured: a bad RDR_INTRASTATE already FAILed, and
     # repeating it would read as a second, separate finding.
