@@ -528,13 +528,14 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 			}
 		}
 	case "predecessor-rollup":
-		// Two selects: the set of predecessors not COMPLETE, and the
-		// state word the launch precheck routes on. The enum's members
-		// are fixed by the evaluator, so the domain must declare them.
+		// Three selects: the set that owes work, the set closed without
+		// implementing, and the state word the launch precheck routes on.
+		// The enum's members are fixed by the evaluator, so the domain
+		// must declare them.
 		switch d.Select {
-		case "incomplete":
+		case "incomplete", "retired":
 			if d.Kind != "set" {
-				return d, fmt.Errorf("fact %q: incomplete is a set", name)
+				return d, fmt.Errorf("fact %q: %s is a set", name, d.Select)
 			}
 		case "state":
 			if d.Kind != "enum" {
@@ -546,7 +547,7 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				}
 			}
 		default:
-			return d, fmt.Errorf("fact %q: a predecessor-rollup selects incomplete or state, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: a predecessor-rollup selects incomplete, retired or state, got %q", name, d.Select)
 		}
 	case "cluster-proposed":
 		if d.Path == "" || d.Kind != "enum" {
@@ -2767,7 +2768,7 @@ func (e *FactEnv) spikeDiff(d FactDecl) (Fact, bool) {
 // predecessorStates are the values `state` can emit, checked against the
 // declared domain at load. `none` is the declared sentinel for a record
 // with no Predecessors field; the evaluator itself goes absent there.
-var predecessorStates = []string{"complete", "incomplete", "unresolved"}
+var predecessorStates = []string{"complete", "incomplete", "retired", "unresolved"}
 
 var clusterProposedMembers = []string{"all", "some", "none"}
 
@@ -2800,8 +2801,25 @@ func capsuleStateOf(t *FactTable, env *FactEnv) string {
 //	            and an absent capsule are members, because neither is
 //	            "looked and COMPLETE"
 //	state       unresolved when any predecessor did not resolve (the
-//	            launch precheck halts on that first), else incomplete
+//	            launch precheck halts on that first), else retired when
+//	            every not-COMPLETE one is terminal, else incomplete
 //	            when any is not COMPLETE, else complete
+//
+// A RETIRED predecessor is one the flow has closed without implementing:
+// Superseded, Abandoned, Rejected. Its capsule is absent and always will
+// be, so asking it to read COMPLETE asks the record to be built in order
+// to be replaced — cli/0107 declares the record that superseded it as a
+// predecessor, and the gate demanded the superseded one be implemented
+// first. That is unsatisfiable by construction, and folding it into
+// `incomplete` told a caller "implement those first" about a record that
+// never can be.
+//
+// It is a distinct state rather than a silent pass because the two are
+// different questions for a human: `incomplete` names work to do, and
+// `retired` names a lineage to confirm. The launch table routes it; this
+// only refuses to call them the same thing. Demoted and Deferred are NOT
+// retired — a Demoted record re-enters the flow and a Deferred one is
+// parked, so both may still reach COMPLETE.
 //
 // Absent when the record declares no Predecessors: `none` is the
 // declared sentinel, not a state the evaluator invents.
@@ -2817,7 +2835,7 @@ func (e *FactEnv) predecessorRollup(d FactDecl) (Fact, bool) {
 	if len(preds) == 0 {
 		return Fact{}, false
 	}
-	var incomplete []string
+	var incomplete, retired []string
 	unresolved := false
 	for _, p := range preds {
 		var peer *FactEnv
@@ -2830,24 +2848,58 @@ func (e *FactEnv) predecessorRollup(d FactDecl) (Fact, bool) {
 			incomplete = append(incomplete, p)
 			continue
 		}
-		if capsuleStateOf(e.table, peer) != "COMPLETE" {
-			incomplete = append(incomplete, p)
+		if capsuleStateOf(e.table, peer) == "COMPLETE" {
+			continue
 		}
+		if retiredStatus(peer) {
+			retired = append(retired, p)
+			continue
+		}
+		incomplete = append(incomplete, p)
 	}
 	switch d.Select {
 	case "incomplete":
 		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(incomplete)}, true
+	case "retired":
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(retired)}, true
 	case "state":
+		// Order is the launch prompt's: a dangling name first (nothing was
+		// looked at), then real work owed, then a lineage to confirm. A
+		// record with both an unbuilt and a retired predecessor is
+		// `incomplete` — the work outranks the confirmation.
 		state := "complete"
 		switch {
 		case unresolved:
 			state = "unresolved"
 		case len(incomplete) > 0:
 			state = "incomplete"
+		case len(retired) > 0:
+			state = "retired"
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: state}, true
 	}
 	return Fact{}, false
+}
+
+// retiredStatus reports whether a record is closed without implementing:
+// its capsule is absent and no future run will write one.
+//
+// Only the three the flow never returns from. `Demoted` re-enters at a
+// named stage and `Deferred` is parked, so both may still reach COMPLETE
+// and a predecessor in either is honestly `incomplete`.
+func retiredStatus(env *FactEnv) bool {
+	if env == nil || env.Doc == nil {
+		return false
+	}
+	f := metadataField(env.Doc, "Status")
+	if f == nil || f.Status == nil {
+		return false
+	}
+	switch f.Status.Value {
+	case "Superseded", "Abandoned", "Rejected":
+		return true
+	}
+	return false
 }
 
 // clusterProposed folds the Cluster field over the siblings' plans:

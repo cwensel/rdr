@@ -1367,12 +1367,25 @@ description = "Spikes the record cites under {SPIKE_DIR} with no entry in eviden
 # through the same table (its own `impl_state`, its own section-prose
 # rule), so a rollup and a direct `status` of the peer cannot disagree.
 #
-# Stage 8's predecessor gate. `predecessors_incomplete` is the set not
-# COMPLETE — an unresolvable record and an absent capsule are members,
+# Stage 8's predecessor gate. `predecessors_incomplete` is the set that
+# owes WORK — an unresolvable record and an absent capsule are members,
 # because neither is "looked and COMPLETE"; `predecessors_state` is the
 # word `rdr-launch.toml`'s precheck routes on. `unresolved` wins over
-# `incomplete` (the prompt halted on a dangling predecessor first). Both
-# are absent with no Predecessors field; `none` is the state's sentinel.
+# `incomplete` (the prompt halted on a dangling predecessor first), and
+# `incomplete` over `retired`: work owed outranks a lineage to confirm.
+#
+# A RETIRED predecessor (Superseded, Abandoned, Rejected) is split out
+# because its capsule is absent and always will be — the flow closed it
+# without implementing. Folding it into `incomplete` said "implement
+# those first" about a record that never can be, which is unsatisfiable
+# by construction: a successor names the record it supersedes as its
+# predecessor, so the gate asked that record to be built in order to be
+# replaced. Demoted and Deferred are NOT retired — a Demoted record
+# re-enters at a named stage and a Deferred one is parked, so both may
+# still reach COMPLETE.
+#
+# All three sets are absent with no Predecessors field; `none` is the
+# state's sentinel.
 # The set is ON DEMAND — read by name for the halt line, never riding the
 # whole `--tags` vector, where an undeclared set refuses the call.
 [fact.predecessors_incomplete]
@@ -1382,13 +1395,20 @@ select      = "incomplete"
 on_demand   = true
 description = "Predecessors whose capsule does not read COMPLETE, an unresolvable one included."
 
+[fact.predecessors_retired]
+kind        = "set"
+source      = "predecessor-rollup"
+select      = "retired"
+on_demand   = true
+description = "Predecessors closed without implementing (Superseded, Abandoned, Rejected) — no capsule exists and none ever will."
+
 [fact.predecessors_state]
 kind        = "enum"
 source      = "predecessor-rollup"
 select      = "state"
-domain      = ["complete", "incomplete", "unresolved", "none"]
+domain      = ["complete", "incomplete", "retired", "unresolved", "none"]
 absent      = "none"
-description = "The predecessor gate folded: complete, incomplete, unresolved (a record did not resolve), or none declared."
+description = "The predecessor gate folded: complete, incomplete, retired (every unbuilt one is Superseded/Abandoned/Rejected), unresolved (a record did not resolve), or none declared."
 
 # The Stage-2 tandem barrier: a clustered Draft is barred from refine until
 # every sibling has proposed. "Proposed" is the sibling's Implementation

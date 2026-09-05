@@ -212,7 +212,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 		"0022-cache-metrics-surface", "0025-cache-key-encoding",
 		"0026-cache-hash-identity", "0028-cache-flush-hook", "0029-cache-size-report",
 		"0030-cache-warm-ratio", "0031-cache-warm-report", "0032-cache-warm-alert",
-		"0033-cache-warm-order", "total 11 in flight over 14 records"} {
+		"0033-cache-warm-order", "0035-cache-warm-publish",
+		"total 12 in flight over 16 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -271,6 +272,46 @@ func TestPredecessorsRollup(t *testing.T) {
 	}
 	if got := read("0030"); len(got) != 0 {
 		t.Errorf("0030 declares no Predecessors, but --json carries %v; absence must survive the JSON rendering", got)
+	}
+
+	// 0035 names 0034, which is SUPERSEDED — closed without implementing,
+	// so its capsule is absent and always will be. Folding that into
+	// `incomplete` told a caller to "implement those first" about a
+	// record that never can be: 0035 supersedes 0034, so the gate asked
+	// 0034 to be built in order to be replaced. It is its own state, and
+	// the two sets stay disjoint so the halt line names the right one.
+	retired := func(rec string) (state string, members []string) {
+		t.Helper()
+		code, out, errb := runCapture(t, "status", "--facts", table, "--json",
+			"--filter", "predecessors_state,predecessors_retired,predecessors_incomplete", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var got struct {
+			Facts []struct {
+				Name, Value string
+				Members     []string
+			}
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range got.Facts {
+			switch f.Name {
+			case "predecessors_state":
+				state = f.Value
+			case "predecessors_retired":
+				members = f.Members
+			case "predecessors_incomplete":
+				if len(f.Members) != 0 {
+					t.Errorf("%s: a retired predecessor is also reported incomplete (%v); the sets must be disjoint or the halt line names the wrong remedy", rec, f.Members)
+				}
+			}
+		}
+		return state, members
+	}
+	if state, members := retired("0035"); state != "retired" || len(members) != 1 || members[0] != "0034" {
+		t.Errorf("0035 names Superseded 0034: state %q retired %v, want retired naming 0034", state, members)
 	}
 	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", "--filter", "status,predecessors_state", "0030")
 	if code != 0 {

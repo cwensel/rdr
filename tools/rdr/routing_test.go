@@ -1105,12 +1105,16 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 
 	// The precheck: status x predecessors_state x baseline, every row
 	// reachable from a fixture. 0020 is Draft; 0032 names a record the dir
-	// lacks; 0031 names one with no capsule; 0030 names none, so the
-	// baseline decides: unrun re-asks, red stops, green proceeds.
+	// lacks; 0031 names one with no capsule; 0035 names one that is
+	// SUPERSEDED, whose capsule will never exist — a different stop from
+	// 0031's, because "implement those first" is unsatisfiable there; 0030
+	// names none, so the baseline decides: unrun re-asks, red stops, green
+	// proceeds.
 	for _, c := range []struct{ rec, baseline, rule, next string }{
 		{"0020", "none", "precheck-not-final", "stopped:not-final"},
 		{"0032", "none", "precheck-unresolved", "stopped:predecessor-unresolved"},
 		{"0031", "none", "precheck-incomplete", "stopped:predecessor-incomplete"},
+		{"0035", "none", "precheck-predecessor-retired", "stopped:predecessor-retired"},
 		{"0030", "none", "precheck-baseline-unrun", "run-baseline"},
 		{"0030", "red", "precheck-baseline-red", "stopped:baseline-red"},
 		{"0030", "green", "precheck-ok", "proceed"},

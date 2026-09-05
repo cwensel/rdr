@@ -114,6 +114,16 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   --filter predecessors_incomplete <slug>` — an unresolvable record and an
   absent capsule are members; nothing looked is not COMPLETE). Record the
   predecessors' artifact paths to pass to Phase 0 and Phase 1.
+  `stopped:predecessor-retired` is the one that is NOT "implement those
+  first": the predecessor was closed without implementing (Superseded,
+  Abandoned, Rejected — `--filter predecessors_retired` names them) and
+  its capsule will never exist. Supersession is a TRANSFER, so the
+  question is whether the lineage completed: the superseding record's
+  `Overrides` states which clauses it CARRIED and which it did not, and
+  a clause it did not carry is owned by nobody until 7.1 re-homes it. No
+  fact reads "every clause has a live owner", so this halt is the
+  author's to clear — re-home or retire the rest
+  (`/rdr-cluster-reconcile`), or confirm the successor is self-sufficient.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick

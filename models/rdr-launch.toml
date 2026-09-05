@@ -74,7 +74,7 @@ route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
 loop  = ["continue", "return-green", "return-partial"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:baseline-red", "stopped:impact-unread"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -229,12 +229,15 @@ required      = true
 
 # The predecessor gate folded by rdr-facts.toml: `none` when no Predecessors
 # field; `unresolved` when a cited record does not resolve; `incomplete`
-# when a capsule is absent or not COMPLETE. `predecessors_incomplete` (a set)
-# names them for the halt line.
+# when a capsule is absent or not COMPLETE and the record may still reach
+# it; `retired` when every such predecessor is Superseded/Abandoned/
+# Rejected, so no capsule exists and none ever will.
+# `predecessors_incomplete` and `predecessors_retired` (sets) name them
+# for the halt line.
 [tags.predecessors_state]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["complete", "incomplete", "unresolved", "none"]
+domain        = ["complete", "incomplete", "retired", "unresolved", "none"]
 single_valued = true
 required      = true
 
@@ -552,6 +555,37 @@ eq = "incomplete"
 [rule.emit]
 next = "stopped:predecessor-incomplete"
 why  = "A predecessor's capsule is absent or not COMPLETE; predecessors_incomplete names them — implement those first."
+
+# A predecessor closed without implementing — Superseded, Abandoned,
+# Rejected. Its capsule is absent and always will be, so `incomplete`'s
+# "implement those first" is unsatisfiable: a successor names the record
+# it supersedes, and that record was superseded precisely so it would
+# never be built. This row exists so the gate stops for the RIGHT reason
+# and names a different next step.
+#
+# It STOPS rather than proceeding, and the reason is not the capsule.
+# What Phase 0/1 take from a predecessor is its artifact paths and the
+# precedent in its record; a retired predecessor has record text (the
+# impact walk resolves it) but no implementation evidence, so "no
+# precedent in predecessors" can be answered wrongly by absence rather
+# than by fact. More decisively, supersession is a TRANSFER: the
+# successor's Overrides says which clauses it carries and which it does
+# not, and the ones it does not are owned by nobody until 7.1 re-homes
+# them. Whether the successor may ship without them is an authoring call
+# about the lineage, not a check the gate can make — no fact reads
+# "every clause has a live owner". So the table refuses to guess and
+# names the question instead.
+[[rule]]
+id = "precheck-predecessor-retired"
+[rule.match.recognized]
+eq = "precheck"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.predecessors_state]
+eq = "retired"
+[rule.emit]
+next = "stopped:predecessor-retired"
+why  = "A predecessor was closed without implementing (Superseded, Abandoned or Rejected); predecessors_retired names them. Its capsule will never exist, so this is NOT `implement those first`. Confirm the successor carries what it needs — the superseding record's Overrides says which clauses it CARRIED and which it did not — and re-home or retire the rest (/rdr-cluster-reconcile) before implementing."
 
 [[rule]]
 id = "precheck-baseline-unrun"

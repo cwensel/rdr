@@ -959,6 +959,7 @@ var routingFacts = map[string]string{
 	// the rollups: the set behind a routed word, and the two set questions
 	// no row guards because they are about another record
 	"predecessors_incomplete":     "the predecessors the launch precheck's stopped:predecessor-incomplete names",
+	"predecessors_retired":        "the predecessors the launch precheck's stopped:predecessor-retired names — closed without implementing, so no capsule exists and none ever will",
 	"cluster_members_proposed":    "the Stage-2 tandem barrier: every sibling's plan authored",
 	"related_final_unimplemented": "Finalize's next step: a related Final still unimplemented routes to 7.1 first",
 	"cluster_members_in_flight":   "the after-lock group's other half: a cluster sibling still Draft, caught before a 7.1 pass runs on a partial set",

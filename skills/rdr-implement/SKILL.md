@@ -56,7 +56,13 @@ Refuse with the named code if any is false (the RDR is not ready — return to
   (`stopped:not-final`).
 - **MVV in scope** — Phase 1 turns it into `REQ-MVV` (`stopped:mvv-deferred`).
 - **Predecessors COMPLETE** — `predecessors_state=complete`
-  (`stopped:predecessor-incomplete:<predecessors_incomplete>`).
+  (`stopped:predecessor-incomplete:<predecessors_incomplete>`). A predecessor
+  closed WITHOUT implementing (Superseded, Abandoned, Rejected) stops
+  separately as `stopped:predecessor-retired:<predecessors_retired>`: its
+  capsule will never exist, so "implement it first" is unsatisfiable. Ask
+  instead whether the lineage completed — the superseding record's
+  `Overrides` names the clauses it CARRIED and those it did not, and the
+  latter have no owner until 7.1 re-homes them.
 - **Baseline green** — the full suite green before Phase 1 writes a test
   (`stopped:baseline-red`).
 
