@@ -914,6 +914,30 @@ var stageFacts = map[string][]string{
 // hand-kept list would have to be edited every time a model starts or
 // stops guarding on a fact, and the edit that gets forgotten is exactly
 // the one this test exists to catch.
+// modelGuardKeys is the set of tags some row actually guards on — the
+// dimensions, as opposed to the keys merely declared. Mirrors modelTags'
+// line reading rather than parsing TOML, for the same reason.
+func modelGuardKeys(t *testing.T, path string) map[string]bool {
+	t.Helper()
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("routing model %s: %v", path, err)
+	}
+	out := map[string]bool{}
+	for _, ln := range strings.Split(string(raw), "\n") {
+		ln = strings.TrimSpace(ln)
+		if !strings.HasPrefix(ln, "[rule.guard.") || !strings.HasSuffix(ln, "]") {
+			continue
+		}
+		// `[rule.guard.all.<key>]`, `[rule.guard.unless.<key>]`, `[rule.guard.any.<key>]`
+		body := strings.TrimSuffix(strings.TrimPrefix(ln, "[rule.guard."), "]")
+		if _, key, ok := strings.Cut(body, "."); ok {
+			out[key] = true
+		}
+	}
+	return out
+}
+
 func modelTags(t *testing.T, path string) map[string]bool {
 	t.Helper()
 	raw, err := os.ReadFile(path)
@@ -1823,31 +1847,42 @@ func TestEdgeTalliesAreThreeValued(t *testing.T) {
 	}
 }
 
-// TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels: the skills pass
-// the whole `rdr status --tags NNNN` vector to intrastate in one
-// substitution, and a set arrives as a JSON array literal. An undeclared
-// key is validated against the zero declaration, whose kind is not `set`,
-// so one undeclared set fact refuses EVERY call over the corpus (exit 2:
-// "flow-tag-invalid … not set-valued"). A set fact that is always on must
-// therefore be declared `[tags.<name>] kind = "set"` in every routing
-// model that receives that vector; an on-demand or prose fact never
-// reaches the vector unasked. A model listed in `callerTags` never sees
-// the vector at all — its tags are hand-bound by the caller from a packet
-// and a Ledger (`rdr-cascade.toml`), never `rdr status --tags` argv — so
-// it carries none of this invariant and is skipped here.
-func TestEveryAlwaysOnSetFactIsDeclaredByTheRoutingModels(t *testing.T) {
+// TestAlwaysOnSetFactsNeedNoDeclaration: the skills pass the whole `rdr
+// status --tags NNNN` vector to intrastate in one substitution, and a set
+// arrives as a JSON array literal.
+//
+// This test used to assert the OPPOSITE — that every always-on set fact
+// must be declared `[tags.<name>] kind = "set"` in every routing model
+// that receives the vector — because an undeclared key was validated
+// against the zero declaration, whose kind is not `set`, so one such fact
+// refused EVERY call over the corpus (exit 2, "not set-valued"). That was
+// intrastate#3exy, and it cost a corpus-wide refusal once.
+//
+// intrastate RDR 0020 admits an undeclared key as a pure carrier, so the
+// declarations came out. The invariant is inverted and still worth
+// pinning: a set fact a model does not guard on must NOT need declaring,
+// because the moment it does, adding a fact to rdr-facts.toml silently
+// breaks every routing call until someone edits each model. Asserting the
+// absence keeps the regression visible — a re-introduced declaration is
+// dead weight, and a re-introduced REFUSAL is 3exy returning.
+//
+// A guarded set is a different thing and stays declared: it is a
+// dimension, and the coverage proof needs it.
+func TestAlwaysOnSetFactsNeedNoDeclaration(t *testing.T) {
 	tbl := loadRealTable(t)
 	for _, model := range routingModelNames {
 		if callerTags[model] != nil {
 			continue
 		}
-		tags := modelTags(t, repoFile(t, filepath.Join("models", model)))
+		path := repoFile(t, filepath.Join("models", model))
+		tags := modelTags(t, path)
+		guards := modelGuardKeys(t, path)
 		for _, f := range tbl.Facts {
 			if f.Kind != "set" || f.OnDemand || f.Prose {
 				continue
 			}
-			if !tags[f.Name] {
-				t.Errorf("%s: set fact %q rides the --tags vector but is not declared [tags.%s] kind = \"set\"; intrastate refuses the whole call", model, f.Name, f.Name)
+			if tags[f.Name] && !guards[f.Name] {
+				t.Errorf("%s: set fact %q is declared but no row guards it; since intrastate RDR 0020 an undeclared key crosses as a pure carrier, so the declaration is dead weight — delete it", model, f.Name)
 			}
 		}
 	}

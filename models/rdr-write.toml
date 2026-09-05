@@ -330,45 +330,16 @@ domain        = ["none", "demoted-target", "revised-from", "joint-decision", "re
 single_valued = true
 required      = true
 
-# The two SET-VALUED facts the producer emits, declared with NO guard atom.
-#
-# They are here purely so the composition does not refuse. `rdr status
-# --tags` emits the whole fact vector and this table guards on a subset —
-# the intended shape, since only guard atoms make dimensions. But an
-# undeclared set-valued tag is currently refused as a kind mismatch
-# (intrastate#3exy), so every record would refuse with a message naming a
-# declaration that does not exist. Declaring them costs the product
-# nothing: no guard atom references them, so they contribute no dimension.
-# Delete both when 3exy lands.
-[tags.cluster]
-provenance = "observed"
-kind       = "set"
-
-[tags.open_joint_decisions]
-provenance = "observed"
-kind       = "set"
-
-# The gate id-lists (ca_pending_ids, ca_off_vocabulary_ids, reverify) are
-# set-valued and always on, so they ride the one-substitution call like
-# `cluster` does; no row guards on them, so they cost the product nothing.
-[tags.ca_pending_ids]
-provenance = "observed"
-kind       = "set"
-
-[tags.ca_off_vocabulary_ids]
-provenance = "observed"
-kind       = "set"
-
-[tags.reverify]
-provenance = "observed"
-kind       = "set"
-
-# `spikes_unrun` rides the vector whenever the evidence root is bound —
-# `[]` is a real answer there, and an undeclared `[]` refuses the whole
-# lock call, exactly as `cluster` would. No row guards on it.
-[tags.spikes_unrun]
-provenance = "observed"
-kind       = "set"
+# NO SET-VALUED TAG IS DECLARED HERE, and that is the point. `rdr status
+# --tags` emits the whole fact vector while this table guards on a
+# subset — the intended shape, since only guard atoms make dimensions.
+# Six set-valued facts ride that vector (`cluster`, `open_joint_decisions`,
+# the gate id-lists, `spikes_unrun`) and no row guards any of them, so
+# each was declared purely to stop the call refusing: an undeclared
+# set-valued tag used to be read as a kind mismatch, naming a declaration
+# that did not exist. intrastate RDR 0020 admits an undeclared key as a
+# pure carrier, so the declarations are gone and a set-valued fact added
+# to `rdr-facts.toml` tomorrow needs no edit here.
 
 # Stage 7's done-signal: `{ARTIFACT_DIR}/gate.md` exists. It does not say
 # the gate PASSED — the projector does not open that file — so `lock`

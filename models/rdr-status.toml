@@ -413,55 +413,23 @@ domain        = ["fired", "na", "unjudged"]
 single_valued = true
 required      = true
 
-# --- declared, but not dimensions -----------------------------------------
+# --- NOT declared, and that is deliberate ----------------------------------
 #
-# These two are SET-VALUED and no row guards on them, so they contribute
-# no dimension and cost the product nothing. They are declared anyway
-# because the skill passes the whole `rdr status --tags NNNN` output in
-# one substitution, and a set arrives as a JSON array literal (`[]`,
-# `["0106","0108"]`).
+# Six set-valued facts ride the vector this table resolves against
+# (`cluster`, `open_joint_decisions`, the three gate id-lists,
+# `spikes_unrun`) and no row guards any of them, so they contribute no
+# dimension. Each was once declared anyway, purely so the call would not
+# refuse: the skill passes the whole `rdr status --tags NNNN` output in
+# one substitution, a set arrives as a JSON array literal, and an
+# undeclared key used to be validated against the zero declaration —
+# whose kind is not `set` — so the array was refused as "not set-valued"
+# and the whole call exited 2.
 #
-# An UNDECLARED key is not ignored on that path: it is validated against
-# the ZERO declaration, whose kind is not `set`, so an array literal is
-# refused as "not set-valued" and the whole call exits 2 — a model that
-# simply omitted these would refuse every record in the corpus. Declaring
-# them as sets is what makes the one-substitution call shape work.
-#
-# `cluster` is the tandem barrier's input (a bare Draft declaring
-# siblings is barred from refine until every member has proposed) and
-# `open_joint_decisions` names the decisions a Final is still waiting on.
-# Both are judgements about OTHER records — whether a sibling has
-# proposed, whether a home has answered — which no fact about THIS record
-# can decide, so they are surfaced by the rows that stop rather than
-# guarded on here.
-[tags.cluster]
-provenance = "observed"
-kind       = "set"
-
-[tags.open_joint_decisions]
-provenance = "observed"
-kind       = "set"
-
-# The gate id-lists (ca_pending_ids, ca_off_vocabulary_ids, reverify) are
-# set-valued and always on, so they ride the one-substitution call like
-# `cluster` does; no row guards on them, so they cost the product nothing.
-[tags.ca_pending_ids]
-provenance = "observed"
-kind       = "set"
-
-[tags.ca_off_vocabulary_ids]
-provenance = "observed"
-kind       = "set"
-
-[tags.reverify]
-provenance = "observed"
-kind       = "set"
-
-# Stage 6's third open-set source: spikes the record names with no run
-# under evidence/spikes/. Always on for the same reason as the lists above.
-[tags.spikes_unrun]
-provenance = "observed"
-kind       = "set"
+# intrastate RDR 0020 admits an undeclared key as a pure carrier, so the
+# declarations are gone. The win is forward: a set-valued fact added to
+# `rdr-facts.toml` tomorrow rides this call with no edit here, where
+# before it would have refused every record in the corpus until someone
+# declared it.
 
 # ===========================================================================
 # `locate` — the coarse position (§How it decides next, step 1)
