@@ -6,7 +6,7 @@
 // Usage:
 //
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
-//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]] [--records DIR]
+//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]|--row-json NNNN] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
 //	rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
 //	rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
@@ -86,6 +86,7 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --derived                   the unlabelled-element backlog per record
   --coverage                  the drift alarm: unclassified-line rate, unknowns
   --readme[=PATH]             the README index table checked against the records
+  --row-json NNNN             one record's index row as JSON (no corpus walk)
 
 --filter keeps only the named top-level keys — of inspect's envelope
 (metadata,counts,…) or of the index graph (records,elements,edges,backlinks) —
@@ -345,6 +346,11 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 	case "inspect":
 		return inspect(fs.Args(), f, stdout, stderr)
 	case "index":
+		// First: it is the one index facet that reads no records, and
+		// dispatching it ahead of the rest keeps it that way.
+		if *f.rowJSON != "" {
+			return rowFacet(f, *f.rowJSON, stdout, stderr)
+		}
 		if *f.derived {
 			return indexDerived(f, stdout, stderr)
 		}
@@ -459,6 +465,7 @@ type flags struct {
 	repo                *string
 	status              *bool
 	backlinks, readme   optString
+	rowJSON             *string // index: one index-table row, by record number
 	clusterOf           *string
 	closure             *bool     // index: --cluster-of to a fixpoint
 	finalUnimplemented  *bool     // index: --cluster-of scoped to Final-and-unimplemented
@@ -529,6 +536,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.record = fs.String("record", "", "anchor-intersect, literal-intersect, open-joint: only the rows touching this record (NNNN, slug, path or citation)")
 		f.filter = fs.String("filter", "", "comma-separated graph keys to keep (records,elements,edges,backlinks); identity keys are always included")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
+		f.rowJSON = fs.String("row-json", "", "the index table's row for ONE record (NNNN), as JSON; no corpus walk")
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")

@@ -409,6 +409,76 @@ func readmeFacet(f *flags, path string, stdout, stderr io.Writer) int {
 	return 0
 }
 
+// rowFacet answers what the index table says about ONE record, addressed
+// by its number. It reports; it never edits.
+//
+// It exists because a write to the README row needs a reader for its
+// read-back, and the row lives in a sibling document keyed by number —
+// the same read `readmeRow` in facts.go makes for the write side, and the
+// same rows `--readme` checks for drift, so none of the three can
+// disagree about what a row says.
+//
+// Unlike every other facet here it does NOT walk the corpus: a row read
+// needs no records, and making it pay for 157 of them would put a corpus
+// scan inside every write's read-back. That is the whole reason it is
+// separate from `--readme`, which compares the table AGAINST the records
+// and so must scan them.
+//
+// The three answers are distinguished, because a writer acts differently
+// on each: a row (emit it), no row (`readme --add` is the op — exit 0
+// with a null row, since "looked and found none" is an answer), or no
+// table at all (nothing looked — exit 2, the same `stopped:no-index-table`
+// the write table's own row emits).
+func rowFacet(f *flags, record string, stdout, stderr io.Writer) int {
+	// `RecordOf` takes the number off a bare `0055` or a filename/path
+	// base, so the caller may pass whatever it already holds.
+	num := ident.RecordOf(filepath.Base(record))
+	if num == "" {
+		fmt.Fprintf(stderr, "stopped:not-a-record-number (%q does not begin with NNNN)\n", record)
+		return 2
+	}
+	// `--readme=PATH` names the table, exactly as it does for the drift
+	// check: a read-back must be able to read the same file the write
+	// edited, and a consumer whose index is not `README.md` has one.
+	path := f.readme.value
+	if path == "" {
+		dir := *f.records
+		if dir == "" {
+			dir = "."
+		}
+		path = filepath.Join(dir, "README.md")
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		fmt.Fprintf(stderr, "stopped:unreadable (%s: %v)\n", path, err)
+		return 2
+	}
+	rows := scan.ParseReadmeIndex(strings.Split(string(body), "\n"))
+	if len(rows) == 0 {
+		fmt.Fprintf(stderr, "stopped:no-index-table (%s has no `| NNNN |` index rows)\n", path)
+		return 2
+	}
+	// Matched on the number, never the title, which drifts. A duplicate
+	// row is reported rather than silently resolved: two rows for one
+	// record is the `duplicate-row` drift `--readme` names, and a writer
+	// told to edit "the" row would pick one arbitrarily.
+	var found []scan.ReadmeRow
+	for _, r := range rows {
+		if r.Record == num {
+			found = append(found, r)
+		}
+	}
+	if len(found) > 1 {
+		fmt.Fprintf(stderr, "stopped:duplicate-row (%s carries %d rows for %s)\n", path, len(found), num)
+		return 2
+	}
+	out := map[string]any{"schema": schemaVersion, "readme": path, "record": num, "row": nil}
+	if len(found) == 1 {
+		out["row"] = found[0]
+	}
+	return emit(out, stdout, stderr)
+}
+
 // openJoint is one open joint decision, from either of the two places a
 // record states one: a `Joint-check: … (home: OPEN)` line in its body
 // (Signal "joint-check", with the element id and line), or a Status line

@@ -652,6 +652,7 @@ never because the corpus happened to be in hand.
     rdr index --json --filter records,elements   # only the named graph keys
     rdr index --unresolved        # typed edges whose target was looked for and not found
     rdr index --readme[=PATH]     # the README index table checked against the records
+    rdr index --row-json 0055     # ONE record's index row, as JSON; reads no records
     rdr index --derived           # the labelling backlog per record, structural ids apart
     rdr index --coverage          # the drift alarm (§The resilience contract)
 
@@ -704,6 +705,18 @@ filter that keeps neither also skips the repo walk that decides one.
 `--readme` is a check, not a generator: it names each row that disagrees
 with its record (status, title, priority, a missing or extra row) and the
 author decides which side is wrong. Nothing here writes.
+
+`--row-json` answers what the table says about ONE record, addressed by
+number. It is the read-back reader for a write to the index row: the row
+lives in a sibling document keyed by number, so a writer that has just
+edited it needs a way to read that one row back. Alone among the index
+facets it opens no records — a row read needs none, and routing it
+through `--readme` would put a corpus walk inside every write (measured
+on the 157-record corpus: 41ms against 6.5s). Three answers, because a
+writer acts differently on each: a row, no row (exit 0, `"row": null` —
+"looked and found none" is what `readme --add` exists for), and no index
+table at all (exit 2 — nothing looked, so nothing is claimed). Two rows
+for one record refuse rather than resolving arbitrarily.
 
 `--cluster-of` is the 7.1 prompt's own definition — "mutual
 `**Predecessors**:`, Peer-RDR citations, or a shared Cross-Cutting

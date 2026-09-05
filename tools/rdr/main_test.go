@@ -608,6 +608,79 @@ func TestIndexReadmeDrift(t *testing.T) {
 	}
 }
 
+// TestIndexRowJSON: one record's index row, addressed by number. The
+// three answers a writer acts on differently are distinguished — a row,
+// no row (exit 0, null), and no table at all (exit 2) — and the row's
+// cells agree with what `--readme` reads from the same table.
+func TestIndexRowJSON(t *testing.T) {
+	dir := corpusDir(t)
+	code, out, errb := runCapture(t, "index", "--row-json", "0002", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	// The README says Final for 0002 while the record says Draft — this
+	// facet reports the TABLE, so the row's own cell is what comes back.
+	// That disagreement is `--readme`'s finding, not this facet's.
+	for _, want := range []string{`"record": "0002"`, `"title": "Beta"`, `"status": "Final"`, `"priority": "High"`, `"line": 4`} {
+		if !strings.Contains(out, want) {
+			t.Errorf("row JSON missing %s:\n%s", want, out)
+		}
+	}
+
+	// A record with no row is an ANSWER, not a refusal: `readme --add` is
+	// the op for it, so it exits 0 carrying a null row.
+	code, out, errb = runCapture(t, "index", "--row-json", "0099", "--records", dir)
+	if code != 0 {
+		t.Fatalf("a record with no row should exit 0, got %d: %s", code, errb)
+	}
+	if !strings.Contains(out, `"row": null`) {
+		t.Errorf("no row should read as null:\n%s", out)
+	}
+
+	// A filename works where a bare number does, so the caller may pass
+	// whatever it is already holding.
+	if code, out, _ := runCapture(t, "index", "--row-json", "0002-beta.md", "--records", dir); code != 0 || !strings.Contains(out, `"status": "Final"`) {
+		t.Errorf("a filename should address the same row: exit %d\n%s", code, out)
+	}
+
+	// `--readme=PATH` names the table here as it does for the drift check,
+	// so a read-back can read the same file the write edited. Given both,
+	// --row-json is the facet: it dispatches first.
+	if code, out, _ := runCapture(t, "index", "--row-json", "0002", "--readme="+filepath.Join(dir, "README.md"), "--records", dir); code != 0 || !strings.Contains(out, `"status": "Final"`) {
+		t.Errorf("--readme=PATH should name the table: exit %d\n%s", code, out)
+	}
+
+	// No index table is "nothing looked" — a refusal, never a null row,
+	// because a writer must not read it as "no row, go add one".
+	empty := t.TempDir()
+	if err := os.WriteFile(filepath.Join(empty, "README.md"), []byte("# Records\n\nprose only.\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, _, _ := runCapture(t, "index", "--row-json", "0002", "--records", empty); code != 2 {
+		t.Errorf("a README with no index table should stop, got exit %d", code)
+	}
+	if code, _, _ := runCapture(t, "index", "--row-json", "nope", "--records", dir); code != 2 {
+		t.Errorf("a non-record argument should stop, got exit %d", code)
+	}
+}
+
+// TestIndexRowJSONDuplicate: two rows for one record refuse rather than
+// resolving arbitrarily — a writer told to edit "the" row would pick one
+// and silently leave the other stale.
+func TestIndexRowJSONDuplicate(t *testing.T) {
+	dir := t.TempDir()
+	body := "| ID | Title | Status | Priority |\n| --- | --- | --- | --- |\n" +
+		"| [0001](0001-alpha.md) | Alpha | Draft | High |\n" +
+		"| [0001](0001-alpha.md) | Alpha | Final | High |\n"
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errb := runCapture(t, "index", "--row-json", "0001", "--records", dir)
+	if code != 2 || !strings.Contains(errb, "stopped:duplicate-row") {
+		t.Errorf("a duplicated row should stop: exit %d\n%s", code, errb)
+	}
+}
+
 // TestIndexClusterCandidateTier: two in-flight records that only mention
 // each other are reported as candidates, never as asserted members, and
 // a one-way mention is nothing.
@@ -1659,6 +1732,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 		{"-anchor-intersect", "anchor-intersect"},
 		{"-literal-intersect", "literal-intersect"},
 		{"-readme", "readme"},
+		{"-row-json=0055", "row-json"},
 	}
 	for _, c := range cases {
 		fs := flag.NewFlagSet("index", flag.ContinueOnError)

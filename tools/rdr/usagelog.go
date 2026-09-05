@@ -273,6 +273,7 @@ func usageFacet(cmd string, f *flags, target string) string {
 			on   bool
 			name string
 		}{
+			{f.rowJSON != nil && *f.rowJSON != "", "row-json"},
 			{f.derived != nil && *f.derived, "derived"},
 			{f.coverage != nil && *f.coverage, "coverage"},
 			{f.backlinks.set, "backlinks"},
