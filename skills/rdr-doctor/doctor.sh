@@ -257,15 +257,33 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     # declares the domain - where a help grep would prove neither. A binary or
     # model that predates it emits no dispositions and every write reads as an
     # edit: the one failure that routes a refusal as an instruction, so FAIL.
+    # `status` is OWNED since the table became a state machine, so it cannot
+    # be supplied as argv; `return` is the stop group that guards on a caller
+    # tag only, which keeps the probe free of artifact binds.
     wm="$RDR_HOME/models/rdr-write.toml"
     if [ ! -f "$wm" ]; then
       warn "12c $wm is absent - the write table's disposition surface cannot be probed"
-    elif "$IS" flow resolve --model "$wm" --plan-only --outcome lock --as json \
-           --tag status=Implemented 2>/dev/null \
+    elif "$IS" flow resolve --model "$wm" --plan-only --outcome return --as json \
+           --tag blocker_class=none 2>/dev/null \
          | grep -q '"dispositions":{"op":"stop"}'; then
       pass "12c the write table carries emit dispositions (RDR 0024) - §rdr-write branches on dispositions.op, not on the op string"
     else
       fail "12c intrastate at $IS or $wm predates emit dispositions (RDR 0024) - §rdr-write cannot tell a stop from an edit without string-matching; reinstall intrastate from HEAD (make install in its repo)"
+    fi
+    # 12d - the APPLY surface. §rdr-write's lock and readme outcomes pipe a
+    # resolve into `set-state --plan -`, which needs two things this probes
+    # together: the `edit` write carrier (intrastate RDR 0028) and the
+    # `advance = false` marker its refusing rows carry. Loading the model
+    # proves both - the carrier is admitted at load, and a rule that neither
+    # advances nor declares the marker is `malformed_rule_shape`. A stale
+    # binary refuses the file outright, which is the honest failure: every
+    # write outcome would stop, and a caller told to pipe would pipe nothing.
+    if [ ! -f "$wm" ]; then
+      : # 12c already reported the absent model; one finding, not two
+    elif "$IS" lint --model "$wm" >/dev/null 2>&1; then
+      pass "12d the write table's edit carrier and non-advancing rows load (RDR 0028) - the lock/readme pipe can apply"
+    else
+      fail "12d intrastate at $IS cannot load $wm - it predates the edit write carrier or advance=false (RDR 0028 and its successor); §rdr-write's lock and readme outcomes will refuse. Reinstall intrastate from HEAD (make install in its repo)"
     fi
   elif [ -z "$RDR_INTRASTATE" ]; then
     # Only when nothing was configured: a bad RDR_INTRASTATE already FAILed, and

@@ -227,26 +227,47 @@ linted decision table**, not restated per site.
 `intrastate lint --model` proves every cell of `models/rdr-write.toml` is claimed
 by exactly one row, so an unhandled case is a lint failure, not a wrong answer.
 
+`lock` and `readme` are **applied for you**; the other six emit an edit you
+apply. The split is permanent — see the end of this section.
+
 ```sh
-# §rdr-write — one call. $RDR_HOME comes from §seam-bind.
+# §rdr-write. $RDR_HOME/$RDR_PATH/$RDR_RECORDS from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-"$RDR_HOME/bin/rdr" status --tags NNNN >/dev/null || exit 2   # §intrastate
-"$IS" flow resolve --model "$RDR_HOME/models/rdr-write.toml" --plan-only \
-  --outcome <claim|readme|lock|demote|profile|return|fence|ground> [--tag k=v …] \
-  $("$RDR_HOME/bin/rdr" status --tags NNNN)
+M="$RDR_HOME/models/rdr-write.toml"
+BIND=(--artifact record="$RDR_PATH" --artifact readme="$RDR_RECORDS/README.md"
+      --tag nnnn=NNNN --allow-commands)
+TAGS=$("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status) || exit 2
+
+# lock | readme — resolved AND applied, nothing retyped:
+"$IS" flow resolve --model "$M" "${BIND[@]}" --as json --outcome <lock|readme> \
+  [--tag k=v …] $TAGS | "$IS" flow set-state --model "$M" "${BIND[@]}" --as json --plan -
+
+# claim | demote | profile | return | fence | ground — you apply the emit:
+"$IS" flow resolve --model "$M" "${BIND[@]}" --plan-only \
+  --outcome <claim|demote|profile|return|fence|ground> [--tag k=v …] $TAGS
 ```
 
-`emit` is the answer (`--plan-only` drops the fact echo; the plan is unchanged): `op`
-(the operation), `target`, `edit` (the exact expression), `why`, `surface` (show verbatim). **Apply `edit` as handed** — it is
-data, not a description; retyping it makes the guarantee prose again.
+`--except status,readme_status` is required: the table OWNS those two, and
+intrastate reads owned state through the model's own accessors, refusing it as
+argv (`flow-tag-owned`). Those accessors are `rdr` itself — hence
+`--allow-commands` and the binds — so the tool that renders the facts reads them
+back after a write.
 
-**Branch on `dispositions.op`, never on the `op` string.** The table declares
-`op`'s domain partitioned three ways (intrastate RDR 0024), so the envelope
-carries the branch already decided: `edit` (apply it), `none` (the state
-already holds — every op is idempotent), `stop` (a shape the table refuses
-rather than guesses; surface per §stop-packet). A caller testing the `op` value
-for a `stopped:` prefix is re-deriving in prose what the loader proved, and a
-token added to the `stop` list later would not reach it.
+`emit` is the answer for the second form (`--plan-only` drops the fact echo): `op`,
+`target`, `edit` (the exact expression), `why`, `surface` (show verbatim).
+**Apply `edit` as handed** — it is data, not a description; retyping it makes
+the guarantee prose again.
+
+**Branch on the verb that answered.** On `resolve`, read `dispositions.op`,
+never the `op` string: RDR 0024 partitions the domain into `edit` (apply it),
+`none` (the state already holds — every op is idempotent) and `stop` (surface
+per §stop-packet). Matching a `stopped:` prefix re-derives in prose what the
+loader proved, and a token added later would not reach it. On `set-state`, read
+`writers`/`writes` **emptiness** — it carries no `dispositions`, deliberately,
+since that block is joined from the selected row and `set-state` selects none.
+Applied names its writer and keys; a no-op is exit 0 with both empty. A refusal
+never arrives as a write: refusing rows declare `advance = false`, so their plan
+carries none.
 
 Six tags are the caller's, not facts, and only the rows that read them demand
 them: `profile` takes `floor` (§lens-row's `emit.floor`, passed through as a
@@ -258,9 +279,20 @@ value), `user_facing=<yes|no|unknown>` and `locks=<none|contract|format|cross-rd
 
 The table routes structure and status, never judgement: the gate verdict, the
 demotion call and the Profile's two dispositions arrive as your `--outcome` and
-tags. `rdr` stays read-only — it renders the
-facts, the table decides, you apply the edit with `sed`/`git mv`. A write re-arms
-the lint receipt (§commit).
+tags. `rdr` stays read-only — it renders the facts and reads them back; it never
+writes. A write re-arms the lint receipt (§commit).
+
+**Why only those two.** An `edit` writer substitutes a planned VALUE into an
+anchored line. `profile`, `demote` and `readme --add` interpolate author prose
+no fact supplies (`<one clause naming the contract>`, `<one-line reason>`, a
+title); `claim` allocates with no planned value; `fence`/`return`/`ground` never
+edit. Converting them would mean typing that prose as a tag for the table to
+interpolate — the transcription relocated, not removed.
+
+`lock` has one author step BEFORE the pipe: `sections` moves the four judged
+gate responses out to `gate.md`. Do it first — the status flip is the declared
+write, so a failure mid-move leaves a legible Draft, not a Final whose responses
+never moved.
 
 ## §rdr-claim — atomically reserve a number before authoring (`/rdr-seed` only)
 
