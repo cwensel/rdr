@@ -19,16 +19,24 @@
 # That win needs the operation NAMED and DISPATCHED somewhere a prompt
 # can cite — which is here.
 #
-# So the composition is the one `rdr-status.toml` already proves:
+# So the composition is the one `rdr-status.toml` already proves, now
+# with the apply half closed for the two edits that carry no prose:
 #
-#   rdr status --tags NNNN  →  intrastate flow resolve --model rdr-write.toml
-#      (the facts, as argv)       (this table)   →   emit{op, target, edit}
+#   rdr status --tags NNNN --except status,readme_status
+#      (the observed facts, as argv)
+#        →  intrastate flow resolve --model rdr-write.toml --as json
+#             (this table; owned state read through `rdr` itself)
+#        →  intrastate flow set-state --plan -
+#             (applies the `edit` carrier, read-back verified)
 #
-# Neither binary calls the other. `rdr` renders the facts, `intrastate`
-# selects exactly one row, and the caller applies the emitted edit with
-# an established tool (`sed`, `git mv`). Determining the state and
-# applying the change are both delegated; this file is the decision in
-# between, and it is reviewable as one document.
+# Neither binary calls the other AS A LIBRARY — intrastate invokes `rdr`
+# only as a declared command reader, argv fixed in this file and visible
+# to lint. `rdr` renders the facts and reads state back; it never writes.
+# For `lock` and `readme-flip` the caller now types nothing: no `sed`, no
+# value, one pipe. For the rest (`profile`, `demote`, `claim`,
+# `readme-add`) the emitted edit is still applied by hand, because those
+# edits carry author prose no table can supply — see the write block
+# below.
 #
 # WHAT `intrastate lint --model` BUYS, AND IT IS THE POINT: every cell of
 # each declared product is claimed by exactly one row. The refuse cases —
@@ -37,17 +45,23 @@
 # lint failure here rather than a wrong answer to an agent months from
 # now. That is a stronger guarantee than a per-op refuse test.
 #
-# THE EDIT IS DATA — TRANSITIONALLY. `[rule.emit]` carries the exact `sed`
-# expression, not a description of one, and the caller applies it as
-# handed. That is a stop-gap, not the design: intrastate RDR 0025's write
-# binding takes planned OWNED tags on a state-machine, and a decision
-# table owns nothing (RDR 0010), so no shipped binding can consume these
-# emits. The end state is a successor intrastate RDR pair (a declared,
-# in-process edit writer; `set-state --plan`) after which this file becomes
-# a state-machine over a command reader and the `edit`/`sections` emits
-# are deleted — the rows' guards and `op` answers survive, the shell
-# strings do not. Until then: no interpolation, so `NNNN` and slugs are
-# never spelled here; the caller appends what it already holds.
+# THE EDIT IS DATA. For `lock` and `readme-flip` it is now a DECLARED
+# edit — an `anchor`/`replace` pair intrastate applies in-process, with no
+# shell and no caller transcription (RDR 0028's `edit` carrier, reached
+# through `set-state --plan`). The successor pair this header used to
+# await has shipped, and those rows' `sed` strings are gone.
+#
+# For the remaining ops `[rule.emit]` still carries the expression and the
+# caller applies it as handed. That is not a stop-gap awaiting a tool: an
+# `edit` carrier substitutes a PLANNED VALUE, and `profile`, `demote` and
+# `readme-add` interpolate author prose (`<one clause naming the
+# contract>`, `<one-line reason>`, a title) that no fact supplies; `claim`
+# is an allocation with no planned value at all. Converting them would
+# make the caller type the prose as a tag for the table to interpolate —
+# the transcription this seam exists to remove, relocated rather than
+# removed. Their emits stay, and so does the rule: no interpolation, so
+# `NNNN` and slugs are never spelled in them; the caller appends what it
+# already holds.
 #
 # ---------------------------------------------------------------------
 # THE COUPLING IS THE FACT NAMES, AND NOTHING ELSE
@@ -103,8 +117,91 @@ outcomes = ["claim", "readme", "lock", "demote", "profile", "return", "fence", "
 [model]
 id          = "rdr-write"
 version     = 1
-class       = "decision-table"
+class       = "state-machine"
 description = "RDR write side: the record's facts to the one structural edit."
+
+# --- the applied writes (intrastate RDR 0028) -------------------------------
+#
+# Two owned tags, and they are the two the flow's most-run edits touch:
+# the record's own `- **Status**:` line and its README index row's Status
+# cell. Everything else this table decides — the Profile field, a demote's
+# qualifier and Refinement Context, the claim's reservation, a README row
+# that does not exist yet — stays an `[rule.emit]` the caller applies,
+# because those edits carry AUTHOR PROSE (`<one-line reason>`, `<one
+# clause naming the contract>`) that no fact supplies and no table can
+# know. An `edit` carrier substitutes a planned value; it does not write a
+# sentence. Converting them would mean the caller typing the prose as a
+# tag for the table to interpolate, which is the transcription this whole
+# seam exists to remove.
+#
+# So the file is deliberately MIXED, and intrastate's `advance = false`
+# (RDR 0028's successor) is what lets it be: the rows that apply carry
+# `[rule.write]`, and every row that refuses or no-ops declares that it
+# decides without advancing. A refusal therefore resolves to `writes: {}`
+# and `next: {}` — there is nothing for `set-state --plan -` to apply, so
+# a stop can never be reported as a successful write.
+#
+# The owned pair is READ, never supplied: intrastate reads owned state
+# through these accessors and refuses it as argv. That is why §rdr-write
+# passes `--except status,readme_status` — the rest of the vector is
+# observed and still crosses as tags.
+
+# `[initial]` is the root a transition graph is reached from, not a
+# default: every resolve reads the live values through the accessors
+# below. A record at the start of the flow is a Draft that no index row
+# names yet, which is exactly what `/rdr-seed` produces.
+[initial]
+status        = "Draft"
+readme_status = "none"
+
+# The readers are `rdr` itself, in the flat-object shape a command reader
+# takes (RDR 0025). The tool that renders the facts is the tool that
+# confirms them after a write, so a read-back cannot disagree with the
+# vector the same call site guarded on — and `rdr` still never writes.
+[read.record]
+role    = "record"
+command = ["rdr", "status", "--flat", "--filter", "status", "{artifact}"]
+keys    = ["status"]
+timeout = "20s"
+
+# Row-addressed: `{tag.nnnn}` tells the projector WHICH row to read, so
+# the reader opens one row rather than the corpus (`--row-json`, no
+# corpus walk).
+[read.readme]
+role    = "readme"
+# `{artifact}` substitutes WHOLE-ELEMENT only (0025:C2), so the README
+# path cannot ride inside `--readme=<path>`, and `--readme <path>` reads
+# as the bare flag (optional-argument form) with the path silently
+# dropped. It is therefore POSITIONAL here — the one spelling a declared
+# reader can get right.
+command = ["rdr", "index", "--row-json", "{tag.nnnn}", "--flat", "{artifact}"]
+keys    = ["readme_status"]
+timeout = "20s"
+
+# The record's Status line. The qualifier is CAPTURED and re-emitted:
+# `Draft [joint decision → …]` must lock to `Final [joint decision → …]`,
+# because the navigator's home check routes on that qualifier and a lock
+# that flattened it would unroute the check.
+[write.record]
+role      = "record"
+keys      = ["status"]
+timeout   = "20s"
+read_back = true
+[write.record.edit.status]
+anchor  = '^- \*\*Status\*\*: [A-Za-z]+(?P<q>[ \t]+\[.*\])?[ \t]*$'
+replace = '- **Status**: {status}${q}'
+
+# The index row's Status cell, addressed by record number so no other
+# row is touched. The linked and bare first-cell forms are both matched,
+# because a delinked row still says the record is indexed.
+[write.readme]
+role      = "readme"
+keys      = ["readme_status"]
+timeout   = "20s"
+read_back = true
+[write.readme.edit.readme_status]
+anchor  = '^(\|[ \t]*(?:\[{tag.nnnn}\]\([^)]*\)|{tag.nnnn})[ \t]*\|[^|]*\|)[^|]*(\|.*)$'
+replace = '${1} {readme_status} ${2}'
 
 # --- the emit vocabulary (intrastate RDR 0024) ------------------------------
 #
@@ -188,8 +285,21 @@ required      = true
 # field is genuinely sometimes absent, the FACT TABLE declares the
 # sentinel and `--tags` always renders the key.
 
-[tags.status]
+# The record's number, as CONTEXT — an identity, never a value. It
+# row-addresses the README reader and writer (`{tag.nnnn}`, RDR 0028
+# C1.6) so both open one row instead of the table, and it is the one tag
+# the caller supplies that no fact produces: `--tag nnnn=NNNN`, the same
+# NNNN already in hand at every call site.
+[tags.nnnn]
 provenance    = "observed"
+kind          = "scalar"
+required      = true
+
+# OWNED, not observed: `[write.record]` applies it, so intrastate reads
+# it through `[read.record]` and refuses it as argv (`flow-tag-owned`).
+# That is why §rdr-write passes `--except status,readme_status`.
+[tags.status]
+provenance    = "owned"
 kind          = "enum"
 domain        = ["Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
 single_valued = true
@@ -200,8 +310,9 @@ required      = true
 # condition `readme --add` exists for. `unindexed` is the declared absent
 # sentinel: no README, or one carrying no index table, which is
 # nothing-looked and must never be written into.
+# OWNED, for the same reason `status` is — `[write.readme]` applies it.
 [tags.readme_status]
-provenance    = "observed"
+provenance    = "owned"
 kind          = "enum"
 domain        = ["unindexed", "none", "Draft", "Final", "Implemented", "Deferred", "Demoted", "Abandoned", "Superseded", "Reverted", "Rejected"]
 single_valued = true
@@ -446,6 +557,7 @@ required      = true
 # thing standing between two sessions and the same number.
 [[rule]]
 id = "claim-reserve"
+advance = false
 [rule.match.recognized]
 eq = "claim"
 [rule.guard.unless.readme_status]
@@ -467,6 +579,7 @@ then   = "git mv \"$RDR_RECORDS/$NNNN-RESERVED.md\" \"$RDR_RECORDS/$NNNN-<slug>.
 # is how a record ends up outside the table it is supposed to be in.
 [[rule]]
 id = "claim-unreadable-index"
+advance = false
 [rule.match.recognized]
 eq = "claim"
 [rule.guard.all.readme_status]
@@ -498,6 +611,7 @@ surface = "the records dir, so the human can scaffold or repoint it"
 # cannot see would write a second table beside the real one.
 [[rule]]
 id = "readme-unreadable"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.all.readme_status]
@@ -510,6 +624,7 @@ surface = "the records dir, so the human can say whether the index moved or was 
 # No row → ADD one carrying the record's own status.
 [[rule]]
 id = "readme-add"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.all.readme_status]
@@ -529,6 +644,7 @@ surface = "Title and Priority from the record's own H1 and Metadata, never inven
 # so it is written as one row per status value.
 [[rule]]
 id = "readme-agrees"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -543,6 +659,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-final"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -557,6 +674,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-implemented"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -571,6 +689,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-deferred"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -585,6 +704,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-demoted"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -599,6 +719,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-abandoned"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -613,6 +734,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-superseded"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -627,6 +749,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-reverted"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -641,6 +764,7 @@ why  = "The index row already carries this record's status — nothing to write.
 
 [[rule]]
 id = "readme-agrees-rejected"
+advance = false
 [rule.match.recognized]
 eq = "readme"
 [rule.guard.unless.readme_status]
@@ -675,9 +799,10 @@ in = ["unindexed", "none", "Draft"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Draft"
 
 [[rule]]
 id = "readme-flip-final"
@@ -690,9 +815,10 @@ in = ["unindexed", "none", "Final"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Final"
 
 [[rule]]
 id = "readme-flip-implemented"
@@ -705,9 +831,10 @@ in = ["unindexed", "none", "Implemented"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Implemented"
 
 [[rule]]
 id = "readme-flip-deferred"
@@ -720,9 +847,10 @@ in = ["unindexed", "none", "Deferred"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Deferred"
 
 [[rule]]
 id = "readme-flip-demoted"
@@ -735,9 +863,10 @@ in = ["unindexed", "none", "Demoted"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Demoted"
 
 [[rule]]
 id = "readme-flip-abandoned"
@@ -750,9 +879,10 @@ in = ["unindexed", "none", "Abandoned"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Abandoned"
 
 [[rule]]
 id = "readme-flip-superseded"
@@ -765,9 +895,10 @@ in = ["unindexed", "none", "Superseded"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Superseded"
 
 [[rule]]
 id = "readme-flip-reverted"
@@ -780,9 +911,10 @@ in = ["unindexed", "none", "Reverted"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
+[rule.write]
+readme_status = "Reverted"
 
 [[rule]]
 id = "readme-flip-rejected"
@@ -795,7 +927,6 @@ in = ["unindexed", "none", "Rejected"]
 [rule.emit]
 op     = "readme-flip"
 target = "readme"
-edit   = "on the `## Index` row whose first cell is this record's NNNN — linked `| [NNNN](` or bare `| NNNN |` — replace the Status cell with the record's own Status; touch no other row and no other cell unless it drifted"
 why    = "The index row disagrees with the record — the record is the source of truth, so the row moves."
 surface = "the row's old and new Status, so a flip nobody intended is visible"
 
@@ -830,6 +961,9 @@ surface = "the row's old and new Status, so a flip nobody intended is visible"
 # record's old gate.md satisfies `gate_written` and must not lock. The
 # joint-decision form is carved out below — its edit must keep the
 # qualifier this row's edit flattens.
+[rule.write]
+readme_status = "Rejected"
+
 [[rule]]
 id = "lock-draft"
 [rule.match.recognized]
@@ -847,9 +981,10 @@ in = ["none", "clear", "homed", "unhomed"]
 [rule.emit]
 op     = "lock"
 target = "record"
-# Three edits, in this order. The status flip is last so a failure in the
-# section move leaves the record legibly mid-lock rather than Final.
-edit   = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Final/"
+# `sections` is AUTHOR WORK and comes first: do the section move, then
+# apply the plan. The status flip is the declared write below, so a
+# failure in the section move leaves the record a legible Draft rather
+# than a Final whose responses never moved.
 sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
 why    = "Gate written and the record is a Draft — move the four judged responses out, keep the cited one, flip to Final."
 surface = "that the README row is flipped in the same pass (`--outcome readme`), and that the commit is a standalone `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`, never a fixup!"
@@ -861,6 +996,9 @@ surface = "that the README row is flipped in the same pass (`--outcome readme`),
 # edit captures the qualifier and re-emits it (a sed backreference), so
 # "apply `edit` as handed" still holds: nothing asks the caller to
 # recompose what the expression can carry.
+[rule.write]
+status = "Final"
+
 [[rule]]
 id = "lock-draft-joint-decision"
 [rule.match.recognized]
@@ -880,7 +1018,6 @@ op     = "lock"
 target = "record"
 # Same three edits as `lock-draft`, in the same order; only the status
 # flip differs — the captured `[joint decision → …]` survives onto Final.
-edit   = "s/^- \\*\\*Status\\*\\*: Draft *\\(\\[joint decision.*\\]\\).*$/- **Status**: Final \\1/"
 sections = "replace the `### Contradiction Check`, `### Assumption Verification`, `### Scope Verification` and `### Proportionality` bodies with the single line `Responses: <NNNN-slug>/artifacts/gate.md (Gate PASS YYYY-MM-DD)`; `### Cross-Cutting Concerns` stays in the record, below the pointer"
 why    = "Gate written and the Draft still owes a joint decision — lock as usual, but the qualifier survives the flip: `Final [joint decision → …]` is what routes the home check."
 surface = "the preserved qualifier verbatim, so the open question is visible at the lock; the README row flips in the same pass (`--outcome readme`), commit `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)`"
@@ -891,8 +1028,12 @@ surface = "the preserved qualifier verbatim, so the open question is visible at 
 # then only demote one. Stamp-when-decided stays the JDR's rule; this
 # refuses only to lock an OPEN fire. Guarded on a written, current gate
 # so the gate refusals below keep precedence.
+[rule.write]
+status = "Final"
+
 [[rule]]
 id = "lock-joint-open"
+advance = false
 [rule.match.recognized]
 eq = "lock"
 [rule.guard.all.status]
@@ -915,6 +1056,7 @@ surface = "the `Joint-check:` line verbatim (`inspect --select <NNNN>:JCn`); hom
 # again, and `/rdr-finalize` re-gates before it locks.
 [[rule]]
 id = "lock-gate-stale"
+advance = false
 [rule.match.recognized]
 eq = "lock"
 [rule.guard.all.status]
@@ -933,6 +1075,7 @@ surface = "the gate.md date beside the demote date from the Status qualifier; re
 # an unlocked record, because it reads as a discharged gate.
 [[rule]]
 id = "lock-no-gate"
+advance = false
 [rule.match.recognized]
 eq = "lock"
 [rule.guard.all.status]
@@ -948,6 +1091,7 @@ surface = "Stage 7 writes the five responses first; the lock is the second half 
 # how a re-lock begins, and the flow re-locks after a 7.1 route-back.
 [[rule]]
 id = "lock-already-final"
+advance = false
 [rule.match.recognized]
 eq = "lock"
 [rule.guard.all.status]
@@ -960,6 +1104,7 @@ why  = "Already Final — the lock is idempotent, so this is a no-op rather than
 # and their content is never amended.
 [[rule]]
 id = "lock-terminal"
+advance = false
 [rule.match.recognized]
 eq = "lock"
 [rule.guard.all.status]
@@ -985,6 +1130,7 @@ surface = "the status, verbatim"
 
 [[rule]]
 id = "fence-rulings-open"
+advance = false
 [rule.match.recognized]
 eq = "fence"
 [rule.guard.all.rulings_open]
@@ -996,6 +1142,7 @@ surface = "each open line of rulings.md; apply it at the stage the ruling names,
 
 [[rule]]
 id = "fence-rulings-unchecked"
+advance = false
 [rule.match.recognized]
 eq = "fence"
 [rule.guard.all.rulings_open]
@@ -1007,6 +1154,7 @@ surface = "bind $RDR_EVIDENCE (rdr-common §seam-bind) and re-run"
 
 [[rule]]
 id = "fence-clear"
+advance = false
 [rule.match.recognized]
 eq = "fence"
 [rule.guard.all.overlap_uncited]
@@ -1019,6 +1167,7 @@ why = "Every open-peer overlap touching this record is cross-cited, and no autho
 
 [[rule]]
 id = "fence-uncited"
+advance = false
 [rule.match.recognized]
 eq = "fence"
 [rule.guard.all.overlap_uncited]
@@ -1032,6 +1181,7 @@ surface = "`index --anchor-intersect --record NNNN` and `--literal-intersect --r
 
 [[rule]]
 id = "fence-unchecked"
+advance = false
 [rule.match.recognized]
 eq = "fence"
 [rule.guard.all.overlap_uncited]
@@ -1074,6 +1224,7 @@ surface = "bind $RDR_RECORDS (rdr-common §seam-bind) and re-run"
 # token for (Stage 5, Stage 6) stops rather than guessing `@resolve`.
 [[rule]]
 id = "demote-final-approach"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1094,6 +1245,7 @@ surface = "that the README row follows in the same pass (`--outcome readme`), an
 
 [[rule]]
 id = "demote-final-refine"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1111,6 +1263,7 @@ surface = "that the README row follows in the same pass (`--outcome readme`), an
 
 [[rule]]
 id = "demote-final-resolve"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1128,6 +1281,7 @@ surface = "that the README row follows in the same pass (`--outcome readme`), an
 
 [[rule]]
 id = "demote-final-relock"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1149,6 +1303,7 @@ surface = "that the README row follows in the same pass (`--outcome readme`), an
 # make, not this row's.
 [[rule]]
 id = "demote-final-not-a-reentry"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1162,6 +1317,7 @@ surface = "the class and the finding, so the gate reclasses it or files the miss
 
 [[rule]]
 id = "demote-final-unclassed"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1177,6 +1333,7 @@ surface = "the SPEC-DEFECT finding, so the caller classes it and re-runs"
 # demote would stack a qualifier on a qualifier.
 [[rule]]
 id = "demote-already-draft"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1189,6 +1346,7 @@ why  = "Already a Draft — the route-back is idempotent, and a second qualifier
 # record is not in the cluster's live set.
 [[rule]]
 id = "demote-not-final"
+advance = false
 [rule.match.recognized]
 eq = "demote"
 [rule.guard.all.status]
@@ -1229,6 +1387,7 @@ surface = "the status, verbatim"
 # --- no durable contract: unlabelled, or unauthored --------------------------
 [[rule]]
 id = "profile-unlabelled"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1242,6 +1401,7 @@ surface = "the section: label each independent contract `**Cn**` over its ```nor
 
 [[rule]]
 id = "profile-no-contracts"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1256,6 +1416,7 @@ surface = "that the section is the template's own text; Propose and Refine autho
 # --- two or more: the split signal ------------------------------------------
 [[rule]]
 id = "profile-split"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1268,6 +1429,7 @@ surface = "the durable fences by label: one seam → clauses of one `**C1**`; se
 # --- exactly one: sized by what it locks, then by its surface ---------------
 [[rule]]
 id = "profile-locks-unjudged"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1281,6 +1443,7 @@ surface = "the `locks` disposition to write: none | contract | format (enum/hash
 
 [[rule]]
 id = "profile-cross-rdr"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1297,6 +1460,7 @@ why     = "One durable contract that other RDRs consume or that spans modules �
 
 [[rule]]
 id = "profile-format"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1315,6 +1479,7 @@ why     = "One durable contract locking an enum, hash, format, grammar or destru
 
 [[rule]]
 id = "profile-format-raised"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1333,6 +1498,7 @@ why     = "One durable contract locking a format, raised one tier by the accreti
 
 [[rule]]
 id = "profile-contract"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1351,6 +1517,7 @@ why     = "One durable contract that locks a contract — mid, whether or not it
 
 [[rule]]
 id = "profile-contract-raised"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1369,6 +1536,7 @@ why     = "One durable contract locking a contract, raised one tier by the accre
 
 [[rule]]
 id = "profile-user-facing"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1389,6 +1557,7 @@ why     = "One durable contract with a user-facing surface — mid."
 
 [[rule]]
 id = "profile-user-facing-raised"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1409,6 +1578,7 @@ why     = "One durable user-facing contract, raised one tier by the accretion ax
 
 [[rule]]
 id = "profile-internal"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1430,6 +1600,7 @@ surface = "that the next stage is Reconcile, not Pre-Lock"
 
 [[rule]]
 id = "profile-internal-raised"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.floor]
@@ -1451,6 +1622,7 @@ surface = "that the next stage is Pre-Lock: the raise lifts a small record into 
 
 [[rule]]
 id = "profile-surface-unjudged"
+advance = false
 [rule.match.recognized]
 eq = "profile"
 [rule.guard.all.contracts_durable]
@@ -1482,6 +1654,7 @@ surface = "the `user-facing` disposition to write: yes | no"
 
 [[rule]]
 id = "return-propose"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1496,6 +1669,7 @@ why         = "The approach, the scope or the MVV is wrong — Stage 2 owns it, 
 
 [[rule]]
 id = "return-refine-contradiction"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1510,6 +1684,7 @@ why         = "A contradiction — Stage 3 owns it, and a contradiction consults
 
 [[rule]]
 id = "return-refine-contract"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1523,6 +1698,7 @@ why         = "A contract edit or a proportionality finding (a self-flagged spli
 
 [[rule]]
 id = "return-resolve"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1536,6 +1712,7 @@ why         = "An assumption is unverified or refuted — Stage 4 owns it."
 
 [[rule]]
 id = "return-prelock"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1549,6 +1726,7 @@ why         = "The `Determinacy:` line reads fired and no run-1/diff exists — 
 
 [[rule]]
 id = "return-reconcile"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1562,6 +1740,7 @@ why         = "An open spike or a round-disturbed assumption — Stage 6 owns cl
 
 [[rule]]
 id = "return-finalize"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1575,6 +1754,7 @@ why         = "Wording or a cross-reference, no assumption disturbed — the loc
 
 [[rule]]
 id = "return-unclassed"
+advance = false
 [rule.match.recognized]
 eq = "return"
 [rule.guard.all.blocker_class]
@@ -1608,6 +1788,7 @@ surface = "the blocker, so the gate classes it (approach | contradiction | contr
 
 [[rule]]
 id = "ground-found"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1621,6 +1802,7 @@ surface = "the cite beside the recommendation: file:line, NNNN §element, corpus
 
 [[rule]]
 id = "ground-code"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1636,6 +1818,7 @@ surface = "the source repo: `rg`/semble the symbol or behaviour; a spike where a
 
 [[rule]]
 id = "ground-cluster"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1653,6 +1836,7 @@ surface = "`rdr index --cluster-of NNNN`, then per peer `rdr inspect --select MM
 
 [[rule]]
 id = "ground-corpus-standalone"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1670,6 +1854,7 @@ surface = "`arc search` the question's nouns over the corpora the {RDR_RESOURCES
 
 [[rule]]
 id = "ground-corpus"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1685,6 +1870,7 @@ surface = "`arc search` the question's nouns over the corpora the {RDR_RESOURCES
 
 [[rule]]
 id = "ground-rfd"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]
@@ -1700,6 +1886,7 @@ surface = "the RFD/JDR sections the resources index names for this surface"
 
 [[rule]]
 id = "ground-ask"
+advance = false
 [rule.match.recognized]
 eq = "ground"
 [rule.guard.all.found]

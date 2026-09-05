@@ -352,7 +352,13 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		// First: it is the one index facet that reads no records, and
 		// dispatching it ahead of the rest keeps it that way.
 		if *f.rowJSON != "" {
-			return rowFacet(f, *f.rowJSON, stdout, stderr)
+			// A trailing PATH names the README; a command reader needs it
+			// positional (see rowFacet).
+			var readmePath string
+			if rest := fs.Args(); len(rest) > 0 {
+				readmePath = rest[0]
+			}
+			return rowFacet(f, *f.rowJSON, readmePath, stdout, stderr)
 		}
 		if *f.derived {
 			return indexDerived(f, stdout, stderr)
@@ -542,6 +548,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.filter = fs.String("filter", "", "comma-separated graph keys to keep (records,elements,edges,backlinks); identity keys are always included")
 		fs.Var(&f.readme, "readme", "drift between the README index table and the records; =PATH names the README")
 		f.rowJSON = fs.String("row-json", "", "the index table's row for ONE record (NNNN), as JSON; no corpus walk")
+		f.flat = fs.Bool("flat", false, "row-json: emit `{\"readme_status\":\"…\"}` — a declared command reader's flat object")
 	case "lint":
 		f.json = fs.Bool("json", false, "emit findings as JSON")
 		f.locking = fs.Bool("locking", false, "the record is at a lock gate: resolution findings block, exit 1")

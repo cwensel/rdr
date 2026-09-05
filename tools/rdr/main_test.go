@@ -1781,8 +1781,11 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	fs.VisitAll(func(fl *flag.Flag) {
 		switch fl.Name {
 		case "json", "records", "repo", "project", "template", "all", "filter", "record",
-			"closure", "final-unimplemented", "facts":
-			return // not facets: shared flags and modifiers (the last three qualify --cluster-of)
+			"closure", "final-unimplemented", "facts", "flat":
+			// not facets: shared flags and modifiers. `flat` renders
+			// --row-json's answer as a command reader's flat object — the
+			// same facet, a different wire shape, so it logs as `row-json`.
+			return
 		}
 		declared[fl.Name] = true
 	})

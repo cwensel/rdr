@@ -45,10 +45,13 @@ var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-casca
 // fact) rather than reading a fact `rdr-facts.toml` declares. The model
 // header is the contract for these, not the fact table, so the fact-match
 // checks below skip them. `ask_each` is declared now for the sibling
-// `posture` group `rdr-cascade.toml` will grow. The write model's six
+// `posture` group `rdr-cascade.toml` will grow. The write model's seven
 // are Resolve's two Profile judgements, rdr-status's `emit.floor` passed
-// through, the verdict packet's blocker class, and the `ground` group's
-// ladder position (`searched`, `found`).
+// through, the verdict packet's blocker class, the `ground` group's
+// ladder position (`searched`, `found`), and `nnnn` — the record number,
+// which row-addresses the README reader and writer. `nnnn` is an
+// IDENTITY, not a value: no fact renders a record's own number, and it
+// is the one thing the caller always holds already.
 var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
 	// The launch run's own observations: source files touched, a suite
@@ -57,7 +60,7 @@ var callerTags = map[string]map[string]bool{
 	// commits (git) and elapsed minutes (the clock) since it began. Its
 	// seven other tags are facts and stay policed.
 	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true, "commits": true, "elapsed": true},
-	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true},
+	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true, "nnnn": true},
 	// The loop caps: every tag is a value the caller holds from a tool
 	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
 	// `rdr anchors` and `comm` printed anything, the resolve's fix size,
@@ -740,32 +743,51 @@ func TestLockPreservesJointDecisionQualifier(t *testing.T) {
 	if got := guards["lock-draft"]["status_form"]; len(got) != 1 || got[0] != "joint-decision" {
 		t.Errorf("lock-draft carries no status_form atom over joint-decision (%v); its edit would flatten the qualifier", got)
 	}
-	if bare := m.Emits["lock-draft"]["edit"]; strings.Contains(bare, "joint") {
-		t.Errorf("lock-draft edit %q mentions the qualifier; the split belongs to the joint-decision row", bare)
+	// Both lock rows now plan the same owned write; the qualifier is
+	// preserved by the declared `edit` carrier's anchor rather than by a
+	// per-row sed expression, so neither row carries one.
+	for _, id := range []string{"lock-draft", "lock-draft-joint-decision"} {
+		if bare := m.Emits[id]["edit"]; bare != "" {
+			t.Errorf("%s still emits a sed edit %q; the declared writer applies this row", id, bare)
+		}
 	}
 
-	// The parse keeps the TOML escaping (`\\*` for `\*`); the caller's
-	// shell sees the unescaped expression, so unescape before judging it.
-	edit := strings.ReplaceAll(m.Emits["lock-draft-joint-decision"]["edit"], `\\`, `\`)
-	if !strings.Contains(edit, `\(\[joint decision`) || !strings.Contains(edit, `Final \1`) {
-		t.Fatalf("lock-draft-joint-decision edit %q does not capture and re-emit the qualifier", edit)
+	// The invariant that mattered about that sed expression — a lock must
+	// not flatten `Draft [joint decision → …]` to a bare `Final`, because
+	// the navigator's home check routes on the qualifier — is now the
+	// writer's. Pin it by RUNNING the write, which is the only way to know
+	// the anchor's capture group actually re-emits.
+	bin := intrastateBinary(t)
+	t.Setenv("PATH", rdrOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	dir := t.TempDir()
+	rec := filepath.Join(dir, "0042-frame-grammar.md")
+	const qualified = "- **Status**: Draft [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]"
+	body := "# Recommendation 0042: Frame grammar\n\n## Metadata\n\n- **Date**: 2026-09-05\n" +
+		qualified + "\n- **Priority**: High\n"
+	if err := os.WriteFile(rec, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
 	}
-
-	// The edit is data the caller applies as handed, so its behavior is
-	// pinned by running it: the qualifier must survive onto Final.
-	if _, err := exec.LookPath("sed"); err != nil {
-		t.Skip("sed not on PATH; the edit's capture behavior went UNCHECKED here")
-	}
-	in := "- **Status**: Draft [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]\n"
-	cmd := exec.Command("sed", edit)
-	cmd.Stdin = strings.NewReader(in)
-	out, err := cmd.Output()
+	model := repoFile(t, filepath.Join("models", "rdr-write.toml"))
+	out, err := exec.Command(bin, "flow", "set-state", "--model", model,
+		"--allow-commands", "--as", "json", "--tag", "nnnn=0042",
+		"--artifact", "record="+rec,
+		"--artifact", "readme="+filepath.Join(dir, "README.md"),
+		"--write", "status=Final").CombinedOutput()
 	if err != nil {
-		t.Fatalf("sed refused the emitted edit %q: %v", edit, err)
+		t.Fatalf("the declared writer refused the lock: %v\n%s", err, out)
 	}
-	want := "- **Status**: Final [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]\n"
-	if string(out) != want {
-		t.Errorf("the emitted edit rewrote the Status line to %q, want %q", out, want)
+	got, err := os.ReadFile(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const want = "- **Status**: Final [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]"
+	if !strings.Contains(string(got), want) {
+		t.Errorf("the lock flattened the joint-decision qualifier:\n%s", got)
+	}
+	// One line, and only that line: a writer that rewrote the file would
+	// pass the check above while destroying everything around it.
+	if !strings.Contains(string(got), "- **Priority**: High") || strings.Contains(string(got), qualified) {
+		t.Errorf("the lock did not leave the rest of the record intact:\n%s", got)
 	}
 }
 
@@ -978,6 +1000,33 @@ func intrastateBinary(t *testing.T) string {
 		t.Skip("intrastate resolves neither from $RDR_INTRASTATE nor on PATH; the live resolve went UNCHECKED here")
 	}
 	return found
+}
+
+// rdrOnPath builds this package into a temp dir named `rdr` and returns
+// it for $PATH, so a model's declared command reader (`rdr status
+// --flat`, `rdr index --row-json`) runs THIS build rather than whatever
+// is installed. Without it the reader resolves an older binary or none,
+// and the test would either pass against the wrong code or skip.
+func rdrOnPath(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	out, err := exec.Command("go", "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput()
+	if err != nil {
+		t.Fatalf("building rdr for the reader PATH: %v\n%s", err, out)
+	}
+	return dir
+}
+
+// recordPath resolves a fixture record number to its file, so a test can
+// bind it as the `record` artifact role. It uses the tool's own resolver,
+// which is what a caller would.
+func recordPath(t *testing.T, records, rec string) string {
+	t.Helper()
+	p, err := resolve(rec, records)
+	if err != nil {
+		t.Fatalf("%s: %v", rec, err)
+	}
+	return p
 }
 
 // filteredTagArgv renders one fixture's `--tags --filter` argv as the
@@ -1499,9 +1548,24 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 	bin := intrastateBinary(t)
 	_, table := bindStatusFixture(t)
 	model := repoFile(t, filepath.Join("models", "rdr-write.toml"))
-	resolve := func(outcome string, argv []string, extra ...string) (rule, op string) {
+	records, _, _ := statusFixture(t)
+	t.Setenv("PATH", rdrOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	// `status` and `readme_status` are OWNED since the write table became a
+	// state machine: intrastate reads them through the model's own command
+	// readers and refuses them as argv. So the record and readme roles are
+	// bound, `--allow-commands` lets the readers run, and the tag vector
+	// arrives with the owned pair subtracted — which is the shape §rdr-write
+	// itself uses. The readers invoke THIS build's `rdr`, so the seam is
+	// exercised rather than described.
+	resolve := func(outcome, rec string, argv []string, extra ...string) (rule, op string) {
 		t.Helper()
-		args := append([]string{"flow", "resolve", "--model", model, "--outcome", outcome, "--plan-only", "--as", "json"}, argv...)
+		args := append([]string{
+			"flow", "resolve", "--model", model, "--outcome", outcome, "--as", "json",
+			"--allow-commands",
+			"--artifact", "record=" + recordPath(t, records, rec),
+			"--artifact", "readme=" + filepath.Join(records, "README.md"),
+			"--tag", "nnnn=" + rec,
+		}, argv...)
 		for i := 0; i+1 < len(extra); i += 2 {
 			args = append(args, "--tag", extra[i]+"="+extra[i+1])
 		}
@@ -1529,8 +1593,8 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 		// No line at all is not the lock's refusal: `joint_checks` surfaces it.
 		{"0025", "lock-draft", "lock"},
 	} {
-		argv := filteredTagArgv(t, table, c.rec, "status,status_form,joint_check_home")
-		if rule, op := resolve("lock", argv, "gate_written", "true", "gate_stale", "false"); rule != c.rule || op != c.op {
+		argv := filteredTagArgv(t, table, c.rec, "status_form,joint_check_home")
+		if rule, op := resolve("lock", c.rec, argv, "gate_written", "true", "gate_stale", "false"); rule != c.rule || op != c.op {
 			t.Errorf("lock on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
 		}
 	}
@@ -1539,17 +1603,17 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 		{"0033", "fence-clear", "none"},
 	} {
 		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited,rulings_open")
-		if rule, op := resolve("fence", argv); rule != c.rule || op != c.op {
+		if rule, op := resolve("fence", c.rec, argv); rule != c.rule || op != c.op {
 			t.Errorf("fence on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
 		}
 	}
-	if rule, op := resolve("fence", nil, "overlap_uncited", "unchecked", "rulings_open", "0"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "unchecked", "rulings_open", "0"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
 		t.Errorf("fence unchecked: rule %q op %q", rule, op)
 	}
-	if rule, op := resolve("fence", nil, "overlap_uncited", "0", "rulings_open", "1+"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "1+"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
 		t.Errorf("fence rulings open: rule %q op %q", rule, op)
 	}
-	if rule, op := resolve("fence", nil, "overlap_uncited", "0", "rulings_open", "unchecked"); rule != "fence-rulings-unchecked" || op != "stopped:rulings-unchecked" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "unchecked"); rule != "fence-rulings-unchecked" || op != "stopped:rulings-unchecked" {
 		t.Errorf("fence rulings unchecked: rule %q op %q", rule, op)
 	}
 }

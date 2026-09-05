@@ -429,7 +429,7 @@ func readmeFacet(f *flags, path string, stdout, stderr io.Writer) int {
 // with a null row, since "looked and found none" is an answer), or no
 // table at all (nothing looked — exit 2, the same `stopped:no-index-table`
 // the write table's own row emits).
-func rowFacet(f *flags, record string, stdout, stderr io.Writer) int {
+func rowFacet(f *flags, record, readmePath string, stdout, stderr io.Writer) int {
 	// `RecordOf` takes the number off a bare `0055` or a filename/path
 	// base, so the caller may pass whatever it already holds.
 	num := ident.RecordOf(filepath.Base(record))
@@ -437,10 +437,18 @@ func rowFacet(f *flags, record string, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stderr, "stopped:not-a-record-number (%q does not begin with NNNN)\n", record)
 		return 2
 	}
-	// `--readme=PATH` names the table, exactly as it does for the drift
-	// check: a read-back must be able to read the same file the write
-	// edited, and a consumer whose index is not `README.md` has one.
-	path := f.readme.value
+	// The table is named three ways, most specific first.
+	//
+	// A trailing PATH argument is the one a declared command reader can
+	// use: `{artifact}` substitutes whole-element only (intrastate
+	// 0025:C2), so the path cannot ride inside `--readme=<path>`, and
+	// `--readme <path>` (space-separated) silently reads as the bare flag
+	// because that flag takes an optional argument. A positional leaves
+	// no way to get it wrong.
+	path := readmePath
+	if path == "" {
+		path = f.readme.value
+	}
 	if path == "" {
 		dir := *f.records
 		if dir == "" {
@@ -471,6 +479,30 @@ func rowFacet(f *flags, record string, stdout, stderr io.Writer) int {
 	if len(found) > 1 {
 		fmt.Fprintf(stderr, "stopped:duplicate-row (%s carries %d rows for %s)\n", path, len(found), num)
 		return 2
+	}
+	// `--flat` is the same rendering `status --flat` gives, for the same
+	// reason: a declared command reader takes a flat JSON object of
+	// strings (RDR 0025), and the nested form below is unreadable to one.
+	// A model binds this as the `readme` role's reader so a write to the
+	// index row has a read-back.
+	//
+	// The key is `readme_status`, not `status`, because that is what the
+	// fact is called everywhere else — `rdr-facts.toml` declares it, the
+	// write table owns it, and a reader that answered `status` would put
+	// the RECORD's key on the README role.
+	if f.flat != nil && *f.flat {
+		flat := map[string]string{}
+		if len(found) == 1 {
+			flat["readme_status"] = strings.TrimSpace(found[0].Status)
+		} else {
+			// Looked, and the table has no row for this record: `none` is
+			// the declared member for exactly that, and it is what the
+			// `readme --add` rows guard on. An omitted key would be
+			// UNREADABLE to the accessor instead, which is a different
+			// answer and a refusal.
+			flat["readme_status"] = "none"
+		}
+		return emit(flat, stdout, stderr)
 	}
 	out := map[string]any{"schema": schemaVersion, "readme": path, "record": num, "row": nil}
 	if len(found) == 1 {
