@@ -331,6 +331,78 @@ func TestClusterMembersProposed(t *testing.T) {
 // TestStatusTagsRenderShellSafeArgv is the load-bearing one.
 //
 // The composition this verb exists for is
+// TestStatusFlatIsACommandReaderObject: `--flat` is the wire shape a
+// declared command reader returns (intrastate RDR 0025 — "a flat JSON
+// object of strings"), which is what lets an accessor read a record's own
+// state back after a write. The shape is the contract: a flat object,
+// every value a string, no nesting.
+//
+// It must agree with `--tags` value-for-value, sentinels included, or one
+// call's answer to "what is this record's status" would depend on which
+// rendering asked — the drift the shared `tagWords` exists to prevent.
+func TestStatusFlatIsACommandReaderObject(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	code, out, errb := runCapture(t, "status", "--flat", "--facts", table, "--filter", "status,predecessors_state", "0030")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	// Decoding into map[string]string is itself the assertion: a nested
+	// object or a non-string value fails here, which is exactly what an
+	// accessor would do with it.
+	var flat map[string]string
+	if err := json.Unmarshal([]byte(out), &flat); err != nil {
+		t.Fatalf("--flat is not a flat object of strings: %v\n%s", err, out)
+	}
+	if flat["status"] == "" {
+		t.Errorf("--flat carries no status:\n%s", out)
+	}
+	// The declared absent sentinel must survive: a key the object OMITS is
+	// unreadable to the accessor, never established-absent.
+	if flat["predecessors_state"] != "none" {
+		t.Errorf("--flat dropped the declared sentinel: %v", flat)
+	}
+
+	code, out, errb = runCapture(t, "status", "--tags", "--facts", table, "--filter", "status,predecessors_state", "0030")
+	if code != 0 {
+		t.Fatalf("--tags exit %d: %s", code, errb)
+	}
+	tags := map[string]string{}
+	lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+	for i := 0; i+1 < len(lines); i += 2 {
+		if name, value, ok := strings.Cut(lines[i+1], "="); ok {
+			tags[name] = value
+		}
+	}
+	if len(tags) != len(flat) {
+		t.Errorf("--flat and --tags disagree on which facts render:\nflat %v\ntags %v", flat, tags)
+	}
+	for name, want := range tags {
+		if flat[name] != want {
+			t.Errorf("%s: --flat %q, --tags %q — one vector, two answers", name, flat[name], want)
+		}
+	}
+}
+
+// TestStatusFlatRefusesTheAmbiguousCalls: three renderings of one vector,
+// so naming two says which is meant nowhere; and `--flat` is one record's
+// object, so a set or the worklist has none.
+func TestStatusFlatRefusesTheAmbiguousCalls(t *testing.T) {
+	dir, table := bindStatusFixture(t)
+	for _, c := range []struct {
+		name string
+		args []string
+	}{
+		{"--flat with --json", []string{"status", "--flat", "--json", "--facts", table, "0030"}},
+		{"--flat with --tags", []string{"status", "--flat", "--tags", "--facts", table, "0030"}},
+		{"--flat over a named set", []string{"status", "--flat", "--facts", table, "0030", "0031"}},
+		{"--flat over the worklist", []string{"status", "--flat", "--facts", table, "--records", dir}},
+	} {
+		if code, _, errb := runCapture(t, c.args...); code != 2 || !strings.Contains(errb, "stopped:usage") {
+			t.Errorf("%s should refuse: exit %d\n%s", c.name, code, errb)
+		}
+	}
+}
+
 // `intrastate flow resolve --model … $(rdr status --tags NNNN)`, and an
 // UNQUOTED `$(…)` splits on whitespace and globs the pieces. A value
 // carrying a space therefore does not arrive as one argument: it arrives

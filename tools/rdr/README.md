@@ -1244,6 +1244,7 @@ Three renderings of ONE evaluation:
     rdr status 0055                # one fact per line — the cheap human read
     rdr status --json 0055         # the neutral vector (§Facts)
     rdr status --tags 0055         # `--tag k=v` argv for a resolver
+    rdr status --flat 0055         # a flat JSON object of strings — a command reader's shape
     rdr status --checklist 0055    # the stage checklist, three-valued (`?` = nothing looked)
     rdr status 0122 0123 0130      # a NAMED SET — one row per record
     rdr status                     # the Draft+Final worklist, each row with its facts
@@ -1265,7 +1266,28 @@ arity rather than a corpus facet: on the reference corpus one record is
 would be a silent 40× regression on a call Stage 8 makes every run.
 
 `--tags` stays single-record — it renders ONE resolver's argv, and a set
-has no record to name — and refuses with the worklist's own words.
+has no record to name — and refuses with the worklist's own words. So
+does `--flat`, for the same reason and with the same words.
+
+`--flat` is the fourth rendering and the newest: a flat JSON object of
+strings, which is what a **declared command reader** returns (intrastate
+RDR 0025 — "read results return on stdout as a flat JSON object of
+strings"). `--json` nests under `facts[]` and carries the kinds and the
+record number, which is right for a structured reader and wrong for an
+accessor: an accessor reads `{"<key>":"<value>"}` and nothing else, so a
+model binding `rdr status --json` as its reader refuses
+`flow-accessor-failed` with no hint that the SHAPE is the problem. That
+is the whole reason this rendering exists rather than asking a caller to
+reshape the vector — when a consumer parses a projected string, the
+projection is missing a form.
+
+It matters because it is half of a write's read-back. A model that
+declares an `edit` writer over a record's `- **Status**:` line verifies
+the write by reading it back through the role's declared reader; with
+`--flat` that reader is `rdr` itself, so the tool that renders the facts
+is the tool that confirms them, and `rdr` still never writes. Values are
+`--tags`' values — same renderer, sentinels included — so a fact reads
+identically whether it crosses as argv or as a reader's object.
 
 **An unresolvable argument is a `skipped[]` row, not a refusal.** This is
 the three-valued discipline (§Facts) carried up to the set: a predecessor

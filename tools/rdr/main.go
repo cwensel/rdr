@@ -8,7 +8,7 @@
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]|--row-json NNNN] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-//	rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
+//	rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
 //	rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
 //	rdr env [--json]
 //	rdr version
@@ -64,7 +64,7 @@ usage:
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
-  rdr status [<NNNN|slug|path>…] [--json|--tags|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
+  rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
   rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
@@ -142,7 +142,10 @@ With no argument it lints the whole records dir.
 status evaluates models/rdr-facts.toml over one record — the navigator's
 whole read in one call (README §Facts, §status). Text is one fact per
 line; --json is the neutral vector; --tags renders "--tag k=v" argv for a
-resolver. A fact the table declares prose is not rendered as a tag: an
+resolver; --flat renders the flat JSON object of strings a declared
+command reader returns (intrastate RDR 0025), which is what lets an
+accessor read a record's own state back after a write.
+A fact the table declares prose is not rendered as a tag: an
 unquoted $(rdr status --tags NNNN) splits on whitespace, so a sentence
 would arrive truncated at the first space. Name SEVERAL records for the
 set question (Stage 8's predecessors, 7.1's cluster): each is resolved by
@@ -477,6 +480,7 @@ type flags struct {
 	locking             *bool
 	since               *string     // receipt: the instant a lint must postdate
 	tags                *bool       // status: render the facts as a resolver's argv
+	flat                *bool       // status: render the facts as a command reader's flat object
 	checklist           *bool       // status: render the stage checklist (one record)
 	argv                *bool       // status: one tab-separated line per record with its argv
 	facts               *string     // status/paths: the fact table to evaluate
@@ -566,6 +570,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 	case "status":
 		f.json = fs.Bool("json", false, "emit the fact vector as JSON")
 		f.tags = fs.Bool("tags", false, "render the facts as `--tag k=v` argv for a resolver (one record only)")
+		f.flat = fs.Bool("flat", false, "render the facts as a flat JSON object of strings — a declared command reader's wire shape (one record only)")
 		f.checklist = fs.Bool("checklist", false, "render the stage checklist (one record only): text, or a `checklist` array beside the facts with --json")
 		f.argv = fs.Bool("argv", false, "one line per record: slug, Status, its `--tag k=v` argv, qualifier — tab-separated; the worklist form includes Deferred")
 		f.facts = fs.String("facts", "", "the fact table to evaluate (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")

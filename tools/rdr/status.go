@@ -11,11 +11,13 @@ package main
 // so the whole read is one invocation — and an invocation is a TURN,
 // which re-sends the conversation.
 //
-// Three renderings of one evaluation, because three different consumers
+// Four renderings of one evaluation, because four different consumers
 // need it: text for a person, `--json` for anything structured, `--tags`
-// for a resolver's argv. The evaluation itself is identical in all three
-// — a rendering that could disagree with another rendering of the same
-// facts would be a second source of truth.
+// for a resolver's argv, and `--flat` for a declared command reader's
+// flat object of strings (intrastate RDR 0025) — the shape an accessor
+// reads a record's own state back through after a write. The evaluation
+// itself is identical in all four — a rendering that could disagree with
+// another rendering of the same facts would be a second source of truth.
 //
 // It never writes. Neither the records, nor evidence, nor a resolver's
 // owned state: that file format belongs to the other side of the seam,
@@ -64,12 +66,20 @@ func statusCmd(args []string, f *flags, stdout, stderr io.Writer) int {
 	// renderings are refused with it; `--argv` is a line-per-record form
 	// and does not compose with the one-record renderings either.
 	filtered := f.filter != nil && *f.filter != ""
+	flat := f.flat != nil && *f.flat
 	switch {
-	case *f.checklist && (*f.tags || *f.argv || filtered):
-		fmt.Fprintln(stderr, "stopped:usage (--checklist renders the whole vector, as text or beside the facts under --json; not with --tags, --argv or --filter)")
+	case *f.checklist && (*f.tags || *f.argv || flat || filtered):
+		fmt.Fprintln(stderr, "stopped:usage (--checklist renders the whole vector, as text or beside the facts under --json; not with --tags, --argv, --flat or --filter)")
 		return 2
-	case *f.argv && (*f.tags || *f.json):
-		fmt.Fprintln(stderr, "stopped:usage (--argv is one line per record; not with --tags or --json)")
+	case *f.argv && (*f.tags || *f.json || flat):
+		fmt.Fprintln(stderr, "stopped:usage (--argv is one line per record; not with --tags, --json or --flat)")
+		return 2
+	case flat && (*f.tags || *f.json):
+		// Three renderings of one vector; naming two says which is meant
+		// nowhere. `--flat` is a reader's wire shape and `--json` is the
+		// tool's own answer — silently preferring either would put the
+		// wrong object on an accessor's stdin.
+		fmt.Fprintln(stderr, "stopped:usage (--flat is the command-reader object; not with --tags or --json)")
 		return 2
 	}
 	switch {
@@ -167,6 +177,8 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 	}
 
 	switch {
+	case *f.flat:
+		return emitFlat(tbl, facts, wantedFacts(f), stdout, stderr)
 	case *f.tags:
 		return emitTags(tbl, facts, wantedFacts(f), stdout, stderr)
 	case *f.argv:
@@ -208,6 +220,10 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 	// the same reason and with the same words.
 	if *f.tags {
 		fmt.Fprintln(stderr, "stopped:usage (--tags renders one record's argv; name a record)")
+		return 2
+	}
+	if f.flat != nil && *f.flat {
+		fmt.Fprintln(stderr, "stopped:usage (--flat renders one record's object; name a record)")
 		return 2
 	}
 	if *f.checklist {
@@ -348,6 +364,10 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 	// rather than emitting something a caller could paste.
 	if *f.tags {
 		fmt.Fprintln(stderr, "stopped:usage (--tags renders one record's argv; name a record)")
+		return 2
+	}
+	if f.flat != nil && *f.flat {
+		fmt.Fprintln(stderr, "stopped:usage (--flat renders one record's object; name a record)")
 		return 2
 	}
 	if *f.checklist {
@@ -584,6 +604,38 @@ func withSentinels(tbl *FactTable, facts []Fact, want map[string]bool) []Fact {
 		}
 	}
 	return out
+}
+
+// emitFlat renders the facts as a FLAT JSON object of strings — the wire
+// shape a declared command READER returns (intrastate RDR 0025: "read
+// results return on stdout as a flat JSON object of strings").
+//
+// `--json` is the tool's own answer and nests: `{"facts":[{"name":…,
+// "value":…}],"record":…}`. That is the right shape for a reader who
+// wants the kinds and the record, and the wrong one for an accessor,
+// which reads `{"<key>":"<value>"}` and nothing else. Rendering it here
+// rather than asking the caller to reshape it is the same rule the rest
+// of this file follows: when a consumer parses a projected string, the
+// projection is missing a form.
+//
+// Values are `tagWords`' values, so a fact reads identically whether it
+// crosses as argv or as a reader's object — including the absent
+// sentinels, which a reader must carry (a declared key the object omits
+// is UNREADABLE to the accessor, never established-absent). Prose facts
+// are omitted for the reason they are omitted from `--tags`.
+func emitFlat(tbl *FactTable, facts []Fact, want map[string]bool, stdout, stderr io.Writer) int {
+	words, err := tagWords(tbl, facts, want)
+	if err != nil {
+		fmt.Fprintln(stderr, err)
+		return 2
+	}
+	out := make(map[string]string, len(words))
+	for _, text := range words {
+		if name, value, ok := strings.Cut(text, "="); ok {
+			out[name] = value
+		}
+	}
+	return emit(out, stdout, stderr)
 }
 
 func emitTags(tbl *FactTable, facts []Fact, want map[string]bool, stdout, stderr io.Writer) int {
