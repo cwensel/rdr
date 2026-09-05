@@ -464,7 +464,9 @@ run-plan.md).
   completion notification is the wait (no sleep, no poll, no agent-list check,
   no filler echo, no dir-watch). Act on the packet; doubting one is a second
   consult, never a parent re-read. Open the report file only for a finding the
-  packet names as needing the parent's judgment.
+  packet names as needing the parent's judgment. **A long-running command is
+  waited on the same way** — background it and let the notification arrive;
+  polling a log is the same wasted turn as polling an agent.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable

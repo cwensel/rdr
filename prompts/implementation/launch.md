@@ -108,7 +108,18 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
     $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>) \
     --tag baseline=<green|red|none>   # fresh run: none; resume: the capsule's `baseline:` line
   `emit.next` = `run-baseline` → run the full suite once (the capsule's
-  `validate:` command) and re-ask with `baseline=green|red` from its exit;
+  `validate:` command) and re-ask with `baseline=green|red` from its exit.
+  **Run it in the background and let the harness wake you.** Never
+  `sleep`-poll, chain a sleep to a grep, or tail a log to guess whether it
+  finished — a harness that tracks the job refuses those, and they are turns
+  spent not-knowing; for a condition rather than a completion, use its
+  until-loop. Do not start Phase 0 meanwhile "because it only reads the RDR":
+  `baseline=red` is a stop, so that work may be thrown away, and the precheck
+  runs before anything else by design. A suite reads by relative path, so
+  **nothing may move the directory it runs in while it runs** — removing a
+  worktree or cleaning a scratch tree under a live run makes every read fail
+  as `no such file or directory`, which looks exactly like a broken checkout
+  and is not one. Capture the exit before any tree changes hands;
   `proceed` → continue; a `stopped:*` halts as INCOMPLETE with `emit.why`,
   naming `predecessors_incomplete` (`"$RDR_HOME/bin/rdr" status --json
   --filter predecessors_incomplete <slug>` — an unresolvable record and an
