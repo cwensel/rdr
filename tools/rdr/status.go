@@ -167,7 +167,7 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 		return 2
 	}
 	env := NewFactEnv(tbl, doc, recordSlug(path))
-	env.Want = wantedFacts(f)
+	env.Want = wantedFacts(tbl, f)
 	env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
 	newPeers(tbl, f, nil).bind(env)
 	facts := tbl.Evaluate(env)
@@ -178,11 +178,11 @@ func statusOne(tbl *FactTable, arg string, f *flags, stdout, stderr io.Writer) i
 
 	switch {
 	case *f.flat:
-		return emitFlat(tbl, facts, wantedFacts(f), stdout, stderr)
+		return emitFlat(tbl, facts, wantedFacts(tbl, f), stdout, stderr)
 	case *f.tags:
-		return emitTags(tbl, facts, wantedFacts(f), stdout, stderr)
+		return emitTags(tbl, facts, wantedFacts(tbl, f), stdout, stderr)
 	case *f.argv:
-		return emitArgv(tbl, []statusRow{{Summary: scan.Summarize(doc), Facts: facts}}, wantedFacts(f), stdout, stderr)
+		return emitArgv(tbl, []statusRow{{Summary: scan.Summarize(doc), Facts: facts}}, wantedFacts(tbl, f), stdout, stderr)
 	case *f.checklist:
 		// The env's resolved roots travel with the facts: a root missing
 		// from them is unbound, which is what turns an absence into `?`.
@@ -250,7 +250,7 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 			continue
 		}
 		env := NewFactEnv(tbl, doc, recordSlug(path))
-		env.Want = wantedFacts(f)
+		env.Want = wantedFacts(tbl, f)
 		env.ResolveEdges = func() { resolveEdges(doc, f, stderr) }
 		peers.bind(env)
 		facts := tbl.Evaluate(env)
@@ -267,7 +267,7 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 		}, stdout, stderr)
 	}
 	if *f.argv {
-		if code := emitArgv(tbl, rows, wantedFacts(f), stdout, stderr); code != 0 {
+		if code := emitArgv(tbl, rows, wantedFacts(tbl, f), stdout, stderr); code != 0 {
 			return code
 		}
 	} else {
@@ -302,43 +302,123 @@ func statusSet(tbl *FactTable, args []string, f *flags, stdout, stderr io.Writer
 // depend on the table being evaluated whole, and a filter is a question
 // about the OUTPUT, not an instruction to look at less.
 func filterFacts(tbl *FactTable, facts []Fact, f *flags) ([]Fact, error) {
-	if f.filter == nil || *f.filter == "" {
+	filtered := f.filter != nil && *f.filter != ""
+	drop := exceptedFacts(f)
+	if !filtered && len(drop) == 0 {
 		return facts, nil
+	}
+	// An --except name must be declared, exactly as a --filter name must:
+	// silently ignoring a typo would hand the caller a vector still
+	// carrying the fact they meant to drop, and the refusal it then takes
+	// names the wrong thing.
+	if err := declaredFacts(tbl, drop); err != nil {
+		return nil, err
+	}
+	keep := wantedFacts(tbl, f)
+	if keep == nil {
+		// --except with no --filter: keep everything the table declares,
+		// minus the excepted names. Resolved here because this is where
+		// the table is in hand; wantedFacts has only the flags.
+		keep = map[string]bool{}
+		for _, d := range tbl.Facts {
+			if !drop[d.Name] {
+				keep[d.Name] = true
+			}
+		}
 	}
 	// A --tags call still renders every declared sentinel, so the filter
 	// narrows what is EVALUATED (FactEnv.Want) as well as what is kept.
-	return filterFactsBy(tbl, facts, wantedFacts(f))
+	return filterFactsBy(tbl, facts, keep)
 }
 
 // wantedFacts is the --filter list as a set, or nil when there is none —
 // nil meaning "everything", which is what FactEnv.Want reads it as.
-func wantedFacts(f *flags) map[string]bool {
-	if f.filter == nil || *f.filter == "" {
-		return nil
-	}
-	keep := map[string]bool{}
-	for _, name := range strings.Split(*f.filter, ",") {
-		if name = strings.TrimSpace(name); name != "" {
-			keep[name] = true
+//
+// `--except` subtracts from whichever set that is. It exists because a
+// consumer model may declare a fact OWNED (intrastate reads owned state
+// from its declared accessors and refuses it as argv, `flow-tag-owned`),
+// while the same vector feeds models that guard on it as observed. The
+// caller therefore needs the whole vector MINUS a couple of names, and
+// `--filter` cannot say that: naming the other seventy is a list that
+// rots the moment the table grows a fact.
+//
+// Subtracting rather than intersecting is the point — a fact added to
+// `rdr-facts.toml` tomorrow flows to the caller without an edit, which is
+// what a keep-list gives up.
+// It takes the TABLE because `--except` alone has no keep-list to
+// subtract from: "everything" is nil, and nil cannot carry a subtraction.
+// Every renderer must see the same set — the sentinel pass reads it too,
+// and a fact dropped from evaluation but not from `want` comes back as
+// its declared absent sentinel, which is the whole thing being avoided.
+func wantedFacts(tbl *FactTable, f *flags) map[string]bool {
+	var keep map[string]bool
+	if f.filter != nil && *f.filter != "" {
+		keep = map[string]bool{}
+		for _, name := range strings.Split(*f.filter, ",") {
+			if name = strings.TrimSpace(name); name != "" {
+				keep[name] = true
+			}
 		}
+	}
+	drop := exceptedFacts(f)
+	if len(drop) == 0 {
+		return keep
+	}
+	if keep == nil {
+		// Materialising "everything" turns `want` non-nil, which would
+		// otherwise flip `skipSentinel` from "on-demand facts are out" to
+		// "every named fact is in". Carry the on-demand rule across by
+		// leaving those names out, exactly as the nil case does.
+		keep = make(map[string]bool, len(tbl.Facts))
+		for _, d := range tbl.Facts {
+			if !d.OnDemand {
+				keep[d.Name] = true
+			}
+		}
+	}
+	for name := range drop {
+		delete(keep, name)
 	}
 	return keep
 }
 
-func filterFactsBy(tbl *FactTable, facts []Fact, keep map[string]bool) ([]Fact, error) {
+// exceptedFacts is the --except list as a set, nil when there is none.
+func exceptedFacts(f *flags) map[string]bool {
+	if f.except == nil || *f.except == "" {
+		return nil
+	}
+	drop := map[string]bool{}
+	for _, name := range strings.Split(*f.except, ",") {
+		if name = strings.TrimSpace(name); name != "" {
+			drop[name] = true
+		}
+	}
+	return drop
+}
+
+// declaredFacts refuses a name the table does not declare. Shared by
+// --filter and --except so a typo reads the same either way.
+func declaredFacts(tbl *FactTable, names map[string]bool) error {
 	declared := make(map[string]bool, len(tbl.Facts))
 	for _, d := range tbl.Facts {
 		declared[d.Name] = true
 	}
-	for name := range keep {
+	for name := range names {
 		if !declared[name] {
-			names := make([]string, 0, len(tbl.Facts))
+			have := make([]string, 0, len(tbl.Facts))
 			for _, d := range tbl.Facts {
-				names = append(names, d.Name)
+				have = append(have, d.Name)
 			}
-			sort.Strings(names)
-			return nil, fmt.Errorf("stopped:no-such-fact (%s; have %s)", name, strings.Join(names, " "))
+			sort.Strings(have)
+			return fmt.Errorf("stopped:no-such-fact (%s; have %s)", name, strings.Join(have, " "))
 		}
+	}
+	return nil
+}
+
+func filterFactsBy(tbl *FactTable, facts []Fact, keep map[string]bool) ([]Fact, error) {
+	if err := declaredFacts(tbl, keep); err != nil {
+		return nil, err
 	}
 	out := make([]Fact, 0, len(keep))
 	for _, fact := range facts {
@@ -397,7 +477,7 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 			continue
 		}
 		env := NewFactEnv(tbl, d, recordSlug(s.Path))
-		env.Want = wantedFacts(f)
+		env.Want = wantedFacts(tbl, f)
 		env.ResolveEdges = resolveAll
 		peers.bind(env)
 		facts, err := filterFacts(tbl, tbl.Evaluate(env), f)
@@ -413,7 +493,7 @@ func statusWorklist(tbl *FactTable, f *flags, stdout, stderr io.Writer) int {
 		}, stdout, stderr)
 	}
 	if *f.argv {
-		return emitArgv(tbl, rows, wantedFacts(f), stdout, stderr)
+		return emitArgv(tbl, rows, wantedFacts(tbl, f), stdout, stderr)
 	}
 	for _, r := range rows {
 		fmt.Fprintf(stdout, "%s %-8s %s\n",

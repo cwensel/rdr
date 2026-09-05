@@ -8,7 +8,7 @@
 //	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
 //	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]|--row-json NNNN] [--records DIR]
 //	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-//	rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
+//	rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
 //	rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
 //	rdr env [--json]
 //	rdr version
@@ -64,7 +64,7 @@ usage:
   rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
   rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
   rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
-  rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--facts PATH] [--records DIR]
+  rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
   rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
   rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
   rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
@@ -461,6 +461,7 @@ type flags struct {
 	grep               *string     // inspect: the literal whose containing elements to name
 	touchedSince       *string     // inspect: the rev whose diff to the working tree scopes the ids
 	filter             *string
+	except             *string // status: fact names to drop from the vector
 	// argc is how many positional arguments the invocation carried. The
 	// usage log reads it to tell `status NNNN` from `status NNNN NNNN`,
 	// which are the same verb at two very different costs.
@@ -575,6 +576,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.argv = fs.Bool("argv", false, "one line per record: slug, Status, its `--tag k=v` argv, qualifier — tab-separated; the worklist form includes Deferred")
 		f.facts = fs.String("facts", "", "the fact table to evaluate (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
 		f.filter = fs.String("filter", "", "comma-separated fact names to keep (impl_state,status); a name the table does not declare is refused")
+		f.except = fs.String("except", "", "comma-separated fact names to DROP from the vector (status,readme_status — a model that owns them refuses them as argv); a name the table does not declare is refused")
 	}
 	return f
 }

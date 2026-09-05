@@ -331,6 +331,88 @@ func TestClusterMembersProposed(t *testing.T) {
 // TestStatusTagsRenderShellSafeArgv is the load-bearing one.
 //
 // The composition this verb exists for is
+// TestStatusExceptSubtractsFromTheVector: `--except` drops named facts
+// from the whole vector, which `--filter` cannot express — naming the
+// other seventy is a list that rots the moment the table grows a fact.
+//
+// It exists because a consumer model may declare a fact OWNED, and
+// intrastate reads owned state from its accessors and refuses it as argv
+// (`flow-tag-owned`), while the same vector feeds models that guard on it
+// as observed.
+//
+// The regression it guards is subtle and was hit while building it: a
+// fact dropped from EVALUATION but still present in `want` comes back as
+// its declared absent sentinel, so the caller gets the key it asked to be
+// rid of, carrying a value that reads as "nothing looked".
+func TestStatusExceptSubtractsFromTheVector(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	tagNames := func(out string) map[string]string {
+		got := map[string]string{}
+		lines := strings.Split(strings.TrimSuffix(out, "\n"), "\n")
+		for i := 0; i+1 < len(lines); i += 2 {
+			if name, value, ok := strings.Cut(lines[i+1], "="); ok {
+				got[name] = value
+			}
+		}
+		return got
+	}
+
+	code, out, errb := runCapture(t, "status", "--tags", "--facts", table, "0020")
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	full := tagNames(out)
+	if full["status"] == "" || full["predecessors_state"] == "" {
+		t.Fatalf("fixture does not carry the facts this test subtracts: %v", full)
+	}
+
+	code, out, errb = runCapture(t, "status", "--tags", "--facts", table, "--except", "status,predecessors_state", "0020")
+	if code != 0 {
+		t.Fatalf("--except exit %d: %s", code, errb)
+	}
+	got := tagNames(out)
+	// Not merely absent from the values — absent as KEYS. A sentinel would
+	// satisfy a weaker check while defeating the flag's whole purpose.
+	if _, ok := got["status"]; ok {
+		t.Errorf("--except left `status` in the vector (sentinel leak?): %q", got["status"])
+	}
+	if _, ok := got["predecessors_state"]; ok {
+		t.Errorf("--except left `predecessors_state` in the vector: %q", got["predecessors_state"])
+	}
+	if len(got) != len(full)-2 {
+		t.Errorf("--except dropped %d facts, want exactly 2", len(full)-len(got))
+	}
+	// Everything else survives — this is a subtraction, not a filter.
+	for name, want := range full {
+		if name == "status" || name == "predecessors_state" {
+			continue
+		}
+		if got[name] != want {
+			t.Errorf("%s: --except changed %q to %q", name, want, got[name])
+		}
+	}
+
+	// A name the table does not declare refuses, exactly as --filter's does:
+	// silently ignoring a typo hands back a vector still carrying the fact
+	// the caller meant to drop.
+	if code, _, errb := runCapture(t, "status", "--tags", "--facts", table, "--except", "nosuchfact", "0020"); code != 2 || !strings.Contains(errb, "stopped:no-such-fact") {
+		t.Errorf("an undeclared --except name should refuse: exit %d\n%s", code, errb)
+	}
+
+	// --filter and --except compose: keep two, drop one of them.
+	code, out, errb = runCapture(t, "status", "--tags", "--facts", table, "--filter", "status,status_form", "--except", "status", "0020")
+	if code != 0 {
+		t.Fatalf("--filter with --except: exit %d: %s", code, errb)
+	}
+	both := tagNames(out)
+	if _, ok := both["status"]; ok {
+		t.Errorf("--except did not subtract from --filter: %v", both)
+	}
+	if both["status_form"] == "" {
+		t.Errorf("--filter's other name did not survive --except: %v", both)
+	}
+}
+
 // TestStatusFlatIsACommandReaderObject: `--flat` is the wire shape a
 // declared command reader returns (intrastate RDR 0025 — "a flat JSON
 // object of strings"), which is what lets an accessor read a record's own

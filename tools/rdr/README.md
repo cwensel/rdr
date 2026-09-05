@@ -1245,6 +1245,7 @@ Three renderings of ONE evaluation:
     rdr status --json 0055         # the neutral vector (§Facts)
     rdr status --tags 0055         # `--tag k=v` argv for a resolver
     rdr status --flat 0055         # a flat JSON object of strings — a command reader's shape
+    rdr status --tags 0055 --except status,readme_status   # the vector MINUS named facts
     rdr status --checklist 0055    # the stage checklist, three-valued (`?` = nothing looked)
     rdr status 0122 0123 0130      # a NAMED SET — one row per record
     rdr status                     # the Draft+Final worklist, each row with its facts
@@ -1280,6 +1281,25 @@ model binding `rdr status --json` as its reader refuses
 is the whole reason this rendering exists rather than asking a caller to
 reshape the vector — when a consumer parses a projected string, the
 projection is missing a form.
+
+`--except` subtracts named facts from whatever the render would otherwise
+carry. It is not `--filter` inverted and does not replace it: `--filter`
+KEEPS a list, and expressing "everything but two" as a keep-list means
+naming the other seventy — a list that rots the moment `rdr-facts.toml`
+grows a fact. Subtracting keeps the caller current by default.
+
+It exists for the owned/observed split. A model may declare a fact
+**owned**, and intrastate reads owned state from the model's own read
+accessors and refuses it as argv (`flow-tag-owned`) — while the same
+vector feeds models that guard on the same fact as observed. So one call
+site needs the whole vector minus a couple of names, and the names are
+visible where the call is made rather than buried in a model.
+
+The subtraction reaches EVALUATION, not just rendering. A fact dropped
+from the render but still evaluated would come back as its declared
+absent sentinel — the caller would get the key it asked to be rid of,
+carrying a value that reads as "nothing looked". An undeclared name
+refuses exactly as `--filter`'s does.
 
 It matters because it is half of a write's read-back. A model that
 declares an `edit` writer over a record's `- **Status**:` line verifies
