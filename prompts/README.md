@@ -81,6 +81,7 @@ a reusable output contract.
 | Phase | File | Notes |
 | --- | --- | --- |
 | Implementation launch | [implementation/launch.md](implementation/launch.md) | Drives a fresh AI session through Phases 0–3 of a locked RDR; produces file-backed traceability artifacts next to the RDR. |
+| Phase briefs | [implementation/briefs/](implementation/briefs/) | One template per leaf (phase-0, 1, 2, 3a, 3b, 3c, grounder), ≤2KB, filled by field — the orchestrator never authors a brief. Each cites its PHASE block of launch.md. |
 
 The implementation prompt treats the RDR as immutable. If implementation reveals
 the RDR is wrong, abandon implementation and iterate on the RDR — do not edit it

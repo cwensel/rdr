@@ -1,0 +1,92 @@
+#!/bin/sh
+# rdr-gate — one Stage 8 gate, asked as one command.
+#
+# launch.md's gates were a three-line idiom: bind intrastate, render the
+# facts with `rdr status --tags --filter …`, resolve the outcome's row. That
+# idiom is exactly what a harness command guard cannot verify — a computed
+# command name, a `complete` literal — and one run drew six refusals for it.
+# This script IS the idiom as one plain executable. Neither binary calls the
+# other: `rdr` stays read-only and renders the facts, intrastate stays the
+# resolver, and the only text read from its envelope is `emit.next` /
+# `emit.why` (`ground`: `emit.ground` / `emit.surface`). It writes nothing.
+#
+#   rdr-gate <outcome> [<NNNN>] [--tag k=v …]
+#
+#   outcome    model            facts rendered by `rdr status --tags --filter …`   --tag observed by the caller
+#   precheck   rdr-launch.toml  status,predecessors_state                            baseline
+#   size       rdr-launch.toml  profile,lines,req_count                              files suite pressure
+#   shard      rdr-launch.toml  impact_families                                      —
+#   budget     rdr-launch.toml  — (no record)                                        commits elapsed suite_green
+#   complete   rdr-launch.toml  impl_orphans,impl_open_decisions,impl_mvv_recorded,  suite_green
+#                               impl_verification_recorded
+#   ground     rdr-write.toml   clustered                                            searched found
+#
+# The rows are the models' (`intrastate lint --model` proves every cell) and
+# each model's tag comment says how an observed tag is read; this table only
+# names which facts and tags each outcome takes. Output, two lines:
+#   next: <emit.next>      ground: the rung to search, `apply`, or `ask`
+#   why: <emit.why>        ground adds `surface: <the rung's command>`
+# Exit 0 on ANY answer, a `stopped:*` included — the answer is applied as a
+# value, never inferred from the exit. Exit 2 when the read or the resolve
+# is refused: the refusal's first line is printed and nothing is substituted
+# (rdr-common §intrastate: a refused read must never land in the resolver's argv).
+set -f   # the argv is one shell word per fact; never let a value glob
+
+here=$(dirname "$0")
+R="$here/rdr"
+H="${RDR_HOME:-$here/..}"
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
+
+usage() {
+  [ $# -gt 0 ] && echo "rdr-gate: $*" >&2
+  echo "usage: rdr-gate <precheck|size|shard|budget|complete|ground> [<NNNN>] [--tag k=v …]" >&2
+  exit 2
+}
+
+[ $# -ge 1 ] || usage
+outcome=$1; shift
+case $outcome in
+  precheck) model=rdr-launch.toml; facts=status,predecessors_state; need=baseline ;;
+  size)     model=rdr-launch.toml; facts=profile,lines,req_count;   need="files suite pressure" ;;
+  shard)    model=rdr-launch.toml; facts=impact_families;           need= ;;
+  budget)   model=rdr-launch.toml; facts=;                          need="commits elapsed suite_green" ;;
+  complete) model=rdr-launch.toml; facts=impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded; need=suite_green ;;
+  ground)   model=rdr-write.toml;  facts=clustered;                 need="searched found" ;;
+  *) usage "unknown outcome '$outcome'" ;;
+esac
+M="$H/models/$model"
+
+rec=
+case ${1:-} in --*|"") ;; *) rec=$1; shift ;; esac
+[ -n "$facts" ] && [ -z "$rec" ] && usage "$outcome needs the record: rdr-gate $outcome <NNNN> …"
+[ -z "$facts" ] && [ -n "$rec" ] && usage "$outcome reads no record — drop '$rec'"
+
+# Every remaining arg is a `--tag k=v` pair; the outcome's observed tags must all be present.
+given=" "
+for a in "$@"; do case $a in --tag) ;; *=*) given="$given${a%%=*} " ;; *) usage "expected --tag k=v, got '$a'" ;; esac; done
+domain_of() { sed -n "/^\[tags\.$1\]/,/^\[/p" "$M" | sed -n 's/^domain *= *\[\(.*\)\]/\1/p' | tr -d '" '; }
+for k in $need; do
+  case $given in *" $k "*) ;; *)
+    d=$(domain_of "$k"); usage "$outcome needs --tag $k=<${d:-true|false}> — observed by you, never estimated" ;;
+  esac
+done
+
+[ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 2; }
+[ -f "$M" ]  || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
+
+T=
+if [ -n "$facts" ]; then
+  [ -x "$R" ] || { echo "stopped:projector-not-built — $R" >&2; exit 2; }
+  T=$("$R" status --tags --filter "$facts" "$rec" 2>/dev/null) || { printf '%s\n' "$T" | head -1; exit 2; }
+fi
+
+err=$(mktemp) || exit 2
+trap 'rm -f "$err"' EXIT
+if ! out=$("$IS" flow resolve --model "$M" --outcome "$outcome" --plan-only --as text $T "$@" 2>"$err"); then
+  echo "stopped:gate-refused — $(head -1 "$err")"; exit 2
+fi
+field() { printf '%s\n' "$out" | sed -n "s/^$1: //p" | head -1; }
+case $outcome in
+  ground) echo "next: $(field emit.ground)"; echo "why: $(field emit.why)"; echo "surface: $(field emit.surface)" ;;
+  *)      echo "next: $(field emit.next)";   echo "why: $(field emit.why)" ;;
+esac

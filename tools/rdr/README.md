@@ -1250,6 +1250,7 @@ Three renderings of ONE evaluation:
     rdr status 0122 0123 0130      # a NAMED SET — one row per record
     rdr status                     # the Draft+Final worklist, each row with its facts
     rdr status --argv              # the worklist + Deferred, one tab-separated argv line each (bin/rdr-next)
+    rdr-gate complete 0055 --tag suite_green=true   # `--tags --filter <the gate's facts>` + the resolve, one command (bin/rdr-gate)
 
 ### Three arities, two costs
 

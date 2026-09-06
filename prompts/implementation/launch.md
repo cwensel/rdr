@@ -91,6 +91,14 @@ artifacts inconsistent, red-before-green gate fails), write
 `<art>/status.md` as INCOMPLETE with the named blocker and halt —
 that is a halt, not a question.
 
+BRIEFS (every spawn)
+A spawn prompt is one template under `$RDR_HOME/prompts/implementation/briefs/`
+plus its fields — never a brief you author (an authored line once told a leg
+to leave a lane red, wrongly). Send "Your brief is <path>; read it, then
+substitute these fields:" plus one `NAME=value` line per field. Common fields: RDR_PATH, NNNN, RDR_RESOURCES, RDR_HOME, ART (absolute),
+WORKTREE (the leaf's checkout — the source root when there is no worktree),
+BRANCH. Each phase names its template and extra fields; you read none.
+
 PRECHECKS (orchestrator runs these directly — cheap reads only)
 - Resume: read the `<art>/status.md` capsule header (phase/next/blocker)
   in one pass; if it names a phase, resume where its `next:` line points
@@ -101,13 +109,11 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   inconsistency: <detail>") and halt.
 - Predecessors + baseline: one call, the answer applied as a value (the
   `precheck` group of `$RDR_HOME/models/rdr-launch.toml`; `intrastate lint`
-  proves every cell):
-  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-  "$RDR_HOME/bin/rdr" status --tags <slug> >/dev/null || exit 2   # rdr-common §intrastate: never substitute a refused read
-  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome precheck --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter status,predecessors_state <slug>) \
-    --tag baseline=<green|red|none>   # fresh run: none; resume: the capsule's `baseline:` line
-  `emit.next` = `run-baseline` → run the full suite once (the capsule's
+  proves every cell). Every gate here is one `rdr-gate` call: it renders the
+  outcome's facts, resolves its row (its header lists each outcome's facts
+  and tags), prints `next:`/`why:`, exits 2 on a refused read:
+  "$RDR_HOME/bin/rdr-gate" precheck <NNNN> --tag baseline=<green|red|none>   # fresh run: none; resume: the capsule's `baseline:` line
+  `next:` = `run-baseline` → run the full suite once (the capsule's
   `validate:` command) and re-ask with `baseline=green|red` from its exit.
   **Run it in the background and let the harness wake you.** Never
   `sleep`-poll, chain a sleep to a grep, or tail a log to guess whether it
@@ -144,10 +150,7 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   `size` group of `$RDR_HOME/models/rdr-launch.toml` owns the caps (profile ×
   lines × req_count × files × suite × pressure; `intrastate lint` proves every
   cell):
-  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome size --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter profile,lines,req_count <slug>) \
-    --tag files=<0-3|4+> --tag suite=<quick|long> --tag pressure=<true|false>
+  "$RDR_HOME/bin/rdr-gate" size <NNNN> --tag files=<0-3|4+> --tag suite=<quick|long> --tag pressure=<true|false>
   The three `--tag`s are what this run has observed, never estimated (the
   model's tag comments say how; at PRECHECKS: `0-3`, `quick`, `false`).
   `emit.next` = `inline` → run the phases in this session, no sub-agent
@@ -161,10 +164,8 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   and passes the same completion gate.
 
 PHASE 0 — Spec audit [DELEGATE to sub-agent: "Phase 0 auditor"]
-Brief the sub-agent with:
-  - The RDR path {RDR_PATH} (the sub-agent reads it itself).
-  - The `<art>` path. Create the directory if missing.
-  - Predecessor `req-list.md` + `deviations.md` paths from prechecks.
+Brief: `briefs/phase-0.md`; extra field PREDECESSOR_ARTIFACTS (the
+predecessors' `req-list.md` + `deviations.md` paths from prechecks).
 Sub-agent's task:
   1. Write `<art>/req-list.md`: every testable clause as
      `[REQ-N] "<exact quote>" — (section)`, carrying the element id
@@ -206,10 +207,9 @@ ASSUMPTION lines in `req-list.md`, and re-briefs the auditor if the
 answers change REQ wording; otherwise advance.
 
 PHASE 1 — Tests first [DELEGATE to sub-agent: "Phase 1 test author"]
-Brief the sub-agent with:
-  - The RDR path, `<art>/req-list.md`, predecessor artifacts, the
-    test framework, and the test directory.
-  - NO implementation hints, sketches, or design notes.
+Brief: `briefs/phase-1.md`; extra fields TEST_FRAMEWORK, TEST_DIR,
+PREDECESSOR_ARTIFACTS. It carries NO implementation hints or design notes,
+and the committable-red probe pattern.
 Sub-agent's task: for each REQ-N, write tests that would fail if a
 future change broke that clause. Each test:
   - Opens with `// REQ-N: "<quote>"` (or the language's comment syntax).
@@ -242,40 +242,31 @@ PHASE 2 — Implementation [DELEGATE: a FRESH "Phase 2 implementer" per
 leg of one fixed worklist]
 Worklist (orchestrator, one call, the answer applied as a value — the
 `shard` group of `$RDR_HOME/models/rdr-launch.toml`):
-  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome shard --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter impact_families <slug>)
-`emit.next` = `single` → the Phase 1 tests, then the full suite; `sharded`
+  "$RDR_HOME/bin/rdr-gate" shard <NNNN>
+`next:` = `single` → the Phase 1 tests, then the full suite; `sharded`
 → the Phase 1 tests, then impact.md's families in file order, then the
 full suite; a `stopped:*` is INCOMPLETE with `emit.why`.
-Brief each leg with:
-  - `<art>/req-list.md`, `<art>/coverage.md`, the test file paths
-    from Phase 1, the predecessors' test files (executable ground truth,
-    §Predecessor Convention), the source tree root, and the test framework.
-  - The RDR path (read as needed for context, not as primary input) and
-    `{RDR_RESOURCES}`.
-  - `<art>/impact.md` — the predicted predecessor tests; a leg works a
-    family by its own `## <Family>` section (an artifact: grep it). A row
-    that goes red takes the rule below (re-cut only where a CHANGE REQ
-    names it, else regression, else SPEC-DEFECT), recorded against the
-    list rather than a suite dump; a row that stays green needs nothing.
-  - Authority to write `<art>/deviations.md` (always, even empty) and
-    update it for any classified deviation it encounters.
-  - Its worklist position (on a respawn: the capsule's `next:` line), the
-    leg's start SHA (`git rev-parse --short HEAD`) and start epoch
-    (`date -u +%s`), and the budget call:
-    "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome budget --plan-only \
-      --tag commits=<0-5|6+> --tag elapsed=<0-30|31+> --tag suite_green=<true|false>
-    commits: `git rev-list --count <start_sha>..HEAD`; elapsed:
-    `$(( ($(date -u +%s) - <start_epoch>) / 60 ))`; suite_green: the
-    last full-suite exit. Asked after every commit and suite run.
+Brief each leg: `briefs/phase-2.md`; extra fields TEST_FRAMEWORK, TEST_FILES
+(Phase 1's), PREDECESSOR_TESTS (the predecessors' tests — executable ground
+truth, §Predecessor Convention), RESUME (its worklist position; on a
+respawn the capsule's `next:` line), START_SHA (`git -C <wt> rev-parse
+--short HEAD`) and START_EPOCH (`date -u +%s`). The template names
+`<art>/impact.md` (a leg works a family by its own `## <Family>` section; a
+row that goes red takes the rule below — re-cut only where a CHANGE REQ
+names it, else regression, else SPEC-DEFECT — recorded against the list,
+not a suite dump; a row that stays green needs nothing), the authority to
+write `<art>/deviations.md` (always, even empty), and the leg's ONLY commit
+command, `$RDR_HOME/bin/rdr-leg-commit`: it commits, reads `commits` and
+`elapsed` from git and the clock, asks the `budget` row and prints `next:`
+— so the ask cannot be skipped (the leg that never asked hit 965K).
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from
-its position, committing as it goes, and applies `emit.next` as a value:
+its position, committing through `rdr-leg-commit` as it goes, and applies
+its `next:` as a value:
 `continue` → the next item; `return-green` → REQ-MVV (below), then PASS;
-`return-partial` → commit the tree (a `wip:` subject if red, so the
-successor starts from git, not a diff), overwrite the `status.md` capsule
+`return-partial` → commit the tree (`rdr-leg-commit` suffixes a red
+subject ` [wip]`, so the successor starts from git, not a diff), overwrite the `status.md` capsule
 (`phase: 2 — implementation`; `next:` the worklist position — leg number,
 family or "full suite"; `changed:`), and return verdict=INCOMPLETE with
 next_action `respawn Phase 2 from the capsule` — the orchestrator spawns
@@ -325,8 +316,8 @@ step after Phase 2.
 PHASE 3 — Self-verification (3a, 3b and 3d in parallel, then fixup if needed)
 
 PHASE 3a [DELEGATE to sub-agent: "CoVe verifier"]
-Brief: RDR path and `<art>/req-list.md` only. NO implementation,
-NO tests. Sub-agent's task: for each REQ-N, name an input that
+Brief: `briefs/phase-3a.md` (RDR path and `<art>/req-list.md` only; NO
+tests, NO other ledger). Sub-agent's task: for each REQ-N, name an input that
 would make a correct implementation visibly violate it. Then run
 those inputs against the actual implementation (source tree in hand,
 Phase 1 tests unread). Any actual violation gets appended to `<art>/verification.md` as a
@@ -334,9 +325,9 @@ FAIL-N entry with the failing input and observed behaviour.
 Sub-agent returns a §return-packet (verdict=BLOCK if FAIL-N; summary_50w lists the FAIL-N entries one line each).
 
 PHASE 3b [DELEGATE to sub-agent: "Adversarial reviewer"]
-Brief: the RDR's Failure Modes section, `<art>/req-list.md`, and
-the implementation source tree. NO Phase 1 tests, NO Phase 3a
-findings. Sub-agent's task: as a senior reviewer who thinks this is
+Brief: `briefs/phase-3b.md` (the RDR's Failure Modes section,
+`<art>/req-list.md`, the source tree; NO Phase 1 tests, NO Phase 3a
+findings); extra fields TEST_DIR, TEST_FRAMEWORK. Sub-agent's task: as a senior reviewer who thinks this is
 wrong, name the three most likely failure modes (anchored in the
 RDR's Failure Modes section) and the test that catches each. Add
 any missing tests to the test directory; confirm they fail against
@@ -351,11 +342,11 @@ A 3a or 3b pass with no finding still appends a line-leading
 PHASE 3d — DECISION GROUNDING [conditional, DELEGATE: one read-only
 "decision grounder" per `Status: needs author decision` entry in
 `<art>/deviations.md`]
-Brief: that one entry verbatim, {RDR_PATH}, `{RDR_RESOURCES}`, the
-source tree. NO other entries, NO Phase 3 findings. Sub-agent's task:
-walk rdr-common §ground-before-ask (the `ground` outcome, §rdr-write's
-call) rung by rung — code, cluster peers' Status/Overrides, corpus, RFD
-— until `apply` or `ask`. It edits nothing.
+Brief: `briefs/phase-grounder.md`; extra field ENTRY (that one entry,
+verbatim; NO other entry, NO Phase 3 finding). Sub-agent's task: walk
+rdr-common §ground-before-ask rung by rung (`rdr-gate ground` asks the
+`ground` outcome) — code, cluster peers' Status/Overrides, corpus, RFD —
+until `apply` or `ask`. It edits nothing; scratch under /tmp.
 Sub-agent returns a §return-packet: verdict=PASS with the decision and
 its cite in summary_50w (next_action `code-change` if the decision
 alters code), or NEEDS_DECISION with `searched=` in next_action.
@@ -372,8 +363,9 @@ one consolidated question listing each with the recommendation
 PHASE 3c — FIXUP [conditional, DELEGATE to sub-agent: "Phase 3 fixup"]
 Run this only if Phase 3a returned FAIL-N entries OR Phase 3b added
 tests that currently fail OR a 3d resolution alters code. Brief:
-`<art>/verification.md`, `<art>/deviations.md`, `<art>/req-list.md`,
-source tree, test framework, `{RDR_RESOURCES}`. Sub-agent's task: fix
+`briefs/phase-3c.md` (`<art>/verification.md`, `<art>/deviations.md`,
+`<art>/req-list.md`, source tree, `{RDR_RESOURCES}`); extra field
+TEST_FRAMEWORK. Sub-agent's task: fix
 each defect, and apply each RESOLVED decision that alters code, with the
 minimum change; add a regression test if not already present. After
 fixing, run the full suite — must be green. New deviations follow
@@ -382,15 +374,12 @@ Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lis
 A new needs-author-decision entry takes Phase 3d again.
 
 COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
-  IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
-  "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome complete --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded <slug>) \
-    --tag suite_green=<true|false>    # the last packet's verdict: PASS → true (full suite, predecessors included)
+  "$RDR_HOME/bin/rdr-gate" complete <NNNN> --tag suite_green=<true|false>    # the last packet's verdict: PASS → true (full suite, predecessors included)
 The `complete` group proves every cell — Phase 3 recorded, green tests, no
 orphans either way, REQ-MVV output recorded, no open needs-author-decision
 line — and an unread ledger file or an unwritten `verification.md` is a
 named stop, never a pass. Write `<art>/status.md` state from
-`emit.next` as a value: `COMPLETE`, or `INCOMPLETE — <stopped:token>: <why>`.
+`next:` as a value: `COMPLETE`, or `INCOMPLETE — <stopped:token>: <why>`.
 
 Do not declare success on INCOMPLETE.
 
@@ -415,6 +404,14 @@ artifacts: req-list.md impact.md coverage.md verification.md deviations.md
 GUARDRAILS
 - Phase sub-agents own their own reading (your role, above): re-reading
   the same files in two contexts is the bug we are avoiding.
+- You never `cd`: a leaf's checkout is addressed from where you stand —
+  `git -C <wt> …`, `go test -C <wt> …` (Go ≥ 1.20). A cwd left in a worktree
+  once pinned a resumed session for 37 minutes.
+- A multi-line script is written to a file, then run (`sh /tmp/x.sh`);
+  inline heredocs and `python -` bodies are what a guard refuses.
+- You never run the suite after PRECHECKS' baseline — `./...` least of all.
+  The §return-packet's `suite_green` and command line are the evidence; a
+  doubt is one package-scoped run (`go test -C <wt> ./<pkg>/`).
 - Every phase return is a §return-packet; the orchestrator rejects a
   malformed packet and re-asks for the packet alone, not a re-run.
 - If a test needs information not in the spec, the sub-agent first
@@ -474,7 +471,8 @@ prompt only needs to know which predecessors to gate on.
   fresh leg per cut, resuming from the on-disk artifacts (`<art>/*.md`),
   the durable record between phases.
 - **Sub-agent briefs enforce independence structurally** (GUARDRAILS
-  lists the exclusions). Asking a single agent to "ignore what you just
+  lists the exclusions; `briefs/` templates carry them, filled, never
+  authored). Asking a single agent to "ignore what you just
   wrote" is aspirational — isolation is enforceable only via
   brief-scoping at spawn time.
 - **Hard COMPLETE/INCOMPLETE gate** makes "done" computable from disk

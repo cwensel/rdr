@@ -9,6 +9,9 @@
 .rdr/
 
 # Built binaries (rdr-init builds the projector here). bin/rdr-next is a
-# tracked script beside them, so the ignore is on the entries, not the dir.
+# tracked script beside them (as are rdr-gate and rdr-leg-commit), so the
+# ignore is on the entries, not the dir.
 bin/*
 !bin/rdr-next
+!bin/rdr-gate
+!bin/rdr-leg-commit
