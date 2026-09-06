@@ -181,7 +181,12 @@ single_valued = true
 required      = true
 
 # Is the full suite green now. Inside Phase 2 it is the leg's last
-# full-suite exit; at the completion gate the last §return-packet's
+# full-suite exit — `false` until the worklist's last item, the ONE full
+# run, has passed; the package-scoped run between items (the packages an
+# increment touched) is that item's own gate, never this tag, since the
+# row reads `true` as the leg's end (one run spent 111 of ~340 active
+# minutes on 11 full-suite runs, one per increment; launch.md's PHASE 2
+# says why the last item stays full). At the completion gate the last §return-packet's
 # verdict — Phase 2's, or Phase 3c's when it ran: PASS is `true`, anything
 # else `false`. PASS means the FULL suite, predecessors included: the
 # baseline was green, so a red predecessor test is this change's
@@ -768,4 +773,4 @@ eq = "0-30"
 eq = "0-5"
 [rule.emit]
 next = "continue"
-why  = "Red and under both caps: take the next worklist item."
+why  = "Not full-green and under both caps: take the next worklist item, or stay on a red one."

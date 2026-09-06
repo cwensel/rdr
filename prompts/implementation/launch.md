@@ -249,7 +249,7 @@ full suite; a `stopped:*` is INCOMPLETE with `emit.why`.
 Brief each leg: `briefs/phase-2.md`; extra fields TEST_FRAMEWORK, TEST_FILES
 (Phase 1's), PREDECESSOR_TESTS (the predecessors' tests — executable ground
 truth, §Predecessor Convention), RESUME (its worklist position; on a
-respawn the capsule's `next:` line), START_SHA (`git -C <wt> rev-parse
+respawn the capsule's `next:` and `reads:` lines), START_SHA (`git -C <wt> rev-parse
 --short HEAD`) and START_EPOCH (`date -u +%s`). The template names
 `<art>/impact.md` (a leg works a family by its own `## <Family>` section; a
 row that goes red takes the rule below — re-cut only where a CHANGE REQ
@@ -263,12 +263,20 @@ Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from
 its position, committing through `rdr-leg-commit` as it goes, and applies
-its `next:` as a value:
-`continue` → the next item; `return-green` → REQ-MVV (below), then PASS;
+its `next:` as a value. An item's gate is a package-scoped run — the
+packages the increment touched — asked as `--suite-green false` (the full
+suite has not run); the worklist's last item is the ONE full run, started
+in the background while the leg writes `deviations.md` and drafts its
+packet, its exit the ask. A targeted run once passed where the full run
+caught a gate, so that item is never skipped.
+`continue` → the next item, or the same one while its run is red;
+`return-green` → REQ-MVV (below), then PASS;
 `return-partial` → commit the tree (`rdr-leg-commit` suffixes a red
 subject ` [wip]`, so the successor starts from git, not a diff), overwrite the `status.md` capsule
 (`phase: 2 — implementation`; `next:` the worklist position — leg number,
-family or "full suite"; `changed:`), and return verdict=INCOMPLETE with
+family or "full suite", which hands the full run to the successor;
+`reads:` ≤10 `path[:range]` this leg found load-bearing, so the successor
+reads those first; `changed:`), and return verdict=INCOMPLETE with
 next_action `respawn Phase 2 from the capsule` — the orchestrator spawns
 the next leg. The baseline was green, so a predecessor
 test now red is this change's regression: fix it, or — if a REQ-N
@@ -397,6 +405,7 @@ changed: <comma-sep paths touched this run | none yet>
 validate: <exact test/suite command>
 baseline: <green | red> @<commit>       # PRECHECKS' full-suite run, before Phase 1
 next: <exact next phase or $rdr-status NNNN re-entry command>
+reads: <≤10 path[:range] the last leg found load-bearing | none>
 session: <ISO8601 ts | session id>
 artifacts: req-list.md impact.md coverage.md verification.md deviations.md
 ```

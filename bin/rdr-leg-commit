@@ -49,7 +49,7 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
 case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
-case $green in true|false) ;; *) usage "--suite-green <true|false> is the last suite exit — run it, then say" ;; esac
+case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last item has run" ;; esac
 [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
 
 g() { if [ -n "$C" ]; then git -C "$C" "$@"; else git "$@"; fi; }
