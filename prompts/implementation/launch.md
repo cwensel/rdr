@@ -178,6 +178,13 @@ Sub-agent's task:
      prose outside `normative` fences — the projection narrows that read, it does
      not replace it. A zero `counts.elements.C` means the contracts are written
      as prose (not addressable), never that the record has none — read it whole.
+     A clause the auditor judges NOT testable — a peer-owned contract, a
+     scope the record itself defers, a code-siting claim, a negative
+     ("none here") with no observable — is never a REQ-N. It is recorded
+     under an `EXCLUDED` section as `EXCLUDED: "<exact quote>" — (section)
+     — <reason>` so the exclusion is reviewable; the gate counts only
+     `[REQ-N]` lines, so a REQ-N left uncovered because it cannot be
+     asserted is an extraction error, not a justified orphan.
   2. Append `ASSUMPTION:` lines for implicit choices it made when
      wording was imprecise but a single reading is defensible.
   3. If a clause is genuinely ambiguous (two readings would produce
@@ -222,7 +229,10 @@ returning. The sub-agent writes `<art>/coverage.md` as a table —
 column 1 the REQ id, column 2 the test name; an uncovered REQ-N keeps
 its row with column 2 EMPTY (that empty cell is the orphan mark — never
 "—", "none" or prose), and a test with no REQ gets a row under its own
-REQ id.
+REQ id. A REQ-N the author finds unassertable is NOT covered by a
+vacuous test and NOT silently left empty: it is named in next_action
+as `demote: REQ-N — <reason>`, and the orchestrator re-briefs the
+Phase 0 auditor to move it to `EXCLUDED` before Phase 2.
 Sub-agent returns a §return-packet; verdict=INCOMPLETE if red-confirmed is
 no — then the orchestrator writes INCOMPLETE("Phase 1 red gate failed")
 and halts, never advancing to Phase 2; evidence_paths list test files +

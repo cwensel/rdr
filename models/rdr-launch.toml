@@ -443,7 +443,7 @@ in = ["0", "1+", "midline"]
 eq = "true"
 [rule.emit]
 next = "stopped:req-orphans"
-why  = "coverage.md has an orphan: a REQ-N with no test, or a test with no REQ-N."
+why  = "coverage.md has an orphan: a REQ-N with no test, or a test with no REQ-N. Cover it; if it cannot be asserted it was never a REQ — demote it to req-list.md EXCLUDED and re-run. Never a vacuous test, never a landing on INCOMPLETE."
 
 [[rule]]
 id = "complete-mvv"
