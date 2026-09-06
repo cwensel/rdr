@@ -902,7 +902,7 @@ var stageFacts = map[string][]string{
 	// read back from the tree rather than re-derived from a claim.
 	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
 	"8 Implement": {"impl_capsule", "impl_state", "lines", "req_count", "impl_orphans",
-		"impl_open_decisions", "impl_mvv_recorded"},
+		"impl_open_decisions", "impl_mvv_recorded", "impl_verification_recorded"},
 }
 
 // modelTags reads the `[tags.<name>]` keys a routing model declares.
@@ -2048,7 +2048,8 @@ func implArtifactEnv(t *testing.T, tbl *FactTable, files map[string]string) *Fac
 // record itself.
 func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 	tbl := loadRealTable(t)
-	names := []string{"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded"}
+	names := []string{"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded",
+		"impl_verification_recorded"}
 
 	t.Run("happy path", func(t *testing.T) {
 		e := implArtifactEnv(t, tbl, map[string]string{
@@ -2317,6 +2318,53 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	// verification.md is the Phase 3 record. A finding (either id form) or
+	// a clean Verdict is a run; headings alone are the template nobody
+	// filled in, and no file at all is absent — the sentinel `false` is
+	// what the gate stops on.
+	t.Run("verification recorded, a heading finding", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"verification.md": "# Verification\n\n### FAIL-1 — the cold path divides by zero\n\nSeen.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_verification_recorded"); got != "true" {
+			t.Errorf("impl_verification_recorded = %q, want true", got)
+		}
+	})
+
+	t.Run("verification recorded, a bullet finding", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"verification.md": "# Verification\n\n- **ADV-1** — a warm tier reads NaN\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_verification_recorded"); got != "true" {
+			t.Errorf("impl_verification_recorded = %q, want true", got)
+		}
+	})
+
+	t.Run("verification recorded, a clean verdict alone", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"verification.md": "# Verification\n\n## Verdict — clean\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_verification_recorded"); got != "true" {
+			t.Errorf("impl_verification_recorded = %q, want true — a clean run is a run", got)
+		}
+	})
+
+	t.Run("verification stub is not a run", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"verification.md": "# Verification\n\n## Phase 3a — CoVe\n\n## Phase 3b — Adversarial\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_verification_recorded"); got != "false" {
+			t.Errorf("impl_verification_recorded = %q, want false — headings with neither finding nor verdict are a stub", got)
+		}
+	})
+
+	t.Run("verification absent", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{"coverage.md": "## REQ-MVV output\n\nSeen.\n"})
+		if v, ok := factValue(tbl.Evaluate(e), "impl_verification_recorded"); ok {
+			t.Errorf("impl_verification_recorded = %q; no verification.md means absent", v)
+		}
+	})
+
 	t.Run("--tags renders the sentinels", func(t *testing.T) {
 		slug := "0099-synthetic-artifact-record"
 		base := t.TempDir()
@@ -2327,7 +2375,8 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		e := testEnv(t, tbl, slug, "", records)
 		facts := tbl.Evaluate(e)
 		want := map[string]bool{"req_count": true, "impl_orphans": true,
-			"impl_open_decisions": true, "impl_mvv_recorded": true}
+			"impl_open_decisions": true, "impl_mvv_recorded": true,
+			"impl_verification_recorded": true}
 		tagged := withAbsentSentinels(tbl, facts, want)
 		got := map[string]string{}
 		for _, f := range tagged {
@@ -2336,6 +2385,7 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		wantVals := map[string]string{
 			"req_count": "none", "impl_orphans": "none",
 			"impl_open_decisions": "none", "impl_mvv_recorded": "false",
+			"impl_verification_recorded": "false",
 		}
 		for name, w := range wantVals {
 			if got[name] != w {
@@ -2397,7 +2447,8 @@ func TestUnboundRecordsRootLeavesTheArtifactFactsAbsent(t *testing.T) {
 	facts := tbl.Evaluate(testEnv(t, tbl, slug, evidence, ""))
 
 	for _, name := range []string{"gate_written", "gate_stale", "impl_capsule", "impl_state",
-		"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded"} {
+		"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded",
+		"impl_verification_recorded"} {
 		if v, ok := factValue(facts, name); ok {
 			t.Errorf("%s = %q with no records root bound; want the fact absent", name, v)
 		}

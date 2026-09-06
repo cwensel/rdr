@@ -474,13 +474,13 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 			return d, fmt.Errorf("fact %q: a spike-diff is a set naming a root", name)
 		}
 	case "impl-artifact":
-		// The five selects are the five ledger reads; an unknown one
+		// The six selects are the six ledger reads; an unknown one
 		// would evaluate to nothing while reading as declared, the same
 		// failure seam-lineage's select guards against.
 		switch d.Select {
-		case "req-count", "orphans", "open-decisions", "mvv-recorded", "impact-families":
+		case "req-count", "orphans", "open-decisions", "mvv-recorded", "verification-recorded", "impact-families":
 		default:
-			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded or impact-families, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded, verification-recorded or impact-families, got %q", name, d.Select)
 		}
 		if d.Root == "" {
 			return d, fmt.Errorf("fact %q: an impl-artifact names a root", name)
@@ -500,9 +500,12 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				return d, fmt.Errorf("fact %q: a %s impl-artifact names a label", name, d.Select)
 			}
 		}
-		if d.Select == "mvv-recorded" {
+		// verification-recorded carries no label: its ids (FAIL-N/ADV-N)
+		// and its Verdict line are fixed by the launch prompt, so the
+		// code owns them rather than the declaration.
+		if d.Select == "mvv-recorded" || d.Select == "verification-recorded" {
 			if d.Kind != "bool" {
-				return d, fmt.Errorf("fact %q: mvv-recorded is a bool", name)
+				return d, fmt.Errorf("fact %q: %s is a bool", name, d.Select)
 			}
 		} else {
 			if d.Kind != "enum" {
@@ -1406,6 +1409,12 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 			return Fact{}, false
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(labelledLine(raw, d.Label))}, true
+	case "verification-recorded":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(verificationRun(raw))}, true
 	case "impact-families":
 		raw, ok := read(0)
 		if !ok {
@@ -1670,6 +1679,26 @@ func labelledLine(raw []byte, label string) bool {
 		}
 	}
 	return false
+}
+
+// verificationFinding matches a Phase 3 finding id at the head of a
+// stripped line — `### FAIL-1 — …`, `- **ADV-1** — x` and a bare
+// `FAIL-2 …` all reduce to the id. stripLead does not remove the
+// CLOSING `**`, so this anchors on the id prefix only.
+var verificationFinding = regexp.MustCompile(`^(FAIL|ADV)-[0-9]+`)
+
+// verificationRun reports whether verification.md is the record of a run
+// rather than a stub: either Phase 3 found something (a FAIL-N/ADV-N id)
+// or it found nothing and said so (`## Verdict — clean`). A file with
+// headings and neither is a template nobody filled in, which must not
+// read as a pass.
+func verificationRun(raw []byte) bool {
+	for _, ln := range strings.Split(string(raw), "\n") {
+		if verificationFinding.MatchString(stripLead(ln)) {
+			return true
+		}
+	}
+	return labelledLine(raw, "Verdict")
 }
 
 // headerField reads a labelled header line from a file under a root.

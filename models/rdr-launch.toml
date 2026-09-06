@@ -14,8 +14,9 @@
 # WHERE EVERY DIMENSION COMES FROM. Facts are rendered by `rdr status
 # --tags --filter …` and declared in rdr-facts.toml, whose names are the
 # contract (`profile`, `lines`, `req_count`, `impl_orphans`,
-# `impl_open_decisions`, `impl_mvv_recorded`, `impact_families`); each is
-# total by a declared sentinel or by construction. The rest are
+# `impl_open_decisions`, `impl_mvv_recorded`, `impl_verification_recorded`,
+# `impact_families`); each is total by a declared sentinel or by
+# construction. The rest are
 # CALLER-SUPPLIED `observed` tags the caller binds from what the world
 # shows it — never estimated, never remembered — and passes as `--tag
 # k=v`: `files` (source files in the packets' changed_paths so far),
@@ -74,7 +75,7 @@ route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
 loop  = ["continue", "return-green", "return-partial"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -132,6 +133,14 @@ required      = true
 
 # A `## REQ-MVV output` heading in coverage.md; the sentinel is `false`.
 [tags.impl_mvv_recorded]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# A Phase 3 finding (FAIL-N/ADV-N) or a clean Verdict in verification.md;
+# the sentinel is `false` — verification.md unread.
+[tags.impl_verification_recorded]
 provenance    = "observed"
 kind          = "bool"
 single_valued = true
@@ -385,10 +394,12 @@ why  = "Every cap holds and the REQ count is not yet written: run inline; Phase 
 # complete — the capsule's verdict
 # ===========================================================================
 #
-# impl_orphans x impl_mvv_recorded x impl_open_decisions x suite_green =
-# 48 cells (impl_open_decisions now carries `midline`). An unread ledger
-# file stops first (nothing looked is not nothing wrong); then the
-# prose's four conditions in its order: green tests, no orphans, MVV
+# impl_orphans x impl_mvv_recorded x impl_open_decisions x
+# impl_verification_recorded x suite_green = 96 cells. An unread ledger
+# file stops first (nothing looked is not nothing wrong), and an unrun
+# Phase 3 stops right behind those two — verification.md missing is a
+# check that did not run, not a pass. Then the prose's four conditions in
+# its order: green tests, no orphans, MVV
 # recorded, no open decisions. `midline` ranks exactly where `1+` ranks
 # at every earlier gate — the count is unread either way — and is its
 # own named stop once the other three gates have passed, because a
@@ -418,6 +429,20 @@ next = "stopped:deviations-unread"
 why  = "deviations.md was not read: Phase 2 writes it even when empty, so an unread one is a missing artifact."
 
 [[rule]]
+id = "complete-verification-unread"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+in = ["0", "1+"]
+[rule.guard.all.impl_open_decisions]
+in = ["0", "1+", "midline"]
+[rule.guard.all.impl_verification_recorded]
+eq = "false"
+[rule.emit]
+next = "stopped:verification-unrun"
+why  = "verification.md was not written: Phase 3 did not run, and code nobody verified is not COMPLETE — run Phase 3 (3a/3b, then 3c if they find anything) before the gate."
+
+[[rule]]
 id = "complete-suite-red"
 [rule.match.recognized]
 eq = "complete"
@@ -425,6 +450,8 @@ eq = "complete"
 in = ["0", "1+"]
 [rule.guard.all.impl_open_decisions]
 in = ["0", "1+", "midline"]
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "false"
 [rule.emit]
@@ -439,6 +466,8 @@ eq = "complete"
 eq = "1+"
 [rule.guard.all.impl_open_decisions]
 in = ["0", "1+", "midline"]
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
 [rule.emit]
@@ -455,6 +484,8 @@ eq = "0"
 eq = "false"
 [rule.guard.all.impl_open_decisions]
 in = ["0", "1+", "midline"]
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
 [rule.emit]
@@ -471,6 +502,8 @@ eq = "0"
 eq = "true"
 [rule.guard.all.impl_open_decisions]
 eq = "1+"
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
 [rule.emit]
@@ -487,6 +520,8 @@ eq = "0"
 eq = "true"
 [rule.guard.all.impl_open_decisions]
 eq = "midline"
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
 [rule.emit]
@@ -503,6 +538,8 @@ eq = "0"
 eq = "true"
 [rule.guard.all.impl_open_decisions]
 eq = "0"
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
 [rule.emit]

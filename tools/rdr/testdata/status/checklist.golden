@@ -29,7 +29,7 @@
 6 Reconcile                    ✓ reconcile/reconcile.md
 7 Finalize                     – gate.md
 7.1 Cluster                    ✓ clustered unset · cluster_reconciled=true · key=0021-0022-0023
-8 Implement                    ~ impl_state=IN-PROGRESS · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true
+8 Implement                    ~ impl_state=IN-PROGRESS · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true · impl_verification_recorded unset
 
 # 0023
 1 Seed                         ✓ Implemented
@@ -73,7 +73,7 @@
 6 Reconcile                    – no reconcile/
 7 Finalize                     ✓ gate.md
 7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
-8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset · impl_verification_recorded unset
 
 # 0028
 1 Seed                         ✓ Final
@@ -84,7 +84,7 @@
 6 Reconcile                    – no reconcile/
 7 Finalize                     – gate.md
 7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
-8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans unset · impl_open_decisions unset · impl_mvv_recorded unset · impl_verification_recorded unset
 
 # 0029
 1 Seed                         ✓ Final
@@ -106,7 +106,7 @@
 6 Reconcile                    – no reconcile/
 7 Finalize                     – gate.md
 7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
-8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true
+8 Implement                    ✓ impl_state=COMPLETE · req_count=0-10 · impl_orphans=0 · impl_open_decisions=0 · impl_mvv_recorded=true · impl_verification_recorded=true
 
 # 0033
 1 Seed                         ✓ Draft

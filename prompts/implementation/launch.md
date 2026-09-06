@@ -39,7 +39,7 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 │   ├── req-list.md              # REQ-N quotes + ASSUMPTIONs
 │   ├── impact.md                # predicted predecessor blast radius (Phase 0)
 │   ├── coverage.md              # REQ-N × test-name + REQ-MVV output
-│   ├── verification.md          # Phase 3 CoVe + adversarial findings
+│   ├── verification.md          # Phase 3 CoVe + adversarial findings, or a clean Verdict
 │   ├── deviations.md            # classified deviations
 │   └── status.md                # resume capsule (fixed header) + COMPLETE | INCOMPLETE verdict
 └── NNNN-slug-postmortem.md      # post-mortem (added after close)
@@ -83,7 +83,7 @@ ESCALATION RULE
 Only stop to ask the user when a DESIGN DECISION is required:
 genuine spec ambiguity that no reasonable reading resolves, or a
 contract-level deviation (spec defect, deferred-scope decision,
-accept-or-fix call). Never ask for permission to proceed between
+accept-or-fix call) that Phase 3d's ladder did not settle. Never ask for permission to proceed between
 phases, never ask whether to run the next phase, never ask about
 mechanical translations the sub-agent can record and continue past.
 If a precondition fails (predecessor not COMPLETE, baseline red, on-disk
@@ -318,17 +318,11 @@ Sub-agent returns a §return-packet; verdict=PASS only with the full
 suite green, NEEDS_DECISION if any needs-author-decision deviation,
 INCOMPLETE only from `return-partial`, summary_50w gives green,
 evidence_paths cite each open deviation.
-If needs-author-decision deviations are non-empty, the orchestrator
-asks the user one consolidated question listing each gap with the
-sub-agent's recommendation, records each resolution by REWRITING that
-entry's `Status:` line in place — the open form is the plain line
-`Status: needs author decision` (qualifiers only inside a trailing
-parenthesis); closed is `Status: needs author decision → RESOLVED
-(<decision>)` — never a note appended below it — and re-briefs the
-implementer with the decisions.
-Otherwise advance.
+PASS and NEEDS_DECISION both advance to Phase 3: it verifies code, not
+decisions, and 3d grounds the open entries. The gate is never the next
+step after Phase 2.
 
-PHASE 3 — Self-verification (two sub-agents in parallel, then fixup if needed)
+PHASE 3 — Self-verification (3a, 3b and 3d in parallel, then fixup if needed)
 
 PHASE 3a [DELEGATE to sub-agent: "CoVe verifier"]
 Brief: RDR path and `<art>/req-list.md` only. NO implementation,
@@ -350,27 +344,52 @@ the current implementation (else they don't actually catch the
 failure mode). Append findings to `<art>/verification.md` as ADV-N
 entries.
 Sub-agent returns a §return-packet (verdict=BLOCK if any added test currently fails; summary_50w lists failure modes named, tests added, which currently fail against the implementation).
+A 3a or 3b pass with no finding still appends a line-leading
+`## Verdict — clean` under its heading: the gate reads
+`verification.md`, and an absent file is an unrun Phase 3, a named stop.
+
+PHASE 3d — DECISION GROUNDING [conditional, DELEGATE: one read-only
+"decision grounder" per `Status: needs author decision` entry in
+`<art>/deviations.md`]
+Brief: that one entry verbatim, {RDR_PATH}, `{RDR_RESOURCES}`, the
+source tree. NO other entries, NO Phase 3 findings. Sub-agent's task:
+walk rdr-common §ground-before-ask (the `ground` outcome, §rdr-write's
+call) rung by rung — code, cluster peers' Status/Overrides, corpus, RFD
+— until `apply` or `ask`. It edits nothing.
+Sub-agent returns a §return-packet: verdict=PASS with the decision and
+its cite in summary_50w (next_action `code-change` if the decision
+alters code), or NEEDS_DECISION with `searched=` in next_action.
+The orchestrator records each PASS by REWRITING that entry's `Status:`
+line in place — the open form is the plain line `Status: needs author
+decision` (qualifiers only inside a trailing parenthesis); closed is
+`Status: needs author decision → RESOLVED (<cite>)` — never a note
+appended below it. Survivors go to ONE rdr-common §strong-consult
+(brief: the entries and their `searched=` trails), recorded the same
+way. Only its survivors reach the gate as open decisions: ask the user
+one consolidated question listing each with the recommendation
+(ESCALATION RULE) and rewrite the answers in the same form.
 
 PHASE 3c — FIXUP [conditional, DELEGATE to sub-agent: "Phase 3 fixup"]
 Run this only if Phase 3a returned FAIL-N entries OR Phase 3b added
-tests that currently fail. Brief: `<art>/verification.md`,
-`<art>/req-list.md`, source tree, test framework, `{RDR_RESOURCES}`.
-Sub-agent's task:
-fix each defect with the minimum change; add a regression test if
-not already present. After fixing, run the full suite — must be
-green. New deviations follow Phase 2's classification rules
-(mechanical vs needs-author-decision).
+tests that currently fail OR a 3d resolution alters code. Brief:
+`<art>/verification.md`, `<art>/deviations.md`, `<art>/req-list.md`,
+source tree, test framework, `{RDR_RESOURCES}`. Sub-agent's task: fix
+each defect, and apply each RESOLVED decision that alters code, with the
+minimum change; add a regression test if not already present. After
+fixing, run the full suite — must be green. New deviations follow
+Phase 2's classification rules (mechanical vs needs-author-decision).
 Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lists defects fixed, regression tests added, green yes/no, any new deviations needing author decision).
-Apply the same escalation rule as Phase 2 if needed.
+A new needs-author-decision entry takes Phase 3d again.
 
 COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
   IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
   "$IS" flow resolve --model "$RDR_HOME/models/rdr-launch.toml" --outcome complete --plan-only \
-    $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded <slug>) \
+    $("$RDR_HOME/bin/rdr" status --tags --filter impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded <slug>) \
     --tag suite_green=<true|false>    # the last packet's verdict: PASS → true (full suite, predecessors included)
-The `complete` group proves every cell — green tests, no orphans either way,
-REQ-MVV output recorded, no open needs-author-decision line — and an unread
-ledger file is a named stop, never a pass. Write `<art>/status.md` state from
+The `complete` group proves every cell — Phase 3 recorded, green tests, no
+orphans either way, REQ-MVV output recorded, no open needs-author-decision
+line — and an unread ledger file or an unwritten `verification.md` is a
+named stop, never a pass. Write `<art>/status.md` state from
 `emit.next` as a value: `COMPLETE`, or `INCOMPLETE — <stopped:token>: <why>`.
 
 Do not declare success on INCOMPLETE.
@@ -414,7 +433,8 @@ GUARDRAILS
   Phase 1 brief excludes implementation hints; Phase 2 brief
   excludes Phase 3 findings; Phase 3a brief excludes
   implementation reads of the Phase 1 tests; Phase 3b brief
-  excludes Phase 3a findings.
+  excludes Phase 3a findings; a Phase 3d brief carries one entry and
+  no finding.
 ```
 
 ## Predecessor Convention

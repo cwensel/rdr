@@ -1073,6 +1073,15 @@ label       = "REQ-MVV output"
 absent      = "false"
 description = "coverage.md carries a REQ-MVV output line; a runner line alone is not a recording."
 
+[fact.impl_verification_recorded]
+kind        = "bool"
+source      = "impl-artifact"
+select      = "verification-recorded"
+root        = "artifacts"
+paths       = ["verification.md"]
+absent      = "false"
+description = "verification.md carries a Phase 3 finding (FAIL-N/ADV-N) or a clean Verdict; a file with neither is a stub, not a run."
+
 # Phase 0 writes impact.md from `rdr impact`; the launch table's shard
 # route reads only the header's `families:` count. Unread is `none`, a
 # named stop, never `0` — an empty blast radius was looked for.
