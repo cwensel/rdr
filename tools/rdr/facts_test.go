@@ -2135,6 +2135,32 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	t.Run("hyphenated ids read the same in both files", func(t *testing.T) {
+		// `REQ-OVR-1` used to match nothing in req-list.md (anchored on `]`)
+		// and truncate to `REQ-OVR` in coverage.md (prefix-only): a phantom
+		// orphan on every hyphenated id.
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"req-list.md": "- **[REQ-OVR-1]** \"one.\"\n- **[REQ-OVR-2]** \"two.\"\n- **[REQ-7.a-iv]** \"three.\"\n",
+			"coverage.md": "| Requirement | Test |\n| --- | --- |\n" +
+				"| `REQ-OVR-1` | `TestOne` |\n" +
+				"| `REQ-OVR-2` | `TestTwo` |\n" +
+				"| `REQ-7.a-iv` | `TestThree` |\n",
+		})
+		facts := tbl.Evaluate(e)
+		if got, _ := factValue(facts, "impl_orphans"); got != "0" {
+			t.Errorf("impl_orphans = %q, want 0 — hyphenated ids must agree across both files", got)
+		}
+		e = implArtifactEnv(t, tbl, map[string]string{
+			"req-list.md": "- **[REQ-OVR-1]** \"one.\"\n- **[REQ-OVR-2]** \"two.\"\n",
+			"coverage.md": "| Requirement | Test |\n| --- | --- |\n" +
+				"| `REQ-OVR-1` | `TestOne` |\n",
+		})
+		facts = tbl.Evaluate(e)
+		if got, _ := factValue(facts, "impl_orphans"); got != "1+" {
+			t.Errorf("impl_orphans = %q, want 1+ — REQ-OVR-2 is listed but uncovered", got)
+		}
+	})
+
 	t.Run("eleven-plus, MVV and duplicates excluded", func(t *testing.T) {
 		var b strings.Builder
 		for i := 1; i <= 12; i++ {

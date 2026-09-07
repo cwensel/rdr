@@ -1501,10 +1501,17 @@ func stripLead(s string) string {
 	}
 }
 
+// reqIDBody is the one shape of a REQ id both parsers share: dot-joined
+// segments, optionally hyphen-joined — `REQ-1`, `REQ-7.a-iv`, `REQ-OVR-1`.
+// A single definition, because the two files are compared by id: a
+// prefix-only reading in one and an anchored one in the other turns
+// `REQ-OVR-1` into a phantom `REQ-OVR` orphan.
+const reqIDBody = `REQ-[A-Za-z0-9.]+(?:-[A-Za-z0-9.]+)*`
+
 // reqLineID matches a leading `[REQ-<id>]` once the line's markup is
 // stripped — the ledger's one authoring form, never guessed from prose
 // elsewhere on the line.
-var reqLineID = regexp.MustCompile(`^\[(REQ-[A-Za-z0-9.]+)\]`)
+var reqLineID = regexp.MustCompile(`^\[(` + reqIDBody + `)\]`)
 
 // reqIDs collects the DISTINCT [REQ-<id>] ids a req-list.md declares,
 // excluding REQ-MVV — the size gate counts requirements, not the MVV
@@ -1528,7 +1535,7 @@ func reqIDs(raw []byte) map[string]bool {
 
 // reqCellID matches a markdown table cell's leading REQ id, emphasis and
 // backticks stripped — coverage.md's first column.
-var reqCellID = regexp.MustCompile(`^(REQ-[A-Za-z0-9.]+)`)
+var reqCellID = regexp.MustCompile(`^(` + reqIDBody + `)`)
 
 // coverageRows reads coverage.md's table: the REQ ids its rows cover, and
 // which of those rows carry an empty second (test) cell — a row present
