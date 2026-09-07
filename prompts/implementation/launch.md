@@ -249,7 +249,9 @@ full suite; a `stopped:*` is INCOMPLETE with `emit.why`.
 Brief each leg: `briefs/phase-2.md`; extra fields TEST_FRAMEWORK, TEST_FILES
 (Phase 1's), PREDECESSOR_TESTS (the predecessors' tests — executable ground
 truth, §Predecessor Convention), RESUME (its worklist position; on a
-respawn the capsule's `next:` and `reads:` lines), START_SHA (`git -C <wt> rev-parse
+respawn the capsule's `next:` and `reads:` lines, then each `→ RESOLVED
+(<cite>)` line 3d just closed whose decision alters code, as the first
+item), START_SHA (`git -C <wt> rev-parse
 --short HEAD`) and START_EPOCH (`date -u +%s`). The template names
 `<art>/impact.md` (a leg works a family by its own `## <Family>` section; a
 row that goes red takes the rule below — re-cut only where a CHANGE REQ
@@ -317,11 +319,15 @@ Sub-agent returns a §return-packet; verdict=PASS only with the full
 suite green, NEEDS_DECISION if any needs-author-decision deviation,
 INCOMPLETE only from `return-partial`, summary_50w gives green,
 evidence_paths cite each open deviation.
-PASS and NEEDS_DECISION both advance to Phase 3: it verifies code, not
-decisions, and 3d grounds the open entries. The gate is never the next
-step after Phase 2.
+Every packet is followed by PHASE 3d for each entry it left as the plain
+open `Status:` line — before the successor leg on `return-partial`, before
+Phase 3 on PASS or NEEDS_DECISION — so no leg inherits a red a cite could
+have closed (one run carried two such entries through nine legs); a
+RESOLVED decision that alters code is the successor's first item, in
+RESUME. PASS and NEEDS_DECISION both advance to Phase 3: it verifies code,
+not decisions. The gate is never the next step after Phase 2.
 
-PHASE 3 — Self-verification (3a, 3b and 3d in parallel, then fixup if needed)
+PHASE 3 — Self-verification (3a and 3b in parallel, 3d for what the last packet left open, then fixup if needed)
 
 PHASE 3a [DELEGATE to sub-agent: "CoVe verifier"]
 Brief: `briefs/phase-3a.md` (RDR path and `<art>/req-list.md` only; NO
@@ -350,6 +356,8 @@ A 3a or 3b pass with no finding still appends a line-leading
 PHASE 3d — DECISION GROUNDING [conditional, DELEGATE: one read-only
 "decision grounder" per `Status: needs author decision` entry in
 `<art>/deviations.md`]
+Runs at every Phase 2 packet boundary and after 3c (PHASE 2's rule), on the
+entries that packet left open; a RESOLVED line is closed, never re-grounded.
 Brief: `briefs/phase-grounder.md`; extra field ENTRY (that one entry,
 verbatim; NO other entry, NO Phase 3 finding). Sub-agent's task: walk
 rdr-common §ground-before-ask rung by rung (`rdr-gate ground` asks the
@@ -370,7 +378,8 @@ one consolidated question listing each with the recommendation
 
 PHASE 3c — FIXUP [conditional, DELEGATE to sub-agent: "Phase 3 fixup"]
 Run this only if Phase 3a returned FAIL-N entries OR Phase 3b added
-tests that currently fail OR a 3d resolution alters code. Brief:
+tests that currently fail OR a 3d resolution after the last leg alters
+code (earlier ones were a successor leg's first item). Brief:
 `briefs/phase-3c.md` (`<art>/verification.md`, `<art>/deviations.md`,
 `<art>/req-list.md`, source tree, `{RDR_RESOURCES}`); extra field
 TEST_FRAMEWORK. Sub-agent's task: fix
