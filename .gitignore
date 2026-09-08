@@ -15,3 +15,5 @@ bin/*
 !bin/rdr-next
 !bin/rdr-gate
 !bin/rdr-leg-commit
+!bin/rdr-leg-budget
+!bin/rdr-leg-test

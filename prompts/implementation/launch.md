@@ -263,9 +263,12 @@ row that goes red takes the rule below — re-cut only where a CHANGE REQ
 names it, else regression, else SPEC-DEFECT — recorded against the list,
 not a suite dump; a row that stays green needs nothing), the authority to
 write `<art>/deviations.md` (always, even empty), and the leg's ONLY commit
-command, `$RDR_HOME/bin/rdr-leg-commit`: it commits, reads `commits` and
-`elapsed` from git and the clock, asks the `budget` row and prints `next:`
-— so the ask cannot be skipped (the leg that never asked hit 965K).
+and test commands, `$RDR_HOME/bin/rdr-leg-commit` and `rdr-leg-test`: each
+reads `commits` and `elapsed` from git and the clock, asks the `budget` row
+and prints `next:` — so the ask cannot be skipped (the leg that never asked
+hit 965K), and a run is an ask too: one refuses to start past the cap (a
+leg once spent 27 min in three package runs between asks, and 18 more in
+a run it started after `return-partial`).
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from

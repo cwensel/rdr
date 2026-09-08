@@ -23,8 +23,8 @@
 #   elapsed: M min (<bucket>)
 #   next: continue | return-green | return-partial     (rdr-gate budget)
 #   why: <the row's line>
-# The buckets are read from `[tags.commits]` / `[tags.elapsed]` in the
-# model, so a cap moved there moves here with no edit.
+# The ask itself is `rdr-leg-budget` (shared with `rdr-leg-test`); the
+# buckets are read from the model, so a cap moved there moves here.
 
 here=$(dirname "$0")
 H="${RDR_HOME:-$here/..}"
@@ -64,23 +64,4 @@ else
   echo "nothing to commit"
 fi
 
-n=$(g rev-list --count "$start..HEAD") || exit 2
-mins=$(( ($(date -u +%s) - since) / 60 ))
-
-# bucket N over the tag's declared domain: `A-B` ranges and an open `A+`.
-domain_of() { sed -n "/^\[tags\.$1\]/,/^\[/p" "$M" | sed -n 's/^domain *= *\[\(.*\)\]/\1/p' | tr -d '" ' | tr ',' ' '; }
-bucket() {
-  v=$1; shift
-  for d in "$@"; do
-    case $d in
-      *+)  [ "$v" -ge "${d%+}" ] && { echo "$d"; return; } ;;
-      *-*) [ "$v" -ge "${d%-*}" ] && [ "$v" -le "${d#*-}" ] && { echo "$d"; return; } ;;
-    esac
-  done
-  echo "stopped:no-bucket — $v is outside the declared domain ($*)" >&2; exit 2
-}
-cb=$(bucket "$n" $(domain_of commits)) || exit 2
-eb=$(bucket "$mins" $(domain_of elapsed)) || exit 2
-echo "commits: $n ($cb)"
-echo "elapsed: $mins min ($eb)"
-exec "$here/rdr-gate" budget --tag "commits=$cb" --tag "elapsed=$eb" --tag "suite_green=$green"
+exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green "$green" ${C:+-C "$C"}

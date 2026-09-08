@@ -29,7 +29,7 @@ func installLaunchHelpers(t *testing.T) string {
 	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
-	for _, s := range []string{"rdr-gate", "rdr-leg-commit"} {
+	for _, s := range []string{"rdr-gate", "rdr-leg-commit", "rdr-leg-budget", "rdr-leg-test"} {
 		script, err := os.ReadFile(filepath.Join(home, "bin", s))
 		if err != nil {
 			t.Fatalf("bin/%s is not in the tree: %v", s, err)
@@ -268,4 +268,158 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 		t.Fatalf("-C commit: exit %d\n%s", code, out)
 	}
 	expect(out, "committed ", "commits: 7 (6+)", "next: return-partial")
+}
+
+// TestRdrLegTestRunsThenAsksTheBudget: a run under the elapsed cap executes
+// the command and asks the budget with suite_green = (--full && exit 0); a
+// run at or past the cap is refused BEFORE it starts — the command's own
+// output (which would prove it ran) must never appear — and the budget is
+// asked with suite_green=false. -C runs the command inside that dir rather
+// than the test's cwd.
+func TestRdrLegTestRunsThenAsksTheBudget(t *testing.T) {
+	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
+	dir := installLaunchHelpers(t)
+	legTest := filepath.Join(dir, "rdr-leg-test")
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "leg@test")
+	git("config", "user.name", "leg")
+	git("config", "commit.gpgsign", "false")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+	start := git("rev-parse", "--short", "HEAD")
+	since := strconv.FormatInt(time.Now().Unix(), 10)
+	expect := func(out string, wants ...string) {
+		t.Helper()
+		for _, w := range wants {
+			if !strings.Contains(out, w) {
+				t.Errorf("output lacks %q:\n%s", w, out)
+			}
+		}
+	}
+
+	// a. under the cap, a package run (no --full) never reports green
+	code, out := runScript(t, repo, legTest, "--start", start, "--since", since, "--", "sh", "-c", "echo ran; exit 0")
+	if code != 0 {
+		t.Fatalf("package run: exit %d\n%s", code, out)
+	}
+	expect(out, "ran", "run: exit 0", "next: continue")
+
+	// b. --full, exit 0 -> return-green
+	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 0")
+	if code != 0 {
+		t.Fatalf("full green run: exit %d\n%s", code, out)
+	}
+	expect(out, "run: exit 0", "next: return-green")
+
+	// c. --full, exit 1 -> a red full run, still under caps
+	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 1")
+	if code != 0 {
+		t.Fatalf("full red run: exit %d\n%s", code, out)
+	}
+	expect(out, "run: exit 1", "next: continue")
+
+	// d. over the cap: the run must not start, so its output must not appear
+	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
+	code, out = runScript(t, repo, legTest, "--start", start, "--since", late, "--", "sh", "-c", "echo MUST-NOT-RUN")
+	if code != 0 {
+		t.Fatalf("over-cap ask: exit %d\n%s", code, out)
+	}
+	expect(out, "not run: over the leg's cap")
+	if strings.Contains(out, "MUST-NOT-RUN") {
+		t.Errorf("a run over the cap still ran the command\n%s", out)
+	}
+	expect(out, "next: return-partial")
+
+	// e. -C: the command runs inside the repo, not the test's cwd
+	code, out = runScript(t, t.TempDir(), legTest, "-C", repo, "--start", start, "--since", since, "--", "sh", "-c", "pwd")
+	if code != 0 {
+		t.Fatalf("-C run: exit %d\n%s", code, out)
+	}
+	wantDir, err := filepath.EvalSymlinks(repo)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gotDir := ""
+	for _, line := range strings.Split(out, "\n") {
+		if strings.HasPrefix(line, "/") {
+			gotDir = line
+			break
+		}
+	}
+	if resolved, err := filepath.EvalSymlinks(gotDir); err != nil || resolved != wantDir {
+		t.Errorf("-C run: pwd %q (resolved %q, err %v), want %q\n%s", gotDir, resolved, err, wantDir, out)
+	}
+
+	// f. usage refusals: exit 2, nothing after --, and --since not epoch seconds
+	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--")
+	if code != 2 || strings.Contains(out, "next: ") {
+		t.Errorf("no command after --: exit %d, want 2 and no answer\n%s", code, out)
+	}
+	code, out = runScript(t, repo, legTest, "--start", start, "--since", "now", "--", "sh", "-c", "exit 0")
+	if code != 2 || strings.Contains(out, "next: ") {
+		t.Errorf("--since now: exit %d, want 2 and no answer\n%s", code, out)
+	}
+}
+
+// TestRdrLegBudgetBucketsGitAndTheClock: the budget ask reads commits since
+// the start SHA from git and minutes since the start epoch from the clock,
+// buckets each over the model's declared domain, and resolves the row —
+// the same ask rdr-leg-commit and rdr-leg-test both end in.
+func TestRdrLegBudgetBucketsGitAndTheClock(t *testing.T) {
+	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
+	dir := installLaunchHelpers(t)
+	budget := filepath.Join(dir, "rdr-leg-budget")
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "leg@test")
+	git("config", "user.name", "leg")
+	git("config", "commit.gpgsign", "false")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+	start := git("rev-parse", "--short", "HEAD")
+	git("commit", "-q", "--allow-empty", "-m", "one")
+	git("commit", "-q", "--allow-empty", "-m", "two")
+	since := strconv.FormatInt(time.Now().Unix(), 10)
+	expect := func(out string, wants ...string) {
+		t.Helper()
+		for _, w := range wants {
+			if !strings.Contains(out, w) {
+				t.Errorf("output lacks %q:\n%s", w, out)
+			}
+		}
+	}
+
+	code, out := runScript(t, repo, budget, "--start", start, "--since", since, "--suite-green", "false")
+	if code != 0 {
+		t.Fatalf("commits ask: exit %d\n%s", code, out)
+	}
+	expect(out, "commits: 2 (0-5)", "next: continue")
+
+	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
+	code, out = runScript(t, repo, budget, "--start", start, "--since", late, "--suite-green", "false")
+	if code != 0 {
+		t.Fatalf("elapsed ask: exit %d\n%s", code, out)
+	}
+	expect(out, "elapsed: 40 min (31+)", "next: return-partial")
+
+	code, out = runScript(t, repo, budget, "--start", start, "--since", late, "--suite-green", "true")
+	if code != 0 {
+		t.Fatalf("green ask: exit %d\n%s", code, out)
+	}
+	expect(out, "next: return-green")
 }

@@ -1,0 +1,60 @@
+#!/bin/sh
+# rdr-leg-test — a leg's ONLY test command: refuse a run past the cap, run, then ask the budget.
+#
+# The budget row was asked only at commits, and a test run is not a commit:
+# one leg spent 27 minutes in three package runs between two asks, and 18
+# more in a run it started after `return-partial`. This makes the run an
+# ask too — the clock is read before and after — and a run that would
+# start past the elapsed cap is not started: the leg is told to return.
+#
+#   rdr-leg-test --start <sha> --since <epoch> [--full] [-C <dir>] -- <test command…>
+#
+# `--full` marks the ONE full-suite run (the worklist's last item): only
+# then is the run's exit reported as `suite_green`; a package run is
+# `--suite-green false` however green it was, since the full suite has not
+# run. Prints the command's output, then:
+#   run: exit <code> in <M> min            | not run: over the leg's cap
+#   commits/elapsed/next/why               (rdr-leg-budget)
+
+here=$(dirname "$0")
+H="${RDR_HOME:-$here/..}"
+M="$H/models/rdr-launch.toml"
+
+usage() {
+  [ $# -gt 0 ] && echo "rdr-leg-test: $*" >&2
+  echo "usage: rdr-leg-test --start <sha> --since <epoch> [--full] [-C <dir>] -- <test command…>" >&2
+  exit 2
+}
+
+start= since= full=false C=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --start) start=$2; shift 2 ;;
+    --since) since=$2; shift 2 ;;
+    --full)  full=true; shift ;;
+    -C)      C=$2;     shift 2 ;;
+    --)      shift; break ;;
+    *) usage "unexpected '$1' (the test command follows --)" ;;
+  esac
+done
+[ $# -gt 0 ] || usage "no test command after --"
+[ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
+case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
+[ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
+
+# the elapsed cap is the model's open bucket (`31+`), never a number here
+cap=$(sed -n '/^\[tags\.elapsed\]/,/^\[/p' "$M" | sed -n 's/^domain *= *\[\(.*\)\]/\1/p' | tr -d '" ' | tr ',' '\n' | sed -n 's/+$//p' | head -1)
+[ -n "$cap" ] || { echo "stopped:no-elapsed-cap — $M declares no open elapsed bucket" >&2; exit 2; }
+mins=$(( ($(date -u +%s) - since) / 60 ))
+if [ "$mins" -ge "$cap" ]; then
+  echo "not run: over the leg's cap ($mins min) — return, the successor runs it"
+  exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green false ${C:+-C "$C"}
+fi
+
+t0=$(date -u +%s)
+if [ -n "$C" ]; then (cd "$C" && "$@"); else "$@"; fi
+code=$?
+echo "run: exit $code in $(( ($(date -u +%s) - t0) / 60 )) min"
+green=false
+[ "$full" = true ] && [ "$code" -eq 0 ] && green=true
+exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green "$green" ${C:+-C "$C"}

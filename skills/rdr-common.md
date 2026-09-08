@@ -499,7 +499,9 @@ parent rejects like any malformed packet (the decision is the human's; §strong-
 
 `appendix:` is the one optional field, only when the brief asks for it, and it is
 never the parent's read — the six fields above decide; the appendix is copied into
-the evidence file. The parent **rejects a malformed packet** (missing/extra field,
+the evidence file. **A packet is ≤1 K chars**; grounding, quotes and diffs go to
+a file the packet cites (five grounder packets once carried 96 K chars into a
+parent that holds "paths and one-line summaries"). The parent **rejects a malformed packet** (missing/extra field,
 unlisted verdict value) and asks ONLY for a corrected packet — never a fresh
 analysis pass. Do
 **not** fetch the full subagent transcript unless the packet's evidence_paths
