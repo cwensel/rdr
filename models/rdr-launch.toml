@@ -15,7 +15,7 @@
 # --tags --filter …` and declared in rdr-facts.toml, whose names are the
 # contract (`profile`, `lines`, `req_count`, `impl_orphans`,
 # `impl_open_decisions`, `impl_mvv_recorded`, `impl_verification_recorded`,
-# `impact_families`); each is total by a declared sentinel or by
+# `impl_findings_open`, `impact_families`); each is total by a declared sentinel or by
 # construction. The rest are
 # CALLER-SUPPLIED `observed` tags the caller binds from what the world
 # shows it — never estimated, never remembered — and passes as `--tag
@@ -75,7 +75,7 @@ route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
 loop  = ["continue", "return-green", "return-partial"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:findings-open", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -143,6 +143,16 @@ required      = true
 [tags.impl_verification_recorded]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# IN-SCOPE rows in triage.md not yet `fixed:`/`held:`; `none` = no ledger,
+# which is not a stop (the ledger is written downstream, after the gate
+# first passes).
+[tags.impl_findings_open]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
 single_valued = true
 required      = true
 
@@ -400,16 +410,18 @@ why  = "Every cap holds and the REQ count is not yet written: run inline; Phase 
 # ===========================================================================
 #
 # impl_orphans x impl_mvv_recorded x impl_open_decisions x
-# impl_verification_recorded x suite_green = 96 cells. An unread ledger
-# file stops first (nothing looked is not nothing wrong), and an unrun
-# Phase 3 stops right behind those two — verification.md missing is a
-# check that did not run, not a pass. Then the prose's four conditions in
-# its order: green tests, no orphans, MVV
-# recorded, no open decisions. `midline` ranks exactly where `1+` ranks
-# at every earlier gate — the count is unread either way — and is its
-# own named stop once the other three gates have passed, because a
-# rewrite is needed before the count can be trusted at all. One cell
-# completes.
+# impl_verification_recorded x suite_green x impl_findings_open = 288
+# cells. An unread ledger file stops first (nothing looked is not nothing
+# wrong), and an unrun Phase 3 stops right behind those two —
+# verification.md missing is a check that did not run, not a pass. Then
+# the prose's conditions in its order: green tests, no orphans, MVV
+# recorded, no open decisions, no open in-scope finding. `midline` ranks
+# exactly where `1+` ranks at every earlier gate — the count is unread
+# either way — and is its own named stop once the other three gates have
+# passed, because a rewrite is needed before the count can be trusted at
+# all. The findings ledger is last and only ever stops on `1+`: it is
+# written downstream after the gate first passes, so `none` is the normal
+# first ask and `0` the finished one. One cell completes.
 
 [[rule]]
 id = "complete-coverage-unread"
@@ -534,6 +546,26 @@ next = "stopped:deviations-status-midline"
 why  = "a deviations.md entry carries its Status mid-line (`**Type**: … **Status**: …`), so open decisions cannot be counted; rewrite each entry's Status as its own line-leading `Status: <value>` line (launch.md's grammar), then re-run the gate."
 
 [[rule]]
+id = "complete-findings-open"
+[rule.match.recognized]
+eq = "complete"
+[rule.guard.all.impl_orphans]
+eq = "0"
+[rule.guard.all.impl_mvv_recorded]
+eq = "true"
+[rule.guard.all.impl_open_decisions]
+eq = "0"
+[rule.guard.all.impl_verification_recorded]
+eq = "true"
+[rule.guard.all.suite_green]
+eq = "true"
+[rule.guard.all.impl_findings_open]
+eq = "1+"
+[rule.emit]
+next = "stopped:findings-open"
+why  = "triage.md has an IN-SCOPE row not yet fixed:<sha> or held:<reason>: a known defect in a clause the record decided. Run Phase 3c on the open rows and re-ask; the run finishes its own contract, it does not ship the defect as a kata."
+
+[[rule]]
 id = "complete"
 [rule.match.recognized]
 eq = "complete"
@@ -547,9 +579,11 @@ eq = "0"
 eq = "true"
 [rule.guard.all.suite_green]
 eq = "true"
+[rule.guard.all.impl_findings_open]
+in = ["0", "none"]
 [rule.emit]
 next = "COMPLETE"
-why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output recorded, no open decisions."
+why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output recorded, no open decisions, no open in-scope finding."
 
 # ===========================================================================
 # precheck — the record may be implemented

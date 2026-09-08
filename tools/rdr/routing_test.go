@@ -1092,22 +1092,36 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		t.Errorf("size gate on 0030 with a 4th file: rule %q next %q, want size-files/delegated", rule, next)
 	}
 
-	argv = filteredTagArgv(t, table, "0030", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded")
+	argv = filteredTagArgv(t, table, "0030", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded,impl_findings_open")
 	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete" || next != "COMPLETE" {
 		t.Errorf("completion gate on 0030: rule %q next %q, want complete/COMPLETE", rule, next)
 	}
 	// 0021 has no ledger at all: every impl fact renders its sentinel and
 	// the gate names the unread file rather than passing a check it never ran.
-	argv = filteredTagArgv(t, table, "0021", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded")
+	argv = filteredTagArgv(t, table, "0021", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded,impl_findings_open")
 	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete-coverage-unread" || next != "stopped:coverage-unread" {
 		t.Errorf("completion gate on 0021 (no ledger): rule %q next %q, want complete-coverage-unread", rule, next)
 	}
 	// 0022 has the whole Phase 2 ledger and no verification.md: Phase 3
 	// never ran, so the gate names that rather than reading the silence
 	// as a pass.
-	argv = filteredTagArgv(t, table, "0022", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded")
+	argv = filteredTagArgv(t, table, "0022", "impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded,impl_findings_open")
 	if rule, next := resolve("complete", argv, "suite_green", "true"); rule != "complete-verification-unread" || next != "stopped:verification-unrun" {
 		t.Errorf("completion gate on 0022 (no verification.md): rule %q next %q, want complete-verification-unread", rule, next)
+	}
+	// findings-open is checked last, after every other gate is green: an
+	// open ledger row stops the launch even though everything else about
+	// the record is finished, and closing the ledger (0) is what lets the
+	// same argv resolve to COMPLETE.
+	if rule, next := resolve("complete", nil, "impl_orphans", "0", "impl_open_decisions", "0",
+		"impl_mvv_recorded", "true", "impl_verification_recorded", "true",
+		"impl_findings_open", "1+", "suite_green", "true"); rule != "complete-findings-open" || next != "stopped:findings-open" {
+		t.Errorf("completion gate with impl_findings_open=1+: rule %q next %q, want complete-findings-open/stopped:findings-open", rule, next)
+	}
+	if rule, next := resolve("complete", nil, "impl_orphans", "0", "impl_open_decisions", "0",
+		"impl_mvv_recorded", "true", "impl_verification_recorded", "true",
+		"impl_findings_open", "0", "suite_green", "true"); rule != "complete" || next != "COMPLETE" {
+		t.Errorf("completion gate with impl_findings_open=0: rule %q next %q, want complete/COMPLETE", rule, next)
 	}
 
 	// The precheck: status x predecessors_state x baseline, every row

@@ -1082,6 +1082,26 @@ paths       = ["verification.md"]
 absent      = "false"
 description = "verification.md carries a Phase 3 finding (FAIL-N/ADV-N) or a clean Verdict; a file with neither is a stub, not a run."
 
+# triage.md is the findings ledger a downstream review writes AFTER the
+# gate first passes (the engine never runs the reviewer; it defines the
+# row grammar): a table whose header names `Verdict` and `Outcome`. An
+# IN-SCOPE row — a defect in a clause the record already decided, reproduced
+# at HEAD — is open until Phase 3c rewrites its Outcome to `fixed:<sha>` or
+# `held:<reason>`; any other Outcome (`open`, a kata id) is a known in-scope
+# defect the run has not finished. Rows in any other Verdict are not the
+# engine's. No file is `none` and NOT a stop: the ledger is optional
+# downstream; a file with no such table has nothing open.
+[fact.impl_findings_open]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "findings-open"
+root        = "artifacts"
+paths       = ["triage.md"]
+label       = "IN-SCOPE"
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "IN-SCOPE rows in triage.md whose Outcome is neither fixed:<sha> nor held:<reason>; none when there is no ledger."
+
 # Phase 0 writes impact.md from `rdr impact`; the launch table's shard
 # route reads only the header's `families:` count. Unread is `none`, a
 # named stop, never `0` — an empty blast radius was looked for.

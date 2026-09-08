@@ -902,7 +902,7 @@ var stageFacts = map[string][]string{
 	// read back from the tree rather than re-derived from a claim.
 	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
 	"8 Implement": {"impl_capsule", "impl_state", "lines", "req_count", "impl_orphans",
-		"impl_open_decisions", "impl_mvv_recorded", "impl_verification_recorded"},
+		"impl_open_decisions", "impl_mvv_recorded", "impl_verification_recorded", "impl_findings_open"},
 }
 
 // modelTags reads the `[tags.<name>]` keys a routing model declares.
@@ -2049,7 +2049,7 @@ func implArtifactEnv(t *testing.T, tbl *FactTable, files map[string]string) *Fac
 func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 	tbl := loadRealTable(t)
 	names := []string{"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded",
-		"impl_verification_recorded"}
+		"impl_verification_recorded", "impl_findings_open"}
 
 	t.Run("happy path", func(t *testing.T) {
 		e := implArtifactEnv(t, tbl, map[string]string{
@@ -2391,6 +2391,96 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
+	// triage.md is the Phase 4 ledger: an IN-SCOPE row (by label prefix,
+	// qualifiers and all) counts as open work until its Outcome cell
+	// settles to fixed:<sha> or held:<reason>; anything else — a bare
+	// `open`, an empty cell, or a shipped-as-kata `kata ab12` — is still
+	// open, because those are not the ledger's spelling of "done".
+	t.Run("findings open, one open in-scope row", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Source | Verdict | Outcome |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | cove | IN-SCOPE | open |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "1+" {
+			t.Errorf("impl_findings_open = %q, want 1+", got)
+		}
+	})
+
+	t.Run("findings open, shipped as kata is still open", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Source | Verdict | Outcome |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | cove | IN-SCOPE | kata ab12 |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "1+" {
+			t.Errorf("impl_findings_open = %q, want 1+ — a shipped-as-kata in-scope defect is still open", got)
+		}
+	})
+
+	t.Run("findings closed, fixed and held", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Source | Verdict | Outcome |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | cove | IN-SCOPE | fixed:cb26fb39 |\n" +
+				"| 2 | grounding | IN-SCOPE | held:contract (C2-4) |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "0" {
+			t.Errorf("impl_findings_open = %q, want 0", got)
+		}
+	})
+
+	t.Run("findings open, a qualified verdict still counts", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Source | Verdict | Outcome |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | cove | IN-SCOPE (C2-4: mixed spelling) | open |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "1+" {
+			t.Errorf("impl_findings_open = %q, want 1+ — a qualified verdict still starts with the label", got)
+		}
+	})
+
+	t.Run("findings closed, a legacy verdict table", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Source | Verdict | Outcome |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | cove | FIX-NOW | fixed:0a1b2c3 |\n" +
+				"| 2 | grounding | KATA-BUG | held:tracked elsewhere |\n" +
+				"| 3 | 3amigo | RDR-SEED | fixed:1234567 |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "0" {
+			t.Errorf("impl_findings_open = %q, want 0 — none of these verdicts is IN-SCOPE", got)
+		}
+	})
+
+	t.Run("findings closed, prose with no table", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "# Triage\n\nNothing was found worth a table.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "0" {
+			t.Errorf("impl_findings_open = %q, want 0 — a ledger with no verdict table has nothing open", got)
+		}
+	})
+
+	t.Run("findings open, columns in a different order", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"triage.md": "| # | Outcome | Source | Verdict |\n" +
+				"| --- | --- | --- | --- |\n" +
+				"| 1 | open | cove | IN-SCOPE |\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_findings_open"); got != "1+" {
+			t.Errorf("impl_findings_open = %q, want 1+ — the header binds the columns, not their position", got)
+		}
+	})
+
+	t.Run("findings absent, no triage.md", func(t *testing.T) {
+		e := implArtifactEnv(t, tbl, map[string]string{"coverage.md": "## REQ-MVV output\n\nSeen.\n"})
+		if v, ok := factValue(tbl.Evaluate(e), "impl_findings_open"); ok {
+			t.Errorf("impl_findings_open = %q; no triage.md means absent", v)
+		}
+	})
+
 	t.Run("--tags renders the sentinels", func(t *testing.T) {
 		slug := "0099-synthetic-artifact-record"
 		base := t.TempDir()
@@ -2402,7 +2492,7 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		facts := tbl.Evaluate(e)
 		want := map[string]bool{"req_count": true, "impl_orphans": true,
 			"impl_open_decisions": true, "impl_mvv_recorded": true,
-			"impl_verification_recorded": true}
+			"impl_verification_recorded": true, "impl_findings_open": true}
 		tagged := withAbsentSentinels(tbl, facts, want)
 		got := map[string]string{}
 		for _, f := range tagged {
@@ -2411,7 +2501,7 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		wantVals := map[string]string{
 			"req_count": "none", "impl_orphans": "none",
 			"impl_open_decisions": "none", "impl_mvv_recorded": "false",
-			"impl_verification_recorded": "false",
+			"impl_verification_recorded": "false", "impl_findings_open": "none",
 		}
 		for name, w := range wantVals {
 			if got[name] != w {
@@ -2474,7 +2564,7 @@ func TestUnboundRecordsRootLeavesTheArtifactFactsAbsent(t *testing.T) {
 
 	for _, name := range []string{"gate_written", "gate_stale", "impl_capsule", "impl_state",
 		"req_count", "impl_orphans", "impl_open_decisions", "impl_mvv_recorded",
-		"impl_verification_recorded"} {
+		"impl_verification_recorded", "impl_findings_open"} {
 		if v, ok := factValue(facts, name); ok {
 			t.Errorf("%s = %q with no records root bound; want the fact absent", name, v)
 		}

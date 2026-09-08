@@ -18,7 +18,7 @@
 #   shard      rdr-launch.toml  impact_families                                      —
 #   budget     rdr-launch.toml  — (no record)                                        commits elapsed suite_green
 #   complete   rdr-launch.toml  impl_orphans,impl_open_decisions,impl_mvv_recorded,  suite_green
-#                               impl_verification_recorded
+#                               impl_verification_recorded,impl_findings_open
 #   ground     rdr-write.toml   clustered                                            searched found
 #
 # The rows are the models' (`intrastate lint --model` proves every cell) and
@@ -50,7 +50,7 @@ case $outcome in
   size)     model=rdr-launch.toml; facts=profile,lines,req_count;   need="files suite pressure" ;;
   shard)    model=rdr-launch.toml; facts=impact_families;           need= ;;
   budget)   model=rdr-launch.toml; facts=;                          need="commits elapsed suite_green" ;;
-  complete) model=rdr-launch.toml; facts=impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded; need=suite_green ;;
+  complete) model=rdr-launch.toml; facts=impl_orphans,impl_open_decisions,impl_mvv_recorded,impl_verification_recorded,impl_findings_open; need=suite_green ;;
   ground)   model=rdr-write.toml;  facts=clustered;                 need="searched found" ;;
   *) usage "unknown outcome '$outcome'" ;;
 esac

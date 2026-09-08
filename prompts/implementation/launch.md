@@ -41,6 +41,7 @@ For RDR `<rdr-dir>/NNNN-slug.md`, the prompt writes a sibling directory:
 │   ├── coverage.md              # REQ-N × test-name + REQ-MVV output
 │   ├── verification.md          # Phase 3 CoVe + adversarial findings, or a clean Verdict
 │   ├── deviations.md            # classified deviations
+│   ├── triage.md                # findings ledger a downstream review writes; IN-SCOPE rows are Phase 3c input
 │   └── status.md                # resume capsule (fixed header) + COMPLETE | INCOMPLETE verdict
 └── NNNN-slug-postmortem.md      # post-mortem (added after close)
 ```
@@ -102,7 +103,7 @@ BRANCH. Each phase names its template and extra fields; you read none.
 PRECHECKS (orchestrator runs these directly — cheap reads only)
 - Resume: read the `<art>/status.md` capsule header (phase/next/blocker)
   in one pass; if it names a phase, resume where its `next:` line points
-  (a Phase 2 leg's included). Fall through
+  (a Phase 2 or 3c leg's included). Fall through
   to req-list/coverage/verification only if the header is missing, stale,
   or contradicts the artifacts. If artifacts are inconsistent (e.g.,
   status says Phase 2 but no tests exist), write INCOMPLETE("artifact
@@ -379,23 +380,39 @@ one consolidated question listing each with the recommendation
 PHASE 3c — FIXUP [conditional, DELEGATE to sub-agent: "Phase 3 fixup"]
 Run this only if Phase 3a returned FAIL-N entries OR Phase 3b added
 tests that currently fail OR a 3d resolution after the last leg alters
-code (earlier ones were a successor leg's first item). Brief:
+code (earlier ones were a successor leg's first item) OR `<art>/triage.md`
+has an open IN-SCOPE row (the gate's `stopped:findings-open`). Brief:
 `briefs/phase-3c.md` (`<art>/verification.md`, `<art>/deviations.md`,
-`<art>/req-list.md`, source tree, `{RDR_RESOURCES}`); extra field
-TEST_FRAMEWORK. Sub-agent's task: fix
-each defect, and apply each RESOLVED decision that alters code, with the
-minimum change; add a regression test if not already present. After
-fixing, run the full suite — must be green. New deviations follow
-Phase 2's classification rules (mechanical vs needs-author-decision).
-Sub-agent returns a §return-packet (verdict=BLOCK if not green; summary_50w lists defects fixed, regression tests added, green yes/no, any new deviations needing author decision).
+`<art>/triage.md`, `<art>/req-list.md`, source tree, `{RDR_RESOURCES}`);
+extra fields TEST_FRAMEWORK, START_SHA, START_EPOCH (as Phase 2's).
+Sub-agent's task: fix each defect and each open row, and apply each
+RESOLVED decision that alters code, with the minimum change; add a
+regression test if not already present. It commits through
+`rdr-leg-commit` like a Phase 2 leg: the full suite is its last commit's
+`--suite-green true`, and `return-partial` writes the capsule (`phase:
+3c`) for a fresh 3c to resume from the ledgers. THE LEDGER'S ROW is a
+defect in a clause the record already decided, reproduced at HEAD (the
+review that writes it holds that test); the leg rewrites its Outcome to
+`fixed:<sha>`, or to `held:contract (<clause>)` when the fix would ADD a
+normative choice (a new code, exemption, unit) — the record did not decide
+it, so the run does not; the review files it downstream. New deviations
+follow Phase 2's classification rules (mechanical vs needs-author-decision).
+Sub-agent returns a §return-packet (verdict=BLOCK if it cannot reach green,
+INCOMPLETE only from `return-partial` — spawn a fresh 3c; summary_50w lists
+defects fixed, rows fixed/held, regression tests added, green yes/no, any
+new deviations needing author decision).
 A new needs-author-decision entry takes Phase 3d again.
 
 COMPLETION GATE (orchestrator runs directly — one call, no artifact reads)
   "$RDR_HOME/bin/rdr-gate" complete <NNNN> --tag suite_green=<true|false>    # the last packet's verdict: PASS → true (full suite, predecessors included)
 The `complete` group proves every cell — Phase 3 recorded, green tests, no
 orphans either way, REQ-MVV output recorded, no open needs-author-decision
-line — and an unread ledger file or an unwritten `verification.md` is a
-named stop, never a pass. Write `<art>/status.md` state from
+line, no open IN-SCOPE row in `<art>/triage.md` (a downstream review
+writes that ledger after the first COMPLETE; the gate is re-asked once it
+exists) — and an unread ledger file or an unwritten `verification.md` is a
+named stop, never a pass. `stopped:findings-open` is the one stop the run
+finishes itself: PHASE 3c on the open rows, then re-ask. Write
+`<art>/status.md` state from
 `next:` as a value: `COMPLETE`, or `INCOMPLETE — <stopped:token>: <why>`.
 
 Do not declare success on INCOMPLETE.

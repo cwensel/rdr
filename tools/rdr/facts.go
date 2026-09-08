@@ -478,9 +478,9 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		// would evaluate to nothing while reading as declared, the same
 		// failure seam-lineage's select guards against.
 		switch d.Select {
-		case "req-count", "orphans", "open-decisions", "mvv-recorded", "verification-recorded", "impact-families":
+		case "req-count", "orphans", "open-decisions", "mvv-recorded", "verification-recorded", "impact-families", "findings-open":
 		default:
-			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded, verification-recorded or impact-families, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded, verification-recorded, impact-families or findings-open, got %q", name, d.Select)
 		}
 		if d.Root == "" {
 			return d, fmt.Errorf("fact %q: an impl-artifact names a root", name)
@@ -495,7 +495,7 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				return d, fmt.Errorf("fact %q: a %s impl-artifact names one path", name, d.Select)
 			}
 		}
-		if d.Select == "open-decisions" || d.Select == "mvv-recorded" {
+		if d.Select == "open-decisions" || d.Select == "mvv-recorded" || d.Select == "findings-open" {
 			if d.Label == "" {
 				return d, fmt.Errorf("fact %q: a %s impl-artifact names a label", name, d.Select)
 			}
@@ -1322,6 +1322,7 @@ var implArtifactMembers = map[string][]string{
 	"orphans":         {"0", "1+"},
 	"open-decisions":  {"0", "1+", "midline"},
 	"impact-families": {"0", "1+"},
+	"findings-open":   {"0", "1+"},
 }
 
 // implArtifact answers the Stage-8 launch-gate signals, read from the
@@ -1415,6 +1416,16 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 			return Fact{}, false
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: boolLiteral(verificationRun(raw))}, true
+	case "findings-open":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		v := "0"
+		if openFindings(raw, d.Label) > 0 {
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
 	case "impact-families":
 		raw, ok := read(0)
 		if !ok {
@@ -1580,6 +1591,78 @@ func coverageRows(raw []byte) (ids map[string]bool, emptyCell map[string]bool) {
 		}
 	}
 	return ids, emptyCell
+}
+
+// openFindings counts triage.md's still-open rows: an IN-SCOPE verdict
+// (the label, matched by prefix so a qualified form like `IN-SCOPE (C2-4:
+// …)` still counts) whose Outcome cell has not settled to `fixed:<sha>`
+// or `held:<reason>`. Everything else in that state — a bare `open`, an
+// empty cell, or a shipped-as-kata `kata ab12` — is still open work, not
+// a closed one wearing different words, because only those two prefixes
+// are the ledger's own spelling of "done".
+//
+// The table is read by its header rather than by position: the ledger's
+// writer owns the column order, so a reordered column must not move the
+// reader, and a later table in the same file (a second `Verdict | … |
+// Outcome` header) re-binds which columns those words mean from that
+// point on. So every `|` row is checked for being a header before it is
+// read as data; a file with no such header at all has nothing this fact
+// can count, and reads as 0 rather than absent — a ledger that never grew
+// a verdict table has no open findings in it.
+func openFindings(raw []byte, label string) int {
+	label = strings.ToUpper(strings.TrimSpace(label))
+	verdictCol, outcomeCol := -1, -1
+	haveHeader := false
+	n := 0
+	for _, ln := range strings.Split(string(raw), "\n") {
+		t := strings.TrimSpace(ln)
+		if !strings.HasPrefix(t, "|") {
+			continue
+		}
+		cells := strings.Split(strings.Trim(t, "|"), "|")
+		if len(cells) == 0 {
+			continue
+		}
+		norm := make([]string, len(cells))
+		for i, c := range cells {
+			norm[i] = strings.ToLower(strings.Trim(strings.TrimSpace(c), "*`"))
+		}
+		if vi, oi := indexOf(norm, "verdict"), indexOf(norm, "outcome"); vi >= 0 && oi >= 0 {
+			verdictCol, outcomeCol = vi, oi
+			haveHeader = true
+			continue
+		}
+		if !haveHeader {
+			continue
+		}
+		first := strings.Trim(strings.TrimSpace(cells[0]), "*`")
+		if strings.Trim(first, "-: ") == "" {
+			continue // the --- separator row
+		}
+		if len(cells) <= verdictCol || len(cells) <= outcomeCol {
+			continue
+		}
+		verdict := strings.ToUpper(strings.Trim(strings.TrimSpace(cells[verdictCol]), "*`_"))
+		if !strings.HasPrefix(verdict, label) {
+			continue
+		}
+		outcome := strings.ToLower(strings.Trim(strings.TrimSpace(cells[outcomeCol]), "*`_"))
+		if strings.HasPrefix(outcome, "fixed:") || strings.HasPrefix(outcome, "held:") {
+			continue
+		}
+		n++
+	}
+	return n
+}
+
+// indexOf returns the index of the first element equal to want, or -1.
+func indexOf(ss []string, want string) int {
+	for i, s := range ss {
+		if s == want {
+			return i
+		}
+	}
+	return -1
 }
 
 // decisionCut are the marks that close a Status line's leading phrase —

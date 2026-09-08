@@ -74,6 +74,7 @@ absent, and would publish that repo's content into this public one.
 | `0027-cache-tier-labels.md` | legacy artifact layout | capsule and `req-list.md` flat under `<slug>/`, `gate.md` under `<slug>/artifacts/` — the pre-move shape; one vector reads `gate_written=true` AND `impl_capsule=true`, so the legacy leg is per path, not per folder |
 | `0028-cache-flush-hook.md` | both layouts | a `COMPLETE` capsule and a 1-REQ ledger under `artifacts/` beside an `INCOMPLETE` capsule and a 12-REQ ledger flat — reads `COMPLETE` and `0-10`: canonical wins |
 | `0029-cache-size-report.md` | neither | only `artifacts/gate.md` — `impl_capsule=false`, `impl_state` and the ledger facts absent, `gate_written=true` |
+| `0030-cache-warm-ratio.md` | complete, small | the table's one COMPLETE cell and inline-size cell; a `triage.md` ledger with only closed IN-SCOPE rows (`impl_findings_open=0`) |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it
