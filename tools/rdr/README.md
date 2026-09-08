@@ -646,6 +646,7 @@ never because the corpus happened to be in hand.
     rdr index --cluster-of N      # Stage 7.1's membership rule, as a query
     rdr index --cluster-of N[,M] --closure --final-unimplemented   # 7.1 step 1: the rule to a fixpoint, scoped; out_of_scope[] says what was dropped and why
     rdr index --topo[=N,M,…]      # build order over predecessor edges: Kahn, ties by Priority then number; cycles[] and external[] apart
+    rdr index --topo=N,M --edges predecessors,overrides   # …with override edges: an overridden record builds before its overrider
     rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
     rdr index --literal-intersect # in-flight pairs whose contracts share a literal, uncited first
     rdr index --anchor-intersect --record 0113   # only the pairs touching one record; also --literal-intersect, --open-joint

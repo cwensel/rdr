@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032", "0036", "0037", "0038", "0039"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -213,13 +213,14 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 		"0026-cache-hash-identity", "0028-cache-flush-hook", "0029-cache-size-report",
 		"0030-cache-warm-ratio", "0031-cache-warm-report", "0032-cache-warm-alert",
 		"0033-cache-warm-order", "0035-cache-warm-publish",
-		"total 12 in flight over 16 records"} {
+		"0037-cache-warm-digest", "0038-cache-warm-lead", "0039-cache-warm-follow",
+		"total 15 in flight over 20 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
 	}
 	// Implemented is terminal and Deferred is parked; neither is work.
-	for _, gone := range []string{"0023-cache-shard-count", "0024-cache-persistence"} {
+	for _, gone := range []string{"0023-cache-shard-count", "0024-cache-persistence", "0036-cache-warm-archive"} {
 		if strings.Contains(out, gone) {
 			t.Errorf("worklist includes %q, which is not in flight:\n%s", gone, out)
 		}
@@ -313,12 +314,72 @@ func TestPredecessorsRollup(t *testing.T) {
 	if state, members := retired("0035"); state != "retired" || len(members) != 1 || members[0] != "0034" {
 		t.Errorf("0035 names Superseded 0034: state %q retired %v, want retired naming 0034", state, members)
 	}
+
+	// 0037 names 0036, which has NO capsule in either layout but reads
+	// Status Implemented: the landing flow's own terminal assertion for a
+	// record implemented before Stage 8 wrote capsules. `complete`, with
+	// the incomplete set empty.
+	if got := read("0037"); got["predecessors_state"] != "complete" || got["predecessors_incomplete"] != "" {
+		t.Errorf("0037: %v, want complete with predecessors_incomplete empty (0036 is Implemented, no capsule)", got)
+	}
+	// 0039 names 0038, which is Final with no capsule at all: incomplete,
+	// naming 0038 — Status alone never substitutes for COMPLETE on a
+	// record still in flight.
+	if got := read("0039"); got["predecessors_state"] != "incomplete" || got["predecessors_incomplete"] != "0038" {
+		t.Errorf("0039: %v, want incomplete naming 0038 (Final, no capsule)", got)
+	}
+
 	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", "--filter", "status,predecessors_state", "0030")
 	if code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
 	if !strings.Contains(out, "predecessors_state=none") {
 		t.Errorf("--tags on a record with no Predecessors did not render the sentinel:\n%s", out)
+	}
+}
+
+// TestRelatedUnordered: Stage 8's cluster-order question. 0038 and 0039
+// are a declared two-member cluster; 0039's Predecessors names 0038, so
+// 0038 reads no unordered sibling (0039 follows it by its own
+// declaration) while 0039 reads 0038 as unordered — a Final, unbuilt
+// sibling whose Predecessors does not name 0039. 0030 is unclustered:
+// the sentinel `0`, with no members.
+func TestRelatedUnordered(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	read := func(rec string) (value string, members []string) {
+		t.Helper()
+		code, out, errb := runCapture(t, "status", "--facts", table, "--json",
+			"--filter", "related_final_unordered,cluster_unordered", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var got struct {
+			Facts []struct {
+				Name, Value string
+				Members     []string
+			}
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range got.Facts {
+			switch f.Name {
+			case "related_final_unordered":
+				value = f.Value
+			case "cluster_unordered":
+				members = f.Members
+			}
+		}
+		return value, members
+	}
+	if v, m := read("0038"); v != "0" || len(m) != 0 {
+		t.Errorf("0038: related_final_unordered=%q cluster_unordered=%v, want 0 with no members (0039 declares 0038 as a Predecessor)", v, m)
+	}
+	if v, m := read("0039"); v != "1+" || len(m) != 1 || m[0] != "0038" {
+		t.Errorf("0039: related_final_unordered=%q cluster_unordered=%v, want 1+ naming 0038", v, m)
+	}
+	if v, m := read("0030"); v != "0" || len(m) != 0 {
+		t.Errorf("0030 (unclustered): related_final_unordered=%q cluster_unordered=%v, want 0 with no members", v, m)
 	}
 }
 

@@ -80,12 +80,27 @@ func topoFacet(f *flags, stdout, stderr io.Writer) int {
 			set[num] = true
 		}
 	}
-	after := map[string][]string{} // record -> predecessors in the set
+	kinds := map[edge.Kind]bool{}
+	for _, k := range strings.Split(*f.edges, ",") {
+		switch strings.TrimSpace(k) {
+		case "predecessors", "predecessor":
+			kinds[edge.Predecessor] = true
+		case "overrides":
+			// An Overrides entry re-cuts a contract the other record
+			// shipped, so the overridden record builds first — the same
+			// direction as a predecessor edge, read from a different field.
+			kinds[edge.Overrides] = true
+		default:
+			fmt.Fprintf(stderr, "stopped:unknown-edge-kind — --edges takes predecessors and/or overrides, got %q\n", k)
+			return 2
+		}
+	}
+	after := map[string][]string{} // record -> records it builds after, in the set
 	external := []topoExternal{}
 	for rec := range set {
 		seen := map[string]bool{}
 		for _, e := range byRecord[rec].Edges {
-			if e.Kind != edge.Predecessor {
+			if !kinds[e.Kind] {
 				continue
 			}
 			t := refRecord(e.To)

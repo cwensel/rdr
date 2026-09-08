@@ -562,18 +562,22 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 			}
 		}
 	case "related-rollup":
-		if d.Kind != "enum" {
-			return d, fmt.Errorf("fact %q: a related-rollup is an enum", name)
-		}
 		switch d.Select {
-		case "", "final-unimplemented", "draft":
-		default:
-			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented or draft, got %q", name, d.Select)
-		}
-		for _, m := range relatedRollupMembers {
-			if !slices.Contains(d.Domain, m) {
-				return d, fmt.Errorf("fact %q: domain does not declare %q, which related-rollup can emit", name, m)
+		case "", "final-unimplemented", "draft", "final-unordered":
+			if d.Kind != "enum" {
+				return d, fmt.Errorf("fact %q: a related-rollup count is an enum", name)
 			}
+			for _, m := range relatedRollupMembers {
+				if !slices.Contains(d.Domain, m) {
+					return d, fmt.Errorf("fact %q: domain does not declare %q, which related-rollup can emit", name, m)
+				}
+			}
+		case "unordered":
+			if d.Kind != "set" {
+				return d, fmt.Errorf("fact %q: a related-rollup's unordered select is a set", name)
+			}
+		default:
+			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented, draft, final-unordered or unordered, got %q", name, d.Select)
 		}
 	case "ledger-tally":
 		if d.Root == "" || d.Path == "" || d.Entry == "" {
@@ -2924,6 +2928,16 @@ func capsuleStateOf(t *FactTable, env *FactEnv) string {
 //	            every not-COMPLETE one is terminal, else incomplete
 //	            when any is not COMPLETE, else complete
 //
+// A predecessor with NO READABLE capsule state — no capsule in either
+// layout, or a legacy capsule whose header carries no state word — and a
+// record Status of Implemented is complete: the landing skill writes that
+// word only after the code merged, so it is the flow's own terminal
+// assertion for a record implemented before the capsule header was fixed
+// (63 of 117 Implemented records in one consumer corpus; every successor
+// of theirs read `incomplete`, and a wrapper overrode the gate to cope).
+// A capsule whose state reads and is not COMPLETE still wins over the
+// word — an artifact beats a status line.
+//
 // A RETIRED predecessor is one the flow has closed without implementing:
 // Superseded, Abandoned, Rejected. Its capsule is absent and always will
 // be, so asking it to read COMPLETE asks the record to be built in order
@@ -2967,7 +2981,7 @@ func (e *FactEnv) predecessorRollup(d FactDecl) (Fact, bool) {
 			incomplete = append(incomplete, p)
 			continue
 		}
-		if capsuleStateOf(e.table, peer) == "COMPLETE" {
+		if state := capsuleStateOf(e.table, peer); state == "COMPLETE" || (state == "" && implementedStatus(peer)) {
 			continue
 		}
 		if retiredStatus(peer) {
@@ -2998,6 +3012,17 @@ func (e *FactEnv) predecessorRollup(d FactDecl) (Fact, bool) {
 		return Fact{Name: d.Name, Kind: d.Kind, Value: state}, true
 	}
 	return Fact{}, false
+}
+
+// implementedStatus reports whether a record's Status reads Implemented —
+// the word the landing flow writes after the merge, read only when no
+// capsule exists to read instead.
+func implementedStatus(env *FactEnv) bool {
+	if env == nil || env.Doc == nil {
+		return false
+	}
+	f := metadataField(env.Doc, "Status")
+	return f != nil && f.Status != nil && f.Status.Value == "Implemented"
 }
 
 // retiredStatus reports whether a record is closed without implementing:
@@ -3073,6 +3098,20 @@ func (e *FactEnv) clusterProposed(d FactDecl) (Fact, bool) {
 //	                      before implement" question
 //	draft                still Status Draft — a 7.1 pass run now would
 //	                      cover a partial set
+//	final-unordered      Final, not COMPLETE, and NOT declaring this record
+//	                      among its own Predecessors — Stage 8's cluster
+//	                      order question; `unordered` is the same members
+//	                      as a set, for the halt line
+//
+// The order rule uses the field the corpus already has: a sibling whose
+// Predecessors names this record follows it by its own declaration, so
+// launching this record first is right; any other Final unbuilt sibling
+// is an order nobody declared, and the launch stops rather than guess
+// (one record launched ahead of the sibling it overrode, and the human
+// had to pause the run). An Overrides edge does not clear it — the
+// overridden record ships first, because the override re-cuts what it
+// shipped. `final-unimplemented` keeps counting successors: 7.1
+// reconciles the whole set.
 //
 // On demand: it walks the corpus. Absent with no corpus bound.
 func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
@@ -3084,6 +3123,7 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 		return Fact{}, false
 	}
 	n := 0
+	var unordered []string
 	for _, m := range scan.ClusterOf(docs, e.Doc.Record) {
 		if m.Record == e.Doc.Record || m.Candidate {
 			continue
@@ -3093,26 +3133,48 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 			if m.Status == "Draft" {
 				n++
 			}
-		default: // "final-unimplemented", and "" for a table predating the key
+		default: // "final-unimplemented" ("" for a table predating the key), "final-unordered", "unordered"
 			if m.Status != "Final" {
 				continue
 			}
 			state := ""
+			var peer *FactEnv
 			if e.Peer != nil {
-				if peer, ok := e.Peer(m.Record); ok {
-					state = capsuleStateOf(e.table, peer)
+				if p, ok := e.Peer(m.Record); ok {
+					peer, state = p, capsuleStateOf(e.table, p)
 				}
 			}
-			if state != "COMPLETE" {
-				n++
+			if state == "COMPLETE" {
+				continue
 			}
+			if (d.Select == "final-unordered" || d.Select == "unordered") && declaresPredecessor(peer, e.Doc.Record) {
+				continue
+			}
+			n++
+			unordered = append(unordered, m.Record)
 		}
+	}
+	if d.Select == "unordered" {
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(unordered)}, true
 	}
 	v := "0"
 	if n > 0 {
 		v = "1+"
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// declaresPredecessor reports whether a peer's Predecessors field names
+// the record — the peer says it builds after it.
+func declaresPredecessor(peer *FactEnv, record string) bool {
+	if peer == nil || peer.Doc == nil {
+		return false
+	}
+	f := metadataField(peer.Doc, "Predecessors")
+	if f == nil {
+		return false
+	}
+	return slices.Contains(recordNumbers(f.Value), record)
 }
 
 // --- the ledger readers -----------------------------------------------------

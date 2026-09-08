@@ -75,6 +75,10 @@ absent, and would publish that repo's content into this public one.
 | `0028-cache-flush-hook.md` | both layouts | a `COMPLETE` capsule and a 1-REQ ledger under `artifacts/` beside an `INCOMPLETE` capsule and a 12-REQ ledger flat — reads `COMPLETE` and `0-10`: canonical wins |
 | `0029-cache-size-report.md` | neither | only `artifacts/gate.md` — `impl_capsule=false`, `impl_state` and the ledger facts absent, `gate_written=true` |
 | `0030-cache-warm-ratio.md` | complete, small | the table's one COMPLETE cell and inline-size cell; a `triage.md` ledger with only closed IN-SCOPE rows (`impl_findings_open=0`) |
+| `0036-cache-warm-archive.md` | Implemented, pre-convention | no capsule in either layout, `Status: Implemented` — the landing flow's own terminal assertion, read only because no capsule exists to read instead |
+| `0037-cache-warm-digest.md` | predecessor reads Implemented | `Predecessors: 0036`; `predecessors_state=complete` off the Status word alone, `predecessors_incomplete` empty |
+| `0038-cache-warm-lead.md` | cluster-order lead | `Cluster: 0039`, no Predecessors; 0039 names 0038 in its own Predecessors, so 0038 reads `related_final_unordered=0` — the order is declared |
+| `0039-cache-warm-follow.md` | cluster-order follow | `Cluster: 0038`, `Predecessors: 0038`; 0038 has no capsule, so `predecessors_state=incomplete`, and `related_final_unordered=1+` with `cluster_unordered=[0038]` — Stage 8's cluster-order halt |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it

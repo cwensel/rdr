@@ -77,7 +77,7 @@ plus the derived backlinks (README §Queries over the graph). Facets:
   --backlinks[=NNNN[:elem]]   who points at each target / at one target
   --cluster-of NNNN[,NNNN]    7.1's membership rule as a query; --closure runs it to a fixpoint,
                               --final-unimplemented drops not-Final and COMPLETE members to out_of_scope
-  --topo[=NNNN,…]             build order over predecessor edges (Kahn; ties by Priority, then number)
+  --topo[=NNNN,…]             build order over predecessor edges (Kahn; ties by Priority, then number); --edges predecessors,overrides adds the override edges
   --anchor-intersect [--all]  in-flight pairs sharing code anchors, uncited first
   --literal-intersect [--all] in-flight pairs whose contracts share a literal, uncited first
   --open-joint [--all]        open joint decisions: Joint-check (home: OPEN) lines + joint-decision Status forms
@@ -480,6 +480,7 @@ type flags struct {
 	closure             *bool     // index: --cluster-of to a fixpoint
 	finalUnimplemented  *bool     // index: --cluster-of scoped to Final-and-unimplemented
 	topo                optString // index: build order over predecessor edges
+	edges               *string   // index --topo: the edge kinds ordered over
 	unresolved, anchors *bool
 	literals            *bool
 	openJoint, cycles   *bool
@@ -539,6 +540,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.finalUnimplemented = fs.Bool("final-unimplemented", false, "cluster-of: keep Final members whose capsule is not COMPLETE; the rest go to out_of_scope with why")
 		f.facts = fs.String("facts", "", "cluster-of --final-unimplemented: the fact table impl_state is read from (default $RDR_HOME/models/rdr-facts.toml, else beside the binary)")
 		fs.Var(&f.topo, "topo", "build order over predecessor edges: Kahn, ties by Priority then number; =NNNN,… names the set (default: every in-flight record)")
+		f.edges = fs.String("edges", "predecessors", "topo: the edge kinds ordered over — predecessors, or predecessors,overrides (an overridden record builds before its overrider)")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
 		f.cycles = fs.Bool("cycles", false, "dependency shapes the flow cannot progress through: ownership cycles (predecessor/overrides/moved-to), Joint-check home cycles, and Final records whose home is Draft or whose check is OPEN")
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")

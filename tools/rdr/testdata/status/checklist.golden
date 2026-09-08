@@ -119,3 +119,47 @@
 7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
 8 Implement                    – no capsule
 
+# 0036
+1 Seed                         ✓ Implemented
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0037
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    ~ not clustered · clustered unset · cluster_reconciled=false
+8 Implement                    – no capsule
+
+# 0038
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    – clustered=true · cluster_reconciled=false · declared=["0039"]
+8 Implement                    – no capsule
+
+# 0039
+1 Seed                         ✓ Final
+2 Propose                      – no Ground-sweep: · joint_checks unset
+3 Refine                       ~ judged done — 1 Verified, 0 terminal
+4 Resolve                      ~ judged done — verdicts terminal, no spikes
+5+6 Pre-Lock (review+resolve)  – profile=small
+6 Reconcile                    – no reconcile/
+7 Finalize                     – gate.md
+7.1 Cluster                    – clustered=true · cluster_reconciled=false · declared=["0038"]
+8 Implement                    – no capsule
+

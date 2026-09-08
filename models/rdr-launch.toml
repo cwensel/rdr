@@ -75,7 +75,7 @@ route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
 loop  = ["continue", "return-green", "return-partial"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:findings-open", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:baseline-red", "stopped:impact-unread"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:findings-open", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:cluster-order", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -241,7 +241,7 @@ domain        = ["0-30", "31+"]
 single_valued = true
 required      = true
 
-# --- the precheck's facts, rendered by `rdr status --tags --filter status,predecessors_state`
+# --- the precheck's facts, rendered by `rdr status --tags --filter status,predecessors_state,related_final_unordered`
 
 # The record's bare lifecycle Status; only Final implements.
 [tags.status]
@@ -262,6 +262,16 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["complete", "incomplete", "retired", "unresolved", "none"]
+single_valued = true
+required      = true
+
+# Final, unbuilt cluster siblings whose Predecessors do not name this
+# record (rdr-facts.toml `related_final_unordered`); `cluster_unordered`
+# names them. Never absent: an unclustered record has no siblings, `0`.
+[tags.related_final_unordered]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+"]
 single_valued = true
 required      = true
 
@@ -589,11 +599,14 @@ why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output reco
 # precheck — the record may be implemented
 # ===========================================================================
 #
-# status x predecessors_state x baseline = 108 cells. Not Final stops first;
-# then the predecessor gate in the prompt's own order: a predecessor that did
-# not resolve, then one whose capsule is absent or not COMPLETE. `none` (no
-# Predecessors field) counts as complete. The set behind the word is
-# `predecessors_incomplete`, which the halt line names. Last, the baseline —
+# status x predecessors_state x related_final_unordered x baseline = 216
+# cells. Not Final stops first; then the predecessor gate in the prompt's
+# own order: a predecessor that did not resolve, then one whose capsule is
+# absent or not COMPLETE. `none` (no Predecessors field) counts as
+# complete. The set behind the word is `predecessors_incomplete`, which the
+# halt line names. Then the cluster order: a Final, unbuilt sibling that
+# does not declare this record as its predecessor is an order nobody
+# wrote, and `cluster_unordered` names it. Last, the baseline —
 # the cheap reads having passed, the suite runs once: `none` re-asks with
 # the result (`run-baseline`), `red` is a named stop (a regression cannot be
 # told from a pre-existing failure), `green` proceeds.
@@ -664,6 +677,20 @@ next = "stopped:predecessor-retired"
 why  = "A predecessor was closed without implementing (Superseded, Abandoned or Rejected); predecessors_retired names them. Its capsule will never exist, so this is NOT `implement those first`. Confirm the successor carries what it needs — the superseding record's Overrides says which clauses it CARRIED and which it did not — and re-home or retire the rest (/rdr-cluster-reconcile) before implementing."
 
 [[rule]]
+id = "precheck-cluster-order"
+[rule.match.recognized]
+eq = "precheck"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.predecessors_state]
+in = ["complete", "none"]
+[rule.guard.all.related_final_unordered]
+eq = "1+"
+[rule.emit]
+next = "stopped:cluster-order"
+why  = "A Final cluster sibling is unbuilt and nothing says which of you ships first; cluster_unordered names it. Implement it first, or have 7.1 set the order (its Predecessors names this record), then re-run."
+
+[[rule]]
 id = "precheck-baseline-unrun"
 [rule.match.recognized]
 eq = "precheck"
@@ -671,6 +698,8 @@ eq = "precheck"
 eq = "Final"
 [rule.guard.all.predecessors_state]
 in = ["complete", "none"]
+[rule.guard.all.related_final_unordered]
+eq = "0"
 [rule.guard.all.baseline]
 eq = "none"
 [rule.emit]
@@ -685,6 +714,8 @@ eq = "precheck"
 eq = "Final"
 [rule.guard.all.predecessors_state]
 in = ["complete", "none"]
+[rule.guard.all.related_final_unordered]
+eq = "0"
 [rule.guard.all.baseline]
 eq = "red"
 [rule.emit]
@@ -699,11 +730,13 @@ eq = "precheck"
 eq = "Final"
 [rule.guard.all.predecessors_state]
 in = ["complete", "none"]
+[rule.guard.all.related_final_unordered]
+eq = "0"
 [rule.guard.all.baseline]
 eq = "green"
 [rule.emit]
 next = "proceed"
-why  = "Final, every predecessor COMPLETE (or none declared), and the baseline green: the launch may run."
+why  = "Final, every predecessor COMPLETE (or none declared), no unordered Final sibling, and the baseline green: the launch may run."
 
 # ===========================================================================
 # shard — the Phase 2 worklist, named once

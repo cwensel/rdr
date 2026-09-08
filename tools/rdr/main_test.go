@@ -908,6 +908,78 @@ func TestIndexTopo(t *testing.T) {
 	}
 }
 
+// TestIndexTopoEdgesOverrides: `--edges` widens the ordering beyond
+// Predecessors. Record 0002 carries `- **Overrides**: 0001-a`, naming
+// 0001 but with no Predecessors edge between them — an override re-cuts
+// what the overridden record shipped, so it builds first, same direction
+// as a predecessor edge, read from a different field. With the default
+// `--edges` (predecessors only) the two are unordered by that edge; with
+// `--edges predecessors,overrides` 0001 precedes 0002. An unknown edge
+// kind is a hard stop.
+func TestIndexTopoEdgesOverrides(t *testing.T) {
+	dir := t.TempDir()
+	for name, body := range map[string]string{
+		"0001-a.md": "# Recommendation 0001: A\n\n## Metadata\n\n" +
+			"- **Date**: 2026-08-01\n- **Status**: Draft\n- **Priority**: High\n\n" +
+			"## Problem Statement\n\nSynthetic.\n",
+		"0002-b.md": "# Recommendation 0002: B\n\n## Metadata\n\n" +
+			"- **Date**: 2026-08-01\n- **Status**: Draft\n- **Priority**: High\n" +
+			"- **Overrides**: 0001-a\n\n## Problem Statement\n\nSynthetic.\n",
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	type got struct {
+		Order []struct {
+			Record string
+			After  []string
+		}
+	}
+	read := func(args ...string) got {
+		t.Helper()
+		code, out, errb := runCapture(t, append([]string{"index", "--json", "--records", dir, "--topo"}, args...)...)
+		if code != 0 {
+			t.Fatalf("exit %d: %s", code, errb)
+		}
+		var g got
+		if err := json.Unmarshal([]byte(out), &g); err != nil {
+			t.Fatal(err)
+		}
+		return g
+	}
+	after := func(g got, rec string) []string {
+		for _, r := range g.Order {
+			if r.Record == rec {
+				return r.After
+			}
+		}
+		return nil
+	}
+
+	// Default --edges: predecessors only. Overrides is not a predecessor
+	// edge, so 0002 has no `after` and the two are unordered by this edge.
+	g := read()
+	if a := after(g, "0002"); len(a) != 0 {
+		t.Errorf("default --edges: 0002 after %v, want none (Overrides is not ordered by default)", a)
+	}
+
+	// --edges predecessors,overrides: 0001 precedes 0002.
+	g = read("--edges", "predecessors,overrides")
+	if a := after(g, "0002"); len(a) != 1 || a[0] != "0001" {
+		t.Errorf("--edges predecessors,overrides: 0002 after %v, want [0001]", a)
+	}
+
+	// An unknown edge kind is a hard stop, not a silent ignore.
+	code, _, errb := runCapture(t, "index", "--json", "--records", dir, "--topo", "--edges", "bogus")
+	if code != 2 {
+		t.Errorf("--edges bogus: exit %d, want 2", code)
+	}
+	if !strings.Contains(errb, "stopped:unknown-edge-kind") {
+		t.Errorf("--edges bogus: stderr %q, want stopped:unknown-edge-kind", errb)
+	}
+}
+
 // TestSourceAnchorsResolveWithoutRecordsDir: `--repo` is its own
 // authority. Source-anchor resolution greps the repo and never consults
 // the records map, so a missing or unwalkable `--records` must not take
@@ -1781,10 +1853,12 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 	fs.VisitAll(func(fl *flag.Flag) {
 		switch fl.Name {
 		case "json", "records", "repo", "project", "template", "all", "filter", "record",
-			"closure", "final-unimplemented", "facts", "flat":
+			"closure", "final-unimplemented", "facts", "flat", "edges":
 			// not facets: shared flags and modifiers. `flat` renders
 			// --row-json's answer as a command reader's flat object — the
 			// same facet, a different wire shape, so it logs as `row-json`.
+			// `edges` is a modifier of `--topo` — which edge kinds it
+			// orders over — logged under `topo`, not a facet of its own.
 			return
 		}
 		declared[fl.Name] = true

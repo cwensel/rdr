@@ -1413,6 +1413,16 @@ description = "Spikes the record cites under {SPIKE_DIR} with no entry in eviden
 # re-enters at a named stage and a Deferred one is parked, so both may
 # still reach COMPLETE.
 #
+# A predecessor with NO READABLE capsule state — none in either layout,
+# or a legacy capsule whose header has no state word — and a record
+# Status of Implemented is complete: the landing flow writes that word
+# only after the merge, so it is the flow's own terminal assertion for a
+# record implemented before the capsule header was fixed. A capsule whose
+# state reads and is not COMPLETE still wins over the word. DECIDED
+# 2026-09-08 — this header skew (63 of 117 Implemented records in one
+# corpus), not the flat-capsule layout, was why a wrapper overrode the
+# precheck.
+#
 # All three sets are absent with no Predecessors field; `none` is the
 # state's sentinel.
 # The sets are ON DEMAND — read by name for the halt line, never riding
@@ -1464,6 +1474,28 @@ select      = "final-unimplemented"
 on_demand   = true
 domain      = ["0", "1+"]
 description = "Asserted cluster members that are Final with no COMPLETE capsule; 1+ routes to /rdr-cluster-reconcile first."
+
+# Stage 8's cluster-order question, from the field the corpus already has:
+# a Final, unbuilt sibling that does not declare THIS record among its own
+# Predecessors is an order nobody wrote down, and the launch stops on it
+# rather than guess (one record launched ahead of the sibling it overrode).
+# A sibling that names this record follows it by declaration. Overrides do
+# not clear it — the overridden record ships first. The set names them for
+# the halt line; both ON DEMAND, read by name.
+[fact.related_final_unordered]
+kind        = "enum"
+source      = "related-rollup"
+select      = "final-unordered"
+on_demand   = true
+domain      = ["0", "1+"]
+description = "Final, unbuilt cluster members whose Predecessors do not name this record; 1+ is stopped:cluster-order at launch."
+
+[fact.cluster_unordered]
+kind        = "set"
+source      = "related-rollup"
+select      = "unordered"
+on_demand   = true
+description = "The members behind related_final_unordered: implement them first, or their Predecessors must name this record."
 
 # Finalize's close used to dispatch 7.1 on `related_final_unimplemented`
 # alone, so a run fired while a sibling was still Draft and re-fired when

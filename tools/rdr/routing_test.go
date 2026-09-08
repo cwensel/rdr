@@ -1124,26 +1124,46 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		t.Errorf("completion gate with impl_findings_open=0: rule %q next %q, want complete/COMPLETE", rule, next)
 	}
 
-	// The precheck: status x predecessors_state x baseline, every row
-	// reachable from a fixture. 0020 is Draft; 0032 names a record the dir
-	// lacks; 0031 names one with no capsule; 0035 names one that is
-	// SUPERSEDED, whose capsule will never exist — a different stop from
-	// 0031's, because "implement those first" is unsatisfiable there; 0030
-	// names none, so the baseline decides: unrun re-asks, red stops, green
-	// proceeds.
+	// The precheck: status x predecessors_state x related_final_unordered x
+	// baseline, every row reachable from a fixture. 0020 is Draft; 0032
+	// names a record the dir lacks; 0031 names one with no capsule; 0035
+	// names one that is SUPERSEDED, whose capsule will never exist — a
+	// different stop from 0031's, because "implement those first" is
+	// unsatisfiable there; 0037 names 0036, Implemented with no capsule in
+	// either layout, the flow's own terminal assertion — complete, so the
+	// baseline decides; 0039 names 0038, Final with no capsule at all —
+	// incomplete, and the predecessor stop fires before the cluster-order
+	// question is ever asked; 0030 names none, so the baseline decides:
+	// unrun re-asks, red stops, green proceeds.
 	for _, c := range []struct{ rec, baseline, rule, next string }{
 		{"0020", "none", "precheck-not-final", "stopped:not-final"},
 		{"0032", "none", "precheck-unresolved", "stopped:predecessor-unresolved"},
 		{"0031", "none", "precheck-incomplete", "stopped:predecessor-incomplete"},
 		{"0035", "none", "precheck-predecessor-retired", "stopped:predecessor-retired"},
+		{"0039", "none", "precheck-incomplete", "stopped:predecessor-incomplete"},
+		{"0037", "none", "precheck-baseline-unrun", "run-baseline"},
 		{"0030", "none", "precheck-baseline-unrun", "run-baseline"},
 		{"0030", "red", "precheck-baseline-red", "stopped:baseline-red"},
 		{"0030", "green", "precheck-ok", "proceed"},
 	} {
-		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state")
+		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state,related_final_unordered")
 		if rule, next := resolve("precheck", argv, "baseline", c.baseline); rule != c.rule || next != c.next {
 			t.Errorf("precheck on %s: rule %q next %q, want %s/%s", c.rec, rule, next, c.rule, c.next)
 		}
+	}
+
+	// The cluster-order row, hand-built: a Final record whose predecessors
+	// are complete but a Final, unbuilt sibling does not name it in that
+	// sibling's own Predecessors — nobody declared this order, and the
+	// launch stops rather than guess. Clearing it to 0 (no such sibling,
+	// or every one declares this record) reaches run-baseline instead.
+	if rule, next := resolve("precheck", nil, "status", "Final", "predecessors_state", "complete",
+		"related_final_unordered", "1+", "baseline", "none"); rule != "precheck-cluster-order" || next != "stopped:cluster-order" {
+		t.Errorf("precheck status=Final predecessors_state=complete related_final_unordered=1+ baseline=none: rule %q next %q, want precheck-cluster-order/stopped:cluster-order", rule, next)
+	}
+	if rule, next := resolve("precheck", nil, "status", "Final", "predecessors_state", "complete",
+		"related_final_unordered", "0", "baseline", "none"); rule != "precheck-baseline-unrun" || next != "run-baseline" {
+		t.Errorf("precheck status=Final predecessors_state=complete related_final_unordered=0 baseline=none: rule %q next %q, want precheck-baseline-unrun/run-baseline", rule, next)
 	}
 
 	// The shard route reads one fact: 0030's artifacts carry an impact.md

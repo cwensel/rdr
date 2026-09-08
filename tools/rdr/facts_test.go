@@ -986,6 +986,7 @@ var routingFacts = map[string]string{
 	"predecessors_retired":        "the predecessors the launch precheck's stopped:predecessor-retired names — closed without implementing, so no capsule exists and none ever will",
 	"cluster_members_proposed":    "the Stage-2 tandem barrier: every sibling's plan authored",
 	"related_final_unimplemented": "Finalize's next step: a related Final still unimplemented routes to 7.1 first",
+	"cluster_unordered":           "the cluster siblings behind related_final_unordered: implement them first, or their Predecessors must name this record",
 	"cluster_members_in_flight":   "the after-lock group's other half: a cluster sibling still Draft, caught before a 7.1 pass runs on a partial set",
 }
 
