@@ -84,7 +84,7 @@ from artifact headers, not a re-read.
   flow's only backward edge out of Final, and it is deliberate: the spec is the
   source of truth, so a spec defect is fixed in the spec, never in the code.
   (Deviation Types — SPEC-DEFECT / SPEC-UNDER / DEPENDENCY-LIMIT /
-  TEST-FIXTURE / IMPL-DECISION — are launch.md's Phase 2 taxonomy; it is the
+  TEST-FIXTURE / IMPL-DECISION / IMPL-GAP — are launch.md's Phase 2 taxonomy; it is the
   same taxonomy the post-mortem uses, in [`../README.md`](../README.md#post-mortem-process).)
 
 ## Resuming across long gaps

@@ -478,9 +478,9 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		// would evaluate to nothing while reading as declared, the same
 		// failure seam-lineage's select guards against.
 		switch d.Select {
-		case "req-count", "orphans", "open-decisions", "mvv-recorded", "verification-recorded", "impact-families", "findings-open":
+		case "req-count", "orphans", "open-decisions", "deviation-types", "mvv-recorded", "verification-recorded", "impact-families", "findings-open":
 		default:
-			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, mvv-recorded, verification-recorded, impact-families or findings-open, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: an impl-artifact selects req-count, orphans, open-decisions, deviation-types, mvv-recorded, verification-recorded, impact-families or findings-open, got %q", name, d.Select)
 		}
 		if d.Root == "" {
 			return d, fmt.Errorf("fact %q: an impl-artifact names a root", name)
@@ -495,7 +495,7 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				return d, fmt.Errorf("fact %q: a %s impl-artifact names one path", name, d.Select)
 			}
 		}
-		if d.Select == "open-decisions" || d.Select == "mvv-recorded" || d.Select == "findings-open" {
+		if d.Select == "open-decisions" || d.Select == "deviation-types" || d.Select == "mvv-recorded" || d.Select == "findings-open" {
 			if d.Label == "" {
 				return d, fmt.Errorf("fact %q: a %s impl-artifact names a label", name, d.Select)
 			}
@@ -1325,6 +1325,7 @@ var implArtifactMembers = map[string][]string{
 	"req-count":       {"0-10", "11+"},
 	"orphans":         {"0", "1+"},
 	"open-decisions":  {"0", "1+", "midline"},
+	"deviation-types": {"0", "1+"},
 	"impact-families": {"0", "1+"},
 	"findings-open":   {"0", "1+"},
 }
@@ -1405,6 +1406,16 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 			// count below cannot be trusted, whatever it says.
 			v = "midline"
 		case n > 0:
+			v = "1+"
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+	case "deviation-types":
+		raw, ok := read(0)
+		if !ok {
+			return Fact{}, false
+		}
+		v := "0"
+		if len(unknownDeviationTypes(raw, d.Label)) > 0 {
 			v = "1+"
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
@@ -1718,6 +1729,53 @@ func fieldValue(bare, key string) (string, bool) {
 // (a history note) whose name merely ends in the same word, one space
 // away, not a Status key sitting after other content.
 var midlineStatus = regexp.MustCompile(`(?i)([.;,)]\s*|^)(\*\*|\*|__|_|` + "`" + `)?status(\*\*|\*|__|_|` + "`" + `)?\s*:`)
+
+// typeKey matches a `Type:` key opening a deviations.md line (after an
+// optional list marker and any of the emphasis wrappings) and captures the
+// rest of the line — the entry's Type value, e.g. `SPEC-UNDER — the RDR …`
+// or `SPEC-DEFECT (candidate) / SPEC-UNDER.`.
+var typeKey = regexp.MustCompile(`(?i)^\s*(?:[-*]\s+)?(?:\*\*|\*|__|_|` + "`" + `)?type(?:\*\*|\*|__|_|` + "`" + `)?\s*:\s*(.*)$`)
+
+// typeToken is one taxonomy-shaped token: upper-case words joined by `-`.
+var typeToken = regexp.MustCompile(`^[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+`)
+
+// typeAside is a parenthetical inside a Type value — `SPEC-DEFECT
+// (implementation gap against REQ-43/REQ-44, …)` — dropped before the
+// value is split on `/`, so a REQ id quoted inside it is never a type.
+var typeAside = regexp.MustCompile(`\([^)]*\)?`)
+
+// unknownDeviationTypes returns, in first-seen order, every Type value in
+// deviations.md that is not in taxonomy (a space-separated list — the
+// fact's label, declared once in rdr-facts.toml). A value carries one or
+// more `/`-separated tokens (`SPEC-DEFECT (candidate) / SPEC-UNDER`); each
+// token is the taxonomy-shaped word its piece opens with; a parenthetical
+// is dropped first, since it quotes REQ ids and prose, not types. A line
+// whose Type value opens with no such word (prose, a placeholder) is
+// skipped — it is not a minted type, and a missing Type is another fact's
+// concern.
+func unknownDeviationTypes(raw []byte, taxonomy string) []string {
+	known := map[string]bool{}
+	for _, t := range strings.Fields(taxonomy) {
+		known[t] = true
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, line := range strings.Split(string(raw), "\n") {
+		m := typeKey.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		for _, piece := range strings.Split(typeAside.ReplaceAllString(m[1], " "), "/") {
+			tok := typeToken.FindString(strings.TrimSpace(piece))
+			if tok == "" || known[tok] || seen[tok] {
+				continue
+			}
+			seen[tok] = true
+			out = append(out, tok)
+		}
+	}
+	return out
+}
 
 // openDecisions counts deviations.md's `Status:` lines whose leading
 // phrase still reads the open label, case-insensitively, and reports

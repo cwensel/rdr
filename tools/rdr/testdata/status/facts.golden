@@ -188,6 +188,7 @@ impl_state                   enum    IN-PROGRESS
 req_count                    enum    0-10
 impl_orphans                 enum    0
 impl_open_decisions          enum    0
+impl_deviation_types_unknown enum    0
 impl_mvv_recorded            bool    true
 cluster_reconciled           bool    true
 cluster_key                  scalar  0021-0022-0023
@@ -605,6 +606,7 @@ impl_state                   enum    COMPLETE
 req_count                    enum    0-10
 impl_orphans                 enum    0
 impl_open_decisions          enum    0
+impl_deviation_types_unknown enum    0
 impl_mvv_recorded            bool    true
 impl_verification_recorded   bool    true
 impl_findings_open           enum    0

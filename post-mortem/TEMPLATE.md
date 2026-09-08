@@ -58,6 +58,25 @@ For each divergence:
 - [Items in the RDR that were skipped, with reason
   if known]
 
+### Deviation Types
+
+[Count the `Type:` entries in the launch's `deviations.md`
+by the implementation taxonomy (README *Post-Mortem
+Process*). Spec drift is SPEC-DEFECT + SPEC-UNDER;
+implementation drift is IMPL-GAP; an entry typed outside
+the list is listed by name — `rdr status` flags it as
+`impl_deviation_types_unknown`.]
+
+| Type | Count |
+| --- | --- |
+| SPEC-DEFECT | |
+| SPEC-UNDER | |
+| DEPENDENCY-LIMIT | |
+| TEST-FIXTURE | |
+| IMPL-DECISION | |
+| IMPL-GAP | |
+| (outside the list) | |
+
 ---
 
 ## Drift Classification

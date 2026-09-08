@@ -1063,6 +1063,20 @@ domain      = ["0", "1+", "midline", "none"]
 absent      = "none"
 description = "Status: lines in deviations.md still reading needs author decision, bold or qualified; a line rewritten with → is closed; midline when a Status key sits mid-line (the **Type**: … **Status**: … entry form), where the count cannot be trusted."
 
+# The implementation deviation taxonomy is declared here, once; launch.md,
+# README.md (Post-Mortem Process), stages/08-implement.md and the
+# post-mortem template repeat it as prose and are kept in sync by hand.
+[fact.impl_deviation_types_unknown]
+kind        = "enum"
+source      = "impl-artifact"
+select      = "deviation-types"
+root        = "artifacts"
+paths       = ["deviations.md"]
+label       = "SPEC-DEFECT SPEC-UNDER DEPENDENCY-LIMIT TEST-FIXTURE IMPL-DECISION IMPL-GAP"
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "Type: entries in deviations.md whose type is outside the declared taxonomy (label); 0 when every entry is typed from the list, 1+ when the launch minted its own, none when the file is unread."
+
 [fact.impl_mvv_recorded]
 kind        = "bool"
 source      = "impl-artifact"

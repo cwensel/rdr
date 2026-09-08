@@ -902,7 +902,8 @@ var stageFacts = map[string][]string{
 	// read back from the tree rather than re-derived from a claim.
 	"7.1 Cluster": {"cluster", "clustered", "cluster_reconciled", "cluster_key"},
 	"8 Implement": {"impl_capsule", "impl_state", "lines", "req_count", "impl_orphans",
-		"impl_open_decisions", "impl_mvv_recorded", "impl_verification_recorded", "impl_findings_open"},
+		"impl_open_decisions", "impl_deviation_types_unknown", "impl_mvv_recorded", "impl_verification_recorded",
+		"impl_findings_open"},
 }
 
 // modelTags reads the `[tags.<name>]` keys a routing model declares.
@@ -2508,6 +2509,101 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 			if got[name] != w {
 				t.Errorf("--tags %s = %q, want sentinel %q", name, got[name], w)
 			}
+		}
+	})
+}
+
+// deviationTaxonomy is the taxonomy string rdr-facts.toml declares for
+// impl_deviation_types_unknown — kept as one constant here so a taxonomy
+// edit only breaks this file in one place.
+const deviationTaxonomy = "SPEC-DEFECT SPEC-UNDER DEPENDENCY-LIMIT TEST-FIXTURE IMPL-DECISION IMPL-GAP"
+
+// TestUnknownDeviationTypes covers unknownDeviationTypes directly (the
+// token extraction) and through the impl_deviation_types_unknown fact
+// itself (the "0" / "1+" / "none" rollup), mirroring how open-decisions is
+// tested in TestImplArtifactFactsReadTheLedger.
+func TestUnknownDeviationTypes(t *testing.T) {
+	t.Run("known types, list and bold-label forms", func(t *testing.T) {
+		raw := []byte("- **Type**: SPEC-UNDER — the RDR under-specified the retry budget.\n" +
+			"**Type**: IMPL-GAP.\n")
+		if got := unknownDeviationTypes(raw, deviationTaxonomy); len(got) != 0 {
+			t.Errorf("unknownDeviationTypes = %v, want none — both types are in the taxonomy", got)
+		}
+	})
+
+	t.Run("slash-joined value, both pieces known", func(t *testing.T) {
+		raw := []byte("**Type**: SPEC-DEFECT (candidate) / SPEC-UNDER.\n")
+		if got := unknownDeviationTypes(raw, deviationTaxonomy); len(got) != 0 {
+			t.Errorf("unknownDeviationTypes = %v, want none — SPEC-DEFECT and SPEC-UNDER are both known", got)
+		}
+	})
+
+	t.Run("unknown types, first-seen order, deduped", func(t *testing.T) {
+		raw := []byte("**Type**: PRECHECK-SCAFFOLDING.\n" +
+			"- **Type**: SHIP-ORDER — shipped ahead of its dependency.\n" +
+			"**Type**: PRECHECK-SCAFFOLDING.\n")
+		got := unknownDeviationTypes(raw, deviationTaxonomy)
+		want := []string{"PRECHECK-SCAFFOLDING", "SHIP-ORDER"}
+		if len(got) != len(want) {
+			t.Fatalf("unknownDeviationTypes = %v, want %v", got, want)
+		}
+		for i, w := range want {
+			if got[i] != w {
+				t.Errorf("unknownDeviationTypes[%d] = %q, want %q (first-seen order, each once)", i, got[i], w)
+			}
+		}
+	})
+
+	t.Run("history and status lines are not Type lines", func(t *testing.T) {
+		raw := []byte("Original type: FOO-BAR\n" +
+			"- **Status**: needs author decision\n")
+		if got := unknownDeviationTypes(raw, deviationTaxonomy); len(got) != 0 {
+			t.Errorf("unknownDeviationTypes = %v, want none — neither line opens with a Type key", got)
+		}
+	})
+
+	t.Run("unclassified placeholder has no taxonomy-shaped token", func(t *testing.T) {
+		raw := []byte("**Type**: (to be classified)\n")
+		if got := unknownDeviationTypes(raw, deviationTaxonomy); len(got) != 0 {
+			t.Errorf("unknownDeviationTypes = %v, want none — a placeholder is skipped, not an unknown", got)
+		}
+	})
+
+	t.Run("a parenthetical quoting REQ ids is dropped before the / split", func(t *testing.T) {
+		raw := []byte("**Type**: SPEC-DEFECT (implementation gap against REQ-43/REQ-44, fixed at implement)\n")
+		if got := unknownDeviationTypes(raw, deviationTaxonomy); len(got) != 0 {
+			t.Errorf("unknownDeviationTypes = %v, want none — REQ-43/REQ-44 sit inside the parenthetical, not a type", got)
+		}
+	})
+
+	t.Run("a real unknown type survives a REQ-quoting parenthetical", func(t *testing.T) {
+		raw := []byte("**Type**: FOO-BAR (see REQ-1/REQ-2)\n")
+		got := unknownDeviationTypes(raw, deviationTaxonomy)
+		want := []string{"FOO-BAR"}
+		if len(got) != 1 || got[0] != want[0] {
+			t.Errorf("unknownDeviationTypes = %v, want %v — FOO-BAR is unknown, the REQ ids are not types", got, want)
+		}
+	})
+
+	t.Run("through the fact: 0, 1+, and none", func(t *testing.T) {
+		tbl := loadRealTable(t)
+		e := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "- **Type**: SPEC-UNDER — prose.\n**Type**: IMPL-GAP.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e), "impl_deviation_types_unknown"); got != "0" {
+			t.Errorf("impl_deviation_types_unknown = %q, want 0 — only known types present", got)
+		}
+
+		e2 := implArtifactEnv(t, tbl, map[string]string{
+			"deviations.md": "**Type**: PRECHECK-SCAFFOLDING.\n",
+		})
+		if got, _ := factValue(tbl.Evaluate(e2), "impl_deviation_types_unknown"); got != "1+" {
+			t.Errorf("impl_deviation_types_unknown = %q, want 1+ — PRECHECK-SCAFFOLDING is not in the taxonomy", got)
+		}
+
+		e3 := implArtifactEnv(t, tbl, map[string]string{})
+		if v, ok := factValue(tbl.Evaluate(e3), "impl_deviation_types_unknown"); ok {
+			t.Errorf("impl_deviation_types_unknown = %q; with no deviations.md the fact must be absent", v)
 		}
 	})
 }

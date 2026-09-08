@@ -316,6 +316,10 @@ without forcing green. Every entry uses exactly one Type:
     platform path is wrong.
   - IMPL-DECISION — valid implementation latitude; record only when
     it affects future interpretation.
+  - IMPL-GAP — the code diverged from a correct locked REQ (Phase 3 or
+    a review found it); fixed in-phase, never an author decision. The
+    record was right; SPEC-DEFECT is reserved for a record that is wrong.
+A Type outside this list is read as unknown by `impl_deviation_types_unknown`.
 ADDITIVE IS NOT EXEMPT. A NEW public surface (function, accessor, output
 format, flag, error code) the RDR's Normative Contracts do not name is a
 SPEC-UNDER needing author decision even when it only ADDS: it has no
@@ -409,7 +413,8 @@ review that writes it holds that test); the leg rewrites its Outcome to
 `fixed:<sha>`, or to `held:contract (<clause>)` when the fix would ADD a
 normative choice (a new code, exemption, unit) — the record did not decide
 it, so the run does not; the review files it downstream. New deviations
-follow Phase 2's classification rules (mechanical vs needs-author-decision).
+follow Phase 2's classification rules (mechanical vs needs-author-decision);
+a defect in code against a correct REQ is IMPL-GAP, 3c's native type.
 Sub-agent returns a §return-packet (verdict=BLOCK if it cannot reach green,
 INCOMPLETE only from `return-partial` — spawn a fresh 3c; summary_50w lists
 defects fixed, rows fixed/held, regression tests added, green yes/no, any
@@ -533,7 +538,7 @@ prompt only needs to know which predecessors to gate on.
   (profile=`small` + hard caps), not an ad-hoc "trivial surface" judgment
   (FALLBACK re-asks it). The red-before-green gate still applies inline.
 - **The Phase 2 deviation Types** (SPEC-DEFECT / SPEC-UNDER /
-  DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION) are the same
+  DEPENDENCY-LIMIT / TEST-FIXTURE / IMPL-DECISION / IMPL-GAP) are the same
   taxonomy the RDR process uses for post-mortem drift classification
   (`$RDR_HOME/README.md`, *Post-Mortem Process*). They are defined inline
   in the prompt above so this file stays standalone-pasteable; keep the

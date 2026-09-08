@@ -276,8 +276,8 @@ func checklistCell(stage string, v *factView) (string, string) {
 			return glyphNot, "no capsule"
 		}
 		note := strings.Join([]string{v.kv("impl_state"), v.kv("req_count"), v.kv("impl_orphans"),
-			v.kv("impl_open_decisions"), v.kv("impl_mvv_recorded"), v.kv("impl_verification_recorded"),
-			v.kv("impl_findings_open")}, " · ")
+			v.kv("impl_open_decisions"), v.kv("impl_deviation_types_unknown"), v.kv("impl_mvv_recorded"),
+			v.kv("impl_verification_recorded"), v.kv("impl_findings_open")}, " · ")
 		state, _ := v.value("impl_state")
 		switch state {
 		case "COMPLETE":
