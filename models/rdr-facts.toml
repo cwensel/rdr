@@ -1475,27 +1475,28 @@ on_demand   = true
 domain      = ["0", "1+"]
 description = "Asserted cluster members that are Final with no COMPLETE capsule; 1+ routes to /rdr-cluster-reconcile first."
 
-# Stage 8's cluster-order question, from the field the corpus already has:
-# a Final, unbuilt sibling that does not declare THIS record among its own
-# Predecessors is an order nobody wrote down, and the launch stops on it
-# rather than guess (one record launched ahead of the sibling it overrode).
-# A sibling that names this record follows it by declaration. Overrides do
-# not clear it — the overridden record ships first. The set names them for
-# the halt line; both ON DEMAND, read by name.
+# Stage 8's cluster-order question: the Final, unbuilt siblings that build
+# BEFORE this record in the cluster's build order — topo's order (`index
+# --topo --edges predecessors,overrides`): an explicit edge first (a record
+# builds after the one it names as predecessor or overrides), then
+# Priority, then number. The order is total, so exactly one member has
+# nobody before it — a rule that stopped on every unbuilt sibling once
+# deadlocked four Final records. An author who wants another order writes
+# the edge. The set names them for the halt line; both ON DEMAND.
 [fact.related_final_unordered]
 kind        = "enum"
 source      = "related-rollup"
 select      = "final-unordered"
 on_demand   = true
 domain      = ["0", "1+"]
-description = "Final, unbuilt cluster members whose Predecessors do not name this record; 1+ is stopped:cluster-order at launch."
+description = "Final, unbuilt cluster members that build before this record (explicit edges, then Priority, then number); 1+ is stopped:cluster-order at launch."
 
 [fact.cluster_unordered]
 kind        = "set"
 source      = "related-rollup"
 select      = "unordered"
 on_demand   = true
-description = "The members behind related_final_unordered: implement them first, or their Predecessors must name this record."
+description = "The members behind related_final_unordered: implement them first, or write the edge that orders this record ahead."
 
 # Finalize's close used to dispatch 7.1 on `related_final_unimplemented`
 # alone, so a run fired while a sibling was still Draft and re-fired when

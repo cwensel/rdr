@@ -19,8 +19,10 @@ import (
 // checklistFixtures is every status fixture the golden pins. 0026 is
 // left to the arm tests (its lens facts are pinned by shape elsewhere);
 // 0033 is the fixture added for the `✓ spikes` and report-present arms.
-// 0036-0039 are the predecessor/cluster-order fixtures.
-var checklistFixtures = []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0033", "0036", "0037", "0038", "0039"}
+// 0036-0039 are the predecessor/cluster-order fixtures; 0040-0043 are
+// the no-explicit-edge cluster-order pairs, tie-broken by number and by
+// Priority.
+var checklistFixtures = []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0033", "0036", "0037", "0038", "0039", "0040", "0041", "0042", "0043"}
 
 func TestChecklistGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)

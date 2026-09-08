@@ -63,10 +63,11 @@ Refuse with the named code if any is false (the RDR is not ready — return to
   instead whether the lineage completed — the superseding record's
   `Overrides` names the clauses it CARRIED and those it did not, and the
   latter have no owner until 7.1 re-homes them.
-- **Cluster order settled** — no Final, unbuilt cluster sibling that fails to
-  name this record as its predecessor (`stopped:cluster-order:<cluster_unordered>`):
-  implement it first, or 7.1 sets the order. A pre-convention predecessor with
-  Status `Implemented` and no capsule counts as complete.
+- **First in the cluster's build order** — no Final, unbuilt sibling builds
+  before this record (`stopped:cluster-order:<cluster_unordered>`; the order is
+  `index --topo --edges predecessors,overrides`: explicit edges, then Priority,
+  then number): implement it first, or write the edge. A pre-convention
+  predecessor with Status `Implemented` and no capsule counts as complete.
 - **Baseline green** — the full suite green before Phase 1 writes a test
   (`stopped:baseline-red`).
 

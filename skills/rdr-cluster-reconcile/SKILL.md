@@ -41,8 +41,9 @@ say so and point at `/rdr-implement NNNN`.
    confirmed (re-run with it as a second seed) or dismissed, never expanded
    (Stage `07.1-cluster-reconcile.md` step 1). The set's build order is
    `index --json --topo=<members> --edges predecessors,overrides` `order[]`
-   (an overridden record ships first); cite it in the report — Stage 8's
-   precheck stops on a Final sibling whose order nobody declared. Then form the peer pairs — **not all
+   (explicit edges, then Priority, then number; an overridden record ships
+   first); cite it in the report — it is the order Stage 8's precheck
+   enforces, so a member that must go first gets its edge here. Then form the peer pairs — **not all
    C(n,2)**: trim to the plausibly-interacting ones (that stage's step 3 owns the
    rule). The trim is the cost control; report scanned/possible.
 3. **Run the stage prompt** — [`07.1-cluster-reconcile.prompt.md`](07.1-cluster-reconcile.prompt.md);

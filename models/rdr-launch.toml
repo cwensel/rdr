@@ -265,9 +265,10 @@ domain        = ["complete", "incomplete", "retired", "unresolved", "none"]
 single_valued = true
 required      = true
 
-# Final, unbuilt cluster siblings whose Predecessors do not name this
-# record (rdr-facts.toml `related_final_unordered`); `cluster_unordered`
-# names them. Never absent: an unclustered record has no siblings, `0`.
+# Final, unbuilt cluster siblings that build before this record in the
+# cluster's build order (rdr-facts.toml `related_final_unordered`: explicit
+# edges, then Priority, then number — exactly one member is ever first);
+# `cluster_unordered` names them. Never absent: no siblings is `0`.
 [tags.related_final_unordered]
 provenance    = "observed"
 kind          = "enum"
@@ -605,8 +606,8 @@ why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output reco
 # absent or not COMPLETE. `none` (no Predecessors field) counts as
 # complete. The set behind the word is `predecessors_incomplete`, which the
 # halt line names. Then the cluster order: a Final, unbuilt sibling that
-# does not declare this record as its predecessor is an order nobody
-# wrote, and `cluster_unordered` names it. Last, the baseline —
+# builds before this record (explicit edge, else Priority, else number)
+# ships first, and `cluster_unordered` names it. Last, the baseline —
 # the cheap reads having passed, the suite runs once: `none` re-asks with
 # the result (`run-baseline`), `red` is a named stop (a regression cannot be
 # told from a pre-existing failure), `green` proceeds.
@@ -688,7 +689,7 @@ in = ["complete", "none"]
 eq = "1+"
 [rule.emit]
 next = "stopped:cluster-order"
-why  = "A Final cluster sibling is unbuilt and nothing says which of you ships first; cluster_unordered names it. Implement it first, or have 7.1 set the order (its Predecessors names this record), then re-run."
+why  = "A Final cluster sibling builds before this record and is unbuilt; cluster_unordered names it (explicit edges, then Priority, then number — `index --topo --edges predecessors,overrides`). Implement it first, or write the edge that puts this record ahead, then re-run."
 
 [[rule]]
 id = "precheck-baseline-unrun"

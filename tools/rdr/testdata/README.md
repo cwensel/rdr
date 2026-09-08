@@ -79,6 +79,10 @@ absent, and would publish that repo's content into this public one.
 | `0037-cache-warm-digest.md` | predecessor reads Implemented | `Predecessors: 0036`; `predecessors_state=complete` off the Status word alone, `predecessors_incomplete` empty |
 | `0038-cache-warm-lead.md` | cluster-order lead | `Cluster: 0039`, no Predecessors; 0039 names 0038 in its own Predecessors, so 0038 reads `related_final_unordered=0` — the order is declared |
 | `0039-cache-warm-follow.md` | cluster-order follow | `Cluster: 0038`, `Predecessors: 0038`; 0038 has no capsule, so `predecessors_state=incomplete`, and `related_final_unordered=1+` with `cluster_unordered=[0038]` — Stage 8's cluster-order halt |
+| `0040-cache-warm-left.md` | cluster-order tie, first by number | `Cluster: 0041`, no Predecessors, no Overrides — no explicit edge either way; same Priority (Medium) as 0041, so the lower number builds first: `related_final_unordered=0` |
+| `0041-cache-warm-right.md` | cluster-order tie, second by number | `Cluster: 0040`, no Predecessors, no Overrides; same Priority (Medium) as 0040, so it reads `related_final_unordered=1+` with `cluster_unordered=[0040]` — the symmetric pair that used to deadlock, now ordered by number |
+| `0042-cache-warm-late.md` | cluster-order, outranked by Priority | `Cluster: 0043`, Priority Low; 0043 is High with the higher number, and Priority outranks number, so 0043 builds first: `related_final_unordered=1+` with `cluster_unordered=[0043]` |
+| `0043-cache-warm-urgent.md` | cluster-order, wins on Priority | `Cluster: 0042`, Priority High; despite the higher number, High outranks 0042's Low, so it builds first: `related_final_unordered=0` |
 
 `lint/` is a five-record corpus for the linking rules — the fixtures are
 read together, because a citation is only resolvable against the record it

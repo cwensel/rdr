@@ -142,10 +142,10 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   fact reads "every clause has a live owner", so this halt is the
   author's to clear — re-home or retire the rest
   (`/rdr-cluster-reconcile`), or confirm the successor is self-sufficient.
-  `stopped:cluster-order`: a Final, unbuilt cluster sibling that does not
-  declare this record among its Predecessors (`--filter cluster_unordered`
-  names it) — nobody wrote which ships first, and one run launched ahead
-  of the sibling it overrode. Implement it first, or 7.1 sets the order.
+  `stopped:cluster-order`: a Final, unbuilt cluster sibling builds before
+  this record (`--filter cluster_unordered` names it; the order is
+  `index --topo --edges predecessors,overrides`: explicit edges, then
+  Priority, then number). Implement it first, or write the edge.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick

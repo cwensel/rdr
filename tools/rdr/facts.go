@@ -3098,20 +3098,22 @@ func (e *FactEnv) clusterProposed(d FactDecl) (Fact, bool) {
 //	                      before implement" question
 //	draft                still Status Draft — a 7.1 pass run now would
 //	                      cover a partial set
-//	final-unordered      Final, not COMPLETE, and NOT declaring this record
-//	                      among its own Predecessors — Stage 8's cluster
+//	final-unordered      Final, not COMPLETE, and BEFORE this record in
+//	                      the cluster's build order — Stage 8's cluster
 //	                      order question; `unordered` is the same members
 //	                      as a set, for the halt line
 //
-// The order rule uses the field the corpus already has: a sibling whose
-// Predecessors names this record follows it by its own declaration, so
-// launching this record first is right; any other Final unbuilt sibling
-// is an order nobody declared, and the launch stops rather than guess
-// (one record launched ahead of the sibling it overrode, and the human
-// had to pause the run). An Overrides edge does not clear it — the
-// overridden record ships first, because the override re-cuts what it
-// shipped. `final-unimplemented` keeps counting successors: 7.1
-// reconciles the whole set.
+// The build order is topo's (`index --topo --edges predecessors,overrides`):
+// an explicit edge first — a record builds after the one it names as
+// predecessor or overrides, since an override re-cuts what the other
+// shipped — then Priority, then number. The tie-break matters: a rule
+// that stopped on every unbuilt sibling was symmetric, and four Final
+// records once stopped each other with no launch able to become the one
+// that shipped. With the order total, exactly one member has nobody
+// before it; an author who wants another order writes the edge. One
+// record launched ahead of the sibling it overrode, and the human had to
+// pause the run — that edge now orders it. `final-unimplemented` keeps
+// counting every unbuilt sibling: 7.1 reconciles the whole set.
 //
 // On demand: it walks the corpus. Absent with no corpus bound.
 func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
@@ -3147,7 +3149,7 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 			if state == "COMPLETE" {
 				continue
 			}
-			if (d.Select == "final-unordered" || d.Select == "unordered") && declaresPredecessor(peer, e.Doc.Record) {
+			if (d.Select == "final-unordered" || d.Select == "unordered") && !buildsBefore(peer, m.Record, e.Doc) {
 				continue
 			}
 			n++
@@ -3162,6 +3164,38 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 		v = "1+"
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// buildsBefore reports whether sibling `rec` (its env may be nil when it
+// did not resolve) builds before `me` in the cluster's build order: an
+// explicit edge decides — the sibling naming me as predecessor or
+// overriding me puts me first; me overriding it puts it first — else
+// topo's tie-break, Priority then number. An unresolved sibling is
+// before by number alone, so a missing record never silently clears it.
+func buildsBefore(sib *FactEnv, rec string, me *scan.Document) bool {
+	if sib != nil && sib.Doc != nil {
+		if declaresPredecessor(sib, me.Record) || overridesRecord(sib.Doc, me.Record) {
+			return false
+		}
+		if overridesRecord(me, rec) {
+			return true
+		}
+		if a, b := priorityRank(scan.Summarize(sib.Doc).Priority), priorityRank(scan.Summarize(me).Priority); a != b {
+			return a < b
+		}
+	}
+	return rec < me.Record
+}
+
+// overridesRecord reports whether doc's Overrides field names rec — an
+// edge the scanner already typed, read rather than re-parsed.
+func overridesRecord(doc *scan.Document, rec string) bool {
+	for _, ed := range doc.Edges {
+		if ed.Kind == edge.Overrides && refRecord(ed.To) == rec {
+			return true
+		}
+	}
+	return false
 }
 
 // declaresPredecessor reports whether a peer's Predecessors field names

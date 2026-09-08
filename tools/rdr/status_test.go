@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032", "0036", "0037", "0038", "0039"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032", "0036", "0037", "0038", "0039", "0040", "0041", "0042", "0043"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -214,7 +214,9 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 		"0030-cache-warm-ratio", "0031-cache-warm-report", "0032-cache-warm-alert",
 		"0033-cache-warm-order", "0035-cache-warm-publish",
 		"0037-cache-warm-digest", "0038-cache-warm-lead", "0039-cache-warm-follow",
-		"total 15 in flight over 20 records"} {
+		"0040-cache-warm-left", "0041-cache-warm-right",
+		"0042-cache-warm-late", "0043-cache-warm-urgent",
+		"total 19 in flight over 24 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -344,6 +346,13 @@ func TestPredecessorsRollup(t *testing.T) {
 // declaration) while 0039 reads 0038 as unordered — a Final, unbuilt
 // sibling whose Predecessors does not name 0039. 0030 is unclustered:
 // the sentinel `0`, with no members.
+//
+// 0040/0041 and 0042/0043 carry no explicit edge — the tie-break the
+// symmetric rule used to deadlock on. 0040 and 0041 share Priority
+// Medium, so the lower number, 0040, builds first: 0040 reads `0`,
+// 0041 reads `1+` naming 0040. 0042 (Low) and 0043 (High) differ in
+// Priority, which outranks number: 0043 builds first regardless of its
+// higher number, so 0043 reads `0` and 0042 reads `1+` naming 0043.
 func TestRelatedUnordered(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	read := func(rec string) (value string, members []string) {
@@ -380,6 +389,18 @@ func TestRelatedUnordered(t *testing.T) {
 	}
 	if v, m := read("0030"); v != "0" || len(m) != 0 {
 		t.Errorf("0030 (unclustered): related_final_unordered=%q cluster_unordered=%v, want 0 with no members", v, m)
+	}
+	if v, m := read("0040"); v != "0" || len(m) != 0 {
+		t.Errorf("0040: related_final_unordered=%q cluster_unordered=%v, want 0 with no members (lower number builds first on a Priority tie)", v, m)
+	}
+	if v, m := read("0041"); v != "1+" || len(m) != 1 || m[0] != "0040" {
+		t.Errorf("0041: related_final_unordered=%q cluster_unordered=%v, want 1+ naming 0040", v, m)
+	}
+	if v, m := read("0043"); v != "0" || len(m) != 0 {
+		t.Errorf("0043: related_final_unordered=%q cluster_unordered=%v, want 0 with no members (High outranks the lower number)", v, m)
+	}
+	if v, m := read("0042"); v != "1+" || len(m) != 1 || m[0] != "0043" {
+		t.Errorf("0042: related_final_unordered=%q cluster_unordered=%v, want 1+ naming 0043", v, m)
 	}
 }
 
