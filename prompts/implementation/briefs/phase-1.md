@@ -1,6 +1,6 @@
 # Phase 1 — test author (red before green)
 Fields: RDR_PATH NNNN RDR_HOME ART WORKTREE BRANCH TEST_FRAMEWORK TEST_DIR PREDECESSOR_ARTIFACTS
-(Fields arrive as `NAME=value` lines with this path; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
 
 First call: `cd {WORKTREE}`; if `git branch --show-current` is not {BRANCH},
 return `stopped:worktree-isolation-failed` with no edits.
@@ -24,6 +24,8 @@ domain), never the happy value. Commit the red suite on {BRANCH}.
 Read the record through `{RDR_HOME}/bin/rdr inspect …` (`--select
 {NNNN}:<id>` for exact quotes), never `sed`/`grep` the file. Never edit
 {RDR_PATH}. Scratch under /tmp, never {ART}. Separators `---`, never `===`.
+
+Reads: `{RDR_HOME}/bin/rdr-leg-read <path> [--symbol S | --range A-B]`, never `cat`.
 
 Return exactly this packet, nothing after it:
 verdict: PASS | BLOCK | INCOMPLETE | NEEDS_DECISION

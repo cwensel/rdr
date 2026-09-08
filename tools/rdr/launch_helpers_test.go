@@ -29,7 +29,7 @@ func installLaunchHelpers(t *testing.T) string {
 	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
-	for _, s := range []string{"rdr-gate", "rdr-leg-commit", "rdr-leg-budget", "rdr-leg-test"} {
+	for _, s := range []string{"rdr-gate", "rdr-leg-commit", "rdr-leg-budget", "rdr-leg-test", "rdr-leg-read", "rdr-leg-mark", "rdr-leg-guard"} {
 		script, err := os.ReadFile(filepath.Join(home, "bin", s))
 		if err != nil {
 			t.Fatalf("bin/%s is not in the tree: %v", s, err)
@@ -422,4 +422,148 @@ func TestRdrLegBudgetBucketsGitAndTheClock(t *testing.T) {
 		t.Fatalf("green ask: exit %d\n%s", code, out)
 	}
 	expect(out, "next: return-green")
+}
+
+// rdr-leg-read is a leg's only read: a file under the cap prints whole,
+// one over it prints the symbol or range asked for and otherwise the
+// outline — so a leg cannot put a whole file into its context by habit.
+func TestRdrLegReadBoundsTheRead(t *testing.T) {
+	dir := installLaunchHelpers(t)
+	read := filepath.Join(dir, "rdr-leg-read")
+	src := t.TempDir()
+	var b strings.Builder
+	b.WriteString("package x\n\ntype Small int\n\nfunc Alpha() int {\n\treturn 1\n}\n\n")
+	b.WriteString("func (r *R) Beta(n int) error {\n\tif n > 0 {\n\t\treturn nil\n\t}\n\treturn errB\n}\n\n")
+	for i := 0; i < 250; i++ {
+		b.WriteString("// filler line\n")
+	}
+	b.WriteString("const (\n\tkOne = 1\n\tkTwo = 2\n)\n\n")
+	b.WriteString("type Wide struct {\n\tA int\n\tB int\n}\n")
+	goFile := filepath.Join(src, "big.go")
+	if err := os.WriteFile(goFile, []byte(b.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	small := filepath.Join(src, "small.go")
+	if err := os.WriteFile(small, []byte("package x\n\nvar One = 1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	md := filepath.Join(src, "req-list.md")
+	if err := os.WriteFile(md, []byte("# List\n\n[REQ-1] \"first\" — (a)\nmore of one\n[REQ-2] \"second\" — (b)\n\n## EXCLUDED\nEXCLUDED: x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	code, out := runScript(t, src, read, small)
+	if code != 0 || !strings.Contains(out, "3\tvar One = 1") || !strings.Contains(out, "-- "+small+" lines 1-3 of 3") {
+		t.Errorf("small file whole: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile)
+	if code != 2 || !strings.Contains(out, "over the cap") || !strings.Contains(out, "func (r *R) Beta(n int) error {") || strings.Contains(out, "filler line") {
+		t.Errorf("whole big file should be refused with the outline: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--symbol", "Beta")
+	if code != 0 || !strings.Contains(out, "9\tfunc (r *R) Beta(n int) error {") || !strings.Contains(out, "14\t}") || strings.Contains(out, "Alpha") || strings.Contains(out, "filler") {
+		t.Errorf("--symbol Beta: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--symbol", "Wide")
+	if code != 0 || !strings.Contains(out, "type Wide struct {") || !strings.Contains(out, "\tB int") || strings.Contains(out, "filler") {
+		t.Errorf("--symbol Wide (a braced type): exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--symbol", "kTwo")
+	if code != 0 || !strings.Contains(out, "\tconst (") || !strings.Contains(out, "\tkTwo = 2") || !strings.Contains(out, "\t)") || strings.Contains(out, "Wide") {
+		t.Errorf("--symbol kTwo (a const-block member → its block): exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--symbol", "Small")
+	if code != 0 || !strings.Contains(out, "3\ttype Small int") || !strings.Contains(out, "lines 3-3 of") {
+		t.Errorf("--symbol Small (one line): exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--range", "5-7")
+	if code != 0 || !strings.Contains(out, "5\tfunc Alpha() int {") || strings.Contains(out, "Beta") {
+		t.Errorf("--range 5-7: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--range", "1-260")
+	if code != 2 || !strings.Contains(out, "over the cap") {
+		t.Errorf("a range wider than the cap is refused: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--symbol", "Nope")
+	if code != 2 || !strings.Contains(out, "no top-level symbol 'Nope'") {
+		t.Errorf("unknown symbol: exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, md, "--symbol", "REQ-1")
+	if code != 0 || !strings.Contains(out, "3\t[REQ-1]") || !strings.Contains(out, "4\tmore of one") || strings.Contains(out, "REQ-2") {
+		t.Errorf("--symbol REQ-1 (an entry to the next entry): exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, md, "--symbol", "EXCLUDED")
+	if code != 0 || !strings.Contains(out, "7\t## EXCLUDED") || !strings.Contains(out, "8\tEXCLUDED: x") {
+		t.Errorf("--symbol EXCLUDED (a heading to the end): exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, src, read, goFile, "--cap", "1000")
+	if code != 0 || !strings.Contains(out, "lines 1-") {
+		t.Errorf("--cap raises the bound: exit %d\n%s", code, out)
+	}
+}
+
+// rdr-leg-mark keys a marker by the worktree's real path; rdr-leg-guard
+// refuses the raw cat / go test / git commit only there, passes the three
+// helpers and everything elsewhere, and never blocks on input it cannot read.
+func TestRdrLegMarkAndGuardRefuseOnlyInAMarkedLeg(t *testing.T) {
+	dir := installLaunchHelpers(t)
+	mark := filepath.Join(dir, "rdr-leg-mark")
+	guard := filepath.Join(dir, "rdr-leg-guard")
+	t.Setenv("TMPDIR", t.TempDir())
+	wt := t.TempDir()
+	other := t.TempDir()
+	if _, err := exec.LookPath("python3"); err != nil {
+		t.Skip("the guard parses the hook packet with python3")
+	}
+	hook := func(cwd, cmd string) (int, string) {
+		t.Helper()
+		in := "{\"tool_name\":\"Bash\",\"cwd\":" + strconv.Quote(cwd) + ",\"tool_input\":{\"command\":" + strconv.Quote(cmd) + "}}"
+		c := exec.Command("sh", guard)
+		c.Stdin = strings.NewReader(in)
+		out, err := c.CombinedOutput()
+		if err != nil {
+			if ee, ok := err.(*exec.ExitError); ok {
+				return ee.ExitCode(), string(out)
+			}
+			t.Fatal(err)
+		}
+		return 0, string(out)
+	}
+
+	if code, out := hook(wt, "go test ./..."); code != 0 {
+		t.Errorf("unmarked worktree passes: exit %d\n%s", code, out)
+	}
+	if code, out := runScript(t, wt, mark, wt); code != 0 || !strings.Contains(out, "marked ") {
+		t.Fatalf("mark: exit %d\n%s", code, out)
+	}
+	if code, _ := runScript(t, wt, mark, "--query", wt); code != 0 {
+		t.Errorf("query after mark should succeed")
+	}
+	for _, cmd := range []string{"go test ./internal/cli/ -run X", "cat internal/cli/a.go | head", "git commit -m x", "git -C " + wt + " commit -m x", "cd " + wt + " && go test ./..."} {
+		if code, out := hook(wt, cmd); code != 2 || !strings.Contains(out, "rdr-leg-guard: a leg does not run") {
+			t.Errorf("marked leg, %q: want refusal (exit 2), got exit %d\n%s", cmd, code, out)
+		}
+	}
+	for _, cmd := range []string{"rdr-leg-test --start a --since 1 -- go test ./x/", "rdr-leg-commit --start a --since 1 --suite-green false -m x", "rdr-leg-read a.go --symbol F", "git status --porcelain", "cat notes.txt", "gofmt -l ."} {
+		if code, out := hook(wt, cmd); code != 0 {
+			t.Errorf("marked leg, %q: should pass, got exit %d\n%s", cmd, code, out)
+		}
+	}
+	if code, out := hook(other, "go test ./..."); code != 0 {
+		t.Errorf("another directory passes: exit %d\n%s", code, out)
+	}
+	c := exec.Command("sh", guard)
+	c.Stdin = strings.NewReader("not json")
+	if out, err := c.CombinedOutput(); err != nil {
+		t.Errorf("unreadable input must not block: %v\n%s", err, out)
+	}
+	if code, out := runScript(t, wt, mark, "--clear", wt); code != 0 || !strings.Contains(out, "cleared ") {
+		t.Fatalf("clear: exit %d\n%s", code, out)
+	}
+	if code, _ := runScript(t, wt, mark, "--query", wt); code == 0 {
+		t.Errorf("query after clear should fail")
+	}
+	if code, out := hook(wt, "go test ./..."); code != 0 {
+		t.Errorf("after clear the guard passes: exit %d\n%s", code, out)
+	}
 }

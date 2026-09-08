@@ -1,6 +1,6 @@
 # Phase 3b — adversarial reviewer
 Fields: RDR_PATH NNNN RDR_HOME ART WORKTREE BRANCH TEST_DIR TEST_FRAMEWORK
-(Fields arrive as `NAME=value` lines with this path; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
 
 First call: `cd {WORKTREE}`; if `git branch --show-current` is not {BRANCH},
 return `stopped:worktree-isolation-failed` with no edits.
@@ -24,6 +24,8 @@ in parallel. Commit added tests on {BRANCH}.
 
 Never `sed`/`grep` the record file; never edit {RDR_PATH} or the
 implementation. Scratch under /tmp, never {ART}. Separators `---`, never `===`.
+
+Reads: `{RDR_HOME}/bin/rdr-leg-read <path> [--symbol S | --range A-B]`, never `cat`.
 
 Return exactly this packet, nothing after it:
 verdict: PASS | BLOCK

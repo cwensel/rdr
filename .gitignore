@@ -17,3 +17,6 @@ bin/*
 !bin/rdr-leg-commit
 !bin/rdr-leg-budget
 !bin/rdr-leg-test
+!bin/rdr-leg-read
+!bin/rdr-leg-mark
+!bin/rdr-leg-guard

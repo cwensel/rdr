@@ -262,13 +262,19 @@ item), START_SHA (`git -C <wt> rev-parse
 row that goes red takes the rule below — re-cut only where a CHANGE REQ
 names it, else regression, else SPEC-DEFECT — recorded against the list,
 not a suite dump; a row that stays green needs nothing), the authority to
-write `<art>/deviations.md` (always, even empty), and the leg's ONLY commit
-and test commands, `$RDR_HOME/bin/rdr-leg-commit` and `rdr-leg-test`: each
-reads `commits` and `elapsed` from git and the clock, asks the `budget` row
-and prints `next:` — so the ask cannot be skipped (the leg that never asked
-hit 965K), and a run is an ask too: one refuses to start past the cap (a
-leg once spent 27 min in three package runs between asks, and 18 more in
-a run it started after `return-partial`).
+write `<art>/deviations.md` (always, even empty), and the leg's ONLY read,
+commit and test commands, `$RDR_HOME/bin/rdr-leg-read`, `rdr-leg-commit`
+and `rdr-leg-test`. The read is a bounded slice (a symbol or a range; over
+the cap it prints the outline instead) — a leg that read whole files
+peaked at 427K while its range-reading sibling peaked at 245K. The other
+two each read `commits` and `elapsed` from git and the clock, ask the
+`budget` row and print `next:` — so the ask cannot be skipped (the leg
+that never asked hit 965K), and a run is an ask too: one refuses to start
+past the cap (a leg once spent 27 min in three package runs between asks,
+and 18 more in a run it started after `return-partial`). The leg's first
+call marks its worktree (`rdr-leg-mark`) and its last clears it: the role
+a consumer's PreToolUse guard (`bin/rdr-leg-guard`, reference, uninstalled)
+reads to refuse the raw `cat`, `go test` and `git commit` the brief forbids.
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from

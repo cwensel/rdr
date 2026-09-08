@@ -1,0 +1,117 @@
+#!/bin/sh
+# rdr-leg-read — a leg's ONLY read of source and artifact files: a bounded slice, never the whole file.
+#
+# A Phase 2 leg's context is what it reads. One leg peaked at 427K with
+# 308K chars from nineteen whole-file `cat`s of source and the artifact
+# ledgers; its sibling, reading ranges, peaked at 245K on the same record.
+# "Read ranges, not files" was a rule in the brief the leg had to remember
+# at its busiest moment. This makes the bounded read the only read: a file
+# under the cap prints whole, one over it prints only the range or the
+# symbol asked for, and asked for nothing it prints the file's OUTLINE
+# (Go declarations, Markdown headings, REQ/DEF ids) so the next call names
+# what it wants.
+#
+#   rdr-leg-read <path> [--range A-B | --symbol NAME] [--cap N] [-C <dir>]
+#
+# Every line is printed as `N<TAB>text`; a footer names the slice
+# (`-- <path> lines A-B of N`). `--symbol` resolves, in a Go file, a
+# top-level `func`/method/`type`/`var`/`const` NAME to its declaration
+# (a braced body runs to its closing `}` at column 0); in a Markdown file,
+# a heading containing NAME or a line-leading `[NAME]`/`## NAME` entry to
+# the next entry or heading; elsewhere, the first line matching NAME and
+# the cap's worth of lines after it. A range or a symbol wider than the cap
+# is refused (exit 2) with the same outline. The cap is 200 lines unless
+# `--cap` says otherwise.
+
+usage() {
+  [ $# -gt 0 ] && echo "rdr-leg-read: $*" >&2
+  echo "usage: rdr-leg-read <path> [--range A-B | --symbol NAME] [--cap N] [-C <dir>]" >&2
+  exit 2
+}
+
+path= range= sym= cap=200 C=
+while [ $# -gt 0 ]; do
+  case $1 in
+    --range)  range=$2; shift 2 ;;
+    --symbol) sym=$2;   shift 2 ;;
+    --cap)    cap=$2;   shift 2 ;;
+    -C)       C=$2;     shift 2 ;;
+    -*) usage "unexpected '$1'" ;;
+    *) [ -z "$path" ] || usage "one path, got '$path' and '$1'"; path=$1; shift ;;
+  esac
+done
+[ -n "$path" ] || usage "a path is required"
+[ -n "$C" ] && case $path in /*) ;; *) path="$C/$path" ;; esac
+[ -f "$path" ] || { echo "rdr-leg-read: no such file: $path" >&2; exit 2; }
+case $cap in ''|*[!0-9]*|0) usage "--cap N is a positive line count" ;; esac
+[ -n "$range" ] && [ -n "$sym" ] && usage "--range and --symbol are alternatives"
+
+total=$(wc -l < "$path" | tr -d ' ')
+case $path in *.go) kind=go ;; *.md) kind=md ;; *) kind=text ;; esac
+
+# outline: what a caller can name instead of the whole file, itself bounded
+outline() {
+  echo "-- $path: $total lines, over the cap ($cap); name a --symbol or a --range A-B. Outline:" >&2
+  case $kind in
+    go) grep -nE '^(func |type |var |const )' "$path" ;;
+    md) grep -nE '^(#{1,6} |\[[A-Za-z0-9.-]+\] )' "$path" ;;
+    *)  grep -nE '^[^[:space:]]' "$path" ;;
+  esac | head -60 | sed 's/^/   /' >&2
+  exit 2
+}
+
+print_slice() { # A B
+  awk -v a="$1" -v b="$2" 'NR>=a && NR<=b { printf "%d\t%s\n", NR, $0 } NR>b { exit }' "$path"
+  echo "-- $path lines $1-$2 of $total"
+}
+
+if [ -n "$range" ]; then
+  a=${range%-*}; b=${range#*-}
+  case $a in ''|*[!0-9]*) usage "--range A-B needs numbers, got '$range'" ;; esac
+  case $b in ''|*[!0-9]*) usage "--range A-B needs numbers, got '$range'" ;; esac
+  [ "$a" -le "$b" ] || usage "--range A-B needs A <= B, got '$range'"
+  [ "$b" -gt "$total" ] && b=$total
+  [ $(( b - a + 1 )) -le "$cap" ] || { echo "rdr-leg-read: range $range is $(( b - a + 1 )) lines, over the cap ($cap)" >&2; outline; }
+  print_slice "$a" "$b"; exit 0
+fi
+
+if [ -n "$sym" ]; then
+  esc=$(printf '%s' "$sym" | sed 's/[][\.*^$/]/\\&/g')
+  case $kind in
+    go)
+      a=$(grep -nE "^(func (\([^)]*\) )?$esc\(|type $esc[ [(]|(var|const) $esc[ =])" "$path" | head -1 | cut -d: -f1)
+      if [ -n "$a" ]; then
+        line=$(sed -n "${a}p" "$path")
+        case $line in
+          *'{'|*'{ '*|*'('|*'( '*) b=$(awk -v a="$a" 'NR>a && /^[})]/ { print NR; exit }' "$path"); [ -n "$b" ] || b=$total ;;
+          *) b=$a ;;
+        esac
+      else
+        # a member of a var/const block: the block it sits in, from `(` to `)`
+        m=$(grep -nE "^[[:space:]]+$esc([[:space:]=]|$)" "$path" | head -1 | cut -d: -f1)
+        [ -n "$m" ] || { echo "rdr-leg-read: no top-level symbol '$sym' in $path" >&2; outline; }
+        a=$(awk -v m="$m" 'NR<m && /^(var|const) \($/ { s=NR } NR==m { print s; exit }' "$path")
+        [ -n "$a" ] || { echo "rdr-leg-read: '$sym' at line $m is not a top-level declaration" >&2; outline; }
+        b=$(awk -v a="$a" 'NR>a && /^\)/ { print NR; exit }' "$path"); [ -n "$b" ] || b=$total
+      fi ;;
+    md)
+      a=$(grep -nE "^(#{1,6} .*$esc|\[$esc\] |## $esc\b)" "$path" | head -1 | cut -d: -f1)
+      [ -n "$a" ] || { echo "rdr-leg-read: no heading or entry '$sym' in $path" >&2; outline; }
+      line=$(sed -n "${a}p" "$path")
+      case $line in
+        '#'*) lvl=$(printf '%s' "$line" | sed 's/^\(#*\).*/\1/' | wc -c | tr -d ' '); lvl=$(( lvl - 1 ))
+              b=$(awk -v a="$a" -v l="$lvl" 'NR>a && /^#+ / { n=index($0," ")-1; if (n<=l) { print NR-1; exit } }' "$path") ;;
+        *)    b=$(awk -v a="$a" 'NR>a && (/^\[[A-Za-z0-9.-]+\] / || /^#+ /) { print NR-1; exit }' "$path") ;;
+      esac
+      [ -n "$b" ] || b=$total ;;
+    *)
+      a=$(grep -nE "$esc" "$path" | head -1 | cut -d: -f1)
+      [ -n "$a" ] || { echo "rdr-leg-read: no line matching '$sym' in $path" >&2; outline; }
+      b=$(( a + cap - 1 )); [ "$b" -gt "$total" ] && b=$total ;;
+  esac
+  [ $(( b - a + 1 )) -le "$cap" ] || { echo "rdr-leg-read: '$sym' spans lines $a-$b, over the cap ($cap); use --range inside it" >&2; outline; }
+  print_slice "$a" "$b"; exit 0
+fi
+
+[ "$total" -le "$cap" ] || outline
+print_slice 1 "$total"

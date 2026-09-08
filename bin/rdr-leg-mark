@@ -1,0 +1,39 @@
+#!/bin/sh
+# rdr-leg-mark — declare that a Phase 2/3c leg is working in a worktree, so a guard can tell a leg from its parent.
+#
+# The leg's brief names rdr-leg-read / rdr-leg-test / rdr-leg-commit as its
+# only read, test and commit commands; the commands enforce nothing about
+# the raw `cat`, `go test` and `git commit` a leg can still type. A harness
+# hook can refuse those — but only if it knows the call comes from a leg,
+# and a hook sees a command and a cwd, never a role. This is the role: a
+# marker keyed by the worktree's real path, under /tmp so it is never in
+# the tree (`rdr-leg-commit` stages everything).
+#
+#   rdr-leg-mark <worktree>            # the leg's first call, after the isolation gate
+#   rdr-leg-mark --clear <worktree>    # the leg's last call, before its packet
+#   rdr-leg-mark --query <dir>         # exit 0 iff <dir> (or the worktree containing it) is marked
+#
+# The reference guard is bin/rdr-leg-guard; a consumer installs it as a
+# PreToolUse hook (or not — the marker is inert without one).
+
+usage() {
+  [ $# -gt 0 ] && echo "rdr-leg-mark: $*" >&2
+  echo "usage: rdr-leg-mark [--clear | --query] <dir>" >&2
+  exit 2
+}
+
+mode=mark
+case $1 in --clear) mode=clear; shift ;; --query) mode=query; shift ;; esac
+[ $# -eq 1 ] || usage "one directory"
+dir=$1
+[ -d "$dir" ] || { echo "rdr-leg-mark: no such directory: $dir" >&2; exit 2; }
+top=$(git -C "$dir" rev-parse --show-toplevel 2>/dev/null) || top=$dir
+top=$(cd "$top" && pwd -P)
+key=$(printf '%s' "$top" | cksum | cut -d' ' -f1)
+marker="${TMPDIR:-/tmp}/rdr-leg/$key"
+
+case $mode in
+  mark)  mkdir -p "${TMPDIR:-/tmp}/rdr-leg" && printf '%s\n' "$top" > "$marker" && echo "marked $top" ;;
+  clear) rm -f "$marker" && echo "cleared $top" ;;
+  query) [ -f "$marker" ] ;;
+esac

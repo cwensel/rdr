@@ -1,6 +1,6 @@
 # Phase 3a — CoVe verifier
 Fields: RDR_PATH NNNN RDR_HOME ART WORKTREE BRANCH
-(Fields arrive as `NAME=value` lines with this path; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
 
 First call: `cd {WORKTREE}`; if `git branch --show-current` is not {BRANCH},
 return `stopped:worktree-isolation-failed` with no edits.
@@ -22,6 +22,8 @@ a heredoc (`>>`); 3b writes the same file in parallel.
 Read the record through `{RDR_HOME}/bin/rdr inspect …`, never `sed`/`grep`
 the file. Never edit {RDR_PATH} or the source. Scratch under /tmp, never
 {ART}. Separators `---`, never `===`.
+
+Reads: `{RDR_HOME}/bin/rdr-leg-read <path> [--symbol S | --range A-B]`, never `cat`.
 
 Return exactly this packet, nothing after it:
 verdict: PASS | BLOCK

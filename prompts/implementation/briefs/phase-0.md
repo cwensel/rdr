@@ -1,6 +1,6 @@
 # Phase 0 — spec auditor
 Fields: RDR_PATH NNNN RDR_HOME ART WORKTREE PREDECESSOR_ARTIFACTS
-(Fields arrive as `NAME=value` lines with this path; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
 
 First call: `cd {WORKTREE}`; if `git rev-parse --show-toplevel` is not
 {WORKTREE}, return `stopped:worktree-isolation-failed` with no edits.
