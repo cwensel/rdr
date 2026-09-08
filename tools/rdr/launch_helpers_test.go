@@ -539,13 +539,16 @@ func TestRdrLegMarkAndGuardRefuseOnlyInAMarkedLeg(t *testing.T) {
 	if code, _ := runScript(t, wt, mark, "--query", wt); code != 0 {
 		t.Errorf("query after mark should succeed")
 	}
+	// A refusal is the harness's JSON deny on stdout with exit 0: the
+	// consumer's hook line ends `|| exit 0`, which would swallow an exit 2.
 	for _, cmd := range []string{"go test ./internal/cli/ -run X", "cat internal/cli/a.go | head", "git commit -m x", "git -C " + wt + " commit -m x", "cd " + wt + " && go test ./..."} {
-		if code, out := hook(wt, cmd); code != 2 || !strings.Contains(out, "rdr-leg-guard: a leg does not run") {
-			t.Errorf("marked leg, %q: want refusal (exit 2), got exit %d\n%s", cmd, code, out)
+		if code, out := hook(wt, cmd); code != 0 || !strings.Contains(out, `"permissionDecision": "deny"`) || !strings.Contains(out, "rdr-leg-guard: a leg does not run") {
+			t.Errorf("marked leg, %q: want a JSON deny (exit 0), got exit %d\n%s", cmd, code, out)
 		}
 	}
-	for _, cmd := range []string{"rdr-leg-test --start a --since 1 -- go test ./x/", "rdr-leg-commit --start a --since 1 --suite-green false -m x", "rdr-leg-read a.go --symbol F", "git status --porcelain", "cat notes.txt", "gofmt -l ."} {
-		if code, out := hook(wt, cmd); code != 0 {
+	// A heredoc write through `cat >` is the leg's own capsule, not a read.
+	for _, cmd := range []string{"rdr-leg-test --start a --since 1 -- go test ./x/", "rdr-leg-commit --start a --since 1 --suite-green false -m x", "rdr-leg-read a.go --symbol F", "git status --porcelain", "cat notes.txt", "gofmt -l .", "cat > " + wt + "/status.md <<'EOF'\nhi\nEOF", "cat >> notes.md"} {
+		if code, out := hook(wt, cmd); code != 0 || strings.Contains(out, "deny") {
 			t.Errorf("marked leg, %q: should pass, got exit %d\n%s", cmd, code, out)
 		}
 	}

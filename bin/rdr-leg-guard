@@ -9,14 +9,17 @@
 # and cwd, and asks `rdr-leg-mark --query` whether the cwd (or the
 # worktree the command `cd`s into) is a marked leg. If it is, and the
 # command runs a raw `cat` of a source or artifact file, a raw `go test`,
-# or a raw `git commit`, it exits 2 with the helper to use instead — the
-# harness shows that line to the leg and does not run the command.
-# Anything else passes (exit 0), and so does any failure to parse: a
-# guard that cannot read its input must not block.
+# or a raw `git commit`, it prints the harness's JSON deny (exit 0) naming
+# the helper to use instead — the harness shows that reason to the leg and
+# does not run the command. The deny is JSON on stdout, not an exit code:
+# every consumer hook line ends `|| exit 0`, which swallows an exit 2.
+# Anything else passes (no output, exit 0), and so does any failure to
+# parse: a guard that cannot read its input must not block.
 #
-# Install (consumer, once):
+# Install (consumer, once; kata-flight-init offers it as `--guard`). The
+# path is a LITERAL — a hook process carries none of the seam's variables:
 #   {"hooks":{"PreToolUse":[{"matcher":"Bash","hooks":[{"type":"command",
-#     "command":"sh \"$RDR_HOME/bin/rdr-leg-guard\" || exit 0"}]}]}}
+#     "command":"sh \"/abs/path/to/rdr/bin/rdr-leg-guard\" || exit 0"}]}]}}
 
 here=$(dirname "$0")
 input=$(cat 2>/dev/null) || exit 0
@@ -44,11 +47,16 @@ dir=$(printf '%s' "$cmd" | sed -n 's/^[[:space:]]*cd[[:space:]]\{1,\}\([^;&| ]*\
 [ -d "$dir" ] || exit 0
 sh "$here/rdr-leg-mark" --query "$dir" || exit 0
 
-refuse() { echo "rdr-leg-guard: a leg does not run '$1' — use $2" >&2; exit 2; }
+refuse() {
+  reason="rdr-leg-guard: a leg does not run '$1' — use $2"
+  echo "$reason" >&2
+  printf '%s' "$reason" | python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":sys.stdin.read()}}))'
+  exit 0
+}
 case " $cmd " in
   *" rdr-leg-test "*|*" rdr-leg-commit "*|*" rdr-leg-read "*) exit 0 ;;
 esac
-printf '%s' "$cmd" | grep -Eq '(^|[;&| ])cat[[:space:]]+[^|;&]*\.(go|md)([[:space:]]|$)' && refuse "cat <file>" "rdr-leg-read <path> [--symbol S | --range A-B]"
+printf '%s' "$cmd" | grep -Eq '(^|[;&| ])cat[[:space:]]+[^>|;&][^|;&]*\.(go|md)([[:space:]]|$)' && refuse "cat <file>" "rdr-leg-read <path> [--symbol S | --range A-B]"
 printf '%s' "$cmd" | grep -Eq '(^|[;&| ])go[[:space:]]+test([[:space:]]|$)' && refuse "go test" "rdr-leg-test --start … --since … -- go test …"
 printf '%s' "$cmd" | grep -Eq '(^|[;&| ])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+commit([[:space:]]|$)' && refuse "git commit" "rdr-leg-commit --start … --since … --suite-green … -m …"
 exit 0
