@@ -211,7 +211,7 @@ func Run(d *scan.Document, opts Options) Report {
 	r.Findings = append(r.Findings, parseFindings(d)...)
 	r.Findings = append(r.Findings, conformanceFindings(d, opts)...)
 	r.Findings = append(r.Findings, templateFindings(d)...)
-	r.Findings = append(r.Findings, evidenceBudgetFindings(d)...)
+	r.Findings = append(r.Findings, evidenceBudgetFindings(d, opts.Locking, terminal)...)
 	r.Findings = append(r.Findings, proseVocabularyFindings(d)...)
 	r.Findings = append(r.Findings, scaffoldRowFindings(d)...)
 	r.Findings = append(r.Findings, resolutionFindings(d, terminal, opts)...)

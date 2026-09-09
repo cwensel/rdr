@@ -994,10 +994,18 @@ const EvidenceBudget = 30
 
 // evidenceBudgetFindings reports Evidence fields longer than the budget.
 //
-// ADVISORY, ALWAYS. `Blocking` is never set here and the tier is
-// conformance, so `lint --locking` still blocks only on the resolution
-// tier. The Stage-7 prompt is explicit that over-budget fields alone
-// never make the verdict BLOCK, and this must not quietly change that.
+// ADVISORY, EXCEPT ONE CASE. The tier is conformance and `Blocking` is
+// left false — the Stage-7 prompt says field length alone never makes the
+// verdict BLOCK — except when the pass is `--locking`, the record is not
+// terminal, and its Profile's leading word is `foundational`. There it
+// blocks (rdr#wdy5): cli/0112 locked at 2,841 lines with six over-budget
+// fields "flagged, accepted", and the cost was not tokens but reasoning —
+// Phase 1 spent 39 minutes and 132 calls grounding 110 REQs against an
+// 815-line Critical Assumptions section. A foundational record is the one
+// every successor reads, so its balance is relocated before the lock, not
+// noted. Mid-flow lint, every other profile, and a terminal record are
+// untouched, so a to-do never reads as a stop and an Implemented record is
+// never re-judged. Widening to `large` is the one word in the condition.
 //
 // NO PATCH, AND NO TRUNCATION PROPOSED. The mass is usually real
 // verification content — source-verified positions, documented
@@ -1022,7 +1030,8 @@ const EvidenceBudget = 30
 // `Evidence (MEASURED)`, `Evidence plan` — and keying on the exact label
 // undercounts silently. This broke a measurement pass before it was
 // caught, which is why it is stated here rather than left to the reader.
-func evidenceBudgetFindings(d *scan.Document) []Finding {
+func evidenceBudgetFindings(d *scan.Document, locking, terminal bool) []Finding {
+	blocking := locking && !terminal && profileWord(d.MetadataValue("Profile")) == "foundational"
 	var out []Finding
 	for _, el := range d.Elements {
 		for _, f := range el.Fields {
@@ -1033,14 +1042,21 @@ func evidenceBudgetFindings(d *scan.Document) []Finding {
 			if n <= EvidenceBudget {
 				continue
 			}
+			msg := fmt.Sprintf("this Evidence field is %d lines; TEMPLATE.md specifies one sentence naming a stable anchor (soft cap %d)", n, EvidenceBudget)
+			fix := "at the Gate, answer whether the load-bearing anchor is still findable here, and whether the balance belongs in {ARTIFACT_DIR} with this field keeping the anchor and a pointer — do NOT truncate: the mass is usually verification content the grounding sweep reads"
+			if blocking {
+				msg += " — a foundational record does not lock over this"
+				fix = "relocate the balance to {ARTIFACT_DIR} (this field keeps the anchor and a pointer to it) before the lock — do NOT truncate: the mass is usually verification content the grounding sweep reads"
+			}
 			out = append(out, Finding{
 				Tier:      TierConformance,
 				Code:      "evidence:over-budget",
 				Element:   el.ID,
-				Message:   fmt.Sprintf("this Evidence field is %d lines; TEMPLATE.md specifies one sentence naming a stable anchor (soft cap %d)", n, EvidenceBudget),
+				Blocking:  blocking,
+				Message:   msg,
 				LineStart: f.LineStart,
 				LineEnd:   f.LineEnd,
-				Fix:       "at the Gate, answer whether the load-bearing anchor is still findable here, and whether the balance belongs in {ARTIFACT_DIR} with this field keeping the anchor and a pointer — do NOT truncate: the mass is usually verification content the grounding sweep reads",
+				Fix:       fix,
 			})
 		}
 	}
@@ -1201,4 +1217,18 @@ func scaffoldRowFindings(d *scan.Document) []Finding {
 	}
 	sort.Slice(out, func(a, b int) bool { return out[a].LineStart < out[b].LineStart })
 	return out
+}
+
+// profileWord is the Profile value's leading keyword (`foundational —
+// three successors cite it` → `foundational`), the same reading the
+// `profile` fact's leading-word transform makes.
+func profileWord(v string) string {
+	v = strings.TrimSpace(v)
+	for i, r := range v {
+		switch r {
+		case ' ', '\t', ',', ';', ':', '—', '-':
+			return strings.ToLower(strings.TrimSpace(v[:i]))
+		}
+	}
+	return strings.ToLower(v)
 }

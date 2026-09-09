@@ -116,13 +116,17 @@ status — these cannot both be right. (Transitional: once a contract is
 single-sourced there is no second copy to disagree.) `rdr index --status` groups
 the corpus for a cross-record question.
 
-CHECK 9 — Evidence-field budget  (ADVISORY, never blocks)
+CHECK 9 — Evidence-field budget  (ADVISORY — except a `foundational` record at lock, where it BLOCKS)
 This check IS `rdr lint`: report `evidence:over-budget`, never re-derive it
 (`--filter elements` is 139KB on cli/0138 to produce six lines).
 One question per hit, and it is the author's at the Gate: is the load-bearing
 anchor still findable, and does the balance belong in `{ARTIFACT_DIR}` with the
 field keeping the anchor and a pointer? Never propose truncation — the mass is
-usually real verification content the grounding sweep reads.
+usually real verification content the grounding sweep reads. For a record whose
+Profile reads `foundational`, `lint --locking` marks each hit BLOCKING (the
+tool's word — never judge it by eye): the verdict is BLOCK until the balance is
+relocated, and "flagged, accepted" is not a disposition (cli/0112 locked at
+2,841 lines that way; Phase 1 paid 39 minutes grounding it).
 
 CHECK 10 — Linking: labelled contracts and resolvable citations
 This check IS `rdr lint`. Report its findings; do not re-read for them.

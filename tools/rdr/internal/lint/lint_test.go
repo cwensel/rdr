@@ -328,9 +328,12 @@ func TestOwnershipTransferIsByIDAndBacklink(t *testing.T) {
 }
 
 // TestEvidenceBudgetIsAdvisory is the guarantee the check is worth
-// nothing without: the Stage-7 prompt is explicit that an over-budget
-// Evidence field alone never makes the verdict BLOCK, and `lint
-// --locking` must still block only on the resolution tier.
+// nothing without: advisory is the default — the Stage-7 prompt is
+// explicit that an over-budget Evidence field alone never makes the
+// verdict BLOCK, and `lint --locking` must still block only on the
+// resolution tier. The record here carries no Metadata table, so Profile
+// is absent and the foundational-at-lock exception cannot fire; that
+// exception is covered by TestEvidenceBudgetBlocksAFoundationalLock.
 func TestEvidenceBudgetIsAdvisory(t *testing.T) {
 	var b strings.Builder
 	b.WriteString("# Recommendation 0010: Frame header\n\n## Critical Assumptions\n\n")
@@ -361,6 +364,113 @@ func TestEvidenceBudgetIsAdvisory(t *testing.T) {
 	}
 	if r.Verdict == "BLOCK" {
 		t.Errorf("verdict is BLOCK on an advisory-only record: %s", r.Verdict)
+	}
+}
+
+// TestEvidenceBudgetBlocksAFoundationalLock is rdr#wdy5: a foundational
+// record over budget at `--locking` blocks, because every successor
+// reads it and the balance belongs in {ARTIFACT_DIR} before the lock,
+// not after. Every other combination — not locking, a non-foundational
+// Profile, or a terminal Status — stays advisory.
+func TestEvidenceBudgetBlocksAFoundationalLock(t *testing.T) {
+	build := func(profile, status string) *scan.Document {
+		var b strings.Builder
+		b.WriteString("# Recommendation 0010: Frame header\n\n## Metadata\n\n")
+		b.WriteString("- **Date**: 2026-01-01\n")
+		b.WriteString("- **Status**: " + status + "\n")
+		b.WriteString("- **Profile**: " + profile + "\n")
+		b.WriteString("\n## Critical Assumptions\n\n")
+		b.WriteString("- **A1 [Load-bearing]**: The frame header is stable.\n")
+		b.WriteString("  - **Evidence**: the anchor, and then a great deal of verification\n")
+		for i := 0; i < 60; i++ {
+			b.WriteString("    prose that the grounding sweep reads and must not lose.\n")
+		}
+		b.WriteString("  - **Status**: Verified\n")
+		return scan.Bytes([]byte(b.String()), scan.Options{})
+	}
+
+	for _, tc := range []struct {
+		name          string
+		profile       string
+		status        string
+		locking       bool
+		wantBlocking  bool
+		wantVerdictOK bool // true: expect PASS; false: expect BLOCK
+	}{
+		{
+			name:          "foundational profile, locking",
+			profile:       "foundational — three successors cite it",
+			status:        "Draft",
+			locking:       true,
+			wantBlocking:  true,
+			wantVerdictOK: false,
+		},
+		{
+			name:          "foundational profile, not locking",
+			profile:       "foundational — three successors cite it",
+			status:        "Draft",
+			locking:       false,
+			wantBlocking:  false,
+			wantVerdictOK: true,
+		},
+		{
+			name:          "mid profile, locking",
+			profile:       "mid",
+			status:        "Draft",
+			locking:       true,
+			wantBlocking:  false,
+			wantVerdictOK: true,
+		},
+		{
+			name:          "foundational profile, terminal status, locking",
+			profile:       "foundational",
+			status:        "Implemented",
+			locking:       true,
+			wantBlocking:  false,
+			wantVerdictOK: true,
+		},
+		{
+			name:          "Foundational capitalised, locking",
+			profile:       "Foundational",
+			status:        "Draft",
+			locking:       true,
+			wantBlocking:  true,
+			wantVerdictOK: false,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := build(tc.profile, tc.status)
+			r := Run(d, Options{Locking: tc.locking})
+
+			var found *Finding
+			for i := range r.Findings {
+				if r.Findings[i].Code == "evidence:over-budget" {
+					found = &r.Findings[i]
+				}
+			}
+			if found == nil {
+				t.Fatal("a 60-line Evidence field produced no finding")
+			}
+			if found.Blocking != tc.wantBlocking {
+				t.Errorf("Blocking = %v, want %v", found.Blocking, tc.wantBlocking)
+			}
+			if found.Patch != nil {
+				t.Error("evidence:over-budget carries a patch; truncation is never proposed even when the finding blocks")
+			}
+			if tc.wantBlocking && !strings.Contains(found.Message, "a foundational record does not lock over this") {
+				t.Errorf("Message = %q, want it to contain the foundational-lock rationale", found.Message)
+			}
+			if !tc.wantBlocking && strings.Contains(found.Message, "a foundational record does not lock over this") {
+				t.Errorf("Message = %q, an advisory finding must not carry the blocking rationale", found.Message)
+			}
+			wantVerdict := "BLOCK"
+			if tc.wantVerdictOK {
+				wantVerdict = "PASS"
+			}
+			if r.Verdict != wantVerdict {
+				t.Errorf("Verdict = %s, want %s", r.Verdict, wantVerdict)
+			}
+		})
 	}
 }
 
