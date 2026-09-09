@@ -1548,6 +1548,7 @@ func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 		"fence-unchecked":         "stopped:overlap-unchecked",
 		"fence-rulings-open":      "stopped:rulings-open",
 		"fence-rulings-unchecked": "stopped:rulings-unchecked",
+		"fence-impact-unwritten":  "stopped:impact-unwritten",
 	}
 	// The two rulings rows guard on rulings_open alone (any overlap_uncited);
 	// the three overlap rows now carry both dimensions.
@@ -1569,6 +1570,10 @@ func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 			if g := guards[id]; len(g["overlap_uncited"]) != 1 || len(g["rulings_open"]) != 1 {
 				t.Errorf("%s guards %v, want exactly one overlap_uncited literal and one rulings_open literal", id, g)
 			}
+		} else if id == "fence-impact-unwritten" {
+			if g := guards[id]; len(g["rulings_open"]) != 1 || len(g["clustered"]) != 1 || len(g["impact_families"]) != 1 {
+				t.Errorf("%s guards %v, want exactly one rulings_open, clustered and impact_families literal", id, g)
+			}
 		} else if g := guards[id]; len(g["rulings_open"]) != 1 {
 			t.Errorf("%s guards %v, want exactly one rulings_open literal", id, g)
 		}
@@ -1577,7 +1582,7 @@ func TestLockRefusesAnOpenJointDecision(t *testing.T) {
 		t.Errorf("fence row %q is missing", id)
 	}
 	stops := m.EmitDomains["op.stop"]
-	for _, tok := range []string{"stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked"} {
+	for _, tok := range []string{"stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked", "stopped:impact-unwritten"} {
 		if !containsString(stops, tok) {
 			t.Errorf("%s is emitted but not a declared stop disposition (%v)", tok, stops)
 		}
@@ -1647,18 +1652,39 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 		{"0025", "fence-uncited", "stopped:overlap-uncited"},
 		{"0033", "fence-clear", "none"},
 	} {
-		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited,rulings_open")
+		argv := filteredTagArgv(t, table, c.rec, "overlap_uncited,rulings_open,clustered,impact_families")
 		if rule, op := resolve("fence", c.rec, argv); rule != c.rule || op != c.op {
 			t.Errorf("fence on %s: rule %q op %q, want %s/%s", c.rec, rule, op, c.rule, c.op)
 		}
 	}
-	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "unchecked", "rulings_open", "0"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "unchecked", "rulings_open", "0", "clustered", "false", "impact_families", "none"); rule != "fence-unchecked" || op != "stopped:overlap-unchecked" {
 		t.Errorf("fence unchecked: rule %q op %q", rule, op)
 	}
-	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "1+"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "1+", "clustered", "false", "impact_families", "none"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
 		t.Errorf("fence rulings open: rule %q op %q", rule, op)
 	}
-	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "unchecked"); rule != "fence-rulings-unchecked" || op != "stopped:rulings-unchecked" {
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "unchecked", "clustered", "false", "impact_families", "none"); rule != "fence-rulings-unchecked" || op != "stopped:rulings-unchecked" {
 		t.Errorf("fence rulings unchecked: rule %q op %q", rule, op)
+	}
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "0", "clustered", "true", "impact_families", "none"); rule != "fence-impact-unwritten" || op != "stopped:impact-unwritten" {
+		t.Errorf("fence impact unwritten: rule %q op %q", rule, op)
+	}
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "0", "clustered", "true", "impact_families", "1+"); rule != "fence-clear" || op != "none" {
+		t.Errorf("fence impact written, clustered: rule %q op %q", rule, op)
+	}
+	if rule, op := resolve("fence", "0020", nil, "overlap_uncited", "0", "rulings_open", "1+", "clustered", "true", "impact_families", "none"); rule != "fence-rulings-open" || op != "stopped:rulings-open" {
+		t.Errorf("fence rulings open keeps precedence over impact-unwritten: rule %q op %q", rule, op)
+	}
+
+	// 0021 is clustered (`**Cluster**: 0020-cache-eviction-policy,
+	// 0022-cache-metrics-surface`) and its artifacts dir has no
+	// impact.md, so the live fixture corpus resolves to the same row as
+	// the explicit vector above.
+	if _, err := os.Stat(filepath.Join(records, "0021-cache-warmup-order", "artifacts", "impact.md")); err == nil {
+		t.Fatalf("fixture grew an impact.md; update this test's expectation for 0021")
+	}
+	argv := filteredTagArgv(t, table, "0021", "overlap_uncited,rulings_open,clustered,impact_families")
+	if rule, op := resolve("fence", "0021", argv); rule != "fence-impact-unwritten" || op != "stopped:impact-unwritten" {
+		t.Errorf("fence on 0021: rule %q op %q, want fence-impact-unwritten/stopped:impact-unwritten", rule, op)
 	}
 }

@@ -1118,7 +1118,11 @@ inside its loop. The launch precheck proves the baseline green, so every
 predecessor test that goes red is this change's doing; the per-test call
 — regression to fix, or a contract the record retires — was made mid-loop
 with no list, and Phase 0 now writes `<art>/impact.md` from this verb's
-stdout (`prompts/implementation/launch.md`).
+stdout (`prompts/implementation/launch.md`). A clustered record writes it
+earlier, at Stage 7's Scope Verification: the write model's `fence` group
+refuses to lock one without it (`stopped:impact-unwritten`, guarded on the
+`clustered` and `impact_families` facts), and Phase 0 then re-runs the
+projection from the file's `literals:` line rather than re-deciding them.
 
 It predicts by FILE from two sources: the records the RDR states it
 overrides or succeeds — its own Metadata edges, read the way `status`

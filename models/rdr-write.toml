@@ -215,7 +215,7 @@ kind = "enum"
 [emit.op.domain]
 edit = ["claim", "readme-add", "readme-flip", "lock", "demote", "profile", "return", "ground"]
 none = ["none"]
-stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked"]
+stop = ["stopped:no-index-table", "stopped:gate-stale", "stopped:no-gate-written", "stopped:not-lockable", "stopped:not-demotable", "stopped:no-blocker-class", "stopped:class-not-a-reentry", "stopped:contracts-unlabelled", "stopped:no-contracts", "stopped:split-signal", "stopped:profile-judgement-unwritten", "stopped:joint-decision-open", "stopped:overlap-uncited", "stopped:overlap-unchecked", "stopped:rulings-open", "stopped:rulings-unchecked", "stopped:impact-unwritten"]
 
 [emit.target]
 kind   = "enum"
@@ -496,6 +496,18 @@ required      = true
 [tags.clustered]
 provenance    = "observed"
 kind          = "bool"
+single_valued = true
+required      = true
+
+# rdr-facts.toml's `impact_families` — impact.md's `families:` count,
+# bucketed; `none` when the file is unread. The `fence` group reads it
+# beside `clustered`: a clustered record locks only with its predicted
+# blast radius written (rdr#2r7s — 7 of cli/0112's 22 deviations were
+# cross-record entanglements `rdr impact` had predicted, after the lock).
+[tags.impact_families]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
 single_valued = true
 required      = true
 
@@ -1089,7 +1101,8 @@ surface = "the status, verbatim"
 # fence — propose's overlap arms, re-run at lock
 # ===========================================================================
 #
-# Dimensions: overlap_uncited × rulings_open = 3 × 3 = 9 cells, five rows.
+# Dimensions: overlap_uncited × rulings_open × clustered × impact_families
+# = 3 × 3 × 2 × 3 = 54 cells, six rows.
 # Propose's joint check runs once, before refine, over the peers open
 # THEN; a peer proposed later shares the anchor and nobody re-asked. This
 # group asks again at lock, scoped to the record (`rdr-facts.toml`'s
@@ -1097,7 +1110,10 @@ surface = "the status, verbatim"
 # fence holding, and every stop is NOT READY. It refuses to sync the
 # copies — the answer to an uncited overlap is the joint check, fired.
 # `rulings_open` rides beside it: an author ruling nobody has applied is
-# the same "not ready to lock" shape.
+# the same "not ready to lock" shape. So is a clustered record with no
+# `{ARTIFACT_DIR}/impact.md`: Scope Verification names the retired
+# literals and runs `rdr impact` before the lock, so a predicted re-cut of
+# a peer's shipped REQ is a lock condition, not Phase 0's discovery.
 
 [[rule]]
 id = "fence-rulings-open"
@@ -1123,6 +1139,24 @@ op   = "stopped:rulings-unchecked"
 why  = "No evidence root was bound, so rulings.md was never looked for."
 surface = "bind $RDR_EVIDENCE (rdr-common §seam-bind) and re-run"
 
+# A clustered record whose impact.md is unread → refuse. Carved out of the
+# three overlap rows below by the same conjunction (unless = both hold).
+[[rule]]
+id = "fence-impact-unwritten"
+advance = false
+[rule.match.recognized]
+eq = "fence"
+[rule.guard.all.rulings_open]
+eq = "0"
+[rule.guard.all.clustered]
+eq = "true"
+[rule.guard.all.impact_families]
+eq = "none"
+[rule.emit]
+op   = "stopped:impact-unwritten"
+why  = "The record declares Cluster siblings and {ARTIFACT_DIR}/impact.md is unread — the predecessor tests its changes will turn red are a lock condition for a clustered record, not a Phase 0 discovery."
+surface = "name the retired literals (≤10, judgement), run `\"$RDR_HOME/bin/rdr\" impact <slug> --literal '<tok>' … > {ARTIFACT_DIR}/impact.md`, then read its families: a predicted re-cut of a peer's shipped REQ is an Overrides entry or NOT READY with the peer named; re-run"
+
 [[rule]]
 id = "fence-clear"
 advance = false
@@ -1132,6 +1166,10 @@ eq = "fence"
 eq = "0"
 [rule.guard.all.rulings_open]
 eq = "0"
+[rule.guard.unless.clustered]
+eq = "true"
+[rule.guard.unless.impact_families]
+eq = "none"
 [rule.emit]
 op  = "none"
 why = "Every open-peer overlap touching this record is cross-cited, and no author ruling is unabsorbed — no second copy of a decision another open record fences."
@@ -1145,6 +1183,10 @@ eq = "fence"
 eq = "1+"
 [rule.guard.all.rulings_open]
 eq = "0"
+[rule.guard.unless.clustered]
+eq = "true"
+[rule.guard.unless.impact_families]
+eq = "none"
 [rule.emit]
 op   = "stopped:overlap-uncited"
 why  = "An open peer shares an anchor or contract literal with this record and neither cites the other — a joint decision nobody fired on, or a propose-time `clear` a later peer made stale."
@@ -1159,6 +1201,10 @@ eq = "fence"
 eq = "unchecked"
 [rule.guard.all.rulings_open]
 eq = "0"
+[rule.guard.unless.clustered]
+eq = "true"
+[rule.guard.unless.impact_families]
+eq = "none"
 [rule.emit]
 op   = "stopped:overlap-unchecked"
 why  = "No records dir was bound, so the overlap arms never ran — unchecked is not clear."

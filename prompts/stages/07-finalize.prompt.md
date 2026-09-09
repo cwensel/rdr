@@ -55,7 +55,7 @@ NOT READY, class `determinacy`, with `emit.surface` quoted.
 
 Joint-decision fence: before the lock, re-run propose's arms 1 and 2 as one
 rdr-common §rdr-write call,
-`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited,rulings_open NNNN)`;
+`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited,rulings_open,clustered,impact_families NNNN)`;
 it must emit `op = none`. `stopped:overlap-uncited` is NOT READY (a shared
 decision nobody fired on — fire it, do not sync the copies), and
 `stopped:overlap-unchecked` means nothing looked. `stopped:rulings-open` is NOT
@@ -79,7 +79,15 @@ where the lock keeps it citable; gate.md never carries a second copy to drift:
    load-bearing Docs-Only without a Spike/Source-Search plan; no Source-Search
    self-reference.
 3. Scope Verification — the Minimum Viable Validation is in scope, not
-   deferred; name the specific test/proof.
+   deferred; name the specific test/proof. A record that declares Cluster
+   siblings also names its blast radius here: name the retired literals
+   (the exact tokens the CHANGE-tagged contracts retire or rename, ≤10,
+   judgement) and run `"$RDR_HOME/bin/rdr" impact <slug> --literal '<tok>'
+   … > {ARTIFACT_DIR}/impact.md`; a predicted re-cut of a peer's shipped
+   REQ is a lock condition — an Overrides entry, or NOT READY with the peer
+   named. The fence refuses to lock a clustered record without the file
+   (`stopped:impact-unwritten`); Phase 0 re-runs the projection from the
+   file's `literals:` line, so the judgement is made once, here.
 4. Cross-Cutting Concerns — for each that applies, how this RDR addresses it
    or which peer RDR owns the policy. Omit (don't N/A-bullet) what doesn't.
 5. Proportionality — right-sized; flag anything to trim before locking.

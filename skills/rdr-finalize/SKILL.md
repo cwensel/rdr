@@ -75,6 +75,16 @@ Claude: /rdr-finalize <NNNN>
 - Readiness says READY, no open blockers; MVV genuinely in scope; the RDR's
   README index row flipped to Final (the row seed created). On NOT READY the
   prompt flips nothing — return to the named stage.
+- A clustered record has `{ARTIFACT_DIR}/impact.md` (Scope Verification's
+  `rdr impact` run; the fence's `stopped:impact-unwritten` is the tool's word,
+  never read by eye) and any predicted re-cut of a peer's shipped REQ is an
+  Overrides entry or a named blocker.
+- **Ablation, three records (rdr#2r7s):** for a `foundational` or clustered
+  record, before the gate, spawn the engine's Phase 0 brief
+  (`$RDR_HOME/prompts/implementation/briefs/phase-0.md`) read-only against the
+  Draft — scratch under /tmp, nothing under `{ARTIFACT_DIR}` — and append its
+  counts to `$RDR_HOME/_usage/p0-verification/2r7s-prelock-audit.md`; remove
+  this line once the table has three rows.
 
 ## Next step (rdr-common §next-step)
 

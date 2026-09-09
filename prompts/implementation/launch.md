@@ -197,10 +197,12 @@ Sub-agent's task:
      materially different behaviour, no precedent in predecessors),
      record it under a `QUESTIONS` section in `req-list.md` and
      surface it in the return summary.
-  4. Write `<art>/impact.md` from the projection, not from reading tests:
-     name the retired literals — the exact tokens (marker strings,
-     extensions, error codes) the CHANGE-tagged REQs retire or rename,
-     ≤10, judgement — then
+  4. Write `<art>/impact.md` from the projection, not from reading tests.
+     The literals are judgement made once: if the file already exists
+     (Stage 7 writes it for a clustered record), take them from its
+     `literals:` header line; else name them — the exact tokens (marker
+     strings, extensions, error codes) the CHANGE-tagged REQs retire or
+     rename, ≤10. Then, always fresh,
      `"$RDR_HOME/bin/rdr" impact <slug> --literal '<tok>' … > <art>/impact.md`
      (override + predecessor records are read from the record; a
      `stopped:*` is a halt in the packet's next_action, never an empty file).
