@@ -49,7 +49,7 @@ func bindStatusFixture(t *testing.T) (records, table string) {
 func TestStatusGolden(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	var got strings.Builder
-	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032", "0036", "0037", "0038", "0039", "0040", "0041", "0042", "0043"} {
+	for _, n := range []string{"0020", "0021", "0022", "0023", "0024", "0025", "0027", "0028", "0029", "0030", "0031", "0032", "0036", "0037", "0038", "0039", "0040", "0041", "0042", "0043", "0044"} {
 		code, out, errb := runCapture(t, "status", "--facts", table, n)
 		if code != 0 {
 			t.Fatalf("%s: exit %d: %s", n, code, errb)
@@ -215,8 +215,8 @@ func TestStatusWorklistIsTheInFlightSet(t *testing.T) {
 		"0033-cache-warm-order", "0035-cache-warm-publish",
 		"0037-cache-warm-digest", "0038-cache-warm-lead", "0039-cache-warm-follow",
 		"0040-cache-warm-left", "0041-cache-warm-right",
-		"0042-cache-warm-late", "0043-cache-warm-urgent",
-		"total 19 in flight over 24 records"} {
+		"0042-cache-warm-late", "0043-cache-warm-urgent", "0044-cache-warm-staged",
+		"total 20 in flight over 25 records"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("worklist lacks %q:\n%s", want, out)
 		}
@@ -401,6 +401,58 @@ func TestRelatedUnordered(t *testing.T) {
 	}
 	if v, m := read("0042"); v != "1+" || len(m) != 1 || m[0] != "0043" {
 		t.Errorf("0042: related_final_unordered=%q cluster_unordered=%v, want 1+ naming 0043", v, m)
+	}
+}
+
+// TestPrerequisiteRollup: the Prerequisites boxes, read as records write
+// them. 0044's section names 0038 (Final, no capsule) in an unchecked
+// "landed before Step 2" box — owed; 0036 (Implemented, no capsule) in
+// one (the `NNNN-slug` spelling) — cleared by the Status word; 0037 as "NOT a build dependency",
+// 0040 in a ticked box, 0041 as "landed or co-landing", and 0042 only
+// inside a `(…)` gloss — none of those is an obligation. 0030 has no
+// section: absent, which `--tags` renders as the `none` sentinel.
+func TestPrerequisiteRollup(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	read := func(rec string) (string, []string) {
+		t.Helper()
+		code, out, errb := runCapture(t, "status", "--facts", table, "--json", "--filter", "prerequisites_unimplemented,prerequisites_owed", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		var got struct {
+			Facts []struct {
+				Name    string   `json:"name"`
+				Value   string   `json:"value"`
+				Members []string `json:"members"`
+			} `json:"facts"`
+		}
+		if err := json.Unmarshal([]byte(out), &got); err != nil {
+			t.Fatal(err)
+		}
+		var value string
+		var members []string
+		for _, f := range got.Facts {
+			switch f.Name {
+			case "prerequisites_unimplemented":
+				value = f.Value
+			case "prerequisites_owed":
+				members = f.Members
+			}
+		}
+		return value, members
+	}
+	if v, m := read("0044"); v != "1+" || len(m) != 1 || m[0] != "0038" {
+		t.Errorf("0044: prerequisites_unimplemented=%q prerequisites_owed=%v, want 1+ naming 0038 alone", v, m)
+	}
+	if v, m := read("0030"); v != "" || m != nil {
+		t.Errorf("0030 (no Prerequisites): prerequisites_unimplemented=%q prerequisites_owed=%v, want absent", v, m)
+	}
+	code, out, errb := runCapture(t, "status", "--facts", table, "--tags", "--filter", "prerequisites_unimplemented", "0030")
+	if code != 0 {
+		t.Fatalf("0030 --tags: exit %d: %s", code, errb)
+	}
+	if !strings.Contains(out, "prerequisites_unimplemented=none") {
+		t.Errorf("0030 --tags: want the none sentinel, got:\n%s", out)
 	}
 }
 

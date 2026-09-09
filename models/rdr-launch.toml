@@ -75,7 +75,7 @@ route = ["inline", "delegated", "single", "sharded"]
 done  = ["COMPLETE"]
 go    = ["proceed", "run-baseline"]
 loop  = ["continue", "return-green", "return-partial"]
-stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:findings-open", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:cluster-order", "stopped:baseline-red", "stopped:impact-unread"]
+stop  = ["stopped:coverage-unread", "stopped:deviations-unread", "stopped:verification-unrun", "stopped:suite-red", "stopped:req-orphans", "stopped:mvv-unrecorded", "stopped:open-decisions", "stopped:deviations-status-midline", "stopped:findings-open", "stopped:not-final", "stopped:predecessor-unresolved", "stopped:predecessor-incomplete", "stopped:predecessor-retired", "stopped:cluster-order", "stopped:prerequisite-unimplemented", "stopped:baseline-red", "stopped:impact-unread"]
 
 [emit.why]
 kind = "scalar"
@@ -241,7 +241,7 @@ domain        = ["0-30", "31+"]
 single_valued = true
 required      = true
 
-# --- the precheck's facts, rendered by `rdr status --tags --filter status,predecessors_state,related_final_unordered`
+# --- the precheck's facts, rendered by `rdr status --tags --filter status,predecessors_state,related_final_unordered,prerequisites_unimplemented`
 
 # The record's bare lifecycle Status; only Final implements.
 [tags.status]
@@ -273,6 +273,20 @@ required      = true
 provenance    = "observed"
 kind          = "enum"
 domain        = ["0", "1+"]
+single_valued = true
+required      = true
+
+# Records a `### Prerequisites` box says must land before this one and
+# that are not implemented (rdr-facts.toml `prerequisites_unimplemented`:
+# an unchecked box, a record named in its head, a landing verb, no escape;
+# implemented is `predecessors_state`'s read). Neither Predecessors nor the
+# cluster order carries this edge, which is why it is its own dimension.
+# `none` is the absent sentinel: no Prerequisites section, routed as `0`.
+# `prerequisites_owed` names them.
+[tags.prerequisites_unimplemented]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+", "none"]
 single_valued = true
 required      = true
 
@@ -600,14 +614,17 @@ why  = "Every REQ-N has a green test, no orphans either way, REQ-MVV output reco
 # precheck — the record may be implemented
 # ===========================================================================
 #
-# status x predecessors_state x related_final_unordered x baseline = 216
-# cells. Not Final stops first; then the predecessor gate in the prompt's
+# status x predecessors_state x related_final_unordered x
+# prerequisites_unimplemented x baseline = 648 cells. Not Final stops first; then the predecessor gate in the prompt's
 # own order: a predecessor that did not resolve, then one whose capsule is
 # absent or not COMPLETE. `none` (no Predecessors field) counts as
 # complete. The set behind the word is `predecessors_incomplete`, which the
 # halt line names. Then the cluster order: a Final, unbuilt sibling that
 # builds before this record (explicit edge, else Priority, else number)
-# ships first, and `cluster_unordered` names it. Last, the baseline —
+# ships first, and `cluster_unordered` names it. Then the Prerequisites:
+# a record its own boxes say lands first and is unbuilt stops here, not
+# at the completion gate hours later; `prerequisites_owed` names it. Last,
+# the baseline —
 # the cheap reads having passed, the suite runs once: `none` re-asks with
 # the result (`run-baseline`), `red` is a named stop (a regression cannot be
 # told from a pre-existing failure), `green` proceeds.
@@ -691,6 +708,30 @@ eq = "1+"
 next = "stopped:cluster-order"
 why  = "A Final cluster sibling builds before this record and is unbuilt; cluster_unordered names it (explicit edges, then Priority, then number — `index --topo --edges predecessors,overrides`). Implement it first, or write the edge that puts this record ahead, then re-run."
 
+# The record's own `### Prerequisites` says another record's code lands
+# before a step of this one, and that record is not implemented. Neither
+# Predecessors nor the cluster order carries the edge, so both rows above
+# pass; without this one the run builds every step that does not wait,
+# then halts at the completion gate with the waiting step's REQs
+# untestable. Nothing clears it but the named record being implemented:
+# the box is this record's own explicit ordering, so an Overrides edge is
+# not a second answer to it.
+[[rule]]
+id = "precheck-prerequisite-unimplemented"
+[rule.match.recognized]
+eq = "precheck"
+[rule.guard.all.status]
+eq = "Final"
+[rule.guard.all.predecessors_state]
+in = ["complete", "none"]
+[rule.guard.all.related_final_unordered]
+eq = "0"
+[rule.guard.all.prerequisites_unimplemented]
+eq = "1+"
+[rule.emit]
+next = "stopped:prerequisite-unimplemented"
+why  = "This record's `### Prerequisites` says another record lands first and it is not implemented; prerequisites_owed names it. Implement it first, or move the half that waits on it to a successor record, then re-run."
+
 [[rule]]
 id = "precheck-baseline-unrun"
 [rule.match.recognized]
@@ -701,6 +742,8 @@ eq = "Final"
 in = ["complete", "none"]
 [rule.guard.all.related_final_unordered]
 eq = "0"
+[rule.guard.all.prerequisites_unimplemented]
+in = ["0", "none"]
 [rule.guard.all.baseline]
 eq = "none"
 [rule.emit]
@@ -717,6 +760,8 @@ eq = "Final"
 in = ["complete", "none"]
 [rule.guard.all.related_final_unordered]
 eq = "0"
+[rule.guard.all.prerequisites_unimplemented]
+in = ["0", "none"]
 [rule.guard.all.baseline]
 eq = "red"
 [rule.emit]
@@ -733,11 +778,13 @@ eq = "Final"
 in = ["complete", "none"]
 [rule.guard.all.related_final_unordered]
 eq = "0"
+[rule.guard.all.prerequisites_unimplemented]
+in = ["0", "none"]
 [rule.guard.all.baseline]
 eq = "green"
 [rule.emit]
 next = "proceed"
-why  = "Final, every predecessor COMPLETE (or none declared), no unordered Final sibling, and the baseline green: the launch may run."
+why  = "Final, every predecessor COMPLETE (or none declared), no unordered Final sibling, no unimplemented prerequisite, and the baseline green: the launch may run."
 
 # ===========================================================================
 # shard — the Phase 2 worklist, named once

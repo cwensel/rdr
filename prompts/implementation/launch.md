@@ -146,6 +146,10 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   this record (`--filter cluster_unordered` names it; the order is
   `index --topo --edges predecessors,overrides`: explicit edges, then
   Priority, then number). Implement it first, or write the edge.
+  `stopped:prerequisite-unimplemented`: this record's own `### Prerequisites`
+  says another record lands before one of its steps and it is unbuilt
+  (`--filter prerequisites_owed` names it). Implement it first, or move
+  the waiting half to a successor record.
 - Test framework: infer from (in order) the project's existing test
   config (`go.mod`, `package.json`, `pyproject.toml`, `build.gradle`,
   `Cargo.toml`, …) and existing test files in the source tree. Pick

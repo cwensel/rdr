@@ -1145,8 +1145,11 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		{"0030", "none", "precheck-baseline-unrun", "run-baseline"},
 		{"0030", "red", "precheck-baseline-red", "stopped:baseline-red"},
 		{"0030", "green", "precheck-ok", "proceed"},
+		// 0044's Prerequisites say 0038 lands first and 0038 is Final with
+		// no capsule: the stop this record's other gates cannot see.
+		{"0044", "none", "precheck-prerequisite-unimplemented", "stopped:prerequisite-unimplemented"},
 	} {
-		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state,related_final_unordered")
+		argv = filteredTagArgv(t, table, c.rec, "status,predecessors_state,related_final_unordered,prerequisites_unimplemented")
 		if rule, next := resolve("precheck", argv, "baseline", c.baseline); rule != c.rule || next != c.next {
 			t.Errorf("precheck on %s: rule %q next %q, want %s/%s", c.rec, rule, next, c.rule, c.next)
 		}
@@ -1158,12 +1161,19 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 	// launch stops rather than guess. Clearing it to 0 (no such sibling,
 	// or every one declares this record) reaches run-baseline instead.
 	if rule, next := resolve("precheck", nil, "status", "Final", "predecessors_state", "complete",
-		"related_final_unordered", "1+", "baseline", "none"); rule != "precheck-cluster-order" || next != "stopped:cluster-order" {
+		"related_final_unordered", "1+", "prerequisites_unimplemented", "0", "baseline", "none"); rule != "precheck-cluster-order" || next != "stopped:cluster-order" {
 		t.Errorf("precheck status=Final predecessors_state=complete related_final_unordered=1+ baseline=none: rule %q next %q, want precheck-cluster-order/stopped:cluster-order", rule, next)
 	}
 	if rule, next := resolve("precheck", nil, "status", "Final", "predecessors_state", "complete",
-		"related_final_unordered", "0", "baseline", "none"); rule != "precheck-baseline-unrun" || next != "run-baseline" {
-		t.Errorf("precheck status=Final predecessors_state=complete related_final_unordered=0 baseline=none: rule %q next %q, want precheck-baseline-unrun/run-baseline", rule, next)
+		"related_final_unordered", "0", "prerequisites_unimplemented", "none", "baseline", "none"); rule != "precheck-baseline-unrun" || next != "run-baseline" {
+		t.Errorf("precheck status=Final predecessors_state=complete related_final_unordered=0 prerequisites_unimplemented=none baseline=none: rule %q next %q, want precheck-baseline-unrun/run-baseline", rule, next)
+	}
+	// The prerequisite row sits after the cluster order and before the
+	// baseline: an unbuilt prerequisite stops with the baseline unasked,
+	// and 1+ on the cluster order wins over it.
+	if rule, next := resolve("precheck", nil, "status", "Final", "predecessors_state", "none",
+		"related_final_unordered", "0", "prerequisites_unimplemented", "1+", "baseline", "green"); rule != "precheck-prerequisite-unimplemented" || next != "stopped:prerequisite-unimplemented" {
+		t.Errorf("precheck prerequisites_unimplemented=1+ baseline=green: rule %q next %q, want precheck-prerequisite-unimplemented/stopped:prerequisite-unimplemented", rule, next)
 	}
 
 	// The shard route reads one fact: 0030's artifacts carry an impact.md

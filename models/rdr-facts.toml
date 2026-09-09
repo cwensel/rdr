@@ -1523,3 +1523,31 @@ select      = "draft"
 on_demand   = true
 domain      = ["0", "1+"]
 description = "Asserted cluster members still Draft; 1+ means a 7.1 pass now would run on a partial set."
+
+# Stage 8's third ordering question, the one neither of the two above
+# carries: a `### Prerequisites` box saying another record's code "lands
+# before Step 2" names a record that is not a Predecessor and not a
+# cluster sibling, so a launch passed both gates, built for hours, and
+# halted at the completion gate with the boxed half's REQs untestable.
+# The evaluator reads the boxes as records write them and refuses the
+# rest (its comment lists the rule: an unchecked box, a record named in
+# the clause's head outside any `(…)` gloss, a landing verb, and no
+# `not`/`if`/`or`/`co-landing` escape); a named record is implemented by
+# `predecessors_state`'s read. Absent with no Prerequisites section:
+# `none` is the declared sentinel, and the launch table routes it as `0`.
+# The set names the records for the halt line; both ON DEMAND.
+[fact.prerequisites_unimplemented]
+kind        = "enum"
+source      = "prerequisite-rollup"
+select      = "unimplemented"
+on_demand   = true
+domain      = ["0", "1+", "none"]
+absent      = "none"
+description = "Records a `### Prerequisites` box says must land first and whose capsule is not COMPLETE nor Status Implemented; 1+ is stopped:prerequisite-unimplemented at launch."
+
+[fact.prerequisites_owed]
+kind        = "set"
+source      = "prerequisite-rollup"
+select      = "owed"
+on_demand   = true
+description = "The records behind prerequisites_unimplemented: implement them first, or move the half that waits on them to a successor record."

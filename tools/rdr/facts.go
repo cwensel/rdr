@@ -231,6 +231,7 @@ var factSources = map[string]bool{
 	"joint-check-home": true, "overlap-uncited": true,
 	// the rollups: facts about the record's peers, read through FactEnv.Peer
 	"predecessor-rollup": true, "cluster-proposed": true, "related-rollup": true,
+	"prerequisite-rollup": true,
 	// the ledger readers: a lens's dispositions.md or evidence/rulings.md,
 	// tallied by an entry/open-or-closed regex pair; and the deepest
 	// iter-N segment reached under a tree.
@@ -579,6 +580,27 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		default:
 			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented, draft, final-unordered or unordered, got %q", name, d.Select)
 		}
+	case "prerequisite-rollup":
+		// Two selects: the count word the launch precheck routes on, and
+		// the set naming the records it owes. The enum's members are
+		// fixed by the evaluator, so the domain must declare them.
+		switch d.Select {
+		case "unimplemented":
+			if d.Kind != "enum" {
+				return d, fmt.Errorf("fact %q: unimplemented is an enum", name)
+			}
+			for _, m := range relatedRollupMembers {
+				if !slices.Contains(d.Domain, m) {
+					return d, fmt.Errorf("fact %q: domain does not declare %q, which unimplemented can emit", name, m)
+				}
+			}
+		case "owed":
+			if d.Kind != "set" {
+				return d, fmt.Errorf("fact %q: owed is a set", name)
+			}
+		default:
+			return d, fmt.Errorf("fact %q: a prerequisite-rollup selects unimplemented or owed, got %q", name, d.Select)
+		}
 	case "ledger-tally":
 		if d.Root == "" || d.Path == "" || d.Entry == "" {
 			return d, fmt.Errorf("fact %q: a ledger-tally names a root, a path and an entry", name)
@@ -887,6 +909,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.clusterProposed(d)
 	case "related-rollup":
 		return e.relatedRollup(d)
+	case "prerequisite-rollup":
+		return e.prerequisiteRollup(d)
 	case "ledger-tally":
 		return e.ledgerTally(d)
 	case "iter-max":
@@ -3267,6 +3291,183 @@ func declaresPredecessor(peer *FactEnv, record string) bool {
 		return false
 	}
 	return slices.Contains(recordNumbers(f.Value), record)
+}
+
+// prerequisiteRollup folds the records `### Prerequisites` says must be
+// implemented first over their capsules — the dependency neither the
+// Predecessors field nor the cluster order carries. One record built for
+// four hours and halted at the completion gate with 82 REQs untestable,
+// because its Prerequisites said a peer's collector "lands before Step
+// 2's staging arm" and that peer was Final and unbuilt; the peer was not
+// a Predecessor and not a cluster sibling, so neither precheck fired.
+//
+//	unimplemented  `1+` when any such record is not implemented, else `0`
+//	owed           the records, for the halt line
+//
+// What counts as "must be implemented first" is read from how records
+// actually write it, and refuses to guess: a false stop costs a launch.
+//
+//   - Only an UNCHECKED box (`- [ ]`) is an open obligation; a checked
+//     one is the author's own discharge.
+//   - The item's CLAUSE is its text unwrapped, with every `(…)` gloss
+//     removed and emphasis stripped, cut at the first ` — `, `:`, `;`,
+//     sentence end or `?` — the head that says what the item is, before
+//     the reason why.
+//   - The clause must name a record (`cli/NNNN` or `NNNN-slug`; a bare
+//     number is not one, so `RFD 0004` is never read as a record; a
+//     foreign project prefix is not one either) AND carry a landing verb:
+//     lands, landed, implemented, merged, ship(s) code — the corpus's
+//     spellings. `locked`, `Final`, `proposed` are lock-state, not code,
+//     and do not count.
+//   - A clause with `not`, `if`, `or` or `co-landing` is refused: "NOT a
+//     build dependency", "need NOT land", "if it lands first", "landed
+//     or co-landing", "landed, or their seams stubbed" each name an
+//     escape the record itself allows.
+//
+// A named record is implemented by predecessorRollup's read: capsule
+// COMPLETE, or no readable capsule and Status Implemented. One that does
+// not resolve is owed (nothing looked is not implemented). Absent when
+// the record has no Prerequisites section or no peer resolver is bound —
+// `none` is the declared sentinel, the launch table routes it as `0`.
+// Measured on one consumer corpus of 146 records: one stop, on the record
+// that halted, naming the peer it waited on; every other obligation read
+// was on an Implemented peer.
+func (e *FactEnv) prerequisiteRollup(d FactDecl) (Fact, bool) {
+	if e.Doc == nil || e.Doc.Path == "" || e.Peer == nil {
+		return Fact{}, false
+	}
+	var start, end int
+	for _, n := range e.Doc.Outline {
+		if n.Canonical == "Prerequisites" {
+			start, end = n.LineStart, n.LineEnd
+			break
+		}
+	}
+	if start == 0 {
+		return Fact{}, false
+	}
+	raw, err := e.readFile(e.Doc.Path)
+	if err != nil {
+		return Fact{}, false
+	}
+	lines := strings.Split(string(raw), "\n")
+	if end > len(lines) {
+		end = len(lines)
+	}
+	var owed []string
+	for _, item := range checkboxItems(lines[start:end]) {
+		for _, rec := range prerequisiteRecords(item, e.Doc) {
+			peer, ok := e.Peer(rec)
+			if !ok {
+				owed = append(owed, rec)
+				continue
+			}
+			if state := capsuleStateOf(e.table, peer); state == "COMPLETE" || (state == "" && implementedStatus(peer)) {
+				continue
+			}
+			owed = append(owed, rec)
+		}
+	}
+	owed = canonicalSet(owed)
+	if d.Select == "owed" {
+		return Fact{Name: d.Name, Kind: d.Kind, Members: owed}, true
+	}
+	v := "0"
+	if len(owed) > 0 {
+		v = "1+"
+	}
+	return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true
+}
+
+// checkboxItem is one `- [ ]` box: whether it is ticked, and its text
+// unwrapped over the lines the author wrapped it across.
+type checkboxItem struct {
+	checked bool
+	text    string
+}
+
+var checkboxLead = regexp.MustCompile(`^\s*- \[( |x|X)\]\s*(.*)$`)
+
+// checkboxItems splits a section body into its boxes; a line that starts
+// no box continues the one before it, and text before the first box is
+// nobody's.
+func checkboxItems(lines []string) []checkboxItem {
+	var out []checkboxItem
+	for _, ln := range lines {
+		if m := checkboxLead.FindStringSubmatch(ln); m != nil {
+			out = append(out, checkboxItem{checked: m[1] != " ", text: m[2]})
+			continue
+		}
+		if len(out) > 0 {
+			out[len(out)-1].text += " " + strings.TrimSpace(ln)
+		}
+	}
+	return out
+}
+
+var (
+	// prereqRef is a record named as one: a project-prefixed number
+	// (`cli/0055`, the prefix letter-led so `0092/0093` is not one) or a
+	// record filename stem (`0038-cache-warm-lead`).
+	prereqRef = regexp.MustCompile(`\b([A-Za-z][A-Za-z0-9_.-]*)/(\d{4})\b|\b(\d{4})-[a-z][a-z0-9-]*`)
+	// prereqVerb is a landing obligation as the corpus spells it.
+	prereqVerb = regexp.MustCompile(`(?i)\b(lands?|landed|implemented|merged|ships?\s+code)\b`)
+	// prereqEscape marks a clause that allows a way around the landing.
+	prereqEscape = regexp.MustCompile(`(?i)\b(not|if|or|co-land\w*)\b`)
+	// prereqCut ends the clause: the reason after the head is not read.
+	prereqCut = regexp.MustCompile(` — |—|:|;|\. |\?`)
+	spaces    = regexp.MustCompile(`\s+`)
+)
+
+// prerequisiteRecords reads the records an unchecked box obliges to land
+// first, by the rule prerequisiteRollup documents. The record's own
+// number is never one.
+func prerequisiteRecords(item checkboxItem, doc *scan.Document) []string {
+	if item.checked {
+		return nil
+	}
+	s := stripParens(spaces.ReplaceAllString(item.text, " "))
+	s = strings.NewReplacer("**", "", "*", "").Replace(s)
+	if loc := prereqCut.FindStringIndex(s); loc != nil {
+		s = s[:loc[0]]
+	}
+	if !prereqVerb.MatchString(s) || prereqEscape.MatchString(s) {
+		return nil
+	}
+	var out []string
+	for _, m := range prereqRef.FindAllStringSubmatch(s, -1) {
+		rec := m[3]
+		if m[2] != "" {
+			if doc.Project != "" && m[1] != doc.Project {
+				continue
+			}
+			rec = m[2]
+		}
+		if rec != doc.Record {
+			out = append(out, rec)
+		}
+	}
+	return out
+}
+
+// stripParens drops every parenthesised span, nested ones included — a
+// gloss cites; it does not oblige.
+func stripParens(s string) string {
+	var b strings.Builder
+	depth := 0
+	for _, r := range s {
+		switch {
+		case r == '(':
+			depth++
+		case r == ')':
+			if depth > 0 {
+				depth--
+			}
+		case depth == 0:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
 
 // --- the ledger readers -----------------------------------------------------

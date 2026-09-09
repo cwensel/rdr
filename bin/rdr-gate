@@ -13,7 +13,8 @@
 #   rdr-gate <outcome> [<NNNN>] [--tag k=v …]
 #
 #   outcome    model            facts rendered by `rdr status --tags --filter …`   --tag observed by the caller
-#   precheck   rdr-launch.toml  status,predecessors_state,related_final_unordered    baseline
+#   precheck   rdr-launch.toml  status,predecessors_state,related_final_unordered,   baseline
+#                               prerequisites_unimplemented
 #   size       rdr-launch.toml  profile,lines,req_count                              files suite pressure
 #   shard      rdr-launch.toml  impact_families                                      —
 #   budget     rdr-launch.toml  — (no record)                                        commits elapsed suite_green
@@ -46,7 +47,7 @@ usage() {
 [ $# -ge 1 ] || usage
 outcome=$1; shift
 case $outcome in
-  precheck) model=rdr-launch.toml; facts=status,predecessors_state,related_final_unordered; need=baseline ;;
+  precheck) model=rdr-launch.toml; facts=status,predecessors_state,related_final_unordered,prerequisites_unimplemented; need=baseline ;;
   size)     model=rdr-launch.toml; facts=profile,lines,req_count;   need="files suite pressure" ;;
   shard)    model=rdr-launch.toml; facts=impact_families;           need= ;;
   budget)   model=rdr-launch.toml; facts=;                          need="commits elapsed suite_green" ;;
