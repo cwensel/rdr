@@ -64,7 +64,7 @@ if [ "$role" != test-author ]; then
   mins=$(( ($(date -u +%s) - since) / 60 ))
   if [ "$mins" -ge "$cap" ]; then
     echo "not run: over the leg's cap ($mins min) — return, the successor runs it"
-    exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green false ${C:+-C "$C"}
+    exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green false --ask run ${C:+-C "$C"}
   fi
 fi
 
@@ -74,4 +74,4 @@ code=$?
 echo "run: exit $code in $(( ($(date -u +%s) - t0) / 60 )) min  in: $C"
 green=false
 [ "$full" = true ] && [ "$code" -eq 0 ] && green=true
-exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" ${C:+-C "$C"}
+exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" --ask run ${C:+-C "$C"}

@@ -56,10 +56,11 @@ var callerTags = map[string]map[string]bool{
 	"rdr-cascade.toml": {"verdict": true, "blocking": true, "retry": true, "action": true, "ask_each": true},
 	// The launch run's own observations: source files touched, a suite
 	// run over the output cap, context pressure, whether the full suite
-	// is green now, the pre-Phase-1 suite baseline, and a Phase 2 leg's
-	// commits (git) and elapsed minutes (the clock) since it began. Its
-	// seven other tags are facts and stay policed.
-	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true, "commits": true, "elapsed": true},
+	// is green now, the pre-Phase-1 suite baseline, a Phase 2 leg's
+	// commits (git) and elapsed minutes (the clock) since it began, and
+	// what the leg just did (a commit or a run). Its seven other tags
+	// are facts and stay policed.
+	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true, "commits": true, "elapsed": true, "ask": true},
 	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true, "nnnn": true},
 	// The loop caps: every tag is a value the caller holds from a tool
 	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
@@ -1190,22 +1191,42 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 		t.Errorf("shard on 0021 (no impact.md): rule %q next %q, want shard-impact-unread/stopped:impact-unread", rule, next)
 	}
 
-	// The budget is caller tags only — the leg observes git, the clock
-	// and its last suite exit — so every one of its 8 cells resolves
-	// with no fixture: green returns whatever the caps say, either cap
-	// over cuts the leg, under both continues.
-	for _, c := range []struct{ green, elapsed, commits, rule, next string }{
-		{"true", "0-30", "0-5", "budget-green", "return-green"},
-		{"true", "0-30", "6+", "budget-green", "return-green"},
-		{"true", "31+", "0-5", "budget-green", "return-green"},
-		{"true", "31+", "6+", "budget-green", "return-green"},
-		{"false", "31+", "0-5", "budget-elapsed", "return-partial"},
-		{"false", "31+", "6+", "budget-elapsed", "return-partial"},
-		{"false", "0-30", "6+", "budget-commits", "return-partial"},
-		{"false", "0-30", "0-5", "budget-continue", "continue"},
+	// The budget is caller tags only — the leg observes git, the clock,
+	// its last suite exit and what it just did — so every one of its 24
+	// cells resolves with no fixture: green returns whatever the caps
+	// say (for both values of `ask`); over the elapsed or commit cap
+	// cuts the leg; between the item-boundary line and the hard cap
+	// (`21-30`), a finished item (`ask=commit`) returns on it and a
+	// mid-item run (`ask=run`) continues; under the item-boundary line,
+	// both continue.
+	for _, c := range []struct{ green, elapsed, ask, commits, rule, next string }{
+		{"true", "0-20", "commit", "0-5", "budget-green", "return-green"},
+		{"true", "0-20", "commit", "6+", "budget-green", "return-green"},
+		{"true", "0-20", "run", "0-5", "budget-green", "return-green"},
+		{"true", "0-20", "run", "6+", "budget-green", "return-green"},
+		{"true", "21-30", "commit", "0-5", "budget-green", "return-green"},
+		{"true", "21-30", "commit", "6+", "budget-green", "return-green"},
+		{"true", "21-30", "run", "0-5", "budget-green", "return-green"},
+		{"true", "21-30", "run", "6+", "budget-green", "return-green"},
+		{"true", "31+", "commit", "0-5", "budget-green", "return-green"},
+		{"true", "31+", "commit", "6+", "budget-green", "return-green"},
+		{"true", "31+", "run", "0-5", "budget-green", "return-green"},
+		{"true", "31+", "run", "6+", "budget-green", "return-green"},
+		{"false", "31+", "commit", "0-5", "budget-elapsed", "return-partial"},
+		{"false", "31+", "commit", "6+", "budget-elapsed", "return-partial"},
+		{"false", "31+", "run", "0-5", "budget-elapsed", "return-partial"},
+		{"false", "31+", "run", "6+", "budget-elapsed", "return-partial"},
+		{"false", "0-20", "commit", "6+", "budget-commits", "return-partial"},
+		{"false", "0-20", "run", "6+", "budget-commits", "return-partial"},
+		{"false", "21-30", "commit", "6+", "budget-commits", "return-partial"},
+		{"false", "21-30", "run", "6+", "budget-commits", "return-partial"},
+		{"false", "21-30", "commit", "0-5", "budget-item", "return-partial"},
+		{"false", "0-20", "commit", "0-5", "budget-continue", "continue"},
+		{"false", "0-20", "run", "0-5", "budget-continue", "continue"},
+		{"false", "21-30", "run", "0-5", "budget-finish", "continue"},
 	} {
-		if rule, next := resolve("budget", nil, "suite_green", c.green, "elapsed", c.elapsed, "commits", c.commits); rule != c.rule || next != c.next {
-			t.Errorf("budget suite_green=%s elapsed=%s commits=%s: rule %q next %q, want %s/%s", c.green, c.elapsed, c.commits, rule, next, c.rule, c.next)
+		if rule, next := resolve("budget", nil, "suite_green", c.green, "elapsed", c.elapsed, "ask", c.ask, "commits", c.commits); rule != c.rule || next != c.next {
+			t.Errorf("budget suite_green=%s elapsed=%s ask=%s commits=%s: rule %q next %q, want %s/%s", c.green, c.elapsed, c.ask, c.commits, rule, next, c.rule, c.next)
 		}
 	}
 }

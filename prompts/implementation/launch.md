@@ -277,8 +277,13 @@ write `<art>/deviations.md` (always, even empty), and the leg's ONLY read,
 commit and test commands, `$RDR_HOME/bin/rdr-leg-read`, `rdr-leg-commit`
 and `rdr-leg-test`. The read is a bounded slice (a symbol or a range; over
 the cap it prints the outline instead) — a leg that read whole files
-peaked at 427K while its range-reading sibling peaked at 245K. The other
-two each take `-C <wt>` (required — a run or a commit lands THERE, never in
+peaked at 427K while its range-reading sibling peaked at 245K. An item's
+first reads are its coverage row's test and the symbols it names, by
+`--symbol` (a path is optional: the helper finds the declaration; over
+the cap it prints the head and names the rest), and a commit past 20
+minutes returns on that finished item (the `budget` rows' `ask`
+dimension), so the successor resumes from a green item, not a `[wip]`.
+The other two each take `-C <wt>` (required — a run or a commit lands THERE, never in
 the session's cwd: one leg tested main and read a plausible green), read
 `commits` and `elapsed` from git and the clock, ask the `budget` row and
 print `next:` — so the ask cannot be skipped (the leg

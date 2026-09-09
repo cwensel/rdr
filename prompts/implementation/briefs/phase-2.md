@@ -8,15 +8,15 @@ return `stopped:worktree-isolation-failed` with no edits; else
 
 Your task is the PHASE 2 block of {RDR_HOME}/prompts/implementation/launch.md
 (from `PHASE 2 —` to `PHASE 3 —`): read it once. Inputs:
-{ART}/req-list.md, {ART}/coverage.md, {ART}/impact.md (a family per
-`## <Family>` block), the Phase 1 tests {TEST_FILES}, predecessor tests
+{ART}/req-list.md, {ART}/coverage.md, {ART}/impact.md (one `## <Family>`
+per item), the Phase 1 tests {TEST_FILES}, predecessor tests
 {PREDECESSOR_TESTS}, {RDR_PATH} for context, {RDR_RESOURCES} for
 grounding. NO Phase 3 findings reach you. Write `{ART}/deviations.md`
 (even empty). Position: {RESUME}; its `reads:` first.
 
 The ONLY read, test and commit commands — never `cat`, `go test` or
-`git commit` yourself — are `{RDR_HOME}/bin/rdr-leg-read -C {WORKTREE} <path>
-[--symbol S|--range A-B]`, `rdr-leg-test -C {WORKTREE} --start {START_SHA} --since {START_EPOCH} [--full]
+`git commit` yourself — are `{RDR_HOME}/bin/rdr-leg-read -C {WORKTREE}
+[<path>] [--symbol S|--range A-B]`, `rdr-leg-test -C {WORKTREE} --start {START_SHA} --since {START_EPOCH} [--full]
 -- <test command>` and `rdr-leg-commit -C {WORKTREE} --start {START_SHA} --since {START_EPOCH}
 --suite-green <true|false> -m "<subject>"`.
 `continue` → next item; `return-green` → REQ-MVV, then PASS;

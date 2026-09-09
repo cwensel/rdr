@@ -11,9 +11,13 @@
 # (Go declarations, Markdown headings, REQ/DEF ids) so the next call names
 # what it wants.
 #
-#   rdr-leg-read [-C <worktree>] <path> [--range A-B | --symbol NAME] [--cap N]
+#   rdr-leg-read [-C <worktree>] [<path>] [--range A-B | --symbol NAME] [--cap N]
 #
 # A relative <path> needs `-C`: the session's cwd may be another checkout.
+# `--symbol NAME` with NO path searches the checkout (`-C`) for the
+# top-level declaration by name: a Go `func`/method/`type`/`var`/`const`,
+# or a Markdown heading/entry. One file found sets <path> to it; several
+# print each `path:line` candidate and exit 2; none is exit 2 named.
 #
 # Every line is printed as `N<TAB>text`; a footer names the slice
 # (`-- <path> lines A-B of N`). `--symbol` resolves, in a Go file, a
@@ -21,13 +25,17 @@
 # (a braced body runs to its closing `}` at column 0); in a Markdown file,
 # a heading containing NAME or a line-leading `[NAME]`/`## NAME` entry to
 # the next entry or heading; elsewhere, the first line matching NAME and
-# the cap's worth of lines after it. A range or a symbol wider than the cap
-# is refused (exit 2) with the same outline. The cap is 200 lines unless
-# `--cap` says otherwise.
+# the cap's worth of lines after it. A `--symbol` declaration over the cap
+# is not refused: it prints the first `cap` lines and a footer naming
+# where the rest is (`--range` inside it). A `--range` over the cap stays
+# refused (exit 2) with the outline — that is the walk this tool replaces.
+# The cap is 200 lines unless `--cap` says otherwise. The outline (no
+# selector) names each declaration's span, `A-B<TAB>text`, not just its
+# start line, so a call can name a --range that fits.
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-read: $*" >&2
-  echo "usage: rdr-leg-read [-C <worktree>] <path> [--range A-B | --symbol NAME] [--cap N]" >&2
+  echo "usage: rdr-leg-read [-C <worktree>] [<path>] [--range A-B | --symbol NAME] [--cap N]" >&2
   exit 2
 }
 
@@ -42,28 +50,84 @@ while [ $# -gt 0 ]; do
     *) [ -z "$path" ] || usage "one path, got '$path' and '$1'"; path=$1; shift ;;
   esac
 done
-[ -n "$path" ] || usage "a path is required"
-case $path in /*) ;; *) [ -n "$C" ] || usage "a relative path needs -C <worktree>: the session's cwd may be another checkout"; path="$C/$path" ;; esac
-[ -f "$path" ] || { echo "rdr-leg-read: no such file: $path" >&2; exit 2; }
 case $cap in ''|*[!0-9]*|0) usage "--cap N is a positive line count" ;; esac
 [ -n "$range" ] && [ -n "$sym" ] && usage "--range and --symbol are alternatives"
+
+esc_re() { printf '%s' "$1" | sed 's/[][\.*^$/]/\\&/g'; }
+
+# resolve_symbol_path: a path-less --symbol names the checkout to search
+# (-C) and the declaration pattern this script already uses per kind. One
+# file sets `path`; several list `path:line` and exit 2; none is named.
+resolve_symbol_path() {
+  [ -n "$C" ] || usage "a path-less --symbol needs -C <worktree>: the checkout to search"
+  [ -d "$C" ] || { echo "rdr-leg-read: no such directory: $C" >&2; exit 2; }
+  esc=$(esc_re "$sym")
+  matches=$(grep -rnE --include='*.go' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=vendor --exclude-dir=target --exclude-dir=dist --exclude-dir=build \
+    "^(func (\([^)]*\) )?$esc\(|type $esc[ [(]|(var|const) $esc[ =])" "$C" 2>/dev/null)
+  if [ -z "$matches" ]; then
+    matches=$(grep -rnE --include='*.md' --exclude-dir=.git --exclude-dir=node_modules --exclude-dir=vendor --exclude-dir=target --exclude-dir=dist --exclude-dir=build \
+      "^(#{1,6} .*$esc|\[$esc\] |## $esc\b)" "$C" 2>/dev/null)
+  fi
+  [ -n "$matches" ] || { echo "rdr-leg-read: no top-level symbol '$sym' under $C" >&2; exit 2; }
+  files=$(printf '%s\n' "$matches" | cut -d: -f1 | sort -u)
+  n=$(printf '%s\n' "$files" | wc -l | tr -d ' ')
+  if [ "$n" -gt 1 ]; then
+    echo "rdr-leg-read: '$sym' is declared in $n files; name one:" >&2
+    printf '%s\n' "$matches" | awk -F: '{ printf "%s:%s\n", $1, $2 }' >&2
+    exit 2
+  fi
+  path=$(printf '%s\n' "$matches" | head -1 | cut -d: -f1)
+}
+
+[ -n "$sym" ] && [ -z "$path" ] && resolve_symbol_path
+
+[ -n "$path" ] || usage "a path is required (or --symbol NAME with -C to find one)"
+case $path in /*) ;; *) [ -n "$C" ] || usage "a relative path needs -C <worktree>: the session's cwd may be another checkout"; path="$C/$path" ;; esac
+[ -f "$path" ] || { echo "rdr-leg-read: no such file: $path" >&2; exit 2; }
 
 total=$(wc -l < "$path" | tr -d ' ')
 case $path in *.go) kind=go ;; *.md) kind=md ;; *) kind=text ;; esac
 
-# outline: what a caller can name instead of the whole file, itself bounded
+# outline: what a caller can name instead of the whole file, itself
+# bounded. Each declaration is printed as its span `A-B<TAB>text`, not
+# just its start line, so a call can name a --range that fits.
 outline() {
   echo "-- $path: $total lines, over the cap ($cap); name a --symbol or a --range A-B. Outline:" >&2
   case $kind in
-    go) grep -nE '^(func |type |var |const )' "$path" ;;
-    md) grep -nE '^(#{1,6} |\[[A-Za-z0-9.-]+\] )' "$path" ;;
+    go)
+      awk '
+        function flush(end) { if (a) printf "%d-%d\t%s\n", a, end, text }
+        /^(func |type |var |const )/ {
+          flush(NR - 1)
+          a = NR; text = $0
+          open = /\{[[:space:]]*$/ || /\($/ || / \($/
+          next
+        }
+        open && /^[})]/ { flush(NR); a = 0; open = 0; next }
+        END { flush(NR) }
+      ' "$path" ;;
+    md)
+      awk '
+        function lvl(s,   n) { n = 0; while (substr(s, n+1, 1) == "#") n++; return n }
+        function flush(end) { if (a) printf "%d-%d\t%s\n", a, end, text }
+        /^#{1,6} / {
+          flush(NR - 1)
+          a = NR; text = $0; curlvl = lvl($0)
+          next
+        }
+        a && /^#{1,6} / && lvl($0) <= curlvl { flush(NR - 1); a = NR; text = $0; curlvl = lvl($0); next }
+        END { flush(NR) }
+      ' "$path" ;;
     *)  grep -nE '^[^[:space:]]' "$path" ;;
   esac | head -60 | sed 's/^/   /' >&2
   exit 2
 }
 
-print_slice() { # A B
+print_lines() { # A B — the numbered lines only, no footer
   awk -v a="$1" -v b="$2" 'NR>=a && NR<=b { printf "%d\t%s\n", NR, $0 } NR>b { exit }' "$path"
+}
+print_slice() { # A B
+  print_lines "$1" "$2"
   echo "-- $path lines $1-$2 of $total"
 }
 
@@ -78,7 +142,7 @@ if [ -n "$range" ]; then
 fi
 
 if [ -n "$sym" ]; then
-  esc=$(printf '%s' "$sym" | sed 's/[][\.*^$/]/\\&/g')
+  esc=$(esc_re "$sym")
   case $kind in
     go)
       a=$(grep -nE "^(func (\([^)]*\) )?$esc\(|type $esc[ [(]|(var|const) $esc[ =])" "$path" | head -1 | cut -d: -f1)
@@ -111,8 +175,15 @@ if [ -n "$sym" ]; then
       [ -n "$a" ] || { echo "rdr-leg-read: no line matching '$sym' in $path" >&2; outline; }
       b=$(( a + cap - 1 )); [ "$b" -gt "$total" ] && b=$total ;;
   esac
-  [ $(( b - a + 1 )) -le "$cap" ] || { echo "rdr-leg-read: '$sym' spans lines $a-$b, over the cap ($cap); use --range inside it" >&2; outline; }
-  print_slice "$a" "$b"; exit 0
+  if [ $(( b - a + 1 )) -le "$cap" ]; then
+    print_slice "$a" "$b"; exit 0
+  fi
+  # over the cap: print the head, not a refusal — a long declaration costs
+  # one read and a deliberate second, never an outline plus a walk.
+  headend=$(( a + cap - 1 ))
+  print_lines "$a" "$headend"
+  echo "-- $path lines $a-$headend of $total ($sym continues to $b; --range for the rest)"
+  exit 0
 fi
 
 [ "$total" -le "$cap" ] || outline

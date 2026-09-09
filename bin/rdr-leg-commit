@@ -78,4 +78,4 @@ else
   echo "nothing to commit"
 fi
 
-exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" ${C:+-C "$C"}
+exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" --ask commit ${C:+-C "$C"}

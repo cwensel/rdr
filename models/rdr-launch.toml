@@ -24,7 +24,8 @@
 # (context nearing the orchestrator limit), `suite_green` (is the full
 # suite green now), `baseline` (the full suite before Phase 1 writes a
 # test), `commits` and `elapsed` (git and the clock since a Phase 2 leg
-# began). At PRECHECKS nothing has happened, so the three size tags are
+# began), and `ask` (what the leg just did — a commit or a run). At
+# PRECHECKS nothing has happened, so the three size tags are
 # their floor values and `req_count` is `none`: the row for that cell is
 # what makes the inline path honest rather than a guess.
 # `tools/rdr/routing_test.go` names these caller tags in its allowlist.
@@ -219,7 +220,8 @@ required      = true
 # --- the Phase 2 leg's caps, observed from the world at every ask ----------
 #
 # The caps ARE the domain boundaries, as `lines` is `0-400`/`401+`: 6
-# commits, 30 minutes. Measured over retrofit's recorded Phase 2 agents,
+# commits, 30 minutes, split into a 20-minute item-boundary line and the
+# hard 30-minute cap. Measured over retrofit's recorded Phase 2 agents,
 # context grew ~10k tokens/min, so 30 min ≈ 300k — under the 400k line
 # every 60–159-min run crossed; at the median 8.5 min per commit the
 # elapsed cap binds first and the commit cap catches a fast run.
@@ -233,11 +235,25 @@ single_valued = true
 required      = true
 
 # Minutes since the leg's start, from epoch seconds: `date -u +%s` now
-# minus the start the brief carries, over 60.
+# minus the start the brief carries, over 60. The 21-30 bucket is the
+# item-boundary window: past 20 minutes, the next item would be cut by
+# the 30-minute cap regardless, so a finished item (`ask=commit`) returns
+# rather than starting one it cannot finish.
 [tags.elapsed]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["0-30", "31+"]
+domain        = ["0-20", "21-30", "31+"]
+single_valued = true
+required      = true
+
+# What the leg just did: `commit` is an item boundary (its package run
+# was green, or it is the `[wip]` of a return); `run` is mid-item. Passed
+# by `rdr-leg-commit` (`--ask commit`) and `rdr-leg-test` (`--ask run`);
+# `rdr-leg-budget` requires it.
+[tags.ask]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["commit", "run"]
 single_valued = true
 required      = true
 
@@ -831,14 +847,21 @@ why  = "Families predicted: the worklist is the Phase 1 tests, then impact.md's 
 # budget — when a Phase 2 leg returns
 # ===========================================================================
 #
-# suite_green x elapsed x commits = 8 cells, asked by the Phase 2 leg after
-# every commit and every suite run. Every dimension is observed from the
-# world — the last suite exit, the clock, git — never remembered, so a
-# long-context agent cannot mis-track them. Green returns whatever the
-# caps say; over either cap, `return-partial` is the cut that replaces
-# the harness's auto-compaction: a fresh leg resumes from the capsule
-# instead of a compacted context re-reading its own state. Each row's
-# `why` is the line the leg prints.
+# suite_green x elapsed x ask x commits = 24 cells, asked by the Phase 2
+# leg after every commit and every suite run. Every dimension is observed
+# from the world — the last suite exit, the clock, git, what the leg just
+# did — never remembered, so a long-context agent cannot mis-track them.
+# Green returns whatever the caps say; over the elapsed cap, `return-partial`
+# is the cut that replaces the harness's auto-compaction: a fresh leg
+# resumes from the capsule instead of a compacted context re-reading its
+# own state. Between the item-boundary line and the hard cap (`21-30`),
+# the `ask` dimension decides: a leg that just finished an item
+# (`ask=commit`) returns on it rather than starting one the 30-minute cap
+# would cut mid-way, so a successor resumes from a finished item, never a
+# `[wip]`; a leg still mid-item (`ask=run`) finishes it, since its commit
+# IS the return. `budget-green` and `budget-elapsed` hold for both values
+# of `ask` and carry no guard on it. Each row's `why` is the line the leg
+# prints.
 
 [[rule]]
 id = "budget-green"
@@ -869,12 +892,28 @@ eq = "budget"
 [rule.guard.all.suite_green]
 eq = "false"
 [rule.guard.all.elapsed]
-eq = "0-30"
+in = ["0-20", "21-30"]
 [rule.guard.all.commits]
 eq = "6+"
 [rule.emit]
 next = "return-partial"
 why  = "A 6th commit on this leg: commit the tree, write the capsule's next: line, and return INCOMPLETE for a fresh leg to resume."
+
+[[rule]]
+id = "budget-item"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.guard.all.elapsed]
+eq = "21-30"
+[rule.guard.all.ask]
+eq = "commit"
+[rule.guard.all.commits]
+eq = "0-5"
+[rule.emit]
+next = "return-partial"
+why  = "An item finished past 20 minutes: return on it — the next would be cut by the 30-minute cap, and a successor resumes cleaner from a finished item than from a [wip]."
 
 [[rule]]
 id = "budget-continue"
@@ -883,9 +922,25 @@ eq = "budget"
 [rule.guard.all.suite_green]
 eq = "false"
 [rule.guard.all.elapsed]
-eq = "0-30"
+eq = "0-20"
 [rule.guard.all.commits]
 eq = "0-5"
 [rule.emit]
 next = "continue"
 why  = "Not full-green and under both caps: take the next worklist item, or stay on a red one."
+
+[[rule]]
+id = "budget-finish"
+[rule.match.recognized]
+eq = "budget"
+[rule.guard.all.suite_green]
+eq = "false"
+[rule.guard.all.elapsed]
+eq = "21-30"
+[rule.guard.all.ask]
+eq = "run"
+[rule.guard.all.commits]
+eq = "0-5"
+[rule.emit]
+next = "continue"
+why  = "Past 20 minutes mid-item: finish this item; its commit is the return."

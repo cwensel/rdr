@@ -85,8 +85,8 @@ func TestRdrGateAnswersEachOutcome(t *testing.T) {
 		{[]string{"shard", "0029"}, "stopped:impact-unread"},
 		{[]string{"precheck", "0029", "--tag", "baseline=none"}, "run-baseline"},
 		{[]string{"precheck", "0029", "--tag", "baseline=green"}, "proceed"},
-		{[]string{"budget", "--tag", "commits=6+", "--tag", "elapsed=0-30", "--tag", "suite_green=false"}, "return-partial"},
-		{[]string{"budget", "--tag", "commits=0-5", "--tag", "elapsed=0-30", "--tag", "suite_green=true"}, "return-green"},
+		{[]string{"budget", "--tag", "commits=6+", "--tag", "elapsed=0-20", "--tag", "ask=commit", "--tag", "suite_green=false"}, "return-partial"},
+		{[]string{"budget", "--tag", "commits=0-5", "--tag", "elapsed=0-20", "--tag", "ask=commit", "--tag", "suite_green=true"}, "return-green"},
 		{[]string{"ground", "0030", "--tag", "searched=none", "--tag", "found=false"}, "code"},
 		{[]string{"ground", "0021", "--tag", "searched=code", "--tag", "found=false"}, "cluster"},
 		{[]string{"ground", "0030", "--tag", "searched=code", "--tag", "found=true"}, "apply"},
@@ -192,7 +192,7 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("first commit: exit %d\n%s", code, out)
 	}
-	expect(out, "committed ", "  add a [wip]", "commits: 1 (0-5)", "elapsed: 0 min (0-30)", "next: continue")
+	expect(out, "committed ", "  add a [wip]", "commits: 1 (0-5)", "elapsed: 0 min (0-20)", "next: continue")
 	if subj := git("log", "-1", "--format=%s"); subj != "add a [wip]" {
 		t.Errorf("red commit subject %q, want the [wip] suffix", subj)
 	}
@@ -233,6 +233,17 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 	}
 	expect(out, "commits: 0 (0-5)", "elapsed: 31 min (31+)", "next: return-partial")
 
+	// A commit at 25 minutes is the item-boundary return: past 20 minutes,
+	// the leg just finished an item (a commit is the ask), so it returns
+	// on it rather than starting one the 30-minute cap would cut.
+	item25 := strconv.FormatInt(time.Now().Unix()-25*60, 10)
+	write("h")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", git("rev-parse", "--short", "HEAD"), "--since", item25, "--suite-green", "false", "-m", "item h")
+	if code != 0 {
+		t.Fatalf("item-boundary commit: exit %d\n%s", code, out)
+	}
+	expect(out, "elapsed: 25 min (21-30)", "next: return-partial", "An item finished past 20 minutes")
+
 	write("g")
 	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "-m", "no verdict")
 	if code != 2 || strings.Contains(out, "next: ") || strings.Contains(out, "committed ") {
@@ -267,7 +278,7 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("-C commit: exit %d\n%s", code, out)
 	}
-	expect(out, "committed ", "commits: 7 (6+)", "next: return-partial")
+	expect(out, "committed ", "commits: 8 (6+)", "next: return-partial")
 }
 
 // TestRdrLegTestRunsThenAsksTheBudget: a run under the elapsed cap executes
@@ -311,6 +322,15 @@ func TestRdrLegTestRunsThenAsksTheBudget(t *testing.T) {
 		t.Fatalf("package run: exit %d\n%s", code, out)
 	}
 	expect(out, "ran", "run: exit 0", "next: continue")
+
+	// a2. mid-item at 25 minutes: past the item-boundary line but the ask
+	// is a run, not a commit, so the leg finishes the item in flight.
+	mid25 := strconv.FormatInt(time.Now().Unix()-25*60, 10)
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", mid25, "--", "sh", "-c", "echo ran; exit 0")
+	if code != 0 {
+		t.Fatalf("mid-item run at 25 min: exit %d\n%s", code, out)
+	}
+	expect(out, "elapsed: 25 min (21-30)", "next: continue")
 
 	// b. --full, exit 0 -> return-green
 	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 0")
@@ -404,24 +424,31 @@ func TestRdrLegBudgetBucketsGitAndTheClock(t *testing.T) {
 		}
 	}
 
-	code, out := runScript(t, repo, budget, "-C", repo, "--start", start, "--since", since, "--suite-green", "false")
+	code, out := runScript(t, repo, budget, "-C", repo, "--start", start, "--since", since, "--suite-green", "false", "--ask", "run")
 	if code != 0 {
 		t.Fatalf("commits ask: exit %d\n%s", code, out)
 	}
 	expect(out, "commits: 2 (0-5)", "next: continue")
 
 	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
-	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "false")
+	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "false", "--ask", "run")
 	if code != 0 {
 		t.Fatalf("elapsed ask: exit %d\n%s", code, out)
 	}
 	expect(out, "elapsed: 40 min (31+)", "next: return-partial")
 
-	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "true")
+	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "true", "--ask", "commit")
 	if code != 0 {
 		t.Fatalf("green ask: exit %d\n%s", code, out)
 	}
 	expect(out, "next: return-green")
+
+	// no --ask: exit 2 with the usage line, no answer.
+	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", since, "--suite-green", "false")
+	if code != 2 || strings.Contains(out, "next: ") {
+		t.Errorf("missing --ask: exit %d, want 2 and no answer\n%s", code, out)
+	}
+	expect(out, "--ask <commit|run>")
 }
 
 // rdr-leg-read is a leg's only read: a file under the cap prints whole,
@@ -499,6 +526,60 @@ func TestRdrLegReadBoundsTheRead(t *testing.T) {
 	code, out = runScript(t, src, read, goFile, "--cap", "1000")
 	if code != 0 || !strings.Contains(out, "lines 1-") {
 		t.Errorf("--cap raises the bound: exit %d\n%s", code, out)
+	}
+
+	// the outline names each declaration's span, not just its start line,
+	// so a call can name a --range that fits inside one.
+	code, out = runScript(t, src, read, goFile)
+	if code != 2 || !strings.Contains(out, "3-4\ttype Small int") || !strings.Contains(out, "5-7\tfunc Alpha() int {") || !strings.Contains(out, "9-14\tfunc (r *R) Beta(n int) error {") {
+		t.Errorf("outline should name each declaration's span: exit %d\n%s", code, out)
+	}
+
+	// a path-less --symbol searches the checkout (-C): one file found sets
+	// the path and reads the declaration, exactly as if it had been named.
+	code, out = runScript(t, src, read, "-C", src, "--symbol", "Beta")
+	if code != 0 || !strings.Contains(out, "9\tfunc (r *R) Beta(n int) error {") || !strings.Contains(out, "14\t}") {
+		t.Errorf("path-less --symbol Beta: exit %d\n%s", code, out)
+	}
+
+	// several files declare the same name: list path:line candidates, exit 2.
+	other := filepath.Join(src, "other")
+	if err := os.MkdirAll(other, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	twin := filepath.Join(other, "twin.go")
+	if err := os.WriteFile(twin, []byte("package other\n\nfunc Alpha() int {\n\treturn 2\n}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out = runScript(t, src, read, "-C", src, "--symbol", "Alpha")
+	if code != 2 || !strings.Contains(out, "'Alpha' is declared in 2 files; name one:") || !strings.Contains(out, goFile+":5") || !strings.Contains(out, twin+":3") {
+		t.Errorf("ambiguous path-less --symbol Alpha: exit %d\n%s", code, out)
+	}
+
+	// no file declares the name: exit 2, named.
+	code, out = runScript(t, src, read, "-C", src, "--symbol", "NoSuchSymbol")
+	if code != 2 || !strings.Contains(out, "no top-level symbol 'NoSuchSymbol' under "+src) {
+		t.Errorf("path-less --symbol with no match: exit %d\n%s", code, out)
+	}
+
+	// a --symbol declaration over the cap is not refused: it prints the
+	// head and a footer naming where the rest is.
+	var big strings.Builder
+	big.WriteString("package x\n\nfunc Huge() int {\n")
+	for i := 0; i < 30; i++ {
+		big.WriteString("\tx := 1\n")
+	}
+	big.WriteString("\treturn 1\n}\n")
+	hugeFile := filepath.Join(src, "huge.go")
+	if err := os.WriteFile(hugeFile, []byte(big.String()), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out = runScript(t, src, read, hugeFile, "--symbol", "Huge", "--cap", "10")
+	if code != 0 || !strings.Contains(out, "3\tfunc Huge() int {") || !strings.Contains(out, "lines 3-12 of 35 (Huge continues to 35; --range for the rest)") {
+		t.Errorf("a long --symbol prints the head and a continuation footer, not a refusal: exit %d\n%s", code, out)
+	}
+	if strings.Contains(out, "over the cap") {
+		t.Errorf("a long --symbol must not read as a refusal\n%s", out)
 	}
 }
 

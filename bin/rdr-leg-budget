@@ -3,11 +3,12 @@
 #
 # The `budget` rows of rdr-launch.toml bound a Phase 2 (or 3c) leg by what
 # the world shows — commits since the leg's start SHA, minutes since its
-# start epoch, the last suite exit. This reads the first two and asks the
-# row; `rdr-leg-commit` and `rdr-leg-test` both end here, so the ask is the
-# same whichever action the leg just took. The leg only reports the suite.
+# start epoch, the last suite exit, and what the leg just did. This reads
+# the first two and asks the row; `rdr-leg-commit` and `rdr-leg-test` both
+# end here, so the ask is the same whichever action the leg just took. The
+# leg only reports the suite and which action this ask follows.
 #
-#   rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false>
+#   rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> --ask <commit|run>
 #
 # In a worktree marked `--role test-author` (rdr-leg-mark) nothing is
 # asked: it prints `budget: not asked` and exits 0, since a Phase 1 red
@@ -26,16 +27,17 @@ M="$H/models/rdr-launch.toml"
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-budget: $*" >&2
-  echo "usage: rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false>" >&2
+  echo "usage: rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> --ask <commit|run>" >&2
   exit 2
 }
 
-start= since= green= C=
+start= since= green= ask= C=
 while [ $# -gt 0 ]; do
   case $1 in
     --start)       start=$2; shift 2 ;;
     --since)       since=$2; shift 2 ;;
     --suite-green) green=$2; shift 2 ;;
+    --ask)         ask=$2;   shift 2 ;;
     -C)            C=$2;     shift 2 ;;
     *) usage "unexpected '$1'" ;;
   esac
@@ -51,6 +53,7 @@ fi
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
 case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
 case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last run" ;; esac
+case $ask in commit|run) ;; *) usage "--ask <commit|run> is what the leg just did — a commit is an item boundary, a run is mid-item" ;; esac
 [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
 
 g() { if [ -n "$C" ]; then git -C "$C" "$@"; else git "$@"; fi; }
@@ -74,4 +77,4 @@ cb=$(bucket "$n" $(domain_of commits)) || exit 2
 eb=$(bucket "$mins" $(domain_of elapsed)) || exit 2
 echo "commits: $n ($cb)"
 echo "elapsed: $mins min ($eb)"
-exec "$here/rdr-gate" budget --tag "commits=$cb" --tag "elapsed=$eb" --tag "suite_green=$green"
+exec "$here/rdr-gate" budget --tag "commits=$cb" --tag "elapsed=$eb" --tag "suite_green=$green" --tag "ask=$ask"
