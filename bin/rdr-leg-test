@@ -13,6 +13,12 @@
 # never in the session's cwd — one leg ran its tests against main and
 # read a plausible green that only mtime forensics caught.
 #
+# In a worktree marked `--role test-author` (a Phase 1 test author) the
+# cap is not read and no budget is asked — `--start`/`--since` may be
+# omitted — but the run still happens in `-C` and is counted: a red
+# confirmation is not budget-bounded, and one that ran in the wrong tree
+# is no confirmation.
+#
 # `--full` marks the ONE full-suite run (the worklist's last item): only
 # then is the run's exit reported as `suite_green`; a package run is
 # `--suite-green false` however green it was, since the full suite has not
@@ -46,17 +52,20 @@ done
 [ -d "$C" ] || { echo "rdr-leg-test: no such directory: $C" >&2; exit 2; }
 top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-test: $C is not inside a git checkout" >&2; exit 2; }
 [ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-test: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
-[ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
-case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
-[ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
+role=$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)
+if [ "$role" != test-author ]; then
+  [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
+  case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
+  [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
 
-# the elapsed cap is the model's open bucket (`31+`), never a number here
-cap=$(sed -n '/^\[tags\.elapsed\]/,/^\[/p' "$M" | sed -n 's/^domain *= *\[\(.*\)\]/\1/p' | tr -d '" ' | tr ',' '\n' | sed -n 's/+$//p' | head -1)
-[ -n "$cap" ] || { echo "stopped:no-elapsed-cap — $M declares no open elapsed bucket" >&2; exit 2; }
-mins=$(( ($(date -u +%s) - since) / 60 ))
-if [ "$mins" -ge "$cap" ]; then
-  echo "not run: over the leg's cap ($mins min) — return, the successor runs it"
-  exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green false ${C:+-C "$C"}
+  # the elapsed cap is the model's open bucket (`31+`), never a number here
+  cap=$(sed -n '/^\[tags\.elapsed\]/,/^\[/p' "$M" | sed -n 's/^domain *= *\[\(.*\)\]/\1/p' | tr -d '" ' | tr ',' '\n' | sed -n 's/+$//p' | head -1)
+  [ -n "$cap" ] || { echo "stopped:no-elapsed-cap — $M declares no open elapsed bucket" >&2; exit 2; }
+  mins=$(( ($(date -u +%s) - since) / 60 ))
+  if [ "$mins" -ge "$cap" ]; then
+    echo "not run: over the leg's cap ($mins min) — return, the successor runs it"
+    exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green false ${C:+-C "$C"}
+  fi
 fi
 
 t0=$(date -u +%s)
@@ -65,4 +74,4 @@ code=$?
 echo "run: exit $code in $(( ($(date -u +%s) - t0) / 60 )) min  in: $C"
 green=false
 [ "$full" = true ] && [ "$code" -eq 0 ] && green=true
-exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green "$green" ${C:+-C "$C"}
+exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" ${C:+-C "$C"}

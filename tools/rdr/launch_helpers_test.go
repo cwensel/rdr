@@ -629,3 +629,107 @@ func TestRdrLegHelpersRequireTheWorktreeRoot(t *testing.T) {
 		t.Errorf("rdr-leg-read -C: exit %d\n%s", code, out)
 	}
 }
+
+// A Phase 1 test author marks its worktree `--role test-author`: the run
+// and the commit still land in -C and are counted, but nothing is
+// budget-bounded — no elapsed cap refuses a run, no [wip] suffix, no ask —
+// because a red confirmation has no successor to hand a cut to. The
+// implementer role (the default) is untouched: without the marker the
+// helpers refuse a missing --start exactly as before.
+func TestRdrLegTestAuthorRoleIsCountedNotCut(t *testing.T) {
+	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
+	t.Setenv("TMPDIR", t.TempDir())
+	dir := installLaunchHelpers(t)
+	mark := filepath.Join(dir, "rdr-leg-mark")
+	legTest := filepath.Join(dir, "rdr-leg-test")
+	legCommit := filepath.Join(dir, "rdr-leg-commit")
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "leg@test")
+	git("config", "user.name", "leg")
+	git("config", "commit.gpgsign", "false")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+	expect := func(out string, wants ...string) {
+		t.Helper()
+		for _, w := range wants {
+			if !strings.Contains(out, w) {
+				t.Errorf("output lacks %q:\n%s", w, out)
+			}
+		}
+	}
+
+	if code, out := runScript(t, repo, mark, "--role", "test-author", repo); code != 0 || !strings.Contains(out, "(test-author)") {
+		t.Fatalf("mark --role test-author: exit %d\n%s", code, out)
+	}
+	if code, out := runScript(t, t.TempDir(), mark, "--role-of", repo); code != 0 || strings.TrimSpace(out) != "test-author" {
+		t.Errorf("--role-of: exit %d, %q", code, out)
+	}
+	other := t.TempDir()
+	if code, out := runScript(t, other, mark, other); code != 0 || !strings.Contains(out, "(implementer)") {
+		t.Errorf("a plain mark is the implementer role: exit %d\n%s", code, out)
+	}
+	if code, out := runScript(t, other, mark, "--role", "auditor", other); code != 2 || !strings.Contains(out, "implementer or test-author") {
+		t.Errorf("an unknown role is refused: exit %d\n%s", code, out)
+	}
+
+	// A red run, no flags, from an unrelated cwd: it runs in -C, reports the exit, asks nothing.
+	code, out := runScript(t, t.TempDir(), legTest, "-C", repo, "--", "sh", "-c", "pwd -P; echo RAN-RED; exit 1")
+	want, _ := filepath.EvalSymlinks(repo)
+	if code != 0 {
+		t.Fatalf("test-author run: exit %d\n%s", code, out)
+	}
+	expect(out, want, "RAN-RED", "run: exit 1 in 0 min  in: "+repo, "budget: not asked")
+	if strings.Contains(out, "next: ") || strings.Contains(out, "not run:") {
+		t.Errorf("a test-author run was asked or refused\n%s", out)
+	}
+	// Forty minutes in, with the flags a Phase 2 brief would carry: still not cut.
+	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", git("rev-parse", "--short", "HEAD"), "--since", late, "--", "sh", "-c", "echo RAN-LATE")
+	if code != 0 {
+		t.Fatalf("late test-author run: exit %d\n%s", code, out)
+	}
+	expect(out, "RAN-LATE", "budget: not asked")
+	if strings.Contains(out, "not run:") {
+		t.Errorf("the elapsed cap cut a test-author run\n%s", out)
+	}
+
+	// The red suite commits under its own subject: no [wip], no ask, no flags needed.
+	if err := os.WriteFile(filepath.Join(repo, "red_test.go"), []byte("package x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	code, out = runScript(t, t.TempDir(), legCommit, "-C", repo, "-m", "test: red suite")
+	if code != 0 {
+		t.Fatalf("test-author commit: exit %d\n%s", code, out)
+	}
+	expect(out, "committed ", "  test: red suite", "budget: not asked")
+	if subj := git("log", "-1", "--format=%s"); subj != "test: red suite" {
+		t.Errorf("red-suite subject %q, want it unsuffixed", subj)
+	}
+	if strings.Contains(out, "next: ") {
+		t.Errorf("a test-author commit was asked\n%s", out)
+	}
+
+	// The trailing form a leg once typed clears too; after it, the implementer rules are back.
+	if code, out := runScript(t, repo, mark, repo, "--clear"); code != 0 || !strings.Contains(out, "cleared ") {
+		t.Fatalf("clear (trailing flag): exit %d\n%s", code, out)
+	}
+	if code, _ := runScript(t, repo, mark, "--role-of", repo); code == 0 {
+		t.Errorf("--role-of after clear should fail")
+	}
+	code, out = runScript(t, repo, legTest, "-C", repo, "--", "sh", "-c", "echo MUST-NOT-RUN")
+	if code != 2 || !strings.Contains(out, "--start <sha>") || strings.Contains(out, "MUST-NOT-RUN") {
+		t.Errorf("unmarked, no --start: want the refusal, got exit %d\n%s", code, out)
+	}
+	code, out = runScript(t, repo, legCommit, "-C", repo, "-m", "x")
+	if code != 2 || !strings.Contains(out, "--start <sha>") {
+		t.Errorf("unmarked commit, no --start: want the refusal, got exit %d\n%s", code, out)
+	}
+}

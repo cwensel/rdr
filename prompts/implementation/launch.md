@@ -216,7 +216,12 @@ answers change REQ wording; otherwise advance.
 PHASE 1 — Tests first [DELEGATE to sub-agent: "Phase 1 test author"]
 Brief: `briefs/phase-1.md`; extra fields TEST_FRAMEWORK, TEST_DIR,
 PREDECESSOR_ARTIFACTS. It carries NO implementation hints or design notes,
-and the committable-red probe pattern.
+and the committable-red probe pattern. Its ONLY read, test and commit
+commands are the Phase 2 helpers in the `test-author` role (its first call
+is `rdr-leg-mark --role test-author`, its last `--clear`): the run and the
+commit land in the worktree and are counted, a consumer's guard refuses the
+raw forms there, and no budget cuts it — a red confirmation is not bounded
+(one run's Phase 1 ran `go test` raw 40 times, tied to no tree).
 Sub-agent's task: for each REQ-N, write tests that would fail if a
 future change broke that clause. Each test:
   - Opens with `// REQ-N: "<quote>"` (or the language's comment syntax).

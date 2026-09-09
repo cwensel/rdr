@@ -57,6 +57,6 @@ case " $cmd " in
   *" rdr-leg-test "*|*" rdr-leg-commit "*|*" rdr-leg-read "*) exit 0 ;;
 esac
 printf '%s' "$cmd" | grep -Eq '(^|[;&| ])cat[[:space:]]+[^>|;&][^|;&]*\.(go|md)([[:space:]]|$)' && refuse "cat <file>" "rdr-leg-read <path> [--symbol S | --range A-B]"
-printf '%s' "$cmd" | grep -Eq '(^|[;&| ])go[[:space:]]+test([[:space:]]|$)' && refuse "go test" "rdr-leg-test --start … --since … -- go test …"
-printf '%s' "$cmd" | grep -Eq '(^|[;&| ])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+commit([[:space:]]|$)' && refuse "git commit" "rdr-leg-commit --start … --since … --suite-green … -m …"
+printf '%s' "$cmd" | grep -Eq '(^|[;&| ])go[[:space:]]+test([[:space:]]|$)' && refuse "go test" "rdr-leg-test -C <worktree> … -- go test …"
+printf '%s' "$cmd" | grep -Eq '(^|[;&| ])git([[:space:]]+-C[[:space:]]+[^[:space:]]+)?[[:space:]]+commit([[:space:]]|$)' && refuse "git commit" "rdr-leg-commit -C <worktree> … -m …"
 exit 0

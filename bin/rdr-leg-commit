@@ -12,6 +12,9 @@
 #   rdr-leg-commit -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>]
 #
 # `-C` is required and must be the checkout root (rdr-leg-test's reason).
+# In a worktree marked `--role test-author` the subject is committed as
+# given (no suffix: the red suite is the deliverable, not a partial leg),
+# `--start`/`--since`/`--suite-green` may be omitted, and nothing is asked.
 #
 # Commits the whole tree (`git add -A`) under <subject>; a red tree
 # (`--suite-green false`) gets a ` [wip]` suffix if the subject lacks one,
@@ -53,16 +56,21 @@ done
 [ -d "$C" ] || { echo "rdr-leg-commit: no such directory: $C" >&2; exit 2; }
 top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-commit: $C is not inside a git checkout" >&2; exit 2; }
 [ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-commit: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
-[ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
-case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
-case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last item has run" ;; esac
-[ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
+role=$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)
+if [ "$role" = test-author ]; then
+  green=${green:-false}
+else
+  [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
+  case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
+  case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last item has run" ;; esac
+  [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
+fi
 
 g() { if [ -n "$C" ]; then git -C "$C" "$@"; else git "$@"; fi; }
 
 if [ -n "$(g status --porcelain)" ]; then
   [ -n "$msg" ] || usage "the tree is dirty: -m <subject> names the commit"
-  [ "$green" = false ] && case $msg in *"[wip]"*) ;; *) msg="$msg [wip]" ;; esac
+  [ "$role" != test-author ] && [ "$green" = false ] && case $msg in *"[wip]"*) ;; *) msg="$msg [wip]" ;; esac
   g add -A || exit $?
   g commit -q -m "$msg" || exit $?      # a hook's refusal is printed by git; nothing moved
   echo "committed $(g rev-parse --short HEAD)  $msg"
@@ -70,4 +78,4 @@ else
   echo "nothing to commit"
 fi
 
-exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green "$green" ${C:+-C "$C"}
+exec "$here/rdr-leg-budget" ${start:+--start "$start"} ${since:+--since "$since"} --suite-green "$green" ${C:+-C "$C"}
