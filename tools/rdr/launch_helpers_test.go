@@ -188,7 +188,7 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 	}
 
 	write("a")
-	code, out := runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "false", "-m", "add a")
+	code, out := runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "false", "-m", "add a")
 	if code != 0 {
 		t.Fatalf("first commit: exit %d\n%s", code, out)
 	}
@@ -197,14 +197,14 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 		t.Errorf("red commit subject %q, want the [wip] suffix", subj)
 	}
 
-	code, out = runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "false")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "false")
 	if code != 0 {
 		t.Fatalf("clean tree: exit %d\n%s", code, out)
 	}
 	expect(out, "nothing to commit", "commits: 1 (0-5)", "next: continue")
 
 	write("b")
-	code, out = runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "true", "-m", "feat: b")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "true", "-m", "feat: b")
 	if code != 0 {
 		t.Fatalf("green commit: exit %d\n%s", code, out)
 	}
@@ -215,26 +215,26 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 
 	for _, n := range []string{"c", "d", "e"} {
 		write(n)
-		if code, out = runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "false", "-m", n); code != 0 {
+		if code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "false", "-m", n); code != 0 {
 			t.Fatalf("commit %s: exit %d\n%s", n, code, out)
 		}
 	}
 	write("f")
-	code, out = runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "false", "-m", "sixth")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "false", "-m", "sixth")
 	if code != 0 {
 		t.Fatalf("sixth commit: exit %d\n%s", code, out)
 	}
 	expect(out, "commits: 6 (6+)", "next: return-partial")
 
 	late := strconv.FormatInt(time.Now().Unix()-31*60, 10)
-	code, out = runScript(t, repo, leg, "--start", git("rev-parse", "--short", "HEAD"), "--since", late, "--suite-green", "false")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", git("rev-parse", "--short", "HEAD"), "--since", late, "--suite-green", "false")
 	if code != 0 {
 		t.Fatalf("elapsed ask: exit %d\n%s", code, out)
 	}
 	expect(out, "commits: 0 (0-5)", "elapsed: 31 min (31+)", "next: return-partial")
 
 	write("g")
-	code, out = runScript(t, repo, leg, "--start", start, "--since", since, "-m", "no verdict")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "-m", "no verdict")
 	if code != 2 || strings.Contains(out, "next: ") || strings.Contains(out, "committed ") {
 		t.Errorf("missing --suite-green: exit %d, want 2 and no commit, no answer\n%s", code, out)
 	}
@@ -247,7 +247,7 @@ func TestRdrLegCommitCommitsThenAsksTheBudget(t *testing.T) {
 		t.Fatal(err)
 	}
 	head := git("rev-parse", "HEAD")
-	code, out = runScript(t, repo, leg, "--start", start, "--since", since, "--suite-green", "false", "-m", "hooked")
+	code, out = runScript(t, repo, leg, "-C", repo, "--start", start, "--since", since, "--suite-green", "false", "-m", "hooked")
 	if code == 0 || strings.Contains(out, "next: ") {
 		t.Errorf("a refusing hook: exit %d, want non-zero and no answer\n%s", code, out)
 	}
@@ -306,21 +306,21 @@ func TestRdrLegTestRunsThenAsksTheBudget(t *testing.T) {
 	}
 
 	// a. under the cap, a package run (no --full) never reports green
-	code, out := runScript(t, repo, legTest, "--start", start, "--since", since, "--", "sh", "-c", "echo ran; exit 0")
+	code, out := runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", since, "--", "sh", "-c", "echo ran; exit 0")
 	if code != 0 {
 		t.Fatalf("package run: exit %d\n%s", code, out)
 	}
 	expect(out, "ran", "run: exit 0", "next: continue")
 
 	// b. --full, exit 0 -> return-green
-	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 0")
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 0")
 	if code != 0 {
 		t.Fatalf("full green run: exit %d\n%s", code, out)
 	}
 	expect(out, "run: exit 0", "next: return-green")
 
 	// c. --full, exit 1 -> a red full run, still under caps
-	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 1")
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", since, "--full", "--", "sh", "-c", "exit 1")
 	if code != 0 {
 		t.Fatalf("full red run: exit %d\n%s", code, out)
 	}
@@ -328,7 +328,7 @@ func TestRdrLegTestRunsThenAsksTheBudget(t *testing.T) {
 
 	// d. over the cap: the run must not start, so its output must not appear
 	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
-	code, out = runScript(t, repo, legTest, "--start", start, "--since", late, "--", "sh", "-c", "echo MUST-NOT-RUN")
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", late, "--", "sh", "-c", "echo MUST-NOT-RUN")
 	if code != 0 {
 		t.Fatalf("over-cap ask: exit %d\n%s", code, out)
 	}
@@ -359,11 +359,11 @@ func TestRdrLegTestRunsThenAsksTheBudget(t *testing.T) {
 	}
 
 	// f. usage refusals: exit 2, nothing after --, and --since not epoch seconds
-	code, out = runScript(t, repo, legTest, "--start", start, "--since", since, "--")
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", since, "--")
 	if code != 2 || strings.Contains(out, "next: ") {
 		t.Errorf("no command after --: exit %d, want 2 and no answer\n%s", code, out)
 	}
-	code, out = runScript(t, repo, legTest, "--start", start, "--since", "now", "--", "sh", "-c", "exit 0")
+	code, out = runScript(t, repo, legTest, "-C", repo, "--start", start, "--since", "now", "--", "sh", "-c", "exit 0")
 	if code != 2 || strings.Contains(out, "next: ") {
 		t.Errorf("--since now: exit %d, want 2 and no answer\n%s", code, out)
 	}
@@ -404,20 +404,20 @@ func TestRdrLegBudgetBucketsGitAndTheClock(t *testing.T) {
 		}
 	}
 
-	code, out := runScript(t, repo, budget, "--start", start, "--since", since, "--suite-green", "false")
+	code, out := runScript(t, repo, budget, "-C", repo, "--start", start, "--since", since, "--suite-green", "false")
 	if code != 0 {
 		t.Fatalf("commits ask: exit %d\n%s", code, out)
 	}
 	expect(out, "commits: 2 (0-5)", "next: continue")
 
 	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
-	code, out = runScript(t, repo, budget, "--start", start, "--since", late, "--suite-green", "false")
+	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "false")
 	if code != 0 {
 		t.Fatalf("elapsed ask: exit %d\n%s", code, out)
 	}
 	expect(out, "elapsed: 40 min (31+)", "next: return-partial")
 
-	code, out = runScript(t, repo, budget, "--start", start, "--since", late, "--suite-green", "true")
+	code, out = runScript(t, repo, budget, "-C", repo, "--start", start, "--since", late, "--suite-green", "true")
 	if code != 0 {
 		t.Fatalf("green ask: exit %d\n%s", code, out)
 	}
@@ -547,7 +547,7 @@ func TestRdrLegMarkAndGuardRefuseOnlyInAMarkedLeg(t *testing.T) {
 		}
 	}
 	// A heredoc write through `cat >` is the leg's own capsule, not a read.
-	for _, cmd := range []string{"rdr-leg-test --start a --since 1 -- go test ./x/", "rdr-leg-commit --start a --since 1 --suite-green false -m x", "rdr-leg-read a.go --symbol F", "git status --porcelain", "cat notes.txt", "gofmt -l .", "cat > " + wt + "/status.md <<'EOF'\nhi\nEOF", "cat >> notes.md"} {
+	for _, cmd := range []string{"rdr-leg-test -C /w --start a --since 1 -- go test ./x/", "rdr-leg-commit -C /w --start a --since 1 --suite-green false -m x", "rdr-leg-read -C /w a.go --symbol F", "git status --porcelain", "cat notes.txt", "gofmt -l .", "cat > " + wt + "/status.md <<'EOF'\nhi\nEOF", "cat >> notes.md"} {
 		if code, out := hook(wt, cmd); code != 0 || strings.Contains(out, "deny") {
 			t.Errorf("marked leg, %q: should pass, got exit %d\n%s", cmd, code, out)
 		}
@@ -568,5 +568,64 @@ func TestRdrLegMarkAndGuardRefuseOnlyInAMarkedLeg(t *testing.T) {
 	}
 	if code, out := hook(wt, "go test ./..."); code != 0 {
 		t.Errorf("after clear the guard passes: exit %d\n%s", code, out)
+	}
+}
+
+// -C is required and must be the checkout root: a run or a commit that
+// lands in the session's cwd is a false green, not an error.
+func TestRdrLegHelpersRequireTheWorktreeRoot(t *testing.T) {
+	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
+	dir := installLaunchHelpers(t)
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "leg@test")
+	git("config", "user.name", "leg")
+	git("config", "commit.gpgsign", "false")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+	start := git("rev-parse", "--short", "HEAD")
+	since := strconv.FormatInt(time.Now().Unix(), 10)
+	sub := filepath.Join(repo, "pkg")
+	if err := os.MkdirAll(sub, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for _, h := range []string{"rdr-leg-test", "rdr-leg-commit", "rdr-leg-budget"} {
+		script := filepath.Join(dir, h)
+		tail := []string{"--start", start, "--since", since, "--suite-green", "false"}
+		if h == "rdr-leg-test" {
+			tail = []string{"--start", start, "--since", since, "--", "sh", "-c", "echo MUST-NOT-RUN"}
+		}
+		if code, out := runScript(t, repo, script, tail...); code != 2 || !strings.Contains(out, "-C <dir> is required") || strings.Contains(out, "MUST-NOT-RUN") {
+			t.Errorf("%s without -C: want refusal, got exit %d\n%s", h, code, out)
+		}
+		if code, out := runScript(t, repo, script, append([]string{"-C", sub}, tail...)...); code != 2 || !strings.Contains(out, "must name the checkout root") {
+			t.Errorf("%s -C <subdir>: want refusal, got exit %d\n%s", h, code, out)
+		}
+		if code, out := runScript(t, repo, script, append([]string{"-C", t.TempDir()}, tail...)...); code != 2 || !strings.Contains(out, "not inside a git checkout") {
+			t.Errorf("%s -C <no checkout>: want refusal, got exit %d\n%s", h, code, out)
+		}
+	}
+	elsewhere := t.TempDir()
+	code, out := runScript(t, elsewhere, filepath.Join(dir, "rdr-leg-test"), "-C", repo, "--start", start, "--since", since, "--", "sh", "-c", "pwd -P")
+	want, _ := filepath.EvalSymlinks(repo)
+	if code != 0 || !strings.Contains(out, want) || !strings.Contains(out, "in: "+repo) {
+		t.Errorf("rdr-leg-test runs in -C, not the cwd: exit %d\n%s", code, out)
+	}
+	read := filepath.Join(dir, "rdr-leg-read")
+	if err := os.WriteFile(filepath.Join(repo, "a.go"), []byte("package x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := runScript(t, elsewhere, read, "a.go"); code != 2 || !strings.Contains(out, "a relative path needs -C") {
+		t.Errorf("rdr-leg-read relative path without -C: want refusal, got exit %d\n%s", code, out)
+	}
+	if code, out := runScript(t, elsewhere, read, "-C", repo, "a.go"); code != 0 || !strings.Contains(out, "1\tpackage x") {
+		t.Errorf("rdr-leg-read -C: exit %d\n%s", code, out)
 	}
 }

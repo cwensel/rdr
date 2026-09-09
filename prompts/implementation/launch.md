@@ -269,8 +269,10 @@ commit and test commands, `$RDR_HOME/bin/rdr-leg-read`, `rdr-leg-commit`
 and `rdr-leg-test`. The read is a bounded slice (a symbol or a range; over
 the cap it prints the outline instead) — a leg that read whole files
 peaked at 427K while its range-reading sibling peaked at 245K. The other
-two each read `commits` and `elapsed` from git and the clock, ask the
-`budget` row and print `next:` — so the ask cannot be skipped (the leg
+two each take `-C <wt>` (required — a run or a commit lands THERE, never in
+the session's cwd: one leg tested main and read a plausible green), read
+`commits` and `elapsed` from git and the clock, ask the `budget` row and
+print `next:` — so the ask cannot be skipped (the leg
 that never asked hit 965K), and a run is an ask too: one refuses to start
 past the cap (a leg once spent 27 min in three package runs between asks,
 and 18 more in a run it started after `return-partial`). The leg's first

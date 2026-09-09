@@ -7,7 +7,7 @@
 # row; `rdr-leg-commit` and `rdr-leg-test` both end here, so the ask is the
 # same whichever action the leg just took. The leg only reports the suite.
 #
-#   rdr-leg-budget --start <sha> --since <epoch> --suite-green <true|false> [-C <dir>]
+#   rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false>
 #
 #   commits: N (<bucket>)
 #   elapsed: M min (<bucket>)
@@ -22,7 +22,7 @@ M="$H/models/rdr-launch.toml"
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-budget: $*" >&2
-  echo "usage: rdr-leg-budget --start <sha> --since <epoch> --suite-green <true|false> [-C <dir>]" >&2
+  echo "usage: rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false>" >&2
   exit 2
 }
 
@@ -36,6 +36,10 @@ while [ $# -gt 0 ]; do
     *) usage "unexpected '$1'" ;;
   esac
 done
+[ -n "$C" ] || usage "-C <dir> is required: the leg's worktree root, so a run or a commit can never land in the session's cwd (one leg tested main and read a plausible green)"
+[ -d "$C" ] || { echo "rdr-leg-budget: no such directory: $C" >&2; exit 2; }
+top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-budget: $C is not inside a git checkout" >&2; exit 2; }
+[ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-budget: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
 case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
 case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last run" ;; esac

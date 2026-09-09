@@ -1,6 +1,6 @@
 # Phase 3c — fixup
 Fields: RDR_PATH NNNN RDR_RESOURCES RDR_HOME ART WORKTREE BRANCH TEST_FRAMEWORK START_SHA START_EPOCH
-(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` is that value.)
 
 First call: `cd {WORKTREE}`; if `git branch --show-current` is not {BRANCH},
 return `stopped:worktree-isolation-failed`, no edits; else
@@ -16,16 +16,15 @@ Inputs: {ART}/verification.md, {ART}/deviations.md (apply each `→ RESOLVED`),
 Minimum change per defect and open row; a regression test where none
 exists; rewrite each row's Outcome. The ONLY read, test and commit
 commands — never `cat`, `go test` or `git commit` yourself — are
-`{RDR_HOME}/bin/rdr-leg-read <path> [--symbol S | --range A-B]`, `rdr-leg-test
---start {START_SHA} --since {START_EPOCH} [--full] -- <test command>` and
-`rdr-leg-commit --start {START_SHA} --since {START_EPOCH} --suite-green
+`{RDR_HOME}/bin/rdr-leg-read -C {WORKTREE} <path> [--symbol S|--range A-B]`,
+`rdr-leg-test -C {WORKTREE} --start {START_SHA} --since {START_EPOCH} [--full] -- <test command>` and
+`rdr-leg-commit -C {WORKTREE} --start {START_SHA} --since {START_EPOCH} --suite-green
 <true|false> -m "<subject>"`.
 `continue` → next; `return-green` (the ONE `--full` run, last) → PASS;
 `return-partial` → the {ART}/status.md capsule (`phase: 3c`, `next:
-respawn 3c`), then INCOMPLETE, no more runs. New open entries: Phase 2's form.
+respawn 3c`), then INCOMPLETE. New open entries: Phase 2's form.
 
-Never edit {RDR_PATH}; read it via `{RDR_HOME}/bin/rdr inspect …`, not
-`sed`/`grep`. Scratch under /tmp, never {ART}. Separators `---`, not `===`.
+Never edit {RDR_PATH}; read it via `rdr inspect`, not `sed`/`grep`. Scratch in /tmp, never {ART}. Separators `---`, not `===`.
 
 Return exactly this packet, nothing after:
 verdict: PASS | BLOCK | INCOMPLETE | NEEDS_DECISION

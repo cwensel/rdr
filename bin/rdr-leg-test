@@ -7,7 +7,11 @@
 # ask too — the clock is read before and after — and a run that would
 # start past the elapsed cap is not started: the leg is told to return.
 #
-#   rdr-leg-test --start <sha> --since <epoch> [--full] [-C <dir>] -- <test command…>
+#   rdr-leg-test -C <worktree> --start <sha> --since <epoch> [--full] -- <test command…>
+#
+# `-C` is required and must be the checkout root: the command runs THERE,
+# never in the session's cwd — one leg ran its tests against main and
+# read a plausible green that only mtime forensics caught.
 #
 # `--full` marks the ONE full-suite run (the worklist's last item): only
 # then is the run's exit reported as `suite_green`; a package run is
@@ -22,7 +26,7 @@ M="$H/models/rdr-launch.toml"
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-test: $*" >&2
-  echo "usage: rdr-leg-test --start <sha> --since <epoch> [--full] [-C <dir>] -- <test command…>" >&2
+  echo "usage: rdr-leg-test -C <worktree> --start <sha> --since <epoch> [--full] -- <test command…>" >&2
   exit 2
 }
 
@@ -38,6 +42,10 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ $# -gt 0 ] || usage "no test command after --"
+[ -n "$C" ] || usage "-C <dir> is required: the leg's worktree root, so a run or a commit can never land in the session's cwd (one leg tested main and read a plausible green)"
+[ -d "$C" ] || { echo "rdr-leg-test: no such directory: $C" >&2; exit 2; }
+top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-test: $C is not inside a git checkout" >&2; exit 2; }
+[ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-test: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
 case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
 [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }
@@ -52,9 +60,9 @@ if [ "$mins" -ge "$cap" ]; then
 fi
 
 t0=$(date -u +%s)
-if [ -n "$C" ]; then (cd "$C" && "$@"); else "$@"; fi
+(cd "$C" && "$@")
 code=$?
-echo "run: exit $code in $(( ($(date -u +%s) - t0) / 60 )) min"
+echo "run: exit $code in $(( ($(date -u +%s) - t0) / 60 )) min  in: $C"
 green=false
 [ "$full" = true ] && [ "$code" -eq 0 ] && green=true
 exec "$here/rdr-leg-budget" --start "$start" --since "$since" --suite-green "$green" ${C:+-C "$C"}

@@ -9,7 +9,9 @@
 # commit makes it unskippable: git and the clock are read here, the caps
 # are the tag domains in the model, and the leg only reports the suite.
 #
-#   rdr-leg-commit --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>] [-C <dir>]
+#   rdr-leg-commit -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>]
+#
+# `-C` is required and must be the checkout root (rdr-leg-test's reason).
 #
 # Commits the whole tree (`git add -A`) under <subject>; a red tree
 # (`--suite-green false`) gets a ` [wip]` suffix if the subject lacks one,
@@ -32,7 +34,7 @@ M="$H/models/rdr-launch.toml"
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-commit: $*" >&2
-  echo "usage: rdr-leg-commit --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>] [-C <dir>]" >&2
+  echo "usage: rdr-leg-commit -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>]" >&2
   exit 2
 }
 
@@ -47,6 +49,10 @@ while [ $# -gt 0 ]; do
     *) usage "unexpected '$1'" ;;
   esac
 done
+[ -n "$C" ] || usage "-C <dir> is required: the leg's worktree root, so a run or a commit can never land in the session's cwd (one leg tested main and read a plausible green)"
+[ -d "$C" ] || { echo "rdr-leg-commit: no such directory: $C" >&2; exit 2; }
+top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-commit: $C is not inside a git checkout" >&2; exit 2; }
+[ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-commit: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
 case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
 case $green in true|false) ;; *) usage "--suite-green <true|false> is the full suite's exit — false until that last item has run" ;; esac

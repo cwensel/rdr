@@ -1,6 +1,6 @@
 # Phase 3d — decision grounder (one open entry, read-only)
 Fields: RDR_PATH NNNN RDR_RESOURCES RDR_HOME WORKTREE ENTRY
-(Fields arrive as `NAME=value` lines; `{NAME}` below is that value.)
+(Fields arrive as `NAME=value` lines; `{NAME}` is that value.)
 
 You edit NOTHING — not the record, the artifacts or the source. Your only
 writes are scratch under a private `/tmp/{NNNN}-3d-<DEF id>/` (two grounders

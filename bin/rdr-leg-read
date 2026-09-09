@@ -11,7 +11,9 @@
 # (Go declarations, Markdown headings, REQ/DEF ids) so the next call names
 # what it wants.
 #
-#   rdr-leg-read <path> [--range A-B | --symbol NAME] [--cap N] [-C <dir>]
+#   rdr-leg-read [-C <worktree>] <path> [--range A-B | --symbol NAME] [--cap N]
+#
+# A relative <path> needs `-C`: the session's cwd may be another checkout.
 #
 # Every line is printed as `N<TAB>text`; a footer names the slice
 # (`-- <path> lines A-B of N`). `--symbol` resolves, in a Go file, a
@@ -25,7 +27,7 @@
 
 usage() {
   [ $# -gt 0 ] && echo "rdr-leg-read: $*" >&2
-  echo "usage: rdr-leg-read <path> [--range A-B | --symbol NAME] [--cap N] [-C <dir>]" >&2
+  echo "usage: rdr-leg-read [-C <worktree>] <path> [--range A-B | --symbol NAME] [--cap N]" >&2
   exit 2
 }
 
@@ -41,7 +43,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 [ -n "$path" ] || usage "a path is required"
-[ -n "$C" ] && case $path in /*) ;; *) path="$C/$path" ;; esac
+case $path in /*) ;; *) [ -n "$C" ] || usage "a relative path needs -C <worktree>: the session's cwd may be another checkout"; path="$C/$path" ;; esac
 [ -f "$path" ] || { echo "rdr-leg-read: no such file: $path" >&2; exit 2; }
 case $cap in ''|*[!0-9]*|0) usage "--cap N is a positive line count" ;; esac
 [ -n "$range" ] && [ -n "$sym" ] && usage "--range and --symbol are alternatives"
