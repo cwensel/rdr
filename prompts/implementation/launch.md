@@ -293,6 +293,10 @@ and 18 more in a run it started after `return-partial`). The leg's first
 call marks its worktree (`rdr-leg-mark`) and its last clears it: the role
 a consumer's PreToolUse guard (`bin/rdr-leg-guard`, reference, uninstalled)
 reads to refuse the raw `cat`, `go test` and `git commit` the brief forbids.
+Before handing a leg any work — fresh or resumed — assert the mark:
+`"$RDR_HOME/bin/rdr-leg-mark" --query <wt>` (exit 0, silent). A non-zero is
+a stop, not a leg to start: an unmarked leg is a raw-read leg and the guard
+cannot see it.
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from
@@ -312,7 +316,10 @@ family or "full suite", which hands the full run to the successor;
 `reads:` ≤10 `path[:range]` this leg found load-bearing, so the successor
 reads those first; `changed:`), and return verdict=INCOMPLETE with
 next_action `respawn Phase 2 from the capsule` — the orchestrator spawns
-the next leg. The baseline was green, so a predecessor
+the next leg through `briefs/phase-2.md` like any other, RESUME filled from
+the capsule: a resumed leg spawned from an authored prompt never marks, so
+the guard is inert and it reads by raw slicing (one such arm ran 397–502K
+against a template-brief run's 124–277K). The baseline was green, so a predecessor
 test now red is this change's regression: fix it, or — if a REQ-N
 forbids — record SPEC-DEFECT / DEPENDENCY-LIMIT citing the predecessor
 REQ for author decision. Never TEST-FIXTURE, never "pre-existing".

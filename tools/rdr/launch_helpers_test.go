@@ -652,6 +652,83 @@ func TestRdrLegMarkAndGuardRefuseOnlyInAMarkedLeg(t *testing.T) {
 	}
 }
 
+// A resumed leg re-enters through briefs/phase-2.md, so it marks like a
+// fresh one and the guard arms; and the orchestrator asserts that mark
+// before it hands any leg work. Two halves of one contract:
+//
+//   - `--query` is the assertion: exit 0 in a marked worktree, non-zero in
+//     an unmarked one, silent either way, and answerable about a directory
+//     the caller is not standing in (the orchestrator never cd's). An
+//     unmarked leg is then a stop rather than a silent raw-read leg — the
+//     arm that skipped the brief ran 397-502K against 124-277K.
+//   - the brief is what makes routing a resume through it worth doing: it
+//     must still name `rdr-leg-mark {WORKTREE}` as the leg's FIRST call and
+//     still declare RESUME, so a leg spawned with the capsule's position
+//     marks on entry. Trim either line and a resumed leg goes unmarked
+//     again with no other signal.
+func TestResumedLegMarksAndTheOrchestratorAssertsIt(t *testing.T) {
+	dir := installLaunchHelpers(t)
+	mark := filepath.Join(dir, "rdr-leg-mark")
+	t.Setenv("TMPDIR", t.TempDir())
+	wt := t.TempDir()
+	elsewhere := t.TempDir()
+
+	// Before the leg marks, the orchestrator's assertion fails: a resumed
+	// leg spawned from an authored prompt looks exactly like this.
+	code, out := runScript(t, elsewhere, mark, "--query", wt)
+	if code == 0 {
+		t.Errorf("--query on an unmarked worktree: exit 0, want non-zero\n%s", out)
+	}
+	if strings.TrimSpace(out) != "" {
+		t.Errorf("--query must stay silent; it printed %q", out)
+	}
+
+	if code, out := runScript(t, wt, mark, wt); code != 0 || !strings.Contains(out, "marked ") {
+		t.Fatalf("mark: exit %d\n%s", code, out)
+	}
+
+	// After the brief's first call, the same assertion passes — and it is
+	// asked from outside the worktree, the only place the orchestrator is.
+	code, out = runScript(t, elsewhere, mark, "--query", wt)
+	if code != 0 {
+		t.Errorf("--query on a marked worktree from another cwd: exit %d\n%s", code, out)
+	}
+	if strings.TrimSpace(out) != "" {
+		t.Errorf("--query must stay silent; it printed %q", out)
+	}
+
+	// The leg's last call clears, so the next spawn must mark afresh rather
+	// than inherit a stale answer.
+	if code, out := runScript(t, wt, mark, "--clear", wt); code != 0 {
+		t.Fatalf("clear: exit %d\n%s", code, out)
+	}
+	if code, _ := runScript(t, elsewhere, mark, "--query", wt); code == 0 {
+		t.Errorf("--query after clear: exit 0, want non-zero")
+	}
+
+	home, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	brief, err := os.ReadFile(filepath.Join(home, "prompts", "implementation", "briefs", "phase-2.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := string(brief)
+	if !strings.Contains(text, "rdr-leg-mark {WORKTREE}") {
+		t.Error("phase-2.md no longer names `rdr-leg-mark {WORKTREE}`; a leg entering through it would not mark")
+	}
+	firstCall := strings.Index(text, "First call:")
+	markCall := strings.Index(text, "rdr-leg-mark {WORKTREE}")
+	task := strings.Index(text, "Your task is")
+	if firstCall < 0 || markCall < firstCall || (task >= 0 && markCall > task) {
+		t.Error("the mark is no longer part of phase-2.md's FIRST call, before the leg's task")
+	}
+	if !strings.Contains(text, "{RESUME}") {
+		t.Error("phase-2.md no longer uses {RESUME}; a resumed leg could not be given its position through this brief")
+	}
+}
+
 // -C is required and must be the checkout root: a run or a commit that
 // lands in the session's cwd is a false green, not an error.
 func TestRdrLegHelpersRequireTheWorktreeRoot(t *testing.T) {
