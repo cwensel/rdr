@@ -237,15 +237,17 @@ M="$RDR_HOME/models/rdr-write.toml"
 PATH="$RDR_HOME/bin:$PATH"; export PATH   # the model's accessors exec `rdr` by name
 BIND=(--artifact record="$RDR_PATH" --artifact readme="$RDR_RECORDS/README.md"
       --tag nnnn=NNNN --allow-commands)
-TAGS=$("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status) || exit 2
+"$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status >/dev/null || exit 2   # test the read before substituting it
 
 # lock | readme — resolved AND applied, nothing retyped:
 "$IS" flow resolve --model "$M" "${BIND[@]}" --as json --outcome <lock|readme> \
-  [--tag k=v …] $TAGS | "$IS" flow set-state --model "$M" "${BIND[@]}" --as json --plan -
+  [--tag k=v …] $("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status) \
+  | "$IS" flow set-state --model "$M" "${BIND[@]}" --as json --plan -
 
 # claim | demote | profile | return | fence | ground — you apply the emit:
 "$IS" flow resolve --model "$M" "${BIND[@]}" --plan-only \
-  --outcome <claim|demote|profile|return|fence|ground> [--tag k=v …] $TAGS
+  --outcome <claim|demote|profile|return|fence|ground> [--tag k=v …] \
+  $("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status)
 ```
 
 `--except status,readme_status` is required: the table OWNS those two, and
