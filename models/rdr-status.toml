@@ -688,8 +688,24 @@ why  = "Assumptions are all terminal — Resolve is behind you; ask the lens row
 
 # bare `Draft` whose CA list cannot be read — placeholders, an
 # off-vocabulary status, or no assumptions at all. An unreadable list is
-# NOT an empty one, and the tallies certify no stage, so this stops and
-# says which lines to read rather than guessing a front-half position.
+# NOT an empty one, and the tallies certify no stage, so this stops
+# rather than guessing a front-half position.
+#
+# The STOP NAMES THE FACT THAT ALREADY LOCATED THE PROBLEM. `--tags`
+# carries `ca_off_vocabulary_ids` in every vector, so the offending
+# assumptions are in the caller's hand before the resolve runs; the old
+# surface sent the reader to the section to find by eye what the
+# projector had already found. Emits are uninterpreted bytes (no
+# interpolation, above), so the row names the KEY and the caller reads
+# the value it holds.
+#
+# It also says the off-vocabulary case is a TYPO, because the cheap wrong
+# fix is to widen the vocabulary. `models/rdr-template.toml`'s observed
+# tier is legitimate practice the template never spelled — earned by
+# recurrence — and it refuses a "tolerated but wrong" third tier by name.
+# Six corpus records carry an off-vocabulary assumption status and each
+# is a different one-off (Partial, Decided, Split, FALSIFIED): there is
+# no missing word to add, only a spelling to correct on the record.
 [[rule]]
 id = "locate-draft-unknown-plan"
 [rule.match.recognized]
@@ -703,7 +719,7 @@ eq = "unknown-plan"
 [rule.emit]
 next    = "stopped:assumption-list-unreadable"
 why     = "The Critical Assumption list is unfilled or off-vocabulary — it certifies no stage, and an unreadable list is not an empty one."
-surface = "the Critical Assumptions section's lines, to be read directly"
+surface = "`ca_off_vocabulary_ids` (the offending assumptions, already in the tag vector) and `ca_placeholder`: an off-vocabulary status is a TYPO to correct on the record — the terminal verdicts are Refuted | Resolved | Accepted | Downgraded, and a synonym of one of those (FALSIFIED, Partial, Split, Decided) is spelled, not adopted; a placeholder means the list is still the template legend"
 
 # NO ESCAPE ROW HERE, AND THAT IS THE POINT. The rows above claim every
 # cell of `status × status_form × ca × cluster_reconciled` positively, so
