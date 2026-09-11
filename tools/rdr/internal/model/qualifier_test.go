@@ -349,3 +349,143 @@ func TestEvidenceFieldBullet(t *testing.T) {
 		}
 	}
 }
+
+// TestRoutedBackGrammarCaptures covers the Draft-side sibling of the
+// revised-from form: every group is captured, `re-verify none` stays out
+// of the ID capture as it does there, and a qualifier missing its reason
+// is still the form — a routing gate keys on the form, and degrading to
+// a free-text note is the exact blindness this qualifier ends.
+func TestRoutedBackGrammarCaptures(t *testing.T) {
+	for _, tc := range []struct {
+		q                                 string
+		origin, date, ids, target, reason string
+		form                              QualifierForm
+	}{
+		{
+			q:      "routed back from resolve 2026-09-11; re-verify A5,A6 @propose — the approach is refuted",
+			origin: "resolve", date: "2026-09-11", ids: "A5,A6", target: "propose",
+			reason: "the approach is refuted", form: QualifierRoutedBack,
+		},
+		{
+			q:      "routed back from finalize 2026-09-11; re-verify none @prelock — the determinacy line never ran",
+			origin: "finalize", date: "2026-09-11", ids: "", target: "prelock",
+			reason: "the determinacy line never ran", form: QualifierRoutedBack,
+		},
+		{
+			// No re-verify clause at all, and no reason: still the form.
+			q:      "routed back from cluster-reconcile 2026-09-11; @reconcile",
+			origin: "cluster-reconcile", date: "2026-09-11", ids: "", target: "reconcile",
+			reason: "", form: QualifierRoutedBack,
+		},
+		{
+			q:      "routed back from implement 2026-09-11; re-verify A2, A4 @refine — a contract edit",
+			origin: "implement", date: "2026-09-11", ids: "A2, A4", target: "refine",
+			reason: "a contract edit", form: QualifierRoutedBack,
+		},
+		{
+			// An origin outside the vocabulary is a free-text note, not a
+			// route-back with a stage nobody can act on.
+			q:    "routed back from propose 2026-09-11; re-verify A2 @refine — propose sends nothing back",
+			form: QualifierBracketed,
+		},
+		{
+			// A target outside RouteBackTargets, same reading.
+			q:    "routed back from resolve 2026-09-11; re-verify A2 @implement — not a re-entry stage",
+			form: QualifierBracketed,
+		},
+		{
+			// The date is required here as it is there; the two-token
+			// tolerance after it is NOT carried over.
+			q:    "routed back from resolve; re-verify A2 @propose — the date went missing",
+			form: QualifierBracketed,
+		},
+	} {
+		s := ParseStatus("Draft [" + tc.q + "]")
+		if s.QualifierForm != tc.form {
+			t.Errorf("%q: form = %s, want %s", tc.q, s.QualifierForm, tc.form)
+			continue
+		}
+		if tc.form != QualifierRoutedBack {
+			continue
+		}
+		m := RoutedBackGrammar.FindStringSubmatch(tc.q)
+		if m[1] != tc.origin || m[2] != tc.date || m[3] != tc.ids || m[4] != tc.target || m[5] != tc.reason {
+			t.Errorf("%q: captures = %q/%q/%q/%q/%q, want %q/%q/%q/%q/%q",
+				tc.q, m[1], m[2], m[3], m[4], m[5], tc.origin, tc.date, tc.ids, tc.target, tc.reason)
+		}
+		if got := RouteBackOrigin(tc.q); got != tc.origin {
+			t.Errorf("%q: RouteBackOrigin = %q, want %q", tc.q, got, tc.origin)
+		}
+		if got := RouteBackTarget(tc.q); got != tc.target {
+			t.Errorf("%q: RouteBackTarget = %q, want %q", tc.q, got, tc.target)
+		}
+		// The shared accessor answers for BOTH forms: it is what the
+		// projector calls, and the navigator routes the one slot.
+		if got := ReentryTarget(tc.q); got != tc.target {
+			t.Errorf("%q: ReentryTarget = %q, want %q", tc.q, got, tc.target)
+		}
+	}
+}
+
+// TestRouteBackAndRevisedFromDoNotCollide: the two re-entry grammars are
+// anchored on distinct opening phrases, so neither can read the other's
+// qualifier — which is what lets splitQualifier order them for the
+// reader rather than for the parse. The narrow accessors stay narrow;
+// only ReentryTarget spans both.
+func TestRouteBackAndRevisedFromDoNotCollide(t *testing.T) {
+	const demote = "revised from Final 2026-08-29; re-verify A2 @refine — a contract edit"
+	const routeBack = "routed back from resolve 2026-09-11; re-verify A5 @propose — the approach is refuted"
+
+	if RoutedBackGrammar.MatchString(demote) {
+		t.Error("RoutedBackGrammar matched a revised-from qualifier")
+	}
+	if RevisedFromGrammar.MatchString(routeBack) {
+		t.Error("RevisedFromGrammar matched a routed-back qualifier")
+	}
+	if got := RouteBackTarget(demote); got != "" {
+		t.Errorf("RouteBackTarget on a demotion = %q, want empty", got)
+	}
+	if got := RouteBackOrigin(demote); got != "" {
+		t.Errorf("RouteBackOrigin on a demotion = %q, want empty", got)
+	}
+	if got := ReentryTarget(demote); got != "refine" {
+		t.Errorf("ReentryTarget on a demotion = %q, want \"refine\"", got)
+	}
+	if got := ReentryTarget(routeBack); got != "propose" {
+		t.Errorf("ReentryTarget on a route-back = %q, want \"propose\"", got)
+	}
+}
+
+// TestRouteBackTargetsExtendReentryTargets pins the relationship the two
+// vocabularies are declared with: the route-back's targets are the
+// demotion's PLUS prelock and reconcile, and the grammar accepts exactly
+// the list. Two hand-kept lists that drift make a record the navigator
+// declares routable and the parser reads as a free-text note.
+func TestRouteBackTargetsExtendReentryTargets(t *testing.T) {
+	in := func(list []string, v string) bool {
+		for _, x := range list {
+			if x == v {
+				return true
+			}
+		}
+		return false
+	}
+	for _, want := range ReentryTargets {
+		if !in(RouteBackTargets, want) {
+			t.Errorf("ReentryTargets names %q and RouteBackTargets does not; the route-back must accept every demote target", want)
+		}
+	}
+	for _, want := range RouteBackTargets {
+		if RouteBackTarget("routed back from resolve 2026-09-11; @"+want+" — x") != want {
+			t.Errorf("RouteBackTargets names %q but the grammar does not accept it", want)
+		}
+		if want != "prelock" && want != "reconcile" && !in(ReentryTargets, want) {
+			t.Errorf("RouteBackTargets names %q, which is neither a demote target nor one of the two stages only a live Draft can return to", want)
+		}
+	}
+	for _, want := range RouteBackOrigins {
+		if RouteBackOrigin("routed back from "+want+" 2026-09-11; @propose — x") != want {
+			t.Errorf("RouteBackOrigins names %q but the grammar does not accept it", want)
+		}
+	}
+}

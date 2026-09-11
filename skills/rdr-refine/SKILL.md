@@ -30,7 +30,8 @@ Claude: /rdr-refine <NNNN>
    <IDs> @<stage>]` qualifier is parsed routing data (`reverify` edges,
    `reentry_target`), not history — keep it byte-for-byte; a route-back refine
    rewrites only the id list to `re-verify <IDs> + <ids it amended or added>`,
-   keeping `@<stage>`, never `none`. The 07.1 `## Refinement Context` note is
+   keeping `@<stage>`, never `none`. A `[routed back from … @refine]` inverts that —
+   rework and clear it whole (rdr-common §rdr-write *Receiving a route-back*). The 07.1 `## Refinement Context` note is
    read-only here — no disposition appended; Stage 7 deletes it. Read the record by `inspect NNNN` then
    `--select NNNN:§section` (rdr-common §rdr-resolve), never `sed -n` line windows.
 

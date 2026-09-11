@@ -295,11 +295,30 @@ tags. `rdr` stays read-only — it renders the facts and reads them back; it nev
 writes. A write re-arms the lint receipt (§commit).
 
 **Why only those two.** An `edit` writer substitutes a planned VALUE into an
-anchored line. `profile`, `demote` and `readme --add` interpolate author prose
-no fact supplies (`<one clause naming the contract>`, `<one-line reason>`, a
-title); `claim` allocates with no planned value; `fence`/`return`/`ground` never
+anchored line. `profile`, `demote`, `return` and `readme --add` interpolate author
+prose no fact supplies (`<one clause naming the contract>`, `<one-line reason>`, a
+title); `claim` allocates with no planned value; `fence`/`ground` never
 edit. Converting them would mean typing that prose as a tag for the table to
 interpolate — the transcription relocated, not removed.
+
+**`return` writes, and that is the point.** A packet-only route-back is invisible
+to the stage receiving it — the record's evidence reads FORWARD, so that stage
+refuses as already-passed and the record deadlocks. The emit marks the backward
+edge on the live Status value:
+`Draft [routed back from <origin> <date>; re-verify <IDs> @<stage> — <reason>]`,
+`demote`'s Draft-side sibling, sharing its `@<stage>` slot so the navigator routes
+both. Two exceptions: `wording` fixes in the lock pass, so it stays decide-only;
+and the edit anchors on `Draft`, so a **Final routes back via `--outcome demote`** —
+pick by the status you hold, or `return` substitutes nothing and still reads as
+applied.
+
+**Receiving a route-back (any stage named by `@<stage>`).** The qualifier says
+*you* owe the work, so: treat the record as a **delta, not a fresh pass** —
+downstream content is expected, never grounds to refuse as already-passed; rework
+only what the reason and `re-verify` ids name, carrying the rest verbatim; then
+**clear the whole qualifier** (`- **Status**: Draft`) as your first write. Nothing
+else clears it — unlike `revised from Final …`, which the Stage 7 re-lock
+overwrites — so a stage that skips this re-routes itself forever.
 
 `lock` has one author step BEFORE the pipe: `sections` moves the four judged
 gate responses out to `gate.md`. Do it first — the status flip is the declared
@@ -867,9 +886,13 @@ with just the ledger if absent): the defect one-line, the stage that caught
 it, Expected-catching stage (the ledger's closed vocabulary), escape
 distance; odc columns n/a until implementation triage. Append BEFORE any
 refine collapses the history — refine strips change-history from the RDR
-body by charter, so the ledger is the punt's only durable home, and the
-propose premortem's seeds read it: an unrecorded punt is a premortem that
-runs blind next time.
+body by charter, so the ledger is the punt's only durable home *for the
+defect*, and the propose premortem's seeds read it: an unrecorded punt is a
+premortem that runs blind next time.
+
+Both are owed, and they record different things: the `return` qualifier is live
+routing state (which stage owes work now, cleared when it runs), the ledger is
+permanent escape history (what got through, and from where).
 
 ## §commit — optionally commit this run's *own* files, fast, no exploration
 

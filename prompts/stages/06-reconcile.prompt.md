@@ -53,7 +53,9 @@ an assumption the RDR currently relies on (the design says X, the target system
 or the source does not-X), STOP. Do not paper over it. Report it as a BLOCKER
 and send the
 RDR back: class the refutation (`approach` | `contract` | `assumption-gap`,
-rdr-common §rdr-write) — `--outcome return` names the stage.
+rdr-common §rdr-write) — `--outcome return` names the stage and emits the Status
+qualifier that marks the backward edge; apply it, or the record reads as never
+sent back and the receiving stage refuses.
 Locking over a refuted assumption is the failure this gate exists to prevent.
 Run rdr-common §strong-consult on the reopened fork before routing — its
 verdict rides the BLOCKER report, and the route-back is the close packet's

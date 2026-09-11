@@ -28,6 +28,9 @@ Claude: /rdr-reconcile <NNNN>
    `iter-N/`; `ITER_FOUND`/`ITER_NOTE` say what was on disk), and
    `eval "$("$RDR_HOME/bin/rdr" paths --tree spikes <NNNN>)"` → `$EVIDENCE_DIR` is
    `{SPIKE_DIR}`. Have the Pre-Lock needs-verification list(s) ready to paste.
+   A `[routed back from … @reconcile]` Status qualifier names this stage as owing
+   the work: close what it names and clear the qualifier (rdr-common §rdr-write
+   *Receiving a route-back*) — nothing else will.
    - **Preflight Stage 5 completeness before reconciling** — run **§lens-row**'s
      call; don't re-read the row.
 

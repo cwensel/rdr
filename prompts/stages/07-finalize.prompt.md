@@ -96,7 +96,9 @@ Verdict the gate, then act on it in this same pass — the verdict is the gate,
 not a human pause:
 
 - NOT READY (any blocker) — report the named blockers, each with its class and
-  the `next_action` that `--outcome return` emits. Flip NOTHING. Stop here.
+  the `next_action` that `--outcome return` emits, and apply that emit's Status
+  qualifier so the named stage sees it is re-entering. Flip NOTHING — that bars
+  the lock flip, not the route-back marker. Stop here.
 - READY — lock immediately. First write responses 1, 2, 3 and 5 to
   {ARTIFACT_DIR}/gate.md (on a re-lock, overwrite it — gate.md is the current
   lock's record). Then run rdr-common §rdr-write twice: `--outcome lock` moves

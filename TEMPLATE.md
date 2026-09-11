@@ -63,6 +63,23 @@ N/A-bulleted). -->
     conflate the two. (`Reverted` above is the unrelated
     terminal "implementation rolled back" status — also do
     not conflate.)
+  - A Draft sent BACKWARD by a mid-flow stage carries the
+    sibling qualifier:
+    `Draft [routed back from resolve YYYY-MM-DD; re-verify
+    A5,A6 @propose — <one-line reason>]` — the origin stage
+    that sent it back, the date, `;`, `re-verify <IDs>` or
+    `re-verify none`, then the SAME `@<stage>` slot spelled
+    above (here also `@prelock` = Stage 5 and `@reconcile`
+    = 6, which a demotion can never name because a Final has
+    closed them), then `— <reason>`. Every clause after the
+    date is optional, and `/rdr-status` routes it through the
+    same rules. The **origin** is carried because the rework
+    owed differs by where it came from; without the qualifier
+    the record's evidence reads FORWARD and the receiving stage
+    refuses it as already-passed. Unlike the demotion form it
+    does not wait for a re-lock — **the stage named by
+    `@<stage>` clears it as its first act**. A second
+    route-back overwrites the value rather than stacking.
   - A Final tolerated at the 07.1 gate under a JOINT-DECISION
     carries `Final [joint decision → <home §-anchor>: <the
     open question>]`. It is still a `Final` for every binary

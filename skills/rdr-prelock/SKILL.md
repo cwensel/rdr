@@ -54,8 +54,11 @@ One invocation runs the full loop for one lens:
    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
    `$EVIDENCE_DIR`, `$ITER`, `$ITER_DIR` (write to `$ITER_DIR`; at `ITER=1` it
    *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
-   Final …; re-verify <IDs>]` qualifier names the scope's floor, not its ceiling —
-   after a rework, real defects land outside the listed ids. Whenever `lens_stale`
+   Final …` or `[routed back from … @prelock …]` `; re-verify <IDs>]` qualifier
+   names the scope's floor, not its ceiling — after a rework, real defects land
+   outside the listed ids. Clear the routed-back one as this pass's first act
+   (rdr-common §rdr-write *Receiving a route-back*); leave the demotion's for
+   the re-lock. Whenever `lens_stale`
    names this lens (`status --tags`), scope = `<IDs>` ∪ `.touched[].id` of
    `base=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): finalize' -- "$RDR_PATH")`
    `"$RDR_HOME/bin/rdr" inspect --touched-since "$base" --json <NNNN>`;

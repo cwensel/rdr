@@ -188,27 +188,39 @@ description = "The record's lifecycle Status, bare."
 kind        = "enum"
 source      = "field"
 path        = "metadata.Status.status.form"
-domain      = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+domain      = ["none", "demoted-target", "revised-from", "routed-back", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
 description = "Which qualifier grammar the Status matched (model.QualifierForm)."
 
 # A scoped backward edge: `Draft [revised from Final <date>; re-verify
 # <IDs>]`. Still a Draft for every binary gate, but the next command is
 # /rdr-resolve, not the front-half stage the evidence would otherwise
 # suggest — so the routing needs it as its own predicate.
+# NARROWER THAN ITS NAME. It answers "was this demoted from a Final",
+# not "is this a re-entry": a `routed-back` Draft is equally a re-entry
+# and reads FALSE here, by construction — a bool fact takes one `equals`,
+# and the two forms differ in what they owe (a demotion waits for the
+# re-lock to clear it; a route-back is cleared by the stage it names).
+# Nothing routes on this — `status_form` and `reentry_target` carry every
+# routing decision and both span the two forms. Ask those, not this, when
+# the question is "is this record re-entering".
 [fact.status_reentry]
 kind        = "bool"
 source      = "field"
 path        = "metadata.Status.status.form"
 equals      = "revised-from"
-description = "The Status is a scoped re-entry from Final."
+description = "The Status is a scoped re-entry from Final (not the routed-back form — see status_form)."
 
 # WHERE the re-entry lands. The 7.1 gate names a target stage (2 propose /
 # 3 refine / 4 resolve) and the `@<stage>` slot of the qualifier —
 # `re-verify A15, A17 @refine — <reason>`, grammar in TEMPLATE.md — is
 # its machine-readable copy; the prose note alone routed every re-entry
 # to /rdr-resolve, and a resolve that cannot close a contract edit is a
-# full pass spent discovering it was Stage 3's. The domain is
-# model.ReentryTargets plus the sentinel.
+# full pass spent discovering it was Stage 3's. BOTH re-entry forms write
+# this slot — `revised-from` (7.1's demotion) and `routed-back` (a
+# mid-flow Draft sent backward) — which is why one `reentry` group routes
+# them both. The domain is model.RouteBackTargets plus the sentinel;
+# `prelock` and `reconcile` are reachable from `routed-back` only, since a
+# Final has closed those stages.
 #
 # `none` is the ABSENT SENTINEL, not a fourth stage: a qualifier written
 # before the slot existed, or one that omits it, has no target. The fact
@@ -219,7 +231,7 @@ description = "The Status is a scoped re-entry from Final."
 kind        = "enum"
 source      = "field"
 path        = "metadata.Status.status.reentry_target"
-domain      = ["propose", "refine", "resolve", "finalize", "none"]
+domain      = ["propose", "refine", "resolve", "prelock", "reconcile", "finalize", "none"]
 absent      = "none"
 description = "The `@<stage>` a scoped re-entry names; `none` when the qualifier carries no target."
 

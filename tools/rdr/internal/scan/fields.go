@@ -70,9 +70,11 @@ type Status struct {
 	// Form names the qualifier grammar a lifecycle status matched
 	// (model.QualifierForm); absent for an assumption status.
 	Form string `json:"form,omitempty"`
-	// ReentryTarget is the `@<stage>` of a revised-from qualifier
-	// (model.ReentryTargets); absent for every other form and for a
-	// re-entry that names no target.
+	// ReentryTarget is the `@<stage>` of a re-entry qualifier — the
+	// revised-from form (model.ReentryTargets) or the routed-back form
+	// (model.RouteBackTargets, which adds prelock and reconcile);
+	// absent for every other form and for a re-entry that names no
+	// target.
 	ReentryTarget string `json:"reentry_target,omitempty"`
 	// Tier is the value's standing in its vocabulary (model.Tier).
 	Tier string `json:"tier"`
@@ -262,7 +264,11 @@ func lifecycleStatus(raw string) *Status {
 	if s.QualifierForm != model.NoQualifier {
 		out.Form = s.QualifierForm.String()
 	}
-	if s.QualifierForm == model.QualifierRevisedFrom {
+	// Both re-entry forms fill the same slot: the demotion's `revised
+	// from Final …` and the route-back's `routed back from <stage> …`
+	// write the SAME `@<stage>`, which is what lets the navigator route
+	// a routed-back Draft through the rows it already has.
+	if s.QualifierForm == model.QualifierRevisedFrom || s.QualifierForm == model.QualifierRoutedBack {
 		out.ReentryTarget = model.ReentryTarget(s.Qualifier)
 	}
 	out.OpenJointDecisions = openJointDecisions(s)

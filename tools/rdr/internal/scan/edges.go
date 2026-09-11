@@ -394,22 +394,37 @@ func (d *Document) qualifierEdges(claimed map[int][][2]int) {
 			}
 			d.demotedEdge(m[1], f.LineStart, q, claimed)
 		case model.QualifierRevisedFrom.String():
-			m := model.RevisedFromGrammar.FindStringSubmatch(q)
-			if m == nil || m[2] == "" {
-				continue
+			if m := model.RevisedFromGrammar.FindStringSubmatch(q); m != nil {
+				d.reverifyEdges(m[2], f.LineStart, f.LineEnd, q, claimed)
 			}
-			// `re-verify A2,A4` names this record's own assumptions: the
-			// edge is a self-edge, which is exactly what makes it useful
-			// — it is the list a scoped re-verify stage must work through.
-			for _, a := range strings.Split(m[2], ",") {
-				key := strings.TrimPrefix(strings.TrimSpace(a), "A")
-				if key == "" {
-					continue
-				}
-				d.addEdge(Edge{From: d.docID(), To: d.id(ident.Assumption, key),
-					Kind: edge.Reverify, Line: f.LineStart, LineEnd: f.LineEnd, Evidence: q, Field: "Status"}, claimed, [2]int{})
+		// The route-back's re-verify list means what the demotion's
+		// means — assumptions this record owes another look at — so it
+		// mints the same self-edges. Only the capture index differs: the
+		// origin stage is group 1 of the sibling grammar.
+		case model.QualifierRoutedBack.String():
+			if m := model.RoutedBackGrammar.FindStringSubmatch(q); m != nil {
+				d.reverifyEdges(m[3], f.LineStart, f.LineEnd, q, claimed)
 			}
 		}
+	}
+}
+
+// reverifyEdges mints one Reverify edge per ID in a re-entry
+// qualifier's `re-verify A2,A4` list.
+//
+// `re-verify A2,A4` names this record's OWN assumptions: the edge is a
+// self-edge, which is exactly what makes it useful — it is the list a
+// scoped re-verify stage must work through. An empty list writes
+// nothing, which is the `re-verify none` answer as much as the omitted
+// clause: neither names an assumption to re-open.
+func (d *Document) reverifyEdges(ids string, lineStart, lineEnd int, evidence string, claimed map[int][][2]int) {
+	for _, a := range strings.Split(ids, ",") {
+		key := strings.TrimPrefix(strings.TrimSpace(a), "A")
+		if key == "" {
+			continue
+		}
+		d.addEdge(Edge{From: d.docID(), To: d.id(ident.Assumption, key),
+			Kind: edge.Reverify, Line: lineStart, LineEnd: lineEnd, Evidence: evidence, Field: "Status"}, claimed, [2]int{})
 	}
 }
 

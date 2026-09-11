@@ -2973,3 +2973,63 @@ func TestRelatedRollupSelectsDraftMembers(t *testing.T) {
 		t.Errorf("0003 declares Cluster only to 0001 (Final) — no direct Draft member, want 0:\n%s", out)
 	}
 }
+
+// TestRoutedBackProjectsReentryFacts is the seam the whole fix turns on:
+// a Draft sent backward must project facts the navigator's `reentry`
+// group already routes on, with no new rows. `status_form` carries the
+// new grammar's name, `reentry_target` carries the `@<stage>` the
+// demotion form writes into the same slot, and `status_reentry` stays
+// FALSE — that bool is declared `form == revised-from`, a narrower
+// question than "is this a re-entry", and the routing reads the form.
+func TestRoutedBackProjectsReentryFacts(t *testing.T) {
+	tbl := loadRealTable(t)
+	eval := func(status string) []Fact {
+		doc := scan.Bytes([]byte("# Recommendation 0018: Frame Guard\n\n## Metadata\n\n- **Date**: 2026-01-01\n- **Status**: "+
+			status+"\n\n## Problem Statement\n\nSynthetic.\n"), scan.Options{})
+		return tbl.Evaluate(&FactEnv{Doc: doc, Slug: "0018-frame-guard",
+			Roots: map[string]string{}, readFile: os.ReadFile, statPath: os.Stat})
+	}
+
+	for status, want := range map[string]string{
+		"Draft [routed back from resolve 2026-09-11; re-verify A5,A6 @propose — the approach is refuted]": "propose",
+		"Draft [routed back from finalize 2026-09-11; re-verify none @prelock — determinacy never ran]":   "prelock",
+		"Draft [routed back from cluster-reconcile 2026-09-11; @reconcile — a spike is open]":             "reconcile",
+	} {
+		facts := eval(status)
+		if got, ok := factValue(facts, "status"); !ok || got != "Draft" {
+			t.Errorf("%s: status = %q/%v, want Draft", status, got, ok)
+		}
+		if got, ok := factValue(facts, "status_form"); !ok || got != "routed-back" {
+			t.Errorf("%s: status_form = %q/%v, want \"routed-back\"", status, got, ok)
+		}
+		if got, ok := factValue(facts, "reentry_target"); !ok || got != want {
+			t.Errorf("%s: reentry_target = %q/%v, want %q", status, got, ok, want)
+		}
+		if got, _ := factValue(facts, "status_reentry"); got != "false" {
+			t.Errorf("%s: status_reentry = %q, want false — the bool names the demotion form alone", status, got)
+		}
+	}
+
+	// A route-back that names no target leaves the slot ABSENT, and
+	// `--tags` renders the same `none` sentinel the untargeted demotion
+	// renders: the fallback row claims one cell, not two.
+	const untargeted = "Draft [routed back from resolve 2026-09-11; re-verify A5 — no target named]"
+	facts := eval(untargeted)
+	if got, ok := factValue(facts, "reentry_target"); ok {
+		t.Errorf("untargeted route-back: reentry_target = %q, want absent", got)
+	}
+	if got, ok := factValue(withAbsentSentinels(tbl, facts, nil), "reentry_target"); !ok || got != "none" {
+		t.Errorf("untargeted route-back: --tags reentry_target = %q/%v, want the none sentinel", got, ok)
+	}
+
+	// A malformed origin degrades to a free-text note, exactly as a
+	// malformed demotion does — and the record routes as a plain Draft
+	// rather than to a stage nobody can name.
+	bad := eval("Draft [routed back from propose 2026-09-11; re-verify A5 @refine — propose sends nothing back]")
+	if got, ok := factValue(bad, "status_form"); !ok || got != "bracketed" {
+		t.Errorf("malformed route-back: status_form = %q/%v, want \"bracketed\"", got, ok)
+	}
+	if got, ok := factValue(bad, "reentry_target"); ok {
+		t.Errorf("malformed route-back: reentry_target = %q, want absent", got)
+	}
+}

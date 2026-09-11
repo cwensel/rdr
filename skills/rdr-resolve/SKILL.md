@@ -33,9 +33,10 @@ Claude: /rdr-resolve <NNNN>
      main context; author the `Status: Verified` edits here, not in the sub-agent.
 3. **Self-detected re-entry (no flag).** The prompt asks the projector, not the
    `Status:` string: `status --tags <NNNN>` (rdr-common §rdr-resolve) →
-   `status_form=revised-from` scopes the run to the `reverify=[…]` ids (+ anchors
-   the demotion touched), carrying the rest forward as Verified; any other form
-   is the cold path. The record itself is one `inspect --json --filter
+   `status_form=revised-from` — or `routed-back`, which also clears its qualifier
+   here (rdr-common §rdr-write *Receiving a route-back*) — scopes the run to the
+   `reverify=[…]` ids (+ anchors the demotion touched), carrying the rest forward
+   as Verified; any other form is the cold path. The record itself is one `inspect --json --filter
    path,metadata <NNNN>` call — never `edges` here. Do not pass a resume
    flag — the RDR's state drives it. "Did refine (or any earlier stage) already run?"
    is answered by `git log --oneline -5 -- "$RDR_PATH"` (stage-named subjects) or
@@ -60,7 +61,10 @@ Claude: /rdr-resolve <NNNN>
 - If autocommit is on, run **§commit** for `resolve` first: `rdr_commit "docs(rdr): resolve cli/NNNN — <summary>" "$RDR_PATH"`,
   then, only if a spike wrote, `rdr_commit "chore(rdr): cli/NNNN spike evidence" "{SPIKE_DIR}"` (the rdr-commit-map.md row, inlined).
 - Research refuted the approach or surfaced existing capability → **back** to
-  `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this.
+  `/rdr-propose NNNN` (or `/rdr-refine NNNN`); rework, then re-run this. Apply
+  §rdr-write `--outcome return --tag blocker_class=<class>`: its Status qualifier
+  is what marks the backward edge. Unwritten, the record still reads as
+  already-proposed and Stage 2 refuses — the packet is not a marker.
 - Assumptions verified → forward. This stage **sets the `Profile` Metadata
   field** (the routing latch) via §rdr-write `--outcome profile`, fed
   `--outcome floor`'s answer, which raises the count's tier by one (the prompt owns the call). Then **run

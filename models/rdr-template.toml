@@ -183,4 +183,4 @@ words = [
   "this is now wrong",
 ]
 message = "change-history narration surviving in the live design"
-fix = "fold whatever is still TRUE into the live text and delete the rest; a `Status: Draft [revised from Final …]` qualifier is live state, not history — leave it"
+fix = "fold whatever is still TRUE into the live text and delete the rest; a `Status: Draft [revised from Final …]` or `[routed back from …]` qualifier is live state, not history — leave it (the routed-back one is cleared by the stage its `@<stage>` names, not by a scrub)"

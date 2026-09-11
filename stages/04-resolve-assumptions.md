@@ -41,8 +41,11 @@ output under `{SPIKE_DIR}`; the evidence-body (*Testing Strategy* +
   rework the approach, then come back. (Ask: *do these findings force critical
   changes to the proposed solution?*) Before re-entering, run rdr-common
   §strong-consult on the reopened fork (alternatives × the route-back
-  findings) and append the §punt-ledger row; the close packet's `Next:` is
-  the re-propose — a route-back is a routing outcome, not a user pause.
+  findings), append the §punt-ledger row, and apply §rdr-write `--outcome return`'s
+  emit — the Status qualifier is what tells Stage 2 it is re-entering; a packet
+  alone leaves the record reading as already-proposed, and it refuses. The close
+  packet's `Next:` is the re-propose — a route-back is a routing outcome, not a
+  user pause.
 - **Did the author's round reach the user with its grounding?** Every fixture or
   question carries a source anchor, spike output, or constraining prior
   decision; bare ones make the user re-derive what this stage already verified.

@@ -30,6 +30,8 @@ Claude: /rdr-propose <NNNN>
    the user cancels and restarts stronger (or routes to `/rdr-joint-propose
    --model-ceiling`). A "continue" answer lands on `Deviations:`.
 2. **Run the prompt** [`02-propose.prompt.md`](02-propose.prompt.md).
+   A `[routed back from … @propose]` Status qualifier is a **delta re-entry, not a
+   passed stage** — rdr-common §rdr-write *Receiving a route-back*, prompt step 0.
    Propose owns **selection** (which approach wins, read from prior art), not
    **verification** (deep spikes / full corpora) — that stays at Resolve, by
    design. The split is depth, not avoidance. It runs the freshness check (step 0),
@@ -62,7 +64,8 @@ Claude: /rdr-propose <NNNN>
 ## Review gate (Stage `02-propose.md`)
 
 - The seed was still current (step 0 ran; stale refs/scope fixed; any prior "retained
-  as history" note acted on and deleted).
+  as history" note acted on and deleted) — or, on a route-back, the qualifier's named
+  rework was done and the qualifier cleared.
 - Real alternatives weighed (not one option or strawmen).
 - Prior art read *before* the approaches (grounds the set; `⚠ no prior-art coverage`
   if none), and the choice's prior-art claims are quoted/anchored, not paraphrased.

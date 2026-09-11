@@ -66,9 +66,10 @@ A **first** run enters at Stage 3 — refine always runs, so the cascade starts 
 its head rather than mid-way on an assumption; a re-invocation enters where the
 router says (Re-entry below). Stage 8 is out of scope (`launch.md` owns it).
 
-**A demoted Draft carries its own re-entry scope — ask the router, never
+**A re-entering Draft carries its own scope — ask the router, never
 re-derive it.** `.status.form == "revised-from"` means 7.1 (or a Stage-8 spec
-defect) sent it back with a scope the report already sized
+defect) sent it back; `"routed-back"` means a mid-flow stage did. Either way with
+a scope the report already sized
 (`$RDR_HOME/stages/07.1-cluster-reconcile.md`) and wrote as the qualifier's
 `@<stage>`. The `reentry` group of `models/rdr-status.toml` owns the mapping
 from that target to a scope; `intrastate lint` proves every target has a row.
@@ -86,7 +87,7 @@ Read `emit.next` and `rule` as values. Only one scope is this skill's:
 | `reentry` answer | Scope | Here |
 | --- | --- | --- |
 | `/rdr-finalize` | RE-LOCK-ONLY | `stopped:scope-relock-only:<NNNN>` → `/rdr-finalize NNNN` |
-| `/rdr-refine` or `/rdr-resolve`, rule ≠ `reentry-untargeted` | STAGE-SCOPED | **run it** — enter at that stage; the delta is `edges[]` where `kind=="reverify"` (add `edges` to the precondition's `--filter`); `resolved:false` is a reportable finding, `resolved` absent means nothing looked |
+| `/rdr-refine`, `/rdr-resolve`, `/rdr-prelock …` or `/rdr-reconcile`, rule ≠ `reentry-untargeted` | STAGE-SCOPED | **run it** — enter at that stage; the delta is `edges[]` where `kind=="reverify"` (add `edges` to the precondition's `--filter`); `resolved:false` is a reportable finding, `resolved` absent means nothing looked |
 | `/rdr-propose` | FULL-FLOW | `stopped:scope-full-flow:<NNNN>` → `/rdr-propose NNNN` |
 | rule `reentry-untargeted` | unstated | `stopped:scope-unstated:<NNNN>` — the row's fallback is "read the note's target line"; this orchestrator reads no body, so it stops rather than guessing from the `reverify` set |
 
@@ -174,8 +175,8 @@ Per stage, spawn one sub-agent whose brief is: the bound seam vars, `{RDR_PATH}`
 and *"run `/rdr-<stage> NNNN [lens]` in full, including its Review gate and
 §commit; return a §return-packet."* Nothing else — no orchestrator summary of
 the RDR, which would anchor the stage on a reading it did not do. On a
-STAGE-SCOPED re-entry the brief adds nothing either: stages 4/5 self-detect the
-`revised from Final` qualifier and delta-scope to `re-verify <IDs>` themselves
+STAGE-SCOPED re-entry the brief adds nothing either: the receiving stage
+self-detects either re-entry qualifier and delta-scopes to `re-verify <IDs>` itself
 (§run-prompt). Route to the right stage; let it scope itself.
 
 **Pass `--auto` on `critique` and `repeatability`** — and only there, since

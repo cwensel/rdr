@@ -180,18 +180,22 @@ required      = true
 [tags.status_form]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+domain        = ["none", "demoted-target", "revised-from", "routed-back", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
 single_valued = true
 required      = true
 
 # The `@<stage>` a re-entry qualifier names. `none` is the ABSENT
 # SENTINEL — a qualifier with no target, which every record written
 # before the slot existed carries — and its cell is the resolve fallback.
-# Only read under `status_form = revised-from`.
+# Read under EITHER re-entry form: `revised-from` (7.1's Final→Draft
+# demotion) and `routed-back` (a mid-flow stage sending a Draft
+# backward) write the same slot, so both route through one group.
+# `prelock` and `reconcile` are reachable from `routed-back` only: a
+# Final has closed Stages 5 and 6, so a demotion can never name them.
 [tags.reentry_target]
 provenance    = "observed"
 kind          = "enum"
-domain     = ["propose", "refine", "resolve", "finalize", "none"]
+domain     = ["propose", "refine", "resolve", "prelock", "reconcile", "finalize", "none"]
 single_valued = true
 required      = true
 
@@ -600,14 +604,22 @@ why  = "Final and not clustered — Stage 7.1 does not apply, so implement is th
 
 # --- Draft ----------------------------------------------------------------
 
-# A re-entry `Draft [revised from Final <date>; re-verify <IDs> @<stage>
-# — <reason>]` is a scoped BACKWARD EDGE to the stage the qualifier
-# names. It is still a Draft for every binary gate, so this row must be
+# A re-entry is a scoped BACKWARD EDGE to the stage the qualifier names,
+# and TWO grammars write one: `revised from Final <date>; … @<stage>`
+# (7.1's Final→Draft demotion) and `routed back from <origin> <date>; …
+# @<stage>` (a mid-flow stage sending a Draft backward). They differ in
+# where the record came FROM; they agree on what this row needs — a Draft
+# owing work to a named earlier stage — so both match here.
+#
+# It is still a Draft for every binary gate, so this row must be
 # matched before the front-half rows that read the CA rollup — the
-# evidence would otherwise suggest a stage this record is not at. WHICH
-# stage is the `reentry` group's question (below): `locate` is at the
-# product bound, so the target dimension gets its own outcome, chained
-# exactly as `resolve:lens` is.
+# evidence would otherwise suggest a stage this record is not at. That is
+# the whole defect the routed-back form exists to fix: a routed-back
+# Draft's evidence reads FORWARD (Resolve's verdicts are written and
+# true), so without the qualifier this group lands it at the stage it
+# already passed. WHICH stage is the `reentry` group's question (below):
+# `locate` is at the product bound, so the target dimension gets its own
+# outcome, chained exactly as `resolve:lens` is.
 [[rule]]
 id = "locate-draft-reentry"
 [rule.match.recognized]
@@ -615,10 +627,10 @@ eq = "locate"
 [rule.guard.all.status]
 eq = "Draft"
 [rule.guard.all.status_form]
-eq = "revised-from"
+in = ["revised-from", "routed-back"]
 [rule.emit]
 next = "resolve:reentry"
-why  = "A scoped re-entry from Final — ask the reentry group which stage the qualifier's @<stage> names."
+why  = "A scoped re-entry — demoted from Final, or routed back mid-flow — so ask the reentry group which stage the qualifier's @<stage> names."
 
 # bare `Draft`, CAs all Pending → Refine is un-run. Refine is the front
 # half's only `~`, and an open `~` IS the next command, not a footnote to
@@ -630,7 +642,7 @@ eq = "locate"
 [rule.guard.all.status]
 eq = "Draft"
 [rule.guard.unless.status_form]
-eq = "revised-from"
+in = ["revised-from", "routed-back"]
 [rule.guard.all.ca]
 eq = "all-pending"
 [rule.emit]
@@ -648,7 +660,7 @@ eq = "locate"
 [rule.guard.all.status]
 eq = "Draft"
 [rule.guard.unless.status_form]
-eq = "revised-from"
+in = ["revised-from", "routed-back"]
 [rule.guard.all.ca]
 eq = "mixed"
 [rule.emit]
@@ -667,7 +679,7 @@ eq = "locate"
 [rule.guard.all.status]
 eq = "Draft"
 [rule.guard.unless.status_form]
-eq = "revised-from"
+in = ["revised-from", "routed-back"]
 [rule.guard.all.ca]
 eq = "all-terminal"
 [rule.emit]
@@ -685,7 +697,7 @@ eq = "locate"
 [rule.guard.all.status]
 eq = "Draft"
 [rule.guard.unless.status_form]
-eq = "revised-from"
+in = ["revised-from", "routed-back"]
 [rule.guard.all.ca]
 eq = "unknown-plan"
 [rule.emit]
@@ -753,6 +765,36 @@ eq = "resolve"
 next    = "/rdr-resolve"
 then    = "resolve:lens"
 why     = "The qualifier names @resolve — /rdr-resolve self-scopes to the listed IDs."
+surface = "the qualifier, so the human knows the run is a delta"
+
+# `prelock` and `reconcile` are reachable from a `routed-back` qualifier
+# only. A demotion cannot name them — a Final has closed both stages, so
+# the 7.1 gate reclasses such a blocker rather than naming a stage its
+# grammar has no token for. A mid-flow route-back has no such problem:
+# Stage 7 sends a fired-but-unrun determinacy check back to the lens, and
+# an open spike back to the stage that closes it.
+[[rule]]
+id = "reentry-prelock"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "prelock"
+[rule.emit]
+next    = "/rdr-prelock repeatability 1"
+then    = "resolve:lens"
+why     = "The qualifier names @prelock — a fired `Determinacy:` line with no run-1/diff, which repeatability-lite owns."
+surface = "the qualifier, so the human knows the run is a delta"
+
+[[rule]]
+id = "reentry-reconcile"
+[rule.match.recognized]
+eq = "reentry"
+[rule.guard.all.reentry_target]
+eq = "reconcile"
+[rule.emit]
+next    = "/rdr-reconcile"
+then    = "resolve:lens"
+why     = "The qualifier names @reconcile — an open spike or a round-disturbed assumption, which Stage 6 closes."
 surface = "the qualifier, so the human knows the run is a delta"
 
 [[rule]]

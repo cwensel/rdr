@@ -98,7 +98,7 @@ and the flow ends by handing to step 7 (Close — post-mortem).
                                           │ all lenses done
                                           ▼
                           [6 Reconcile Spikes & Assumptions]
-                                          │ RECONCILED (else → the blocker's class names the stage)
+                                          │ RECONCILED (else → the class names the stage, marked on the Status line)
                                           ▼
                                    [7 Finalize] → Final
                                           │
@@ -585,8 +585,8 @@ stands and the skill goes.
 **Contract.** Skills take the **RDR number** (`0046`), not a path — they resolve
 number→file against the RDR dir `{RDR_ENV}` names. **Re-entry is self-detected**,
 not a flag: the stage prompts already read the RDR `Status:` line
-(`Draft [revised from Final …; re-verify <IDs>]`) or `status.md` and scope
-themselves. **`/rdr-status` tracks position from disk** — the evidence folder, the
+(`Draft [revised from Final …]` or `[routed back from … @<stage>]`) or
+`status.md` and scope themselves. **`/rdr-status` tracks position from disk** — the evidence folder, the
 `Status` line, the artifact dir — with **no ledger** (the resources-vs-memory
 doctrine: a derived position can't drift from the artifacts).
 

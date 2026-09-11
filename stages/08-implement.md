@@ -78,9 +78,13 @@ from artifact headers, not a re-read.
   red-before-green gate failed) is a halt, not a question — fix the named condition and
   re-enter the stage; the resume logic picks up at the next phase.
 - **A contract-level deviation** (`SPEC-DEFECT`, or a `SPEC-UNDER` no reading
-  resolves) means the locked RDR is wrong. **Do not edit the RDR.** Abandon
-  implementation and iterate the RDR — re-enter at the stage the defect's class
-  names (rdr-common §rdr-write `--outcome return`), re-lock (Stage 7), then re-run this stage. This is the
+  resolves) means the locked RDR is wrong. **Do not edit the RDR's design.**
+  Abandon implementation and iterate the RDR — re-enter at the stage the defect's
+  class names. The record is **Final**, so the flip is `--outcome demote`
+  (rdr-common §rdr-write), whose `revised from Final …` qualifier carries the same
+  `@<stage>` slot and is the one edit this stage applies; `--outcome return` is the
+  Draft-side form and does not anchor here. Without the flip the receiving stage
+  reads a Final it cannot edit. Re-lock (Stage 7), then re-run this stage. This is the
   flow's only backward edge out of Final, and it is deliberate: the spec is the
   source of truth, so a spec defect is fixed in the spec, never in the code.
   (Deviation Types — SPEC-DEFECT / SPEC-UNDER / DEPENDENCY-LIMIT /

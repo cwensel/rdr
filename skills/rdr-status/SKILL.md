@@ -63,8 +63,8 @@ question). Every other row answers completely, so a second call adds a duplicate
 ```
 
 **Likewise `--outcome reentry` only when `emit.next` is `resolve:reentry`** — a
-`Draft [revised from Final …]`. That group reads the qualifier's `@<stage>`
-(`reentry_target`) and answers /rdr-propose, /rdr-refine or /rdr-resolve; with no
+re-entry Draft, either qualifier form. That group reads the qualifier's `@<stage>`
+(`reentry_target`) and answers the stage it names; with no
 `@<stage>` it answers /rdr-resolve and its `surface` tells you to read the note's
 TARGET RE-ENTRY STAGE first — print that verbatim, do not skip it. Its
 `emit.then` (`resolve:lens`) is the outcome to run once that stage has re-run:

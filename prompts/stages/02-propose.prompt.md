@@ -12,6 +12,12 @@ documented failure this guards — so read prior art *correctly and first*, here
 
 Read the Problem Statement and Context, then:
 
+0. **Route-back check, first.** A `[routed back from <origin> <date>; re-verify
+   <IDs> @propose — <reason>]` Status qualifier means a later stage refuted this
+   proposal: run a **delta** per rdr-common §rdr-write *Receiving a route-back* —
+   rework what it names, carry the rest, clear the qualifier, note it under
+   `Deviations:`. Skip step 0 here: the record is refuted, not stale.
+
 0. **Freshness check.** A seed may have sat idle and gone stale. Re-validate
    everything it names against the current world — references, paths, identifiers,
    peer-RDR statuses, and the scope itself — and fix what drifted in place. If a

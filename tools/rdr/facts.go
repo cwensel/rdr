@@ -2361,28 +2361,42 @@ func (e *FactEnv) clusterKey(d FactDecl) (Fact, bool) {
 // Same-day is fresh. A demote and its re-verify routinely land on one
 // date, and a strict "older than" is what lets the re-run count.
 
-// demoteDate is the `revised from Final YYYY-MM-DD` date off the Status
-// qualifier, or "" for any record that is not a scoped re-entry.
+// demoteDate is the date a re-entry qualifier stamps — `revised from
+// Final YYYY-MM-DD` or `routed back from <stage> YYYY-MM-DD` — or "" for
+// any record that is not a re-entry.
+//
+// Both forms answer it because the staleness question is the same one: a
+// routed-back Draft keeps every lens folder the stages before the
+// route-back earned, and reading that evidence as current is exactly the
+// mis-answer this fact exists to stop.
 //
 // This is the one place a fact re-reads a qualifier the projector
-// already classified, and it does so with the projector's OWN grammar:
-// the date is not a projected field yet, and `RevisedFromGrammar` is
-// exported precisely so nothing spells the form twice. The form check
-// comes first, so a bracketed near-miss (which lint already names)
-// stays "not a re-entry" here as it does everywhere else.
+// already classified, and it does so with the projector's OWN grammars:
+// the date is not a projected field yet, and both grammars are exported
+// precisely so nothing spells a form twice. The form check comes first,
+// so a bracketed near-miss (which lint already names) stays "not a
+// re-entry" here as it does everywhere else.
 func (e *FactEnv) demoteDate() string {
 	if e.Doc == nil {
 		return ""
 	}
 	f := metadataField(e.Doc, "Status")
-	if f == nil || f.Status == nil || f.Status.Form != model.QualifierRevisedFrom.String() {
+	if f == nil || f.Status == nil {
 		return ""
 	}
-	m := model.RevisedFromGrammar.FindStringSubmatch(strings.TrimSpace(f.Status.Qualifier))
-	if m == nil {
-		return ""
+	q := strings.TrimSpace(f.Status.Qualifier)
+	switch f.Status.Form {
+	case model.QualifierRevisedFrom.String():
+		if m := model.RevisedFromGrammar.FindStringSubmatch(q); m != nil {
+			return m[1]
+		}
+	case model.QualifierRoutedBack.String():
+		// Group 2: the origin stage takes group 1 in this grammar.
+		if m := model.RoutedBackGrammar.FindStringSubmatch(q); m != nil {
+			return m[2]
+		}
 	}
-	return m[1]
+	return ""
 }
 
 // staleLens names the first declared lens, in the table's order, whose
@@ -2721,18 +2735,23 @@ func assumptionBucket(s *scan.Status) string {
 	return "off-vocabulary"
 }
 
-// reverifyIDs is the re-verify set a `Draft [revised from Final …;
-// re-verify A2,A4 — …]` qualifier names, read off the projection's
-// `reverify` self-edges — the list a scoped Resolve works through.
-// ABSENT unless the Status is in that form: a record with no re-entry
-// has no re-verify set, which is not an empty one (`re-verify none` is a
-// real answer and projects `[]`).
+// reverifyIDs is the re-verify set a re-entry qualifier names — `Draft
+// [revised from Final …; re-verify A2,A4 — …]` or its routed-back
+// sibling — read off the projection's `reverify` self-edges, the list a
+// scoped Resolve works through. ABSENT unless the Status is in one of
+// those forms: a record with no re-entry has no re-verify set, which is
+// not an empty one (`re-verify none` is a real answer and projects
+// `[]`).
 func (e *FactEnv) reverifyIDs(d FactDecl) (Fact, bool) {
 	if e.Doc == nil {
 		return Fact{}, false
 	}
 	f := metadataField(e.Doc, "Status")
-	if f == nil || f.Status == nil || f.Status.Form != model.QualifierRevisedFrom.String() {
+	if f == nil || f.Status == nil {
+		return Fact{}, false
+	}
+	if f.Status.Form != model.QualifierRevisedFrom.String() &&
+		f.Status.Form != model.QualifierRoutedBack.String() {
 		return Fact{}, false
 	}
 	var ids []string

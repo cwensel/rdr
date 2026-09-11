@@ -20,7 +20,9 @@ assumptions** — running these lenses against unverified claims wastes them.
 
 **Re-entry pass (demotion second pass).** A qualified Status line —
 `Draft [revised from Final <date>; re-verify <IDs> — <reason>]` (07.1's demotion
-signal) — means a prior iteration's lens outputs already sit under `{EVIDENCE_DIR}`.
+signal), or `[routed back from … @prelock …]` from a later stage (clear that one
+as this pass's first act) — means a prior iteration's lens outputs already sit
+under `{EVIDENCE_DIR}`.
 Don't overwrite them or stall asking; run as a **new iteration**, **delta-scoped to
 the `re-verify <IDs>`**, not a full re-run (which regenerates equivalent findings
 against a mostly-unchanged draft). The paste block detects this and sets the folder.
@@ -159,8 +161,8 @@ From the arg header above, bind for this session and the lens body below:
     `$EVIDENCE_DIR` (the lens base) and `$ITER` / `$ITER_DIR` (where THIS pass
     writes: the base at `ITER=1`, an `iter-N/` subfolder after — never
     overwriting one). It reads the seam itself, nearest-wins, so nothing sources
-    a marker by hand. On a re-entry qualifier (`Draft [revised from Final <date>;
-    re-verify <IDs> — <reason>]`) also scope to the `re-verify <IDs>` delta per
+    a marker by hand. On either re-entry qualifier (`revised from Final …` or
+    `routed back from … @prelock …`) also scope to the `re-verify <IDs>` delta per
     any `## Refinement Context` note, not the whole draft.
 Having read {RDR_ENV}, run the lens body against {RDR_PATH}, writing its element
 files to {EVIDENCE_DIR}. The body's {RDR_PATH}/{EVIDENCE_DIR}/<N> are already bound.

@@ -24,7 +24,10 @@ to fix).
    reads `reentry_target`), not history — keep it byte-for-byte. A route-back
    refine that amends or adds an assumption APPENDS that id to the list
    (`re-verify A2,A4` → `re-verify A2,A4,A9`), keeps `@<stage>`, and never
-   writes `none`: `none` tells Stage 4 nothing is in scope. The amended
+   writes `none`: `none` tells Stage 4 nothing is in scope.
+   The sibling `[routed back from … @refine]` inverts that — it names THIS stage
+   as owing the work, so rework and clear it whole (rdr-common §rdr-write
+   *Receiving a route-back*). Preserve one, clear the other. The amended
    assumption itself keeps its prior terminal Status and stamp — the re-verify
    list, not the record's own line, says re-verification is owed; a
    "Verified (re-entry)" stamp written here asserts Stage-4 work this stage

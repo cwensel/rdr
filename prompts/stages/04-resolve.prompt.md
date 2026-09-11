@@ -39,7 +39,10 @@ SCOPED RE-ENTRY. Ask the projector, don't parse the Status line:
 ```
 
 `metadata[]` where `label=="Status"` → `.status.form == "revised-from"` means this
-RDR was lock-audited and demoted by the 07.1 cluster gate for a named defect. The
+RDR was lock-audited and demoted by the 07.1 cluster gate for a named defect;
+`"routed-back"` means a later stage sent it back mid-flow on the same `re-verify`
+scope, and this stage clears that qualifier as its first act (rdr-common
+§rdr-write *Receiving a route-back*). The
 scope set is `edges[]` where `kind=="reverify"`: each `to` is one of this record's
 own `NNNN:A*` ids. Re-verify ONLY those; carry the rest forward as already
 Verified — do NOT re-derive them. Anchors the demotion's edit touched are read by

@@ -81,7 +81,9 @@
 # the question splits the product. `fence` is the one that never edits:
 # it re-runs propose's overlap arms at lock and only answers `none` or
 # stops. `ground` never edits either: it names the next rung of the
-# search ladder, decide-only like `return`.
+# search ladder. `return` DOES edit — it marks the backward edge on the
+# record, because a route-back that lived only in the packet was invisible
+# to the stage receiving it (see that group's header).
 #
 # SIX TAGS ARE CALLER-SUPPLIED, NOT FACTS — the `observed` provenance's
 # ordinary shape, as rdr-cascade.toml's packet fields are. `user_facing`
@@ -335,7 +337,7 @@ required      = true
 [tags.status_form]
 provenance    = "observed"
 kind          = "enum"
-domain        = ["none", "demoted-target", "revised-from", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
+domain        = ["none", "demoted-target", "revised-from", "routed-back", "joint-decision", "revisit-when", "bracketed", "dash", "parenthetical"]
 single_valued = true
 required      = true
 
@@ -1666,17 +1668,53 @@ surface = "the `user-facing` disposition to write: yes | no"
 # return — the stage a blocker sends the record back to
 # ===========================================================================
 #
-# Dimensions: blocker_class = 10 cells, eight rows. Decide-only: the
-# answer is the packet's `next_action` (rdr-cascade.toml reads it as
-# `action=stage`), and nothing here writes the record. `consult` names a
-# §strong-consult owed before the human on the two rows that reopen an
-# already-decided approach.
+# Dimensions: blocker_class = 10 cells, eight rows. The answer is the
+# packet's `next_action` (rdr-cascade.toml reads it as `action=stage`),
+# AND a durable marker on the record. `consult` names a §strong-consult
+# owed before the human on the two rows that reopen an already-decided
+# approach.
 #
 # The ladder was stated at Stage 6 (NOT RECONCILED → 2/3/4), Stage 7 (NOT
 # READY: spike or disturbed assumption → 6, assumption gap → 4,
 # contradiction → 3, scope/MVV gap → 2, missing determinacy → 5) and
 # Stage 8 (a spec defect → 2/3/4). One vocabulary, one table; `demote`
 # above writes the same class into a Final's qualifier.
+#
+# THIS GROUP USED TO BE DECIDE-ONLY, AND THAT WAS THE DEFECT. The packet
+# named the stage and nothing reached the record, so a Draft sent back
+# from Stage 4 looked — to the very next skill — exactly like a Draft
+# that had simply reached Stage 4 on its own. The evidence on disk
+# (Resolve's verdicts, the contracts) says FORWARD; only the transcript
+# said BACKWARD, and the transcript is not what the next stage reads. A
+# live pair deadlocked on it: Resolve routed 0150 to Stage 2, Stage 2 read
+# the record, found itself already run, and refused — each side correct,
+# neither able to move. So the route-back now writes the same kind of
+# durable qualifier `demote` writes, in the Draft's own grammar:
+#
+#   Draft [routed back from resolve <date>; re-verify <IDs> @propose — <reason>]
+#
+# It rides on the live Status value, so Stage 3's history-scrub cannot
+# strip it (that scrub is why §punt-ledger exists at all), and the
+# receiving stage clears it as its FIRST act — the marker names work
+# owed, and a stage that has done the work owns removing it. `@<stage>`
+# is deliberately the SAME slot RevisedFromGrammar writes, so the
+# navigator's `reentry` group routes both forms with no new rows.
+#
+# The qualifier carries the ORIGIN stage as well as the target, because
+# "back to Propose from Resolve" and "back to Propose from Stage 8" owe
+# different rework, and the receiving stage reads the origin to size it.
+#
+# THE EDIT ANCHORS ON `Draft`, AND THE GROUP DOES NOT GUARD ON STATUS.
+# Stage 8 routes a FINAL back, and that is `demote`'s — it owns the
+# Final→Draft flip and writes the same `@<stage>` slot in its own
+# qualifier. Routing a Final here would substitute nothing and report
+# success, so the CALLER picks the outcome by the status it already holds
+# (§rdr-write). A status guard was tried and reverted: every guarded
+# dimension makes the whole group demand the record accessor, and this is
+# the one stop group reachable without an artifact bind — doctor 12c
+# probes it to prove the binary emits dispositions at all. Keeping it
+# artifact-free is worth more than restating a boundary the caller's own
+# status already settles.
 
 [[rule]]
 id = "return-propose"
@@ -1687,11 +1725,16 @@ eq = "return"
 eq = "approach"
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "propose"
 next_action = "/rdr-propose"
 consult     = "strong"
+# The `;` must immediately follow the date, exactly as in `demote`:
+# RoutedBackGrammar keys on it, and anything looser degrades the
+# qualifier to a free-text note that blinds every re-entry rule.
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify <assumption IDs> @propose — <one-line reason>]/"
 why         = "The approach, the scope or the MVV is wrong — Stage 2 owns it, and reopening it consults before the human."
+surface     = "the refuted claims, so Stage 2 reworks those moves rather than re-deriving the whole proposal"
 
 [[rule]]
 id = "return-refine-contradiction"
@@ -1702,11 +1745,13 @@ eq = "return"
 eq = "contradiction"
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "refine"
 next_action = "/rdr-refine"
 consult     = "strong"
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify <assumption IDs> @refine — <one-line reason>]/"
 why         = "A contradiction — Stage 3 owns it, and a contradiction consults before the human."
+surface     = "the two lines in tension, quoted, so Stage 3 resolves that contradiction and not a paraphrase of it"
 
 [[rule]]
 id = "return-refine-contract"
@@ -1717,10 +1762,12 @@ eq = "return"
 in = ["contract", "proportionality"]
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "refine"
 next_action = "/rdr-refine"
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify <assumption IDs> @refine — <one-line reason>]/"
 why         = "A contract edit or a proportionality finding (a self-flagged split unexecuted, a cost unweighed) — Stage 3 owns it."
+surface     = "the contract clause or the unweighed cost, so Stage 3 edits the named text"
 
 [[rule]]
 id = "return-resolve"
@@ -1731,10 +1778,12 @@ eq = "return"
 eq = "assumption-gap"
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "resolve"
 next_action = "/rdr-resolve"
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify <assumption IDs> @resolve — <one-line reason>]/"
 why         = "An assumption is unverified or refuted — Stage 4 owns it."
+surface     = "the assumption IDs, which are what Stage 4 self-scopes to"
 
 [[rule]]
 id = "return-prelock"
@@ -1745,10 +1794,12 @@ eq = "return"
 eq = "determinacy"
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "prelock"
 next_action = "/rdr-prelock repeatability 1"
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify none @prelock — <one-line reason>]/"
 why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it."
+surface     = "the `Determinacy:` line, so the lens runs against what fired"
 
 [[rule]]
 id = "return-reconcile"
@@ -1759,11 +1810,20 @@ eq = "return"
 in = ["spike", "assumption-disturbed"]
 [rule.emit]
 op          = "return"
-target      = "packet"
+target      = "record"
 stage       = "reconcile"
 next_action = "/rdr-reconcile"
+edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify <assumption IDs> @reconcile — <one-line reason>]/"
 why         = "An open spike or a round-disturbed assumption — Stage 6 owns closing it."
+surface     = "the open spike or the disturbed assumption, named, so Stage 6 closes that one"
 
+# The one class that writes NOTHING, and deliberately. A wording fix is
+# applied in the lock pass itself — the record never leaves the stage it
+# is at, so there is no backward edge to mark and no receiving stage to
+# tell. Marking it would post work owed to a stage that is already
+# running, and the qualifier would have to be cleared by the same pass
+# that wrote it. This row stays decide-only; it is the exception the
+# group's header describes, not an omission.
 [[rule]]
 id = "return-finalize"
 advance = false
@@ -1776,7 +1836,7 @@ op          = "return"
 target      = "packet"
 stage       = "finalize"
 next_action = "/rdr-finalize"
-why         = "Wording or a cross-reference, no assumption disturbed — the lock pass fixes it in place."
+why         = "Wording or a cross-reference, no assumption disturbed — the lock pass fixes it in place, so no route-back marker is owed."
 
 [[rule]]
 id = "return-unclassed"
@@ -1804,7 +1864,8 @@ surface = "the blocker, so the gate classes it (approach | contradiction | contr
 # in 75 that is genuinely the author's to answer.
 #
 # Dimensions: searched × found × clustered = 5 × 2 × 2 = 20 cells, seven
-# rows. DECIDE-ONLY, like `return`: nothing here writes the record. The
+# rows. DECIDE-ONLY, and now the only group that is: nothing here writes
+# the record — the answer is a search to run, not a state to record. The
 # caller re-calls this outcome at each rung — `--tag searched=<rung>
 # --tag found=<true|false>` — runs what `surface` names, and stops when
 # `ground` answers `apply` (the question is settled: recommend from the
