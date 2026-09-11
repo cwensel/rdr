@@ -236,8 +236,11 @@ if [ -n "$RDR_HOME" ] && [ -f "$RDR_HOME/models/rdr-status.toml" ]; then
     n12=0; bad12=""; esc12=""
     for m in "$RDR_HOME"/models/rdr-*.toml; do
       [ -f "$m" ] || continue
-      # The FACT table is not a transition model and graph-lint does not read it.
-      case "$(basename "$m")" in rdr-facts.toml|rdr-template.toml) continue;; esac
+      # Not every models/ file is a transition model: the FACT table, the
+      # template table and the impact table declare [facts]/[template]/[impact],
+      # not [model], so graph-lint reads none of them and refuses the file
+      # outright. A new data table added here must join this list.
+      case "$(basename "$m")" in rdr-facts.toml|rdr-template.toml|rdr-impact.toml) continue;; esac
       n12=$((n12+1))
       if lintout=$("$IS" lint --model "$m" --as json 2>&1); then
         # Exit 0 still carries advisories, and one of them matters here:
