@@ -132,6 +132,21 @@ else
     for s in rdr-next rdr-gate rdr-leg-commit; do [ -x "$RDR_HOME/bin/$s" ] || miss11e="$miss11e $s"; done
     [ -z "$miss11e" ] && pass "11e rdr-next, rdr-gate, rdr-leg-commit present beside the projector" \
       || warn "11e missing in $RDR_HOME/bin:$miss11e - /rdr-status's next-step column or launch.md's gates have no command; restore from the engine"
+    # 11f - the write table's readers exec `rdr` BY NAME. A command accessor is
+    # exec'd, not shelled: argv[0] takes no $RDR_HOME (it would exec the literal)
+    # and no {…} placeholder reaches the seam, so the bare name is the only
+    # portable spelling and the caller owns PATH (rdr-common §rdr-write exports
+    # it). Unreachable, a lock or readme flip dies mid-write on
+    # flow-accessor-failed, after every input check passed. Warn: the §rdr-write
+    # block self-supplies, so this bites only callers outside it.
+    onpath=$(command -v rdr 2>/dev/null)
+    if [ -z "$onpath" ]; then
+      warn "11f 'rdr' is not on PATH - a model's command accessor (rdr-write's record/readme readers) cannot exec it; rdr-common §rdr-write exports PATH=\"\$RDR_HOME/bin:\$PATH\" - carry that line in any hand-run flow resolve --allow-commands"
+    elif [ "$onpath" != "$RDR_BIN" ]; then
+      warn "11f 'rdr' on PATH is $onpath, not $RDR_BIN - the write table's readers would run that build; put \"\$RDR_HOME/bin\" FIRST on PATH"
+    else
+      pass "11f 'rdr' resolves on PATH to the projector - the write table's command accessors can exec it"
+    fi
     # 11b - staleness. The binary is stamped with the engine revision it was built
     # from (-X main.version). A plugin upgrade or a git pull moves the engine and
     # leaves the old binary in place; it still answers, so this warns, never fails.

@@ -234,6 +234,7 @@ apply. The split is permanent — see the end of this section.
 # §rdr-write. $RDR_HOME/$RDR_PATH/$RDR_RECORDS from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 M="$RDR_HOME/models/rdr-write.toml"
+PATH="$RDR_HOME/bin:$PATH"; export PATH   # the model's accessors exec `rdr` by name
 BIND=(--artifact record="$RDR_PATH" --artifact readme="$RDR_RECORDS/README.md"
       --tag nnnn=NNNN --allow-commands)
 TAGS=$("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status) || exit 2
@@ -252,6 +253,15 @@ intrastate reads owned state through the model's own accessors, refusing it as
 argv (`flow-tag-owned`). Those accessors are `rdr` itself — hence
 `--allow-commands` and the binds — so the tool that renders the facts reads them
 back after a write.
+
+**Hence the `PATH` line**, which is not decoration. A declared `command`
+accessor is `exec`d, not run through a shell: argv[0] resolves against `PATH`
+with no expansion (`$RDR_HOME/bin/rdr` execs that literal, relative to the
+model's own dir) and no placeholder to reach the seam (`{…}` is a closed
+vocabulary — `{artifact}`, `{tag.*}`). A portable model can therefore only
+spell argv[0] bare, so the *caller* supplies the path. Without the line the
+accessor dies `flow-accessor-failed: exec: "rdr": executable file not found`,
+mid-write and after the input checks passed.
 
 `emit` is the answer for the second form (`--plan-only` drops the fact echo): `op`,
 `target`, `edit` (the exact expression), `why`, `surface` (show verbatim).
@@ -656,8 +666,9 @@ a default. On a re-entered Draft it also names a row lens whose evidence
 predates the qualifier's demote date (`lens_stale`), since a folder its Final
 earned is not a lens run over the rework. The row, the first-missing rule, the
 additive-on-escalation rule and the remaining span are encoded there: `emit.next`
-is the next lens, `emit.row` the rest of the row in order (`none` = complete). Do
-not restate or walk them here.
+is the next lens, `emit.row` the row still owed **headed by it**, in order
+(`none` = complete) — as handed, never with the head stripped. Do not restate or
+walk them here.
 
 `intrastate` is **required** (§intrastate). Unresolved, this is
 `stopped:no-intrastate` — never a hand-walked row: an inferred lens that reads

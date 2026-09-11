@@ -158,6 +158,15 @@ readme_status = "none"
 # takes (RDR 0025). The tool that renders the facts is the tool that
 # confirms them after a write, so a read-back cannot disagree with the
 # vector the same call site guarded on — and `rdr` still never writes.
+#
+# ARGV[0] IS BARE ON PURPOSE, AND CANNOT BE OTHERWISE. A command accessor is
+# `exec`d: there is no shell, so `$RDR_HOME` in argv[0] is not expanded (it
+# execs the literal, resolved against the model's own directory), and the
+# `{…}` vocabulary is closed — `{artifact}` and `{tag.*}`, nothing that
+# reaches the seam. An absolute path would be one machine's. So the binary is
+# named, and the CALLER puts `$RDR_HOME/bin` on `PATH` (rdr-common §rdr-write,
+# doctor 11f). Do not "fix" these to an absolute path: it breaks every other
+# checkout, and `TestCommandAccessorsNameTheBinaryBare` fails.
 [read.record]
 role    = "record"
 command = ["rdr", "status", "--flat", "--filter", "status", "{artifact}"]

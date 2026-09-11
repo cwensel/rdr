@@ -1426,6 +1426,139 @@ func TestLensRowHasOneHome(t *testing.T) {
 	}
 }
 
+// TestLensRowSpanIsInclusive pins what `emit.row` MEANS, which its sibling
+// above does not: that test proves the domain's members and hunts a prose
+// row chain, both structural, so a site may spell the value's semantics
+// backwards and stay green.
+//
+// The span is INCLUSIVE — the row still owed, headed by `emit.next`. The
+// exclusive readings ("the rest of the row", "what remains after it") are
+// the natural English for the other one, and a model holding
+// `next: 3amigo` with `row: 3amigo,critique,repeatability` cannot satisfy
+// them without stripping the head. Stripped, the row reads
+// `critique,repeatability`, whose head is `critique` and whose rule is
+// `lens-foundational-critique` — a lens the record does not owe, inferred
+// but reading like a resolved one, which rdr-common §lens-row names as
+// the failure this flow guards against everywhere else. One commit
+// introduced `[emit.row]` and wrote both readings across seven sites in a
+// single pass, so the drift is the default, not an accident.
+//
+// Forward: no prose mentioning `emit.row` spells it exclusively.
+// Backward: the model's own `[emit.row]` comment still says `headed by`,
+// so the prose anchor cannot drift from the table's side either.
+func TestLensRowSpanIsInclusive(t *testing.T) {
+	re := regexp.MustCompile(`(?i)rest of the row|what remains after|remains after it`)
+	skip := []string{filepath.Join("skills", "rdr-doctor", "fixtures"), filepath.Join("tools", "rdr", "testdata")}
+	for _, top := range []string{"README.md", "stages", "skills", "prompts"} {
+		root := repoFile(t, top)
+		err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			rel, _ := filepath.Rel(repoFile(t, "."), path)
+			for _, s := range skip {
+				if rel == s || strings.HasPrefix(rel, s+string(filepath.Separator)) {
+					if d.IsDir() {
+						return filepath.SkipDir
+					}
+					return nil
+				}
+			}
+			if d.IsDir() || !strings.HasSuffix(path, ".md") {
+				return nil
+			}
+			src, err := os.ReadFile(path)
+			if err != nil {
+				return err
+			}
+			for i, line := range strings.Split(string(src), "\n") {
+				if strings.Contains(line, "emit.row") && re.MatchString(line) {
+					t.Errorf("%s:%d spells `emit.row` as excluding `emit.next`; the span is the row still owed, HEADED BY it:\n%s", rel, i+1, line)
+				}
+			}
+			return nil
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	src, err := os.ReadFile(repoFile(t, filepath.Join("models", "rdr-status.toml")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(string(src), "\n")
+	decl := -1
+	for i, line := range lines {
+		if strings.TrimSpace(line) == "[emit.row]" {
+			decl = i
+			break
+		}
+	}
+	if decl < 0 {
+		t.Fatal("the status model declares no [emit.row]; the span has no home to pin")
+	}
+	comment := ""
+	for i := decl - 1; i >= 0 && strings.HasPrefix(strings.TrimSpace(lines[i]), "#"); i-- {
+		comment = lines[i] + "\n" + comment
+	}
+	if !strings.Contains(comment, "headed by") {
+		t.Errorf("the [emit.row] comment no longer says `headed by`; the prose sites anchor on that phrase:\n%s", comment)
+	}
+}
+
+// TestCommandAccessorsNameTheBinaryBare pins argv[0] of every declared
+// `command` accessor to the bare name `rdr`, which is the only spelling
+// that is portable — and the one a reader is most likely to "fix".
+//
+// A command accessor is exec'd, not run through a shell. `$RDR_HOME` in
+// argv[0] is therefore not expanded: intrastate execs the literal and
+// resolves it against the MODEL's own directory, which is neither the
+// engine nor the consumer. The `{…}` vocabulary is closed — `{artifact}`
+// and `{tag.*}` — so no placeholder reaches the seam either, and a
+// hardcoded absolute path would be one machine's. What remains is the
+// bare name plus a caller that puts `$RDR_HOME/bin` on PATH
+// (rdr-common §rdr-write, doctor 11f).
+//
+// The failure this prevents is quiet: the accessor dies at
+// `flow-accessor-failed: exec: "rdr": executable file not found in
+// $PATH` — mid-write, after every input check has passed. The suite does
+// not catch it on its own, because rdrOnPath() prepends a freshly built
+// `rdr` to PATH for exactly the tests that exercise these readers, which
+// manufactures the one condition under which a bare argv[0] resolves.
+func TestCommandAccessorsNameTheBinaryBare(t *testing.T) {
+	re := regexp.MustCompile(`^\s*command\s*=\s*\[\s*"([^"]*)"`)
+	root := repoFile(t, "models")
+	entries, err := os.ReadDir(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := 0
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".toml") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(root, e.Name()))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, line := range strings.Split(string(src), "\n") {
+			m := re.FindStringSubmatch(line)
+			if m == nil {
+				continue
+			}
+			seen++
+			if m[1] != "rdr" {
+				t.Errorf("models/%s:%d declares argv[0] %q; a command accessor is exec'd, so only the bare name `rdr` resolves portably (the caller puts $RDR_HOME/bin on PATH):\n%s",
+					e.Name(), i+1, m[1], strings.TrimSpace(line))
+			}
+		}
+	}
+	if seen == 0 {
+		t.Fatal("no `command =` accessor found under models/; this test no longer pins anything")
+	}
+}
+
 // TestDeterminacyGroupRoutesTheWrittenLine is the Stage-5 Determinacy
 // seam, resolved live. The judgement — is a locked contract algorithmic?
 // — is a reading no fact makes; what the table routes on is the

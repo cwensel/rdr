@@ -37,7 +37,8 @@ spawn, barrier before diff, harness degradation) — don't restate them. With
 the first-lens fork, the Determinacy add-on and the additive-on-escalation
 rule, all encoded in the table, so don't restate or re-derive them.
 
-`emit.next` names the lens to run; `emit.row` is what remains after it.
+`emit.next` names the lens to run; `emit.row` is the row still owed, headed by
+it — write both as handed, never with the head stripped.
 
 **Precondition.** Stage 4 must have verified the assumptions — running a lens on
 unverified claims wastes it. If Critical Assumptions are still `Pending` without a
