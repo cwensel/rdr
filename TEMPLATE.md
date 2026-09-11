@@ -106,7 +106,11 @@ N/A-bulleted). -->
   implementation prompt gates on each predecessor's
   `status.md` reading `COMPLETE`.]
 - **Overrides**: [Prior RDR contracts intentionally
-  replaced or narrowed by this RDR, or omit if none.]
+  replaced or narrowed by this RDR, or omit if none. Cite
+  the element narrowed (`NNNN-slug:C5`), not the record
+  alone; a prior RDR this one merely builds on is a
+  Predecessor, not an Override. Finalize gates a re-cut REQ
+  on this field.]
 - **Seam Lineage**: [The code locus (`path::Symbol` or
   `area:*`) this RDR locks, its accretion count, and the
   prior-fix trail — **copied verbatim from the
