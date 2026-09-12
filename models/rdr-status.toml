@@ -632,9 +632,29 @@ in = ["revised-from", "routed-back"]
 next = "resolve:reentry"
 why  = "A scoped re-entry — demoted from Final, or routed back mid-flow — so ask the reentry group which stage the qualifier's @<stage> names."
 
-# bare `Draft`, CAs all Pending → Refine is un-run. Refine is the front
-# half's only `~`, and an open `~` IS the next command, not a footnote to
-# step past: /rdr-refine, THEN /rdr-resolve.
+# bare `Draft`, CAs all Pending → the tally certifies no refine pass.
+# Refine is the front half's only `~`, and an open `~` IS the next
+# command, not a footnote to step past: /rdr-refine, THEN /rdr-resolve.
+#
+# It does NOT say refine is un-run, and the distinction is the whole
+# reason this row is worded as it is. Stage 3 writes no artifact and
+# moves no fact — `stages/03-refine.md` *Produces* is "edits to the RDR
+# draft" — so a clean refine leaves this guard exactly as true as it
+# was, and THIS ANSWER REPEATS. The tally supports "every CA is
+# Pending"; it never supported "Refine is un-run", which is an inference
+# the evidence cannot carry. Same refusal as `fact.spikes` ("Absence
+# does not mean Resolve is un-run") and the `locate-draft-resolve`
+# comment below ("an absent evidence folder proves nothing"): no
+# evidence is not proof it did not happen.
+#
+# Asserting it cost a real run. A delegated cascade read "Refine is
+# un-run" against a refine it had just passed, took the two for a
+# contradiction, and parked at the head of its own flow rather than
+# advance on its own authority. Leaving refine is the caller's call, not
+# this row's: `skills/rdr-draft-to-lock/SKILL.md` (Re-entry) owns the
+# one bounded carve-out, and a fact must not make it — refine's gates
+# are prose, which is why `3 Refine` renders `~` in every branch and
+# never `✓` (`tools/rdr/checklist.go`).
 [[rule]]
 id = "locate-draft-refine"
 [rule.match.recognized]
@@ -647,7 +667,7 @@ in = ["revised-from", "routed-back"]
 eq = "all-pending"
 [rule.emit]
 next = "/rdr-refine"
-why  = "Every Critical Assumption is Pending — Refine is un-run, and the open ~ is the next command."
+why  = "Every Critical Assumption is Pending — the tally certifies no refine pass, and the open ~ is the next command; a clean refine moves no fact here, so this answer repeats."
 
 # bare `Draft`, CAs mixed → Resolve is still open. Some assumptions are
 # terminal and some are not, so the verdicts are the authority and an

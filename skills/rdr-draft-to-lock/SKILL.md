@@ -64,7 +64,8 @@ Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifi
 
 A **first** run enters at Stage 3 — refine always runs, so the cascade starts at
 its head rather than mid-way on an assumption; a re-invocation enters where the
-router says (Re-entry below). Stage 8 is out of scope (`launch.md` owns it).
+router says (Re-entry below, including why leaving refine *is* this skill's call
+and not the router's). Stage 8 is out of scope (`launch.md` owns it).
 
 **A re-entering Draft carries its own scope — ask the router, never
 re-derive it.** `.status.form == "revised-from"` means 7.1 (or a Stage-8 spec
@@ -169,6 +170,27 @@ alone names the next command with this skill deleted. Read the plan for the
 itself. No plan file → Phase 0 from scratch: that loses the run's bookkeeping,
 never its position.
 
+**Refine is the one exception, and only within the run that ran it.** Stage 3
+writes no artifact and moves no fact — `stages/03-refine.md` *Produces* is
+"edits to the RDR draft", and the CA rollup the front half routes on cannot
+change until Stage 4 writes verdicts. So a clean refine leaves
+`locate-draft-refine`'s guard exactly as true as it was, the router re-answers
+`/rdr-refine`, and `emit.next` alone would park every first run at the head of
+its own cascade. When the stage `emit.next` names is `/rdr-refine` and **this
+run's Ledger** holds a PASS for refine, advance to Stage 4.
+
+Scoped deliberately: refine only, this run's Ledger only, once. It is not a
+general skip guard — for every other stage the router sees an artifact and the
+rule above stands unweakened. The judgment stays here rather than becoming a
+fact because a fact must not certify it: refine's five gates are prose, which
+is why `3 Refine` renders `~` (judged) in every branch and never `✓`
+(`tools/rdr/checklist.go`), and why the stage-facet map records that a fact
+"cannot say *Refine was judged done*" (`tools/rdr/facts_test.go`). A probe for
+a folder would prove the stage wrote something, not that a human judged it.
+Absent the Ledger PASS — a re-invocation in a fresh session, no plan file —
+there is no carve-out: park on `emit.next` as written, because then this
+context has no evidence refine ran either.
+
 ## The loop — one stage per sub-agent
 
 Per stage, spawn one sub-agent whose brief is: the bound seam vars, `{RDR_PATH}`,
@@ -209,7 +231,7 @@ Read `emit.next` and `emit.stage` as values:
 
 | `emit.next` | Do |
 | --- | --- |
-| `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first) |
+| `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first). Refine is the one stage whose `router` answer is not its next stage — it re-answers `/rdr-refine` on a pass, so advance to Stage 4 (Re-entry above owns why) |
 | `rerun` | spawn the same stage again, the packet's `next_action` appended to its brief |
 | `park` | Ledger the verdict and stop advancing this RDR. `Next:` is this stage (`same`) or the packet's named command (`named` — a reconcile `NOT RECONCILED`, a finalize `NOT READY`, a prelock refutation naming an earlier stage) — never run it: re-opening a settled stage is the human's decision. On `named`, the route-back brief tells the stage sub-agent to append the §punt-ledger row (before refine collapses the history) and `changed_paths` must show it |
 | `stopped:stage-stop` | relay the stage's own `stopped:*` line verbatim — the codes are the stages' and are never translated |
@@ -286,7 +308,9 @@ under `--auto`: that span and that fan-out are where the cost lands.
 - `Profile` was re-read after resolve; the lens row matches the *current* field.
 - Posture came from the `posture` row's current answer, never from the Profile
   read directly; the plan's `posture:` line matches the last re-ask.
-- On a re-entry the resume point came from the router, never from the plan file.
+- On a re-entry the resume point came from the router, never from the plan file —
+  except a refine this run itself passed, which advances on the Ledger and is the
+  only stage that may.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
 - `critique`/`repeatability` were spawned with `--auto`; a park on either names
   a harness degradation or a real finding, never a missing flag.
