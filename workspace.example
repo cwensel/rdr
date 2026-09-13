@@ -141,7 +141,9 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 # The ENGINE repo is a member by definition: $RDR_HOME is where the flow itself lives,
 # it holds no records or evidence of its own, and doctor.sh 1b exempts it the same way
 # (`"$PROJECT" != "$RDR_HOME"` gates that whole check). Without this arm a workspace
-# marker refuses the very repo the skills are read from.
+# marker refuses the very repo the skills are read from. The projector still refuses
+# to bind RECORDS from there (stopped:engine-cwd): the engine is every consumer's, and
+# a `cd $RDR_HOME && ./bin/rdr NNNN` once resolved another project's record.
 # _mine=""
 # [ "$PROJECT" = "$RDR_HOME" ] && _mine=1
 # for _v in "$RDR_SOURCE_REPO" "$RDR_RECORDS" "$RDR_EVIDENCE" "$RDR_ENV"; do

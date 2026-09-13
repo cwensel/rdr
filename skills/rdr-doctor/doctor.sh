@@ -173,7 +173,9 @@ else
     # still runs - every call site may still export - but it pays the baggage
     # again on every turn, silently. Checked with the environment CLEARED, so
     # a var this session happens to export cannot mask a broken bind.
-    if [ -n "$RDR_RECORDS" ] && [ -d "$RDR_RECORDS" ]; then
+    if [ "$PROJECT" = "$RDR_HOME" ]; then
+      echo "  [INFO] 11c self-bind - engine repo, the projector refuses to bind a consumer from here (stopped:engine-cwd) - n/a"
+    elif [ -n "$RDR_RECORDS" ] && [ -d "$RDR_RECORDS" ]; then
       probe=$(cd "$PROJECT" 2>/dev/null && env -u RDR_RECORDS -u RDR_SOURCE_REPO "$RDR_BIN" index --status 2>&1 | tail -1)
       case "$probe" in
         *"no-records"*|*"stopped:"*)

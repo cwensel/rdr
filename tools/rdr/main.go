@@ -629,6 +629,13 @@ func resolve(arg, records string) (string, error) {
 		matches = recordFiles(matches)
 		switch len(matches) {
 		case 0:
+			// Nothing named a records dir and the marker refused to: the
+			// refusal is the stop, not the cwd it fell back to.
+			if records == "" && envOrSeam("RDR_RECORDS") == "" {
+				if why := markerRefusal(); why != "" {
+					return "", errors.New(why)
+				}
+			}
 			return "", fmt.Errorf("stopped:no-such-record (%s in %s%s)", arg, absOrSelf(dir), whereItLooked(tried))
 		case 1:
 			return matches[0], nil

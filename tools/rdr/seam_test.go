@@ -786,6 +786,59 @@ export RDR_RECORDS
 	})
 }
 
+// TestEngineCwdRefuses: a workspace marker admits the engine checkout as a
+// member, so a call made with the engine as cwd bound the marker's
+// consumer — a leg that `cd $RDR_HOME && ./bin/rdr-gate ground 0029`'d
+// resolved another project's 0029 and ground against it. From the engine
+// the seam refuses and names the fix; from the consumer the same marker
+// binds as before.
+func TestEngineCwdRefuses(t *testing.T) {
+	project, records := newProject(t, "shared", `: "${WS:?needs the canonical resolver}"
+RDR_HOME="$WS/engine"
+RDR_RECORDS="$WS/consumer/docs/rdr"
+export RDR_HOME RDR_RECORDS
+`)
+	engine := filepath.Join(filepath.Dir(project), "engine")
+	if err := os.MkdirAll(filepath.Join(engine, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_RECORDS", "")
+
+	t.Run("from the engine the shared marker refuses every consumer var", func(t *testing.T) {
+		t.Chdir(engine)
+		got := bindSeam()
+		if v, ok := got["RDR_RECORDS"]; ok {
+			t.Errorf("the engine cwd bound RDR_RECORDS = %q", v)
+		}
+		if got["RDR_HOME"] != engine {
+			t.Errorf("RDR_HOME = %q, want %q — the one var the engine cwd vouches for", got["RDR_HOME"], engine)
+		}
+		why := markerRefusal()
+		if !strings.Contains(why, "stopped:engine-cwd") || !strings.Contains(why, records) {
+			t.Errorf("wrong or missing refusal: %q", why)
+		}
+	})
+
+	t.Run("a bare record number from the engine stops on the refusal", func(t *testing.T) {
+		t.Chdir(engine)
+		code, _, errb := runCapture(t, "inspect", "0007")
+		if code != 2 || !strings.Contains(errb, "stopped:engine-cwd") {
+			t.Errorf("exit %d: %s", code, errb)
+		}
+	})
+
+	t.Run("from the consumer the same marker binds", func(t *testing.T) {
+		t.Chdir(project)
+		got := bindSeam()
+		if got["RDR_RECORDS"] != records {
+			t.Errorf("RDR_RECORDS = %q, want %q", got["RDR_RECORDS"], records)
+		}
+		if why := markerRefusal(); why != "" {
+			t.Errorf("the consumer's own bind refused: %q", why)
+		}
+	})
+}
+
 // recordsTreeWithArtifacts builds one records dir holding record `num`
 // and, when withArtifacts is true, an artifacts folder beside it whose
 // four files give every impl-artifact fact a non-trivial value: a

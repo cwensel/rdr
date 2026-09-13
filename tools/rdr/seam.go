@@ -158,6 +158,26 @@ exit 0`
 		out[k] = v
 	}
 
+	// The engine checkout is every consumer's. A workspace marker admits
+	// it as a member (2pb4: the skills are read from it), so `cd $RDR_HOME
+	// && ./bin/rdr …` binds whichever consumer the SHARED marker names —
+	// one leg ground a record number from there against another project's
+	// corpus, and that project had a record of the same number. From the
+	// engine there is no cwd to bind a consumer by; refuse every consumer
+	// var and say where to run from. RDR_HOME alone survives: the engine
+	// cwd vouches for it by construction, and the fact table and template
+	// sidecar an explicit `--records` read still live there.
+	if home := out["RDR_HOME"]; home != "" {
+		if resolved, err := filepath.EvalSymlinks(home); err == nil {
+			home = resolved
+		}
+		if filepath.Clean(home) == project {
+			seamRefusal = "stopped:engine-cwd marker=" + marker + " records=" + out["RDR_RECORDS"] +
+				" -- rdr ran from the engine checkout (" + project + "), which is every consumer's and binds only the marker's; run it from the consumer repo, or pass --records"
+			return map[string]string{"RDR_HOME": out["RDR_HOME"]}
+		}
+	}
+
 	// A repo-local marker anchors `<CONSUMER>_ROOT="$PROJECT"` before this
 	// fix, so from a worktree it would bind the MAIN checkout's records —
 	// the exact false pass this fix removes. Once toplevel and project can
