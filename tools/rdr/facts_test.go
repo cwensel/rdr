@@ -2974,6 +2974,45 @@ func TestRelatedRollupSelectsDraftMembers(t *testing.T) {
 	}
 }
 
+// TestRelatedRollupAnyCountsTheWalk: `select = "any"` is the ground
+// ladder's cluster rung and counts what `index --cluster-of` reports —
+// so a record with NO Cluster field reads 1+ when a peer declares it,
+// where `clustered` reads false, and a mutual-mentions candidate counts
+// too. The gate once guarded on `clustered` and skipped the rung on a
+// record the walk gave four members.
+func TestRelatedRollupAnyCountsTheWalk(t *testing.T) {
+	_, table := bindStatusFixture(t)
+	dir := t.TempDir()
+	head := func(num, title, status, extra, body string) string {
+		return "# Recommendation " + num + ": " + title + "\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: " + status +
+			extra + "\n\n## Problem Statement\n\n" + body + "\n"
+	}
+	for name, body := range map[string]string{
+		"0001-a.md": head("0001", "A", "Final", "", "Synthetic."),
+		"0002-b.md": head("0002", "B", "Draft", "\n- **Cluster**: 0001-a", "Synthetic."),
+		"0003-c.md": head("0003", "C", "Draft", "", "See RDR 0004 for background."),
+		"0004-d.md": head("0004", "D", "Draft", "", "See RDR 0003 for background."),
+		"0005-e.md": head("0005", "E", "Final", "", "Alone."),
+	} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(body), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for rec, want := range map[string]string{
+		"0001": "peers=1+", // declared only by 0002; clustered is false here
+		"0003": "peers=1+", // mutual-mentions candidate with 0004
+		"0005": "peers=0",
+	} {
+		code, out, errb := runCapture(t, "status", "--tags", "--facts", table, "--records", dir, "--filter", "peers,clustered", rec)
+		if code != 0 {
+			t.Fatalf("%s: exit %d: %s", rec, code, errb)
+		}
+		if !strings.Contains(out, want+"\n") || !strings.Contains(out, "clustered=false") {
+			t.Errorf("%s: want %q and clustered=false:\n%s", rec, want, out)
+		}
+	}
+}
+
 // TestRoutedBackProjectsReentryFacts is the seam the whole fix turns on:
 // a Draft sent backward must project facts the navigator's `reentry`
 // group already routes on, with no new rows. `status_form` carries the

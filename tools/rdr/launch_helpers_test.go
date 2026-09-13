@@ -65,7 +65,9 @@ func firstLine(s string) string { return strings.SplitN(s, "\n", 2)[0] }
 // adds the caller's tags, resolves the row, and prints `next:`/`why:`.
 // The expected rows are the fixture's known cells (0030 COMPLETE and
 // small/short, 0022 with no verification.md, 0029 with no impact.md,
-// 0021 clustered); `ground` reads rdr-write.toml through the same table.
+// 0021 clustered, 0022 with no Cluster field but 0021 declaring it — the
+// walk's peer the declared field cannot see); `ground` reads
+// rdr-write.toml through the same table.
 func TestRdrGateAnswersEachOutcome(t *testing.T) {
 	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
 	bindStatusFixture(t)
@@ -89,6 +91,8 @@ func TestRdrGateAnswersEachOutcome(t *testing.T) {
 		{[]string{"budget", "--tag", "commits=0-5", "--tag", "elapsed=0-20", "--tag", "ask=commit", "--tag", "suite_green=true"}, "return-green"},
 		{[]string{"ground", "0030", "--tag", "searched=none", "--tag", "found=false"}, "code"},
 		{[]string{"ground", "0021", "--tag", "searched=code", "--tag", "found=false"}, "cluster"},
+		{[]string{"ground", "0022", "--tag", "searched=code", "--tag", "found=false"}, "cluster"},
+		{[]string{"ground", "0030", "--tag", "searched=code", "--tag", "found=false"}, "corpus"},
 		{[]string{"ground", "0030", "--tag", "searched=code", "--tag", "found=true"}, "apply"},
 	} {
 		code, out := runScript(t, dir, gate, c.args...)

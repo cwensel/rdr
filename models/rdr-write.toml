@@ -500,10 +500,22 @@ kind          = "bool"
 single_valued = true
 required      = true
 
+# rdr-facts.toml's `peers` — whether `index --cluster-of` reports anyone
+# besides the seed, the `ground` group's one observed FACT dimension. Not
+# `clustered`: that reads the DECLARED Cluster field, and a record with no
+# field but cross-cutting peers read "no peers" and skipped the rung whose
+# surface is that very command. `rdr status --tags` always renders it.
+[tags.peers]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["0", "1+"]
+single_valued = true
+required      = true
+
 # rdr-facts.toml's `clustered` — whether the record declares Cluster
-# siblings, the `ground` group's one observed FACT dimension. `rdr status
-# --tags` always renders it (`fact.clustered`'s `absent = "false"`), same
-# as `status` or `gate_written` above.
+# siblings; the prelock group's dimension. `rdr status --tags` always
+# renders it (`fact.clustered`'s `absent = "false"`), same as `status` or
+# `gate_written` above.
 [tags.clustered]
 provenance    = "observed"
 kind          = "bool"
@@ -1860,10 +1872,11 @@ surface = "the blocker, so the gate classes it (approach | contradiction | contr
 # corpora 11, an RFD 6, a kata issue 3) — the author's own redirect
 # ("check prior art", "read the rfd") always landed one turn later. This
 # group is that ladder, proved exhaustive: code, then the cluster (if
-# clustered), then the corpora, then the RFDs/JDRs, then the one question
-# in 75 that is genuinely the author's to answer.
+# `index --cluster-of` reports a peer), then the corpora, then the
+# RFDs/JDRs, then the one question in 75 that is genuinely the author's
+# to answer.
 #
-# Dimensions: searched × found × clustered = 5 × 2 × 2 = 20 cells, seven
+# Dimensions: searched × found × peers = 5 × 2 × 2 = 20 cells, seven
 # rows. DECIDE-ONLY, and now the only group that is: nothing here writes
 # the record — the answer is a search to run, not a state to record. The
 # caller re-calls this outcome at each rung — `--tag searched=<rung>
@@ -1912,13 +1925,13 @@ eq = "ground"
 eq = "false"
 [rule.guard.all.searched]
 eq = "code"
-[rule.guard.all.clustered]
-eq = "true"
+[rule.guard.all.peers]
+eq = "1+"
 [rule.emit]
 op      = "ground"
 target  = "packet"
 ground  = "cluster"
-why     = "Code did not settle it and the record is clustered — a peer often already decided it (20 of 75)."
+why     = "Code did not settle it and the record has peers — one often already decided it (20 of 75)."
 surface = "`rdr index --cluster-of NNNN`, then per peer `rdr inspect --select MMMM:§decision-rationale MMMM` (and its open decisions: `rdr index --open-joint --record MMMM`)"
 
 [[rule]]
@@ -1930,8 +1943,8 @@ eq = "ground"
 eq = "false"
 [rule.guard.all.searched]
 eq = "code"
-[rule.guard.all.clustered]
-eq = "false"
+[rule.guard.all.peers]
+eq = "0"
 [rule.emit]
 op      = "ground"
 target  = "packet"

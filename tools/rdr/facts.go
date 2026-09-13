@@ -564,7 +564,7 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		}
 	case "related-rollup":
 		switch d.Select {
-		case "", "final-unimplemented", "draft", "final-unordered":
+		case "", "final-unimplemented", "draft", "final-unordered", "any":
 			if d.Kind != "enum" {
 				return d, fmt.Errorf("fact %q: a related-rollup count is an enum", name)
 			}
@@ -578,7 +578,7 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 				return d, fmt.Errorf("fact %q: a related-rollup's unordered select is a set", name)
 			}
 		default:
-			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented, draft, final-unordered or unordered, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: a related-rollup selects final-unimplemented, draft, final-unordered, unordered or any, got %q", name, d.Select)
 		}
 	case "prerequisite-rollup":
 		// Two selects: the count word the launch precheck routes on, and
@@ -3203,6 +3203,9 @@ func (e *FactEnv) clusterProposed(d FactDecl) (Fact, bool) {
 //	                      the cluster's build order — Stage 8's cluster
 //	                      order question; `unordered` is the same members
 //	                      as a set, for the halt line
+//	any                  every member the walk reports, candidates
+//	                      INCLUDED — the ground ladder's cluster rung
+//	                      reads peers, it asserts no membership
 //
 // The build order is topo's (`index --topo --edges predecessors,overrides`):
 // an explicit edge first — a record builds after the one it names as
@@ -3228,10 +3231,12 @@ func (e *FactEnv) relatedRollup(d FactDecl) (Fact, bool) {
 	n := 0
 	var unordered []string
 	for _, m := range scan.ClusterOf(docs, e.Doc.Record) {
-		if m.Record == e.Doc.Record || m.Candidate {
+		if m.Record == e.Doc.Record || (m.Candidate && d.Select != "any") {
 			continue
 		}
 		switch d.Select {
+		case "any":
+			n++
 		case "draft":
 			if m.Status == "Draft" {
 				n++

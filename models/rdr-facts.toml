@@ -1536,6 +1536,21 @@ on_demand   = true
 domain      = ["0", "1+"]
 description = "Asserted cluster members still Draft; 1+ means a 7.1 pass now would run on a partial set."
 
+# The ground ladder's cluster rung: does `index --cluster-of` return anyone
+# besides the seed. `clustered` is the wrong guard for it — that reads the
+# DECLARED Cluster field, and a record with no field but two cross-cutting
+# peers read "no peers" and skipped the rung its own surface names. This
+# counts what the rung would search: every member the walk reports, the
+# candidate tier included, since a mutual-mentions peer is a lead worth
+# one read and the rung asserts no membership.
+[fact.peers]
+kind        = "enum"
+source      = "related-rollup"
+select      = "any"
+on_demand   = true
+domain      = ["0", "1+"]
+description = "Cluster members index --cluster-of reports besides the seed, candidates included; 1+ is the ground ladder's cluster rung."
+
 # Stage 8's third ordering question, the one neither of the two above
 # carries: a `### Prerequisites` box saying another record's code "lands
 # before Step 2" names a record that is not a Predecessor and not a
