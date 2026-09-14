@@ -526,6 +526,7 @@ document's own; `to` is what the kind's target class says it is.
 | `reverify` | `Draft [revised from Final …; re-verify A2,A4]` | this record's own assumptions |
 | `peer-evidence` | a `Method: Peer RDR` assumption's Evidence | element |
 | `transient-deleted-by` | the `Transient — scheduled deletion by …` marker | record |
+| `surface-of` | the `Surface — of Cn; …` marker | this record's own contract |
 | `cross-cutting-owner` | a Cross-Cutting Concerns citation | record |
 | `source-anchor` | `path::Symbol`, anywhere in the body | symbol |
 | `artifact` | `{SPIKE_DIR}` / `{ARTIFACT_DIR}` / `{EVIDENCE_DIR}` paths | path |

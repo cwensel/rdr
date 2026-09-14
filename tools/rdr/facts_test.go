@@ -978,7 +978,8 @@ var routingFacts = map[string]string{
 	"critique_model_b":      "the stamp the critique dual-model comparison reads",
 	"contracts_prose":       "the Determinacy trigger's input: contracts written as prose, which a zero C count cannot see",
 	"contracts_transient":   "how many labelled contracts the Transient marker excludes from the Profile axis",
-	"contracts_durable":     "the Profile contract axis: labelled minus Transient, bucketed, subtracted by the projector",
+	"contracts_surface":     "how many labelled contracts the Surface marker folds into their root, for the Profile axis",
+	"contracts_durable":     "the Profile contract axis: labelled minus Transient and Surface, bucketed, subtracted by the projector",
 	"spikes_unrun":          "Stage 6's third open-set source: spikes the record names with no run on disk, as a set rather than a walk",
 
 	// the rollups: the set behind a routed word, and the two set questions
@@ -1437,6 +1438,9 @@ func TestContractFactsSubtractTransient(t *testing.T) {
 		{"one durable", fence("C1", "func Encode(f Frame) []byte"), "0", "1"},
 		{"one durable, one transient", fence("C1", "func Encode(f Frame) []byte") + fence("C2", "func EncodeLegacy(f Frame) []byte\n"+transient), "1", "1"},
 		{"two durable, one transient", fence("C1", "a") + fence("C2", "b") + fence("C3", "c\n"+transient), "1", "2+"},
+		// The corpus writes the marker as a blockquote UNDER the fence;
+		// it is the same contract's marker there.
+		{"transient below the fence", fence("C1", "a") + fence("C2", "b") + "> " + transient + "\n\n", "1", "1"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -1453,6 +1457,56 @@ func TestContractFactsSubtractTransient(t *testing.T) {
 			facts := tbl.Evaluate(NewFactEnv(tbl, d, "0011-frame-codec"))
 			if got, _ := factValue(facts, "contracts_transient"); got != c.transientN {
 				t.Errorf("contracts_transient = %q, want %q", got, c.transientN)
+			}
+			if got, _ := factValue(facts, "contracts_durable"); got != c.durable {
+				t.Errorf("contracts_durable = %q, want %q", got, c.durable)
+			}
+		})
+	}
+}
+
+// TestContractFactsSubtractSurface: a fence that only enforces another
+// contract in the record carries `Surface — of Cn; …` and counts as its
+// root, so a taxonomy with its gate, invariant and reader is ONE seam
+// (TEMPLATE.md's split test counts independent contracts, and the fence
+// count was a proxy that failed exactly there). The subtraction is the
+// projector's, and only a root that resolves subtracts: a marker naming
+// no fence, or a cycle, leaves the fence counted so the record stops on
+// the split signal rather than sizing off a dependence nobody can follow.
+func TestContractFactsSubtractSurface(t *testing.T) {
+	fence := func(label, body string) string {
+		return "**" + label + "**\n\n```normative\n" + body + "\n```\n\n"
+	}
+	of := func(root string) string { return "Surface — of " + root + "; enforces it" }
+	transient := "Transient — scheduled deletion by 0032-frame-bridge, phase 2; bridge only"
+	for _, c := range []struct {
+		name, body, surfaceN, durable string
+	}{
+		{"one root, four surfaces", fence("C1", "type Class int") + fence("C2", "gate\n"+of("C1")) + fence("C3", "invariant\n"+of("C1")) + fence("C4", "recovery\n"+of("C1")) + fence("C5", "reader\n"+of("C1")), "4", "1"},
+		{"surface below the fence", fence("C1", "a") + fence("C2", "b") + "> " + of("C1") + "\n\n", "1", "1"},
+		{"bold root label", fence("C1", "a") + fence("C2", "b\nSurface — of **C1**; enforces it"), "1", "1"},
+		{"chain resolves to the root", fence("C1", "a") + fence("C2", "b\n"+of("C1")) + fence("C3", "c\n"+of("C2")), "2", "1"},
+		{"two roots, one surface", fence("C1", "a") + fence("C2", "b") + fence("C3", "c\n"+of("C1")), "1", "2+"},
+		{"dangling root stays counted", fence("C1", "a") + fence("C2", "b\n"+of("C9")), "0", "2+"},
+		{"cycle stays counted", fence("C1", "a\n"+of("C2")) + fence("C2", "b\n"+of("C1")), "0", "2+"},
+		{"surface of a transient root", fence("C1", "a") + fence("C2", "b\n"+transient) + fence("C3", "c\n"+of("C2")), "1", "1"},
+		{"a heading closes the window", fence("C1", "a") + fence("C2", "b") + "### Notes\n\n" + of("C1") + "\n\n", "0", "2+"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			path := filepath.Join(dir, "0011-frame-codec.md")
+			doc := "# Recommendation 0011: Frame codec\n\n## Normative Contracts\n\n" + c.body
+			if err := os.WriteFile(path, []byte(doc), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			d, err := scan.File(path, scan.Options{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tbl := loadRealTable(t)
+			facts := tbl.Evaluate(NewFactEnv(tbl, d, "0011-frame-codec"))
+			if got, _ := factValue(facts, "contracts_surface"); got != c.surfaceN {
+				t.Errorf("contracts_surface = %q, want %q", got, c.surfaceN)
 			}
 			if got, _ := factValue(facts, "contracts_durable"); got != c.durable {
 				t.Errorf("contracts_durable = %q, want %q", got, c.durable)

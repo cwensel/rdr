@@ -646,12 +646,13 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 			return d, fmt.Errorf("fact %q: a seam-lineage selects count, bucket or disposition, got %q", name, d.Select)
 		}
 	case "contracts":
-		// Two selects: the Transient-marked count, and the durable bucket
-		// the `profile` rows read. The subtraction happens here, once.
+		// Three selects: the Transient-marked count, the Surface-marked
+		// count, and the durable bucket the `profile` rows read. The
+		// subtraction happens here, once.
 		switch d.Select {
-		case "transient", "durable":
+		case "transient", "surface", "durable":
 		default:
-			return d, fmt.Errorf("fact %q: a contracts selects transient or durable, got %q", name, d.Select)
+			return d, fmt.Errorf("fact %q: a contracts selects transient, surface or durable, got %q", name, d.Select)
 		}
 	}
 	for _, p := range append([]string{d.Path}, d.Paths...) {
@@ -1085,37 +1086,70 @@ func (e *FactEnv) seamLineage(d FactDecl) (Fact, bool) {
 
 // contractCounts answers the Profile sizing's contract axis off the
 // projected contract elements: how many carry the Transient marker
-// (scan.Element.Transient), and the DURABLE count — labelled minus
-// Transient — bucketed for routing. TEMPLATE.md's Normative Contracts
-// says a Transient-marked contract "counts toward neither the Profile
-// contract axis nor the split signal"; that subtraction is made here,
-// once, so the `profile` rows in rdr-write.toml never do arithmetic.
+// (scan.Element.Transient), how many are a Surface of another contract
+// here (scan.Element.SurfaceOf), and the DURABLE count — labelled minus
+// both — bucketed for routing. TEMPLATE.md's Normative Contracts says a
+// Transient-marked contract "counts toward neither the Profile contract
+// axis nor the split signal", and that a Surface-marked one counts as
+// its root; both subtractions are made here, once, so the `profile` rows
+// in rdr-write.toml never do arithmetic.
+//
+// A Surface counts as subtracted only when its root RESOLVES: the chain
+// of markers ends at a labelled contract in this record. A marker naming
+// no fence, or a cycle, leaves the fence counted — the record stops on
+// the split signal rather than sizing off a dependence nobody can
+// follow. The edge the scan mints for the marker is where lint shows it.
 //
 //	transient  the int; absent only when there is no document
-//	durable    0 | 1 | 2+ over labelled − transient. A record whose
-//	           contracts are prose has no labelled elements and reads
-//	           0 — `contracts_prose` is what tells that apart from an
-//	           empty section, and the rows read both.
+//	surface    the int of fences whose root resolves
+//	durable    0 | 1 | 2+ over labelled − transient − surface. A record
+//	           whose contracts are prose has no labelled elements and
+//	           reads 0 — `contracts_prose` is what tells that apart from
+//	           an empty section, and the rows read both.
 func (e *FactEnv) contractCounts(d FactDecl) (Fact, bool) {
 	if e.Doc == nil {
 		return Fact{}, false
 	}
-	total, transient := 0, 0
-	for _, el := range e.Doc.Elements {
-		if el.Kind != ident.Contract {
-			continue
-		}
-		total++
-		if el.Transient {
-			transient++
+	byID := map[string]*scan.Element{}
+	for i := range e.Doc.Elements {
+		if el := &e.Doc.Elements[i]; el.Kind == ident.Contract {
+			byID[el.ID] = el
 		}
 	}
+	rooted := func(el *scan.Element) bool {
+		seen := map[string]bool{}
+		for el.SurfaceOf != "" {
+			if seen[el.ID] {
+				return false
+			}
+			seen[el.ID] = true
+			next, ok := byID[el.SurfaceOf]
+			if !ok {
+				return false
+			}
+			el = next
+		}
+		return true
+	}
+	total, transient, surface := 0, 0, 0
+	for _, el := range byID {
+		total++
+		switch {
+		case el.Transient:
+			transient++
+		case el.SurfaceOf != "" && rooted(el):
+			surface++
+		}
+	}
+	durable := total - transient - surface
 	switch d.Select {
 	case "transient":
 		return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(transient)}, true
+	case "surface":
+		return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(surface)}, true
 	case "durable":
-		v := strconv.Itoa(total - transient)
-		if total-transient >= 2 {
+		v := strconv.Itoa(durable)
+		if durable >= 2 {
 			v = "2+"
 		}
 		return Fact{Name: d.Name, Kind: d.Kind, Value: v}, true

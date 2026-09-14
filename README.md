@@ -273,7 +273,8 @@ author to actively verify rather than passively confirm.
    one independent load-bearing contract (a type design *and* a hash *and* a taxonomy…) spans more than one seam and
    should be split along those seams, not locked together. The Normative Contracts section is the seam detector. A
    `Transient`-marked bridge contract (its deletion already scheduled by a sibling RDR) stays named but counts toward
-   neither the split signal nor profile sizing — see the marker rule in [TEMPLATE.md](TEMPLATE.md).
+   neither the split signal nor profile sizing, and a `Surface`-marked fence (one that only enforces another contract
+   in the same RDR) counts as its root — see the marker rules in [TEMPLATE.md](TEMPLATE.md).
 
 **When to run the gate**: After the Proposed Solution and Alternatives are complete, before marking Draft → Final.
 

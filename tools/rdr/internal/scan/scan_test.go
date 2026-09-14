@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/model"
 )
@@ -510,6 +511,51 @@ func Shim() error
 `), Options{})
 	if e := element(t, doc, "0009:C1"); !e.Transient {
 		t.Errorf("contract not flagged transient: %+v", e)
+	}
+}
+
+// TestContractMarkersBelowTheFence: the corpus writes a marker as a
+// blockquote UNDER the fence it qualifies; it is that contract's marker,
+// and the Surface marker names the root as this record's own element.
+func TestContractMarkersBelowTheFence(t *testing.T) {
+	doc := Bytes([]byte(`# Recommendation 0009: Bridge
+
+#### Normative Contracts
+
+**C1**
+
+`+"```normative"+`
+type Class int
+`+"```"+`
+
+**C2**
+
+`+"```normative"+`
+func Gate(c Class) error
+`+"```"+`
+
+> Surface — of C1; refuses a value outside the taxonomy.
+
+**C3**
+
+`+"```normative"+`
+func Shim() error
+`+"```"+`
+
+> Transient — scheduled deletion by 0010-successor, Phase 1; delete the shim.
+`), Options{})
+	if e := element(t, doc, "0009:C1"); e.SurfaceOf != "" || e.Transient {
+		t.Errorf("root carries a marker: %+v", e)
+	}
+	if e := element(t, doc, "0009:C2"); e.SurfaceOf != "0009:C1" {
+		t.Errorf("surface_of = %q, want 0009:C1", e.SurfaceOf)
+	}
+	if e := element(t, doc, "0009:C3"); !e.Transient {
+		t.Errorf("contract below-fence marker not flagged transient: %+v", e)
+	}
+	so := edgesOf(doc, edge.SurfaceOf)
+	if len(so) != 1 || so[0].From != "0009:C2" || so[0].To != "0009:C1" {
+		t.Errorf("surface-of edge: %v", so)
 	}
 }
 

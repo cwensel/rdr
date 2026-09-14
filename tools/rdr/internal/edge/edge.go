@@ -69,6 +69,10 @@ const (
 	// deletion by <sibling>, <phase>` marker: the record that retires this
 	// contract.
 	TransientDeletedBy Kind = "transient-deleted-by"
+	// SurfaceOf is the Normative Contracts `Surface — of Cn; …` marker: a
+	// self-edge to the contract this fence only enforces, so the split
+	// signal counts the root and not the fence.
+	SurfaceOf Kind = "surface-of"
 	// CrossCuttingOwner is a Cross-Cutting Concerns citation: the peer
 	// record that owns the project-wide policy this one conforms to.
 	CrossCuttingOwner Kind = "cross-cutting-owner"
@@ -90,7 +94,7 @@ const (
 // the weak kind last.
 var Kinds = []Kind{
 	Predecessor, Overrides, MovedTo, Cluster, PeerEvidence,
-	JointDecisionHome, Reverify, TransientDeletedBy, CrossCuttingOwner,
+	JointDecisionHome, Reverify, TransientDeletedBy, SurfaceOf, CrossCuttingOwner,
 	SourceAnchor, Artifact, Issue, RFD, Mentions,
 }
 

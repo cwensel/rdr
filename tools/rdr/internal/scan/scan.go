@@ -142,6 +142,11 @@ type Element struct {
 	Bytes int `json:"bytes"`
 	// Transient marks a contract carrying the Transient marker.
 	Transient bool `json:"transient,omitempty"`
+	// SurfaceOf is the contract this one only enforces (`0055:C1`), read
+	// from the Surface marker; empty on every contract that is its own
+	// root. The referent is as written — the projector decides whether
+	// it resolves.
+	SurfaceOf string `json:"surface_of,omitempty"`
 	// Parent is the contract a clause was read from (`0055:C1` for
 	// `0055:L-3`); empty on every other kind. Clauses are the one kind
 	// that nests inside another element.
@@ -959,6 +964,7 @@ type keyed struct {
 	key        string // as written, or "" when the projector must derive one
 	label      string
 	transient  bool
+	surface    string // the Surface marker's root key, or ""
 }
 
 // assign settles keys for one kind and adds the elements. Author-written
@@ -988,6 +994,9 @@ func (d *Document) assign(kind ident.Kind, items []keyed) {
 	for ord, it := range items {
 		e := Element{Kind: kind, Section: it.section, Label: it.label, Key: it.key,
 			LineStart: it.start, LineEnd: it.end, Transient: it.transient}
+		if it.surface != "" {
+			e.SurfaceOf = d.id(kind, it.surface)
+		}
 		if e.Key == "" {
 			key := strconv.Itoa(ord + 1)
 			if claimed[key] {
@@ -1078,14 +1087,61 @@ func (d *Document) contracts() {
 				}
 			}
 		}
-		for k := it.start; k <= it.end; k++ {
-			if model.TransientMarker.MatchString(d.lines[k-1]) {
-				it.transient = true
-			}
-		}
 		items = append(items, it)
 	}
+	d.contractMarkers(items)
 	d.assign(ident.Contract, items)
+}
+
+// contractMarkers attributes the Transient and Surface markers to the
+// contract each qualifies. TEMPLATE.md puts the marker in the block, and
+// the corpus writes it as a blockquote UNDER the fence — both are the
+// same contract's marker, so a marker owns the fence it sits in, or the
+// last fence above it while no heading and no other contract intervenes.
+// A marker read as prose is a subtraction the Profile axis never makes.
+func (d *Document) contractMarkers(items []keyed) {
+	for line := 1; line <= len(d.lines); line++ {
+		text := d.lines[line-1]
+		transient := model.TransientMarker.MatchString(text)
+		surface := model.SurfaceMarker.FindStringSubmatch(text)
+		if !transient && surface == nil {
+			continue
+		}
+		j := d.markerOwner(items, line)
+		if j < 0 {
+			continue
+		}
+		if transient {
+			items[j].transient = true
+		}
+		if surface != nil && items[j].surface == "" {
+			items[j].surface = surface[1]
+		}
+	}
+}
+
+// markerOwner is the item a marker line qualifies: the one enclosing it,
+// else the nearest above with nothing but prose between — the next
+// contract's label or a heading closes the window.
+func (d *Document) markerOwner(items []keyed, line int) int {
+	owner := -1
+	for j := range items {
+		if items[j].start <= line && line <= items[j].end {
+			return j
+		}
+		if items[j].end < line {
+			owner = j
+		}
+	}
+	if owner < 0 {
+		return -1
+	}
+	for k := items[owner].end + 1; k < line; k++ {
+		if !d.fenced[k-1] && strings.HasPrefix(strings.TrimSpace(d.lines[k-1]), "#") {
+			return -1
+		}
+	}
+	return owner
 }
 
 // clauseDef matches a clause DEFINITION inside a normative fence: a label

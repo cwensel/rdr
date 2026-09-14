@@ -242,6 +242,19 @@ or else `Determinacy: n/a — <reason>` (prompts/pre-lock/
 > signal counts *sole-authored* contracts — a bridge whose
 > replacement a sibling owns is not sole-authored).
 
+> **Surface marker (enforcement fences).** A contract block
+> that only enforces another contract in this record — the
+> gate, invariant, recovery or reader a taxonomy or format
+> implies — may carry one line: `Surface — of Cn; <one
+> clause naming what it enforces>`. The fence stays labelled
+> and citable; the marker declares the dependence the split
+> test asks about (delete `Cn` and this fence has no
+> subject). A `Surface`-marked contract counts toward
+> neither the Profile contract axis nor the split signal —
+> its root is the one contract counted. The root must be a
+> labelled contract here; a marker naming none, or a cycle,
+> leaves the fence counted.
+
 - Function/method signatures and type definitions for
   values that cross module boundaries
 - Wire-format / on-disk / serialization grammars

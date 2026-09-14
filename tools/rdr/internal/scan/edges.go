@@ -645,37 +645,49 @@ func inQuotes(spans [][2]int, start, end int) bool {
 
 // --- contracts ----------------------------------------------------------
 
-// contractEdges reads the Transient marker: the sibling record scheduled
-// to delete a bridge-surface contract. A transient contract counts toward
-// neither the Profile contract axis nor the split signal, so the record
-// that retires it is a relation a consumer must be able to follow.
+// contractEdges reads the two contract markers. Transient names the
+// sibling record scheduled to delete a bridge-surface contract; Surface
+// names the contract in this record that the fence only enforces. Both
+// take the contract out of the Profile contract axis and the split
+// signal, so what it defers to is a relation a consumer must be able to
+// follow — and a Surface root that does not exist is an unresolved edge.
 //
-// The marker is read WHEREVER IT IS WRITTEN, not only inside a fence.
-// TEMPLATE.md puts it in Normative Contracts and the corpus writes it as
-// a blockquote under the fence it qualifies, which is outside the
-// contract element's own range. The edge leaves the contract it annotates
-// when one encloses it and the record otherwise; either way the relation
-// is recorded, because a marker read as prose is a scheduled deletion
-// nobody can query for.
+// The markers are read WHEREVER THEY ARE WRITTEN, not only inside a
+// fence. TEMPLATE.md puts them in Normative Contracts and the corpus
+// writes them as a blockquote under the fence they qualify, which is
+// outside the contract element's own range. The edge leaves the contract
+// it annotates when one encloses it and the record otherwise; either way
+// the relation is recorded, because a marker read as prose is a
+// deferral nobody can query for.
 func (d *Document) contractEdges(claimed map[int][][2]int) {
 	for i := 1; i <= len(d.lines); i++ {
-		m := model.TransientMarker.FindStringSubmatch(d.Line(i))
-		if m == nil {
-			continue
+		if m := model.TransientMarker.FindStringSubmatch(d.Line(i)); m != nil {
+			loc := model.TransientMarker.FindStringIndex(d.Line(i))
+			for _, r := range edge.FindRefs(m[1], true) {
+				d.addEdge(Edge{From: d.markerFrom(i), To: d.target(r), Kind: edge.TransientDeletedBy,
+					Line: i, Evidence: strings.TrimSpace(m[0]), Slug: r.Slug},
+					claimed, [2]int{loc[0], loc[1]})
+			}
 		}
-		from := d.docID()
-		if el := d.elementAt(i); el != nil && el.Kind == ident.Contract {
-			from = el.ID
-		} else if el := d.nearestContractAbove(i); el != "" {
-			from = el
-		}
-		loc := model.TransientMarker.FindStringIndex(d.Line(i))
-		for _, r := range edge.FindRefs(m[1], true) {
-			d.addEdge(Edge{From: from, To: d.target(r), Kind: edge.TransientDeletedBy,
-				Line: i, Evidence: strings.TrimSpace(m[0]), Slug: r.Slug},
+		if m := model.SurfaceMarker.FindStringSubmatch(d.Line(i)); m != nil {
+			loc := model.SurfaceMarker.FindStringIndex(d.Line(i))
+			d.addEdge(Edge{From: d.markerFrom(i), To: d.id(ident.Contract, m[1]), Kind: edge.SurfaceOf,
+				Line: i, Evidence: strings.TrimSpace(m[0])},
 				claimed, [2]int{loc[0], loc[1]})
 		}
 	}
+}
+
+// markerFrom is the element a contract marker's edge leaves: the
+// contract enclosing the line, else the nearest above, else the record.
+func (d *Document) markerFrom(line int) string {
+	if el := d.elementAt(line); el != nil && el.Kind == ident.Contract {
+		return el.ID
+	}
+	if el := d.nearestContractAbove(line); el != "" {
+		return el
+	}
+	return d.docID()
 }
 
 // nearestContractAbove is the contract a marker written below a fence

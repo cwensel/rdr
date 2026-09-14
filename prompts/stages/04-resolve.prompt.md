@@ -168,9 +168,11 @@ never re-read here), `--tag user_facing=<yes|no>` and `--tag locks=<…>`,
 and apply `edit` as handed: the field becomes `<value> — <one clause naming the
 contract>; user-facing <yes|no>; locks <…>`; drop any matrix/provenance prose
 the template or Seed left (it lives in the template comment, not the instance).
-The row counts the durable (non-`Transient`) fenced contracts for you:
-`stopped:split-signal` means two or more — the RDR spans more than one seam, so
-flag a split (back to Stage 2/3) rather than pick a profile;
+The row counts the durable (non-`Transient`, non-`Surface`) fenced contracts
+for you: `stopped:split-signal` means two or more — the RDR spans more than one
+seam, so flag a split (back to Stage 2/3) rather than pick a profile, unless the
+extra fences only enforce one root: then mark each `Surface — of Cn; …`
+(TEMPLATE.md) and re-run;
 `stopped:contracts-unlabelled` means the contracts are prose — label each
 `**Cn**` over its fence first. Report `emit.profile`, the durable count behind
 it, and `emit.why` when the floor applied.

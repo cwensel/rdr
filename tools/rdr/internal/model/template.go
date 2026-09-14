@@ -241,6 +241,14 @@ func ValueContinues(next string) bool {
 // sibling, anchor and disposition are captured.
 var TransientMarker = regexp.MustCompile(`Transient\s+—\s+scheduled deletion by\s+([^,]+),\s*([^;]+);\s*(.*)`)
 
+// SurfaceMarker matches the enforcement-fence contract marker from
+// Normative Contracts: `Surface — of Cn; <one clause naming what it
+// enforces>`. A marked contract is a fence that only enforces another
+// contract in the same record — the split signal's "independent"
+// counts the root it names, not the fence. The em dash is required; the
+// root's label digits and the clause are captured.
+var SurfaceMarker = regexp.MustCompile(`Surface\s+—\s+of\s+\**C(\d+)\**\s*;\s*(.*)`)
+
 // NormativeFenceOpen matches the opening of a ```normative block. Every
 // external API call inside such a block owes an Evidence Record above it.
 var NormativeFenceOpen = regexp.MustCompile("^\\s*```normative\\s*$")

@@ -1406,7 +1406,8 @@ surface = "the status, verbatim"
 # Profile is sized by blast radius — the matrix at stages/README.md. It
 # was a four-line ladder Resolve re-derived from a hand count, with the
 # Transient exclusion, the split signal and the accretion floor chained
-# after it in prose. Here the count arrives subtracted and bucketed, the
+# after it in prose. Here the count arrives subtracted (Transient- and
+# Surface-marked fences) and bucketed, the
 # floor arrives as rdr-status.toml's answer, and the two judgements arrive
 # as tags. THE FLOOR RAISES THE COUNT'S TIER BY ONE (`raise`): the stop
 # rows fire whatever the floor says — an unreadable count or a split
@@ -1464,7 +1465,7 @@ eq = "2+"
 [rule.emit]
 op   = "stopped:split-signal"
 why  = "Two or more durable contracts — the record spans more than one seam; flag it for splitting rather than picking a profile."
-surface = "the durable fences by label: one seam → clauses of one `**C1**`; separate seams → split along them (Stage 2/3)"
+surface = "the durable fences by label: one seam → clauses of one `**C1**`, or mark each fence that only enforces it `Surface — of C1; …` (TEMPLATE.md) and re-run; separate seams → split along them (Stage 2/3)"
 
 # --- exactly one: sized by what it locks, then by its surface ---------------
 [[rule]]

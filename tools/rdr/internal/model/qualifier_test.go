@@ -295,6 +295,30 @@ func TestTransientMarker(t *testing.T) {
 	}
 }
 
+func TestSurfaceMarker(t *testing.T) {
+	for _, line := range []string{
+		"Surface — of C1; refuses an unclassified refusal at write",
+		"> Surface — of **C1**; refuses an unclassified refusal at write",
+	} {
+		m := SurfaceMarker.FindStringSubmatch(line)
+		if m == nil {
+			t.Fatalf("SurfaceMarker did not match %q", line)
+		}
+		if m[1] != "1" {
+			t.Errorf("root capture = %q for %q", m[1], line)
+		}
+		if m[2] != "refuses an unclassified refusal at write" {
+			t.Errorf("clause capture = %q for %q", m[2], line)
+		}
+	}
+	if SurfaceMarker.MatchString("Surface - of C1; x") {
+		t.Error("the marker requires an em dash; a hyphen must not match")
+	}
+	if SurfaceMarker.MatchString("Surface — of C1") {
+		t.Error("the marker requires the clause; a bare root must not match")
+	}
+}
+
 func TestNormativeFence(t *testing.T) {
 	if !NormativeFenceOpen.MatchString("```normative") {
 		t.Error("NormativeFenceOpen must match a bare normative fence")

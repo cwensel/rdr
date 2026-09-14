@@ -12,6 +12,7 @@ seam_lineage                 enum    2+
 accretion_disposition        bool    true
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     2
 ca_verified                  int     0
@@ -75,6 +76,7 @@ seam_lineage                 enum    2+
 accretion_disposition        bool    false
 contracts                    int     1
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    1
 cluster                      set     ["0020","0022"]
 clustered                    bool    true
@@ -141,6 +143,7 @@ seam_lineage                 enum    0
 accretion_disposition        bool    false
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     2
 ca_verified                  int     1
@@ -209,6 +212,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -268,6 +272,7 @@ profile_raw                  scalar  mid
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     0
@@ -325,6 +330,7 @@ open_joint_decisions         set     []
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     0
@@ -383,6 +389,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -443,6 +450,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -503,6 +511,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -561,6 +570,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -628,6 +638,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -687,6 +698,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -746,6 +758,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -804,6 +817,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
@@ -863,6 +877,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0039"]
 clustered                    bool    true
@@ -924,6 +939,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0038"]
 clustered                    bool    true
@@ -986,6 +1002,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0041"]
 clustered                    bool    true
@@ -1047,6 +1064,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0040"]
 clustered                    bool    true
@@ -1108,6 +1126,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0043"]
 clustered                    bool    true
@@ -1169,6 +1188,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 cluster                      set     ["0042"]
 clustered                    bool    true
@@ -1230,6 +1250,7 @@ profile_raw                  scalar  small
 lines                        enum    0-400
 contracts                    int     0
 contracts_transient          int     0
+contracts_surface            int     0
 contracts_durable            enum    0
 ca_total                     int     1
 ca_verified                  int     1
