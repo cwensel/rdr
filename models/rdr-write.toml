@@ -1811,7 +1811,7 @@ target      = "record"
 stage       = "prelock"
 next_action = "/rdr-prelock repeatability 1"
 edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify none @prelock — <one-line reason>]/"
-why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it."
+why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it. Run 1 is the hand path; delegated, `repeatability --auto`."
 surface     = "the `Determinacy:` line, so the lens runs against what fired"
 
 [[rule]]

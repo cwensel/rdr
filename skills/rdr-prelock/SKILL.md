@@ -22,7 +22,9 @@ Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, cri
 ```
 
 `run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates
-one run. **Variant follows the profile, not the `run` arg** (§repeatability-variant):
+one run. **It is the hand path's pointer**: a `Next:` naming `repeatability 1`
+reads `repeatability --auto` wherever the harness spawns per model (a
+`/rdr-draft-to-lock` run always). **Variant follows the profile, not the `run` arg** (§repeatability-variant):
 `mid`/`large` = lite (`run-1` only, then `diff`); `foundational`/escalation = full
 (`run-1/2/3` then `diff`). Reject an unknown lens with `stopped:bad-lens:<value>`.
 
@@ -31,7 +33,9 @@ one run. **Variant follows the profile, not the `run` arg** (§repeatability-var
 parallel sub-agents instead of hand CLI relaunches, then the diff behind the
 barrier: **rdr-common §auto-fanout** owns the mechanics (distinct models per
 spawn, barrier before diff, harness degradation) — don't restate them. With
-`--auto`, `repeatability` needs no `run` arg; it spawns the variant's whole set.
+`--auto`, `repeatability` needs no `run` arg; it spawns the runs the header still
+owes (a clean dir → the variant's whole set) on models the existing stamps do
+not carry, then the barrier diff.
 
 **With no lens argument, run §lens-row's call** to get one — it owns the row,
 the first-lens fork, the Determinacy add-on and the additive-on-escalation

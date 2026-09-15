@@ -209,9 +209,14 @@ self-detects either re-entry qualifier and delta-scopes to `re-verify <IDs>` its
 Their cross-model passes are otherwise hand CLI relaunches, which no delegated
 run can perform: without the flag those lenses park (an owed critique second
 pass, or `stopped:repeatability-needs-fresh-session:run-<N+1>` after every run)
-and the cascade stops for a human to type one command. With `--auto`,
-`repeatability` takes **no `run` arg** — it spawns the variant's whole set, so
-the brief names the lens alone. §auto-fanout owns the rest, degradation
+and the cascade stops for a human to type one command. **The router speaks the
+hand path**: every row that starts repeatability — the lens rows, `reentry-prelock`,
+`determinacy-fired-*`, rdr-write's `return-prelock` — answers `/rdr-prelock
+repeatability 1`, because a human relaunches one run at a time. Here that answer,
+and any `repeatability <run>`, is spawned as `/rdr-prelock NNNN repeatability
+--auto` — the run arg dropped, never relayed: with `--auto`, `repeatability`
+takes **no `run` arg** (it spawns the runs still owed, lite or full), so the
+brief names the lens alone. §auto-fanout owns the rest, degradation
 included: a harness that can't pin models per spawn emits the relaunch command
 and stamps `auto: unavailable (harness) — manual relaunch`, which parks exactly
 as before. Passing the flag never makes the run worse; withholding it
@@ -234,7 +239,7 @@ Read `emit.next` and `emit.stage` as values:
 
 | `emit.next` | Do |
 | --- | --- |
-| `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first). Refine is the one stage whose `router` answer is not its next stage — it re-answers `/rdr-refine` on a pass, so advance to Stage 4 (Re-entry above owns why) |
+| `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first). A `critique` or `repeatability …` answer spawns as `<lens> --auto`, run arg dropped (above). Refine is the one stage whose `router` answer is not its next stage — it re-answers `/rdr-refine` on a pass, so advance to Stage 4 (Re-entry above owns why) |
 | `rerun` | spawn the same stage again, the packet's `next_action` appended to its brief |
 | `park` | Ledger the verdict and stop advancing this RDR. `Next:` is this stage (`same`) or the packet's named command (`named` — a reconcile `NOT RECONCILED`, a finalize `NOT READY`, a prelock refutation naming an earlier stage) — never run it: re-opening a settled stage is the human's decision. On `named`, the route-back brief tells the stage sub-agent to append the §punt-ledger row (before refine collapses the history) **and** apply §rdr-write `--outcome return` (every class but `wording`, which fixes in the lock pass); `changed_paths` shows both, and the tag vector reads `status_form=routed-back` with `reentry_target` the named stage before `Next:` is written — a packet-only route-back is invisible to the receiving stage (§rdr-write *`return` writes*) and leaves `/rdr-status` routing forward, breaking the invariant above |
 | `stopped:stage-stop` | relay the stage's own `stopped:*` line verbatim — the codes are the stages' and are never translated |
@@ -321,8 +326,9 @@ under `--auto`: that span and that fan-out are where the cost lands.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
 - A `named` park landed on the record — `status_form=routed-back`,
   `reentry_target` the named stage — never a packet-only route-back.
-- `critique`/`repeatability` were spawned with `--auto`; a park on either names
-  a harness degradation or a real finding, never a missing flag.
+- `critique`/`repeatability` were spawned with `--auto` and no run arg; a park on
+  either names a harness degradation or a real finding, never a missing flag or
+  a relayed `repeatability 1`.
 
 ## Next step (rdr-common §next-step)
 

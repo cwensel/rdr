@@ -818,7 +818,7 @@ eq = "prelock"
 [rule.emit]
 next    = "/rdr-prelock repeatability 1"
 then    = "resolve:lens"
-why     = "The qualifier names @prelock — a fired `Determinacy:` line with no run-1/diff, which repeatability-lite owns."
+why     = "The qualifier names @prelock — a fired `Determinacy:` line with no run-1/diff, which repeatability-lite owns. Run 1 is the hand path; delegated, `repeatability --auto`."
 surface = "the qualifier, so the human knows the run is a delta"
 
 [[rule]]
@@ -1736,7 +1736,7 @@ eq = "false"
 eq = "repeatability"
 [rule.emit]
 next    = "/rdr-prelock repeatability 1"
-why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL."
+why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL. Run 1 is the hand path; delegated, `repeatability --auto`."
 surface = "stamp `variant: full (profile: foundational)` into run-1's header at generation"
 
 # mid/large: repeatability is NOT on the row. It is an ADD-ON owed only
@@ -1819,7 +1819,7 @@ eq = "false"
 eq = "repeatability"
 [rule.emit]
 next = "/rdr-prelock repeatability 1"
-why  = "Variant lite — run-1 is the only run owed and it is missing."
+why  = "Variant lite — run-1 is the only run owed and it is missing. Run 1 is the hand path; delegated, `repeatability --auto`."
 
 # Lite, run-1 and the diff present. Extra runs beside a `lite` header are
 # the VARIANT MISMATCH the reconcile preflight flags: full ran where lite
@@ -1939,7 +1939,7 @@ eq = "false"
 eq = "repeatability"
 [rule.emit]
 next = "/rdr-prelock repeatability 1"
-why  = "Variant full — run-1 is the first of three and is missing."
+why  = "Variant full — run-1 is the first of three and is missing. Run 1 is the hand path; delegated, `repeatability --auto`."
 
 [[rule]]
 id = "repeatability-full-run2"
@@ -2134,7 +2134,7 @@ eq = "mid"
 eq = "fired"
 [rule.emit]
 next    = "/rdr-prelock repeatability 1"
-why     = "Profile mid — the `Determinacy:` line reads fired; repeatability-lite is owed and run 1 starts it."
+why     = "Profile mid — the `Determinacy:` line reads fired; repeatability-lite is owed. Run 1 is the hand path; delegated, `repeatability --auto`."
 surface = "stamp `variant: lite (profile: mid)` into run-1's header at generation"
 
 [[rule]]
@@ -2147,7 +2147,7 @@ eq = "large"
 eq = "fired"
 [rule.emit]
 next    = "/rdr-prelock repeatability 1"
-why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed and run 1 starts it."
+why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed. Run 1 is the hand path; delegated, `repeatability --auto`."
 surface = "stamp `variant: lite (profile: large)` into run-1's header at generation"
 
 # ===========================================================================
