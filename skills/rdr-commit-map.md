@@ -17,6 +17,7 @@ grammar — match the subject grammar already in the consumer's log.
 | reconcile | `docs(rdr): reconcile cli/NNNN — <summary>` | `chore(rdr): cli/NNNN reconcile evidence` |
 | finalize | `docs(rdr): finalize cli/NNNN <slug> (Gate PASS)` | `chore(rdr): cli/NNNN tooling-pass evidence` (`$ITER_DIR/tooling-pass.md` the sweep wrote) |
 | cluster-reconcile | (commits at finalize) | `chore(rdr): cli/NNNN cluster-reconcile <cluster>` |
+| draft-to-lock | — (stages self-commit) | `chore(rdr): cli/NNNN run-plan` (`{ARTIFACT_DIR}/run-plan.md` only) |
 | implement | (code-repo `feat(...)` commit — its own contract) | artifact files only, if gated on |
 
 Two commits, never one: the doc/README commit is the **design history** (`docs(rdr):`,

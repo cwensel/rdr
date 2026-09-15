@@ -93,8 +93,9 @@ One invocation runs the full loop for one lens:
    `rerun` → re-run the lens **delta-scoped to `comm -12 "$L" "$N"`** under
    `$ITER_DIR`, then resolve again. `converged` → next lens. `stopped:*` →
    emit as `stopped:verdict-flapping:<lens>:<NNNN>` with the `comm -13` list
-   (the churning entries), surface once; the cure is a human look or model
-   switch, not a fourth pass.
+   (the churning entries), surface once, after this stage runs §strong-consult
+   over those entries (`$RDR_HOME/stages/05-prelock.md`); what remains is a human
+   look or a model switch, never a fourth pass.
 
 **The RDR's first lens pass owes the mini-check cue read** before its resolve
 closes (cues, tables, desk trace: `$RDR_HOME/stages/05-prelock.md`, single-source);
@@ -202,7 +203,7 @@ row chains to `resolve:determinacy`, which routes run 1, `none`, or stops with
   complete): `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
   Ask `--outcome repeatability` first — it decides the Determinacy add-on from the
   `Determinacy:` line.
-- **`stopped:verdict-flapping`** → resume after a human look / model switch, or chart the churning entry.
+- **`stopped:verdict-flapping`** → the consult already ran; resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces
   a redesign, `/rdr-resolve NNNN` / `/rdr-propose NNNN` now.
 - `/rdr-status NNNN` to re-orient.

@@ -44,18 +44,21 @@ could never make this run cheaper — and the cross-model work that pre-lock doe
 want is `§auto-fanout`'s, selected on model *identity*, not tier. To run the
 cascade on a different model, start the session on it.
 
-**Precondition — one projection, no body read.**
+**Precondition — two projections, no body read.**
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata,outline,counts <NNNN>
+"$RDR_HOME/bin/rdr" status --tags --filter status,status_form,reentry_target <NNNN>
+"$RDR_HOME/bin/rdr" inspect --json --filter outline,counts <NNNN>
 ```
 
-Read literally: `metadata[]` where `label=="Status"` → `.status.{value,qualifier,form}`;
-`outline[]` for section presence (`canonical=="Technical Design"` and
-`"Normative Contracts"`); `counts.elements.C`.
+Read literally: the tag vector for `status`, `status_form`, `reentry_target`
+(the qualifier's form is a fact; inspect's Status object has none); `outline[]`
+for section presence (`canonical=="Technical Design"` and `"Normative
+Contracts"`); `counts.elements.C`.
 
-- `.status.value == "Final"` → `stopped:already-final` (the qualifier is not part
-  of this test — that is why `value` is read, not the line).
+- `status != Draft` → `stopped:not-a-draft:<status>:<NNNN>` → `/rdr-status NNNN`.
+  A Final-only test lets Implemented, Deferred and the terminal statuses into
+  refine; the qualifier is not part of the test — the fact is read, not the line.
 - Proposed = both sections present in `outline[]`, **or** `propose-premortem/` on
   disk (still a disk check). Neither → `stopped:not-proposed:<NNNN>` →
   `/rdr-propose NNNN`. `counts.elements.C` corroborates only: prose contracts are
@@ -68,8 +71,8 @@ router says (Re-entry below, including why leaving refine *is* this skill's call
 and not the router's). Stage 8 is out of scope (`launch.md` owns it).
 
 **A re-entering Draft carries its own scope — ask the router, never
-re-derive it.** `.status.form == "revised-from"` means 7.1 (or a Stage-8 spec
-defect) sent it back; `"routed-back"` means a mid-flow stage did. Either way with
+re-derive it.** `status_form=revised-from` means 7.1 (or a Stage-8 spec
+defect) sent it back; `routed-back` means a mid-flow stage did. Either way with
 a scope the report already sized
 (`$RDR_HOME/stages/07.1-cluster-reconcile.md`) and wrote as the qualifier's
 `@<stage>`. The `reentry` group of `models/rdr-status.toml` owns the mapping
@@ -233,7 +236,7 @@ Read `emit.next` and `emit.stage` as values:
 | --- | --- |
 | `advance` | spawn the router's next stage (`emit.stage` = `router`; after `resolve`, the Phase 0 re-ask runs first). Refine is the one stage whose `router` answer is not its next stage — it re-answers `/rdr-refine` on a pass, so advance to Stage 4 (Re-entry above owns why) |
 | `rerun` | spawn the same stage again, the packet's `next_action` appended to its brief |
-| `park` | Ledger the verdict and stop advancing this RDR. `Next:` is this stage (`same`) or the packet's named command (`named` — a reconcile `NOT RECONCILED`, a finalize `NOT READY`, a prelock refutation naming an earlier stage) — never run it: re-opening a settled stage is the human's decision. On `named`, the route-back brief tells the stage sub-agent to append the §punt-ledger row (before refine collapses the history) and `changed_paths` must show it |
+| `park` | Ledger the verdict and stop advancing this RDR. `Next:` is this stage (`same`) or the packet's named command (`named` — a reconcile `NOT RECONCILED`, a finalize `NOT READY`, a prelock refutation naming an earlier stage) — never run it: re-opening a settled stage is the human's decision. On `named`, the route-back brief tells the stage sub-agent to append the §punt-ledger row (before refine collapses the history) **and** apply §rdr-write `--outcome return` (every class but `wording`, which fixes in the lock pass); `changed_paths` shows both, and the tag vector reads `status_form=routed-back` with `reentry_target` the named stage before `Next:` is written — a packet-only route-back is invisible to the receiving stage (§rdr-write *`return` writes*) and leaves `/rdr-status` routing forward, breaking the invariant above |
 | `stopped:stage-stop` | relay the stage's own `stopped:*` line verbatim — the codes are the stages' and are never translated |
 
 `park` and `stopped:stage-stop` are forks: §fork-disposition decides ask-now or
@@ -251,7 +254,8 @@ user interaction in this span, and a run that auto-approves it has forged
 evidence, not saved a turn.
 
 Relaying it takes the **one read carve-out** here: a §return-packet can't carry
-the round's items and their grounding, so resolve **writes the round to a file**
+the round's items and their grounding, so a delegated resolve **writes the round
+to `author-round.md`** beside `rulings.md` (04-resolve.prompt.md, *Delegated*)
 and returns its path in `evidence_paths` with `verdict: NEEDS_DECISION`. Read
 **that file only** and put it to the user unedited — fixtures and questions alike. Without the carve-out the round degrades to a
 summary, which is the same forgery by a slower route. Their answers go to
@@ -259,11 +263,14 @@ summary, which is the same forgery by a slower route. Their answers go to
 
 Before escalating a *judgment* fork (not the author's round, not a mechanical stop),
 run **§strong-consult** once — a fresh strongest-tier look may collapse it. Its
-`NEEDS_DECISION` goes to the user.
+`NEEDS_DECISION` goes to the user. **Not** on a route-back whose `return` row
+emitted `consult: strong` (`approach`, `contradiction`) — the stage already
+consulted, and a second look is the panel §strong-consult forbids.
 
-**A consult never closes `stopped:verdict-flapping`.** Its cure is a human look
-or a model switch (`$RDR_HOME/stages/05-prelock.md`); a consult that returns PASS
-and resumes the lens is a fourth pass in a different hat. Hard stop, like the
+**A consult never closes `stopped:verdict-flapping`.** The stage consulted the
+churning entries before it stopped (`$RDR_HOME/stages/05-prelock.md`); what is
+left is a human look or a model switch, and a consult here that resumes the
+lens is a fourth pass in a different hat. Hard stop, like the
 author's round — the user picks. Having read no evidence, this context cannot judge that a
 consult legitimately collapsed a fork: advisory here, never dispositive.
 
@@ -312,6 +319,8 @@ under `--auto`: that span and that fan-out are where the cost lands.
   except a refine this run itself passed, which advances on the Ledger and is the
   only stage that may.
 - A demoted Draft ran at its report's scope — never a scope this skill chose.
+- A `named` park landed on the record — `status_form=routed-back`,
+  `reentry_target` the named stage — never a packet-only route-back.
 - `critique`/`repeatability` were spawned with `--auto`; a park on either names
   a harness degradation or a real finding, never a missing flag.
 
@@ -320,9 +329,9 @@ under `--auto`: that span and that fan-out are where the cost lands.
 - **Stopped at the pre-finalize confirm** (`large`/`foundational`) → `Next:
   /rdr-finalize NNNN`. Report what reconcile settled and parked; offer no
   alternative to locking. Cross-RDR work is not one — it runs at propose
-  (`/rdr-joint-propose`) or after the lock (7.1 needs **Final** members, so a
-  Draft can't be in a cluster). Final-and-unimplemented peers are a `Continue
-  check:` note, never a reason to defer.
+  (`/rdr-joint-propose`) or after the lock (7.1 runs once every member is
+  **Final** — a Draft sibling is `after-lock`'s first answer, not a cluster pass).
+  Final-and-unimplemented peers are a `Continue check:` note, never a reason to defer.
 - Ran to `Final` → the finalize packet's `after-lock` answer is `Next:` (name any
   parked non-blocking forks in `Deviations:`).
 - Parked at a fork → `Next:` is the stage that owns it (the named return stage

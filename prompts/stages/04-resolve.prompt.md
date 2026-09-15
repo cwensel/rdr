@@ -138,6 +138,15 @@ Normative/Illustrative rule gives it its lock-time semantics). Rejected → the
 assumption is genuinely open: resolve by another Method or revise the claim.
 A revised or narrowed clause runs rdr-common §amendment-sweep.
 
+**Delegated — no user in this context** (a `/rdr-draft-to-lock` spawn): the round
+cannot be asked here, and a §return-packet cannot carry it. Write it to
+`$RDR_ROOT_EVIDENCE/author-round.md` (`rulings.md`'s sibling; `eval "$("$RDR_HOME/bin/rdr" paths NNNN)"`)
+under `## <date> — resolve`, one `- **<Qn|fixture>** — <item> — grounding: <cite>`
+line each, fixtures in full. Return `verdict: NEEDS_DECISION`, the file in
+`evidence_paths`, `next_action: rule on the <N> items in author-round.md <date>`.
+Answers land in `rulings.md` (rdr-common §run-prompt); the re-run reads them
+before the record and finishes the round.
+
 Verify EXACTNESS words too — each needs an Evidence Record (prefer a named
 normative fixture from the round above) or coverage by the Minimum Viable
 Validation. `rdr lint`'s `prose:exactness` names the terms of art inside the
