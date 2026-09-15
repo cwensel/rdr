@@ -569,11 +569,17 @@ summary_50w: New public accessor not in Normative Contracts; no REQ-N, ships unt
 When a stage hits a genuine human-judgment fork (a missing spike run, a scope
 alarm, a real either/or design call, a gate item genuinely in doubt), **stop and
 emit a one-line packet, then wait** — do not proceed degraded or invent a
-disposition. Format: `stopped:<code>:<≤80-word question — what's ambiguous + what
-answer unblocks>`. Reuse the stage's own `stopped:*` codes where it names them.
-This boundary is inherent to the flow (mined: the recurring "I should stop and
-surface this rather than fake it"); the skill's job is to make the stop *crisp*,
-not to remove the human. A design-call packet carries `searched=` (§ground-before-ask).
+disposition. Format: `stopped:<code>[:<subject>]:<≤80-word question — what's
+ambiguous + what answer unblocks>`. Reuse the stage's own `stopped:*` codes
+where it names them. This boundary is inherent to the flow (mined: the recurring
+"I should stop and surface this rather than fake it"); the skill's job is to
+make the stop *crisp*, not to remove the human. A design-call packet carries
+`searched=` (§ground-before-ask).
+
+A code naming one lens, run or record carries it as `<subject>`
+(`manual-not-applicable:<lens>`); a whole-flow condition stays bare
+(`no-profile`). A code a MODEL emits is also declared in that model's `stop`
+domain — callers branch on `dispositions.op`, never the string (§rdr-write).
 
 **Cross-stage ping-pong is itself a stop reason.** When a record cycles between
 two `/rdr-*` stages, stop executing the loop — the repetition is the diagnostic.
@@ -703,7 +709,7 @@ and `/rdr-reconcile` while it does not. On a re-entered Draft it also names a ro
 predates the qualifier's demote date (`lens_stale`), since a folder its Final
 earned is not a lens run over the rework. Lens evidence can also predate a
 propose/refine rewrite on a Draft that was never Final — no demote date exists,
-so no fact sees it: that is `stopped:lens-predates-rework`, a §stop-packet, and
+so no fact sees it: that is `stopped:lens-predates-rework:<lens>`, a §stop-packet, and
 the re-run goes under `iter-N/` with its delta scope in the findings header.
 Never hand-mark a row stale to work around it. The row, the first-missing rule, the
 additive-on-escalation rule and the remaining span are encoded there: `emit.next`
