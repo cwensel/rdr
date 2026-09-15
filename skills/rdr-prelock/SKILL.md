@@ -1,7 +1,7 @@
 ---
 name: rdr-prelock
 metadata:
-  argument-hint: "<NNNN> <lens> [run] [--auto] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}; --auto: critique/repeatability only"
+  argument-hint: "<NNNN> <lens> [run] [--manual] [--commit | --no-commit]   # lens ∈ {grounding, 3amigo, critique, repeatability, cove}; run ∈ {1,2,3,diff}; critique/repeatability fan out by default, --manual (or a run) is the serial hand path"
 description: 'Use to run one pre-lock lens and resolve its findings in the same pass. Lenses: grounding, 3amigo, critique, repeatability, cove — the `lens` outcome names the next one. Trigger for pre-lock review, $rdr-prelock, or /rdr-prelock.'
 ---
 
@@ -21,21 +21,20 @@ Codex: $rdr-prelock <NNNN> <lens> [run]        # lens in {grounding, 3amigo, cri
 Claude: /rdr-prelock <NNNN> <lens> [run]       # lens in {grounding, 3amigo, critique, repeatability, cove}
 ```
 
-`run` (`1` | `2` | `3` | `diff`) applies to `repeatability` only — 1–3 generates
-one run. **It is the hand path's pointer**: a `Next:` naming `repeatability 1`
-reads `repeatability --auto` wherever the harness spawns per model (a
-`/rdr-draft-to-lock` run always). **Variant follows the profile, not the `run` arg** (§repeatability-variant):
+**Variant follows the profile, not the `run` arg** (§repeatability-variant):
 `mid`/`large` = lite (`run-1` only, then `diff`); `foundational`/escalation = full
 (`run-1/2/3` then `diff`). Reject an unknown lens with `stopped:bad-lens:<value>`.
 
-`--auto` (`critique` | `repeatability` only — reject elsewhere with
-`stopped:auto-not-applicable:<lens>`) runs the lens's cross-model passes as
-parallel sub-agents instead of hand CLI relaunches, then the diff behind the
-barrier: **rdr-common §auto-fanout** owns the mechanics (distinct models per
-spawn, barrier before diff, harness degradation) — don't restate them. With
-`--auto`, `repeatability` needs no `run` arg; it spawns the runs the header still
-owes (a clean dir → the variant's whole set) on models the existing stamps do
-not carry, then the barrier diff.
+**`critique` and `repeatability` fan out by default**: their cross-model passes
+run as parallel sub-agents, then the diff behind the barrier — **rdr-common
+§auto-fanout** owns the mechanics (distinct models per spawn, barrier before
+diff, harness degradation); don't restate them. Bare `repeatability` spawns the
+runs the header still owes (a clean dir → the variant's whole set) on models the
+existing stamps do not carry, then the diff; the router names no run. **The
+serial hand path is the opt-in**: `--manual`, or a `run` arg (`repeatability`
+only: `1`–`3` writes exactly that run in this session; `diff` diffs). It is the
+only route to an open-weight draw. `--auto` is accepted as the default's name; `--manual` on any
+other lens is `stopped:manual-not-applicable:<lens>`.
 
 **With no lens argument, run §lens-row's call** to get one — it owns the row,
 the first-lens fork, the Determinacy add-on and the additive-on-escalation
@@ -112,11 +111,11 @@ inherits them.
 
 Not an in-skill loop — independence comes from each run being written by a context
 that authored no other run, not from the invoking session being RDR-naive (the
-generation prompt reads the RDR anyway). Separate sessions (below) and `--auto`'s
-parallel spawns (§auto-fanout) both satisfy that. **Commit cadence is the §commit
+generation prompt reads the RDR anyway). Separate `--manual` sessions (below) and the
+default parallel spawns (§auto-fanout) both satisfy that. **Commit cadence is the §commit
 exception**: each run session commits only its own `run-<N>.md` (`chore(rdr):
 cli/NNNN repeatability run-N`); the doc commit defers to the diff session — see
-rdr-common §commit. Under `--auto` the same deferral holds: the diff session's
+rdr-common §commit. Fanned out, the same deferral holds: the diff session's
 whole-dir sweep (rdr-commit-map) is the run-set commit — the orchestrator adds
 none of its own at the barrier.
 
@@ -136,17 +135,17 @@ Two things the row hands back rather than decides. A `run-2`/`run-3` request aga
 escalate to full only by rewriting that line to `full (escalated: <reason>)` first
 (`3-repeatability.md` *Escalate*), else `diff` on `run-1`. And on `mid`/`large` the
 lens is owed only if the `Determinacy:` line in Normative Contracts reads fired: the
-row chains to `resolve:determinacy`, which routes run 1, `none`, or stops with
+row chains to `resolve:determinacy`, which routes the lens, `none`, or stops with
 `stopped:determinacy-trigger-unjudged` until the line is written
 (`3-repeatability.md` §Determinacy trigger).
 
 - **Run the generation prompt directly** — bind `{RDR_PATH}`, `{EVIDENCE_DIR}`,
   `<N>` and execute `3-repeatability.md`. Write `run-<N>.md` and stop. One session
-  writes exactly one run; never write a second run in the same session. (Under
-  `--auto` the orchestrator writes none itself — each parallel sub-agent is that
+  writes exactly one run; never write a second run in the same session. (Fanned
+  out, the orchestrator writes none itself — each parallel sub-agent is that
   one-run context; §auto-fanout.)
-- **Next run needs a fresh context (full only)** — serial relaunch is the manual
-  path, and the fallback when `--auto` is unavailable. After writing, stop with
+- **Next run needs a fresh context (full only)** — the `--manual` path, and the
+  fallback where the harness cannot fan out. After writing, stop with
   `stopped:repeatability-needs-fresh-session:run-<N+1>`; the next
   `/rdr-prelock NNNN repeatability <N+1>` invocation in a fresh session writes
   the next run, relaunched on the alt model for the cross-model draw. **Lite stops
@@ -154,7 +153,7 @@ row chains to `resolve:determinacy`, which routes run 1, `none`, or stops with
   `run-2` pointer); do not continue to reconcile.
 - **Diff only when complete + clean** — the `repeatability` row answers completeness
   from the header, never the file count. The diffing context wrote none — this session
-  manually, or a fresh post-barrier sub-agent under `--auto` (§auto-fanout); else
+  under `--manual`, or a fresh post-barrier sub-agent by default (§auto-fanout); else
   `stopped:repeatability-incomplete:<missing>`. ≥1 run on a different model.
 - **Resolve once `diff.md` lands** — this same skill runs the resolve prompt on
   `diff.md`; its REPEATABILITY DIFF clause governs each divergence. If autocommit is on,
@@ -196,7 +195,7 @@ row chains to `resolve:determinacy`, which routes run 1, `none`, or stops with
 - **3amigo | critique | cove** converged → `emit.next` names the next lens:
   `Next: /rdr-prelock NNNN <next-lens>`. An owed critique
   second pass keeps `critique` the first missing item — `Next:` is
-  `/rdr-prelock NNNN critique --auto` where the harness spawns per-model
+  `/rdr-prelock NNNN critique` where the harness spawns per-model
   (§auto-fanout), else "relaunch the CLI on a second base model, then
   `/rdr-prelock NNNN critique`"; never a later lens (§next-step: one action;
   other open obligations go in `Continue check:`).

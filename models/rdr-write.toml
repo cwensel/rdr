@@ -263,7 +263,7 @@ domain = ["propose", "refine", "resolve", "prelock", "reconcile", "finalize"]
 # `tools/rdr/routing_test.go`; the caller appends NNNN as everywhere.
 [emit.next_action]
 kind   = "enum"
-domain = ["/rdr-propose", "/rdr-refine", "/rdr-resolve", "/rdr-prelock repeatability 1", "/rdr-reconcile", "/rdr-finalize"]
+domain = ["/rdr-propose", "/rdr-refine", "/rdr-resolve", "/rdr-prelock repeatability", "/rdr-reconcile", "/rdr-finalize"]
 
 # The `ground` group's answer: the next rung of the search ladder, or the
 # two terminal dispositions — `apply` (found: recommend with the cite, no
@@ -1809,9 +1809,9 @@ eq = "determinacy"
 op          = "return"
 target      = "record"
 stage       = "prelock"
-next_action = "/rdr-prelock repeatability 1"
+next_action = "/rdr-prelock repeatability"
 edit        = "s/^- \\*\\*Status\\*\\*: Draft.*$/- **Status**: Draft [routed back from <origin stage> <YYYY-MM-DD>; re-verify none @prelock — <one-line reason>]/"
-why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it. Run 1 is the hand path; delegated, `repeatability --auto`."
+why         = "The `Determinacy:` line reads fired and no run-1/diff exists — repeatability-lite owns it."
 surface     = "the `Determinacy:` line, so the lens runs against what fired"
 
 [[rule]]

@@ -77,7 +77,7 @@ any lens folder.
 ## Generation prompt
 
 **Run 3 times, one run per independent context** (fresh sessions in series, or
-`--auto`'s parallel spawns) — at least one run on a **different base model**. The
+the default parallel spawns) — at least one run on a **different base model**. The
 cross-model run is the point: it surfaces where the RDR reads differently to a
 different model, not just a different temperature draw.
 
@@ -85,7 +85,7 @@ different model, not just a different temperature draw.
 not write a second `run-*.md` — each draw must be independent, so a sub-agent *of
 an authoring session* cannot stand in (that is a self-consistency check, not a
 fresh draw). Independent contexts satisfy this two ways: fresh sessions in series,
-or the parallel spawns of `/rdr-prelock … repeatability --auto` (rdr-common
+or the default parallel spawns of `/rdr-prelock … repeatability` (rdr-common
 §auto-fanout) — concurrent runs cannot contaminate each other, since none exists
 when the others start. Running manually: after writing `run-<N>.md`, stop; the
 next invocation in a fresh session writes the next one, relaunched on the alt
@@ -138,7 +138,7 @@ Write your output to {EVIDENCE_DIR}/run-<N>.md. Report nothing else.
 ## Diff prompt
 
 Run the diff as its own pass (`/rdr-prelock NNNN repeatability diff`) **in a fresh
-context that authored none of the runs** — a fresh session, or under `--auto` a
+context that authored none of the runs** — a fresh session under `--manual`, or by default a
 post-barrier sub-agent spawned once every run has landed (§auto-fanout). Full
 repeatability diffs three runs; repeatability-lite diffs the single
 alternate-model `run-1.md` against the RDR and admits only concrete contract

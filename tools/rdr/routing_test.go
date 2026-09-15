@@ -1632,8 +1632,8 @@ func TestDeterminacyGroupRoutesTheWrittenLine(t *testing.T) {
 	expect("0020", "repeatability", v20, "repeatability-mid-large-unrun", "resolve:determinacy")
 	expect("0020", "determinacy", v20, "determinacy-unjudged", "stopped:determinacy-trigger-unjudged")
 	expect("0020 with na written", "determinacy", with(v20, "determinacy", "na"), "determinacy-na", "none")
-	expect("0020 with fired written", "determinacy", with(v20, "determinacy", "fired"), "determinacy-fired-mid", "/rdr-prelock repeatability 1")
-	expect("0020 as large, fired", "determinacy", with(with(v20, "determinacy", "fired"), "profile", "large"), "determinacy-fired-large", "/rdr-prelock repeatability 1")
+	expect("0020 with fired written", "determinacy", with(v20, "determinacy", "fired"), "determinacy-fired-mid", "/rdr-prelock repeatability")
+	expect("0020 as large, fired", "determinacy", with(with(v20, "determinacy", "fired"), "profile", "large"), "determinacy-fired-large", "/rdr-prelock repeatability")
 	expect("0020 with no Profile", "determinacy", with(v20, "profile", "none"), "determinacy-no-profile", "stopped:no-profile")
 
 	// 0024: mid with the line written n/a — the record that owes no run,
@@ -1646,7 +1646,7 @@ func TestDeterminacyGroupRoutesTheWrittenLine(t *testing.T) {
 	// — the full lens is on the row, so the trigger adds nothing.
 	v26 := tags("0026")
 	expect("0026", "determinacy", v26, "determinacy-foundational", "none")
-	if _, next := resolve("repeatability", v26); next != "/rdr-prelock repeatability 2" {
+	if _, next := resolve("repeatability", v26); next != "/rdr-prelock repeatability" {
 		t.Errorf("0026: --outcome repeatability answers %q; a foundational route must not read the line", next)
 	}
 

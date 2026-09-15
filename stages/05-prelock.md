@@ -226,7 +226,7 @@ enforces them; don't re-derive):
    (rdr-common) over the open entries, then a human look — not a fourth pass.
 4. **Converged → `emit.next` is the next lens.** Critique's second pass is
    `--outcome critique`'s answer (§model-stamp), never a stamp compare here;
-   while owed it keeps `critique` next — the close packet points at `--auto`
+   while owed it keeps `critique` next — the close packet points at `critique`
    (or, where the harness can't spawn per-model, the relaunch), never at a
    later lens.
 

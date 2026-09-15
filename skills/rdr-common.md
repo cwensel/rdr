@@ -777,14 +777,15 @@ flow, producing site, output) or registers a Pending assumption (Method:
 Spike or MVV Test). (Mined: an amendment missed 1 of 13 sites — two more
 reconcile iterations.)
 
-## §auto-fanout — `--auto`: spawn a lens's cross-model passes in parallel
+## §auto-fanout — the default: spawn a lens's cross-model passes in parallel
 
 For the cross-model pre-lock lenses (`critique`, `repeatability`), whose passes
 have no data dependency on each other and are serial only because a human
-relaunches the CLI between them. `--auto` fans them out as concurrent sub-agents,
-one per pass, each pinned to a **distinct** model via the spawn's model param
-(assign the set up front — with parallel spawns there are no prior files to read
-stamps from). Opt-in: without the flag nothing changes.
+relaunches the CLI between them. By default they fan out as concurrent
+sub-agents, one per pass, each pinned to a **distinct** model via the spawn's
+model param (assign the set up front — with parallel spawns there are no prior
+files to read stamps from). The serial relaunch is the opt-in: `--manual`, or a
+`run` arg — the one route to an open-weight draw. `--auto` names the default.
 
 **Independence is preserved, not waived.** The one-pass-per-session rule exists to
 stop a context that authored one pass from anchoring the next; concurrent spawns

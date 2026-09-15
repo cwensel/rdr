@@ -107,7 +107,7 @@ facts  = "models/rdr-facts.toml"
 [emit.next]
 kind = "enum"
 [emit.next.domain]
-route = ["/rdr-cluster-reconcile", "/rdr-draft-to-lock", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability 1", "/rdr-prelock repeatability 2", "/rdr-prelock repeatability 3", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
+route = ["/rdr-cluster-reconcile", "/rdr-draft-to-lock", "/rdr-finalize", "/rdr-implement", "/rdr-prelock 3amigo", "/rdr-prelock cove", "/rdr-prelock critique", "/rdr-prelock grounding", "/rdr-prelock repeatability", "/rdr-prelock repeatability diff", "/rdr-propose", "/rdr-reconcile", "/rdr-refine", "/rdr-resolve"]
 chain = ["resolve:lens", "resolve:reentry", "resolve:determinacy"]
 none  = ["none"]
 stop  = ["stopped:assumption-list-unreadable", "stopped:check-the-joint-decision-home", "stopped:deferred-without-condition", "stopped:determinacy-trigger-unjudged", "stopped:no-profile", "stopped:profile-below-floor", "stopped:repeatability-variant-unstamped", "stopped:seam-lineage-count-unread"]
@@ -816,9 +816,9 @@ eq = "reentry"
 [rule.guard.all.reentry_target]
 eq = "prelock"
 [rule.emit]
-next    = "/rdr-prelock repeatability 1"
+next    = "/rdr-prelock repeatability"
 then    = "resolve:lens"
-why     = "The qualifier names @prelock — a fired `Determinacy:` line with no run-1/diff, which repeatability-lite owns. Run 1 is the hand path; delegated, `repeatability --auto`."
+why     = "The qualifier names @prelock — a fired `Determinacy:` line with no run-1/diff, which repeatability-lite owns."
 surface = "the qualifier, so the human knows the run is a delta"
 
 [[rule]]
@@ -1735,8 +1735,8 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next    = "/rdr-prelock repeatability 1"
-why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL. Run 1 is the hand path; delegated, `repeatability --auto`."
+next    = "/rdr-prelock repeatability"
+why     = "Profile foundational — repeatability is on the row and has not started; the variant is FULL."
 surface = "stamp `variant: full (profile: foundational)` into run-1's header at generation"
 
 # mid/large: repeatability is NOT on the row. It is an ADD-ON owed only
@@ -1818,8 +1818,8 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next = "/rdr-prelock repeatability 1"
-why  = "Variant lite — run-1 is the only run owed and it is missing. Run 1 is the hand path; delegated, `repeatability --auto`."
+next = "/rdr-prelock repeatability"
+why  = "Variant lite — run-1 is the only run owed and it is missing."
 
 # Lite, run-1 and the diff present. Extra runs beside a `lite` header are
 # the VARIANT MISMATCH the reconcile preflight flags: full ran where lite
@@ -1938,8 +1938,8 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next = "/rdr-prelock repeatability 1"
-why  = "Variant full — run-1 is the first of three and is missing. Run 1 is the hand path; delegated, `repeatability --auto`."
+next = "/rdr-prelock repeatability"
+why  = "Variant full — run-1 is the first of three and is missing."
 
 [[rule]]
 id = "repeatability-full-run2"
@@ -1956,9 +1956,9 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next    = "/rdr-prelock repeatability 2"
+next    = "/rdr-prelock repeatability"
 why     = "Variant full — run-2 is the next run owed."
-surface = "that the next run needs a FRESH session on the alt model — the cross-model draw is the point"
+surface = "that the remaining runs land on models the existing stamps do not carry — the cross-model draw is the point"
 
 [[rule]]
 id = "repeatability-full-run3"
@@ -1977,9 +1977,9 @@ eq = "false"
 [rule.guard.unless.lens_stale]
 eq = "repeatability"
 [rule.emit]
-next    = "/rdr-prelock repeatability 3"
+next    = "/rdr-prelock repeatability"
 why     = "Variant full — run-3 is the last run owed."
-surface = "that the next run needs a FRESH session on the alt model — the cross-model draw is the point"
+surface = "that the remaining runs land on models the existing stamps do not carry — the cross-model draw is the point"
 
 [[rule]]
 id = "repeatability-full-diff"
@@ -2133,8 +2133,8 @@ eq = "mid"
 [rule.guard.all.determinacy]
 eq = "fired"
 [rule.emit]
-next    = "/rdr-prelock repeatability 1"
-why     = "Profile mid — the `Determinacy:` line reads fired; repeatability-lite is owed. Run 1 is the hand path; delegated, `repeatability --auto`."
+next    = "/rdr-prelock repeatability"
+why     = "Profile mid — the `Determinacy:` line reads fired; repeatability-lite is owed."
 surface = "stamp `variant: lite (profile: mid)` into run-1's header at generation"
 
 [[rule]]
@@ -2146,8 +2146,8 @@ eq = "large"
 [rule.guard.all.determinacy]
 eq = "fired"
 [rule.emit]
-next    = "/rdr-prelock repeatability 1"
-why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed. Run 1 is the hand path; delegated, `repeatability --auto`."
+next    = "/rdr-prelock repeatability"
+why     = "Profile large — the `Determinacy:` line reads fired; repeatability-lite is owed."
 surface = "stamp `variant: lite (profile: large)` into run-1's header at generation"
 
 # ===========================================================================

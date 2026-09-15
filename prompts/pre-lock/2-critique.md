@@ -9,7 +9,7 @@ enums/grammars/formats that get reopened in 6 weeks.
 **Cost**: ~20–30 min. **Dual-model, profile-graduated** — run the two passes on
 different base models and diff the outputs. Disagreement is the signal. A
 sub-agent *can* carry a second model where the harness pins models per spawn
-(`/rdr-prelock … critique --auto` runs both in parallel — rdr-common
+(`/rdr-prelock … critique` runs both in parallel by default — rdr-common
 §auto-fanout); what it can't reach is a **non-Anthropic/open-weight** model, so a
 cross-vendor draw is still a CLI relaunch you do yourself. If `{RDR_RESOURCES}`
 lists an alt-model roster, use it and its launch command for the second model

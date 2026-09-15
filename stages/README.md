@@ -576,7 +576,7 @@ stands and the skill goes.
 | `/rdr-propose` | `NNNN` | 2 |
 | `/rdr-refine` | `NNNN` | 3 |
 | `/rdr-resolve` | `NNNN` | 4 |
-| `/rdr-prelock` | `NNNN <lens> [--auto]` | 5+6 — reviews **and** resolves one lens, looping to convergence (`lens ∈ grounding·3amigo·critique·repeatability·cove`; repeatability also resolves its `diff.md`). `--auto` (critique/repeatability) spawns the cross-model passes in parallel instead of hand relaunches |
+| `/rdr-prelock` | `NNNN <lens> [run] [--manual]` | 5+6 — reviews **and** resolves one lens, looping to convergence (`lens ∈ grounding·3amigo·critique·repeatability·cove`; repeatability also resolves its `diff.md`). critique/repeatability spawn their cross-model passes in parallel by default; `--manual` (or a `run` arg) is the serial hand relaunch |
 | `/rdr-reconcile` | `NNNN` | 6 |
 | `/rdr-finalize` | `NNNN` | 7 (one gated prompt — READY locks, NOT READY flips nothing) |
 | `/rdr-cluster-reconcile` | cluster / RDR list | 7.1 (per cluster, not per RDR) |

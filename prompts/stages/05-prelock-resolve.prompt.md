@@ -21,7 +21,7 @@ From the arg header above, bind for this session:
     is where a re-run would write, `$ITER_BUCKET` the loop's pass tag.
 
 For the RDR at {RDR_PATH}, resolve each finding one by one. If you were handed
-the findings inline (a return packet's ledger — the norm under `--auto`), that
+the findings inline (a return packet's ledger — the norm when fanned out), that
 IS the origin ledger: work from it, and open the file below only for the
 adjudication prose behind a row. Otherwise read the findings from
 {EVIDENCE_DIR} — its consolidation / findings / diff file (e.g.

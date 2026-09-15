@@ -196,7 +196,7 @@ var ReentryTargets = []string{"propose", "refine", "resolve", "finalize"}
 // RouteBackTargets is the vocabulary of the `@<stage>` slot in
 // RoutedBackGrammar: a SUPERSET of ReentryTargets, adding the two stages
 // a route-back can name that a demotion cannot — prelock (the `return`
-// group's determinacy row, `/rdr-prelock repeatability 1`) and reconcile
+// group's determinacy row, `/rdr-prelock repeatability`) and reconcile
 // (its spike and disturbed-assumption rows).
 //
 // They are two lists and not one on purpose. ReentryTargets is a
