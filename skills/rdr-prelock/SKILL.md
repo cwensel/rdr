@@ -202,10 +202,10 @@ row chains to `resolve:determinacy`, which routes the lens, `none`, or stops wit
 - **repeatability** — `--outcome repeatability` names the next run or the diff from
   run-1's own header (§repeatability-variant), never from the files present. Diff runs
   in a fresh session; it also resolves `diff.md`.
-- **All profile lenses done** → the model answers `/rdr-reconcile` (row
-  complete): `Next: /rdr-reconcile NNNN` (carry the needs-verification list).
-  Ask `--outcome repeatability` first — it decides the Determinacy add-on from the
-  `Determinacy:` line.
+- **All profile lenses done** → the model answers `/rdr-reconcile` (carry the
+  needs-verification list), or `/rdr-finalize` when a `reconcile/` folder is
+  already on disk. Ask `--outcome repeatability` first — it decides the
+  Determinacy add-on from the `Determinacy:` line.
 - **`stopped:verdict-flapping`** → the consult already ran; resume after a human look / model switch, or chart the churning entry.
 - A finding refuted an *assumption* → it's on the needs-verification list (Stage 6); if it forces
   a redesign, `/rdr-resolve NNNN` / `/rdr-propose NNNN` now.

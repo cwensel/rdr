@@ -241,6 +241,13 @@ Every analytical lens in the RDR's profile has converged (findings resolved or
 charted), with the disturbed-assumption list carried forward to Stage 6. (Small
 profile: no lens runs — advance immediately to Stage 6.)
 
+**Critiques are prep, not a REQ source.** 3amigo and critique findings are asks
+to rewrite the RDR's own text, absorbed into it before `Status: Final`; after
+the lock the RDR is the source of truth. Never derive REQ-N tests from a
+critique, and never run tests-first implementation against one — findings not
+yet absorbed mean the record is still Draft and the critique is the rewrite
+queue.
+
 → Per lens: one `/rdr-prelock NNNN <lens>` cycle (review + resolve in the one
 loop). All lenses done: [06-reconcile.md](06-reconcile.md) →
 [07.0-finalize.md](07.0-finalize.md).

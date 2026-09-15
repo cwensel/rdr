@@ -498,6 +498,14 @@ run-plan.md).
   packet names as needing the parent's judgment. **A long-running command is
   waited on the same way** — background it and let the notification arrive;
   polling a log is the same wasted turn as polling an agent.
+- **Backgrounding is PARENT-ONLY.** Everything above — backgrounding, ending
+  the turn, waiting on a notification — is the orchestrator's pattern. A leaf's
+  contract is brief → verdict: a pure function that terminates with a
+  §return-packet, so it never backgrounds and never waits. An armed wait dies
+  with the agent, the harness reports it **completed**, and the event it waits
+  on can never be consumed. A leaf runs everything synchronously in the
+  foreground and reads exit status directly; a slow run splits into several
+  smaller foreground invocations rather than one detached one.
 - **Anchor doctrine — ephemeral vs durable.** The sub-agent *return* pointer
   above (`file:line`) is ephemeral: it exists for the main agent to act on this
   turn, and is fine as-is. What gets **written into the RDR body** is durable
@@ -566,6 +574,13 @@ answer unblocks>`. Reuse the stage's own `stopped:*` codes where it names them.
 This boundary is inherent to the flow (mined: the recurring "I should stop and
 surface this rather than fake it"); the skill's job is to make the stop *crisp*,
 not to remove the human. A design-call packet carries `searched=` (§ground-before-ask).
+
+**Cross-stage ping-pong is itself a stop reason.** When a record cycles between
+two `/rdr-*` stages, stop executing the loop — the repetition is the diagnostic.
+Suspect the skill's routing or a non-deterministic gate, not the record: both
+stages can be doing competent work and still loop. Before treating a flagged
+pattern as real, cross-tab it against recently locked peers — one most of them
+share is the gate misfiring.
 
 ## §ground-before-ask — search before the human
 
@@ -683,9 +698,14 @@ names. Test the binary, never the exit code.
 
 It answers with the next command and its reason, and returns
 `stopped:no-profile` when the `Profile` field is absent — a §stop-packet, never
-a default. On a re-entered Draft it also names a row lens whose evidence
+a default. A **complete row answers `/rdr-finalize` once `reconcile/` exists**
+and `/rdr-reconcile` while it does not. On a re-entered Draft it also names a row lens whose evidence
 predates the qualifier's demote date (`lens_stale`), since a folder its Final
-earned is not a lens run over the rework. The row, the first-missing rule, the
+earned is not a lens run over the rework. Lens evidence can also predate a
+propose/refine rewrite on a Draft that was never Final — no demote date exists,
+so no fact sees it: that is `stopped:lens-predates-rework`, a §stop-packet, and
+the re-run goes under `iter-N/` with its delta scope in the findings header.
+Never hand-mark a row stale to work around it. The row, the first-missing rule, the
 additive-on-escalation rule and the remaining span are encoded there: `emit.next`
 is the next lens, `emit.row` the row still owed **headed by it**, in order
 (`none` = complete) — as handed, never with the head stripped. Do not restate or
@@ -844,6 +864,18 @@ spent — at stage start nothing is written, so cancel is free. Resolve:
 
 `small`/`mid` never trigger the fork.
 
+**The decide-test — tier per step, not per session.** Match the model to the
+difficulty of the *reasoning*, never the importance of the task: the test is
+whether the leaf must **decide** something. A leg applying an already-adjudicated
+decision is mechanical even when the decision was hard-won, and so are audits,
+merges, index rebuilds, tracker filing and hygiene scripts however important
+they look. Escalation-tier: spec interpretation, adversarial and CoVe
+verification (naming an input that would falsify a contract is design work),
+diagnosing an unlocated defect, cross-subsystem changes, grounders adjudicating
+"needs author decision". **Escalate on any of four triggers**: an unexplained test
+failure, a clause with two defensible readings, a cross-subsystem change, an
+irreversible decision.
+
 ## §strong-consult — a stronger fresh look before the human
 
 At a *challenge* — a route-back reopening the approach, a tiebreaker the
@@ -970,7 +1002,15 @@ one: the doc/README commit is the **design history** (`docs(rdr):`, real subject
 
 Be brief without being lossy (the flow's standing doctrine —
 `$RDR_HOME/stages/README.md` *Doctrine*). Spend tokens on load-bearing or
-complex design; terse everywhere else. This file is read whole on every
+complex design; terse everywhere else.
+
+**An RDR records the past, it is not a forward contract.** In Draft and after
+implementation alike, don't bake in extensibility, plugin APIs, registration
+paths or upgrade procedures for problems that have not appeared — "rejected —
+refactor when needed" and "out of scope; future RDR" are acceptable and usually
+correct. **Compare only against RECENT records and say which range you used**:
+older RDRs followed an older process, so narrowing the comparison sharpens the
+signal rather than weakening it. This file is read whole on every
 `/rdr-*` run, so **its size is a per-run cost paid by every skill** — an added
 paragraph is charged fourteen times over. Defer to CLAUDE.md and the README
 Doctrine on any conflict.

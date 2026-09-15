@@ -53,8 +53,16 @@ refuse() {
   printf '%s' "$reason" | python3 -c 'import json,sys; print(json.dumps({"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"deny","permissionDecisionReason":sys.stdin.read()}}))'
   exit 0
 }
-case " $cmd " in
-  *" rdr-leg-test "*|*" rdr-leg-commit "*|*" rdr-leg-read "*) exit 0 ;;
+# The helpers, allowed however the brief spells them — the briefs mandate an
+# absolute `{RDR_HOME}/bin/rdr-leg-test`, whose token is preceded by `/`, never
+# a space, so a bare-token match refused the very command it requires and the
+# leg returned INCOMPLETE having written nothing. The allow is the WHOLE
+# command, so it only fires when the helper is the whole command: a chain
+# (`cat x.go; rdr-leg-test …`) falls through to the refusals below, where the
+# raw half is judged on its own.
+case $cmd in
+  *[\;\&\|]*) ;;
+  *) printf '%s' "$cmd" | grep -Eq '^[[:space:]]*([^[:space:]]*/)?rdr-leg-(test|commit|read)([[:space:]]|$)' && exit 0 ;;
 esac
 printf '%s' "$cmd" | grep -Eq '(^|[;&| ])cat[[:space:]]+[^>|;&][^|;&]*\.(go|md)([[:space:]]|$)' && refuse "cat <file>" "rdr-leg-read <path> [--symbol S | --range A-B]"
 printf '%s' "$cmd" | grep -Eq '(^|[;&| ])go[[:space:]]+test([[:space:]]|$)' && refuse "go test" "rdr-leg-test -C <worktree> … -- go test …"

@@ -90,6 +90,25 @@ from artifact headers, not a re-read.
   (Deviation Types — SPEC-DEFECT / SPEC-UNDER / DEPENDENCY-LIMIT /
   TEST-FIXTURE / IMPL-DECISION / IMPL-GAP — are launch.md's Phase 2 taxonomy; it is the
   same taxonomy the post-mortem uses, in [`../README.md`](../README.md#post-mortem-process).)
+  **The one carve-out to the bullet above**: where the defect is a single wrong
+  implementation-safety assumption, Phase 3d closes it by cite, and the fix
+  changes no observable outcome (no output, error, exit or keying change), the
+  record stays Final. Record it in `<art>/deviations.md` as
+  `Status: … → RESOLVED (<3d cite>)`, land, and flip to Implemented; the wrong
+  assumption stays as written, the deviation is the correction. A flip re-stales
+  the whole lens row — two lenses and a re-lock for a five-line fix. Anything 3d
+  cannot close by cite is the flip above.
+- **`deferred — retired arm`.** Before spending a fix on a real finding, check
+  whether an RFD or a Final/Implemented peer already owns retiring that surface
+  (its `Overrides:` field names what it supersedes). Where it is *named* as
+  retired — not merely looks legacy — DEFER: an IMPL-DECISION entry
+  `Status: deferred — retired arm` citing the owning record, stating the defect
+  is real but unreachable once the retirement lands, plus a `DEFERRED-N` line on
+  the verification artifact; never rewrite the original finding. Skip the Phase
+  3b test that covers it, citing `DEFERRED-N` — the retiring record owns that
+  arm's coverage, and a red test left behind makes the gate unreachable.
+  Deferring is not licence to perform the retirement: early deletion is scope
+  creep that lands untested.
 
 ## Resuming across long gaps
 

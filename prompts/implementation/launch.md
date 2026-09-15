@@ -116,11 +116,11 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   "$RDR_HOME/bin/rdr-gate" precheck <NNNN> --tag baseline=<green|red|none>   # fresh run: none; resume: the capsule's `baseline:` line
   `next:` = `run-baseline` → run the full suite once (the capsule's
   `validate:` command) and re-ask with `baseline=green|red` from its exit.
-  **Run it in the background and let the harness wake you.** Never
-  `sleep`-poll, chain a sleep to a grep, or tail a log to guess whether it
-  finished — a harness that tracks the job refuses those, and they are turns
-  spent not-knowing; for a condition rather than a completion, use its
-  until-loop. Do not start Phase 0 meanwhile "because it only reads the RDR":
+  **Run it in the background and let the harness wake you** — ORCHESTRATOR
+  ONLY, never a leaf (§delegation). Never `sleep`-poll, chain a sleep to a
+  grep, or tail a log to guess whether it finished — a harness that tracks the
+  job refuses those, and they are turns spent not-knowing; for a condition
+  rather than a completion, use its until-loop. Do not start Phase 0 meanwhile "because it only reads the RDR":
   `baseline=red` is a stop, so that work may be thrown away, and the precheck
   runs before anything else by design. A suite reads by relative path, so
   **nothing may move the directory it runs in while it runs** — removing a
@@ -268,7 +268,10 @@ truth, §Predecessor Convention), RESUME (its worklist position; on a
 respawn the capsule's `next:` and `reads:` lines, then each `→ RESOLVED
 (<cite>)` line 3d just closed whose decision alters code, as the first
 item), START_SHA (`git -C <wt> rev-parse
---short HEAD`) and START_EPOCH (`date -u +%s`). The template names
+--short HEAD`) and START_EPOCH (`date -u +%s`) — captured in its OWN call
+seconds before the spawn, never carried over from an earlier leg: a stale
+epoch computes the leg as already over budget, so `rdr-leg-test` refuses every
+run and the leg returns INCOMPLETE having written nothing. The template names
 `<art>/impact.md` (a leg works a family by its own `## <Family>` section; a
 row that goes red takes the rule below — re-cut only where a CHANGE REQ
 names it, else regression, else SPEC-DEFECT — recorded against the list,
@@ -293,19 +296,21 @@ and 18 more in a run it started after `return-partial`). The leg's first
 call marks its worktree (`rdr-leg-mark`) and its last clears it: the role
 a consumer's PreToolUse guard (`bin/rdr-leg-guard`, reference, uninstalled)
 reads to refuse the raw `cat`, `go test` and `git commit` the brief forbids.
-Before handing a leg any work — fresh or resumed — assert the mark:
-`"$RDR_HOME/bin/rdr-leg-mark" --query <wt>` (exit 0, silent). A non-zero is
-a stop, not a leg to start: an unmarked leg is a raw-read leg and the guard
-cannot see it.
+Before ANY spawn — first leg or respawn, since a resumed leg is spawned like
+any other and marks itself — assert `"$RDR_HOME/bin/rdr-leg-mark" --query <wt>`
+exits **1**: unmarked is the correct pre-state, because the leg's own first
+call marks. An exit 0 means the predecessor returned without clearing, so treat
+its packet as suspect and `--clear` before spawning.
 Sub-agent's task: write the minimum code to turn the Phase 1 tests
 green with the FULL suite green. No features, validation, error
 handling, or abstractions no REQ-N demands. It walks the worklist from
 its position, committing through `rdr-leg-commit` as it goes, and applies
 its `next:` as a value. An item's gate is a package-scoped run — the
 packages the increment touched — asked as `--suite-green false` (the full
-suite has not run); the worklist's last item is the ONE full run, started
-in the background while the leg writes `deviations.md` and drafts its
-packet, its exit the ask. A targeted run once passed where the full run
+suite has not run); the worklist's last item is the ONE full run — the leg
+writes `deviations.md` and drafts its packet FIRST, then runs it in the
+foreground, its exit the ask (a leg never backgrounds: an armed wait dies with
+the agent and the harness reports it complete). A targeted run once passed where the full run
 caught a gate, so that item is never skipped.
 `continue` → the next item, or the same one while its run is red;
 `return-green` → REQ-MVV (below), then PASS;
@@ -370,7 +375,14 @@ RESOLVED decision that alters code is the successor's first item, in
 RESUME. PASS and NEEDS_DECISION both advance to Phase 3: it verifies code,
 not decisions. The gate is never the next step after Phase 2.
 
-PHASE 3 — Self-verification (3a and 3b in parallel, 3d for what the last packet left open, then fixup if needed)
+PHASE 3 — Self-verification (3a and 3b, 3d for what the last packet left open, then fixup if needed)
+
+SERIALIZE 3a AND 3b: run 3a to completion, then 3b. They are independent by
+BRIEF, not by timing — both append `<art>/verification.md`, which sits next to
+the RDR and is shared whatever the worktree arrangement, so concurrent appends
+lose one side's entries with nothing recoverable from git. Serializing costs
+nothing in rigor. (Two agents may run concurrently only when they share no
+mutable state.)
 
 PHASE 3a [DELEGATE to sub-agent: "CoVe verifier"]
 Brief: `briefs/phase-3a.md` (RDR path and `<art>/req-list.md` only; NO

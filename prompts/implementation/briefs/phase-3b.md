@@ -19,8 +19,11 @@ FAILS against the current implementation — a test that passes catches
 nothing. Append findings to `{ART}/verification.md` under a `## Phase 3b —
 Adversarial` heading as line-leading `ADV-N` entries; none → append the
 line-leading `## Verdict — clean` under your heading (an absent file reads
-as an unrun Phase 3). Append with a heredoc (`>>`); 3a writes the same file
-in parallel. Commit added tests on {BRANCH}.
+as an unrun Phase 3). Append with a heredoc (`>>`); 3a writes the same file.
+Commit added tests on {BRANCH}.
+
+Run everything in the foreground; never background, wait, or use Monitor — an
+armed wait dies with you and the harness reports you COMPLETE.
 
 Never `sed`/`grep` the record file; never edit {RDR_PATH} or the
 implementation. Scratch in /tmp, never {ART}. Separators `---`, never `===`.

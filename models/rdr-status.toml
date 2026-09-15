@@ -994,7 +994,7 @@ surface = "re-run rdr-write `--outcome profile` with `floor=raise` (Stage 4 owns
 # §lens-row is the one authority for the row, the first-lens fork and the
 # completion rules, and this group is that table:
 #
-#   small         (none — skip Stage 5)     -> /rdr-reconcile
+#   small         (none — skip Stage 5)     -> /rdr-reconcile | /rdr-finalize
 #   mid           grounding -> 3amigo
 #   large         grounding -> 3amigo -> critique
 #   foundational  cove -> 3amigo -> critique -> repeatability
@@ -1034,16 +1034,38 @@ surface = "that no Profile is written; infer the row only with the basis flagged
 #
 # The row is empty, so there is no lens to be first-missing and Stage 5 is
 # skipped outright.
+#
+# THE ROW IS PAIRED ON `reconcile`, as every row below that would answer
+# `/rdr-reconcile` is. See the `reconcile` note at the head of the
+# row-complete rules: a folder that already exists makes "run reconcile"
+# an instruction to re-run a passed stage, and the lens question has no
+# other way to say so.
 [[rule]]
 id = "lens-small"
 [rule.match.recognized]
 eq = "lens"
 [rule.guard.all.profile]
 eq = "small"
+[rule.guard.all.reconcile]
+eq = "false"
 [rule.emit]
 next = "/rdr-reconcile"
 row = "none"
 why  = "Profile small — §lens-row skips Stage 5 entirely."
+
+[[rule]]
+id = "lens-small-reconciled"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "small"
+[rule.guard.all.reconcile]
+eq = "true"
+[rule.emit]
+next    = "/rdr-finalize"
+row     = "none"
+why     = "Profile small — no lens is owed and a reconcile folder is on disk, so the lock is the next stage to ask."
+surface = "that the folder is the only signal here: it does not certify RECONCILED, which Stage 7's preflight verifies (a NOT RECONCILED pass leaves the folder too)"
 
 # --- mid: grounding -> 3amigo ---------------------------------------------
 
@@ -1084,6 +1106,18 @@ why  = "Profile mid — grounding has run; 3amigo is the next row entry."
 # `Determinacy:` line the Stage-5 judgement leaves in Normative
 # Contracts; the surface points the caller at that outcome rather than
 # silently choosing reconcile.
+#
+# EVERY ROW-COMPLETE ANSWER IS PAIRED ON `reconcile`, and this is why.
+# `[tags.reconcile]` was declared for this group and guarded by no rule,
+# so a complete row answered `/rdr-reconcile` whether or not Stage 6 had
+# already run. On a reconciled Draft that is an instruction to re-run a
+# passed stage, and a literal read re-ran it forever: `locate` sends an
+# all-terminal Draft here with `resolve:lens`, so this group's answer is
+# the only one that caller sees. `locate` cannot take the fork itself —
+# it is AT the product bound (the FIVE OUTCOMES note above), and the
+# reconcile folder is already a dimension HERE, where it also certifies
+# the last lens's resolution. `stages/06-reconcile.md` *Advance when*
+# ("→ Next: 07.0-finalize.md") is the clause the `true` half encodes.
 [[rule]]
 id = "lens-mid-row-complete"
 [rule.match.recognized]
@@ -1096,11 +1130,33 @@ eq = "true"
 eq = "true"
 [rule.guard.unless.lens_stale]
 in = ["grounding", "3amigo"]
+[rule.guard.all.reconcile]
+eq = "false"
 [rule.emit]
 next    = "/rdr-reconcile"
 row    = "none"
 why     = "Profile mid — the grounding -> 3amigo row is complete."
 surface = "`--outcome repeatability` decides the Determinacy add-on from the `Determinacy:` line; ask it before accepting reconcile"
+
+[[rule]]
+id = "lens-mid-row-complete-reconciled"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "mid"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo"]
+[rule.guard.all.reconcile]
+eq = "true"
+[rule.emit]
+next    = "/rdr-finalize"
+row     = "none"
+why     = "Profile mid — the row is complete and a reconcile folder is on disk, so the lock is the next stage to ask."
+surface = "that the folder does not certify RECONCILED — Stage 7's preflight does, and a NOT RECONCILED pass leaves the folder too; ask `--outcome repeatability` for the Determinacy add-on before the lock"
 
 # --- large: grounding -> 3amigo -> critique -------------------------------
 
@@ -1169,11 +1225,35 @@ eq = "true"
 eq = "true"
 [rule.guard.unless.lens_stale]
 in = ["grounding", "3amigo", "critique"]
+[rule.guard.all.reconcile]
+eq = "false"
 [rule.emit]
 next    = "/rdr-reconcile"
 row    = "none"
 why     = "Profile large — the grounding -> 3amigo -> critique row is complete."
 surface = "`--outcome repeatability` decides the Determinacy add-on from the `Determinacy:` line; ask it before accepting reconcile"
+
+[[rule]]
+id = "lens-large-row-complete-reconciled"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "large"
+[rule.guard.all.lens_grounding]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["grounding", "3amigo", "critique"]
+[rule.guard.all.reconcile]
+eq = "true"
+[rule.emit]
+next    = "/rdr-finalize"
+row     = "none"
+why     = "Profile large — the row is complete and a reconcile folder is on disk, so the lock is the next stage to ask."
+surface = "that the folder does not certify RECONCILED — Stage 7's preflight does, and a NOT RECONCILED pass leaves the folder too; ask `--outcome repeatability` for the Determinacy add-on before the lock"
 
 # --- foundational: cove -> 3amigo -> critique -> repeatability ------------
 #
@@ -1272,10 +1352,36 @@ eq = "true"
 eq = "true"
 [rule.guard.unless.lens_stale]
 in = ["cove", "3amigo", "critique", "repeatability"]
+[rule.guard.all.reconcile]
+eq = "false"
 [rule.emit]
 next = "/rdr-reconcile"
 row = "none"
 why  = "Profile foundational — the cove -> 3amigo -> critique -> repeatability row is complete."
+
+[[rule]]
+id = "lens-foundational-row-complete-reconciled"
+[rule.match.recognized]
+eq = "lens"
+[rule.guard.all.profile]
+eq = "foundational"
+[rule.guard.all.lens_cove]
+eq = "true"
+[rule.guard.all.lens_3amigo]
+eq = "true"
+[rule.guard.all.lens_critique]
+eq = "true"
+[rule.guard.all.lens_repeatability]
+eq = "true"
+[rule.guard.unless.lens_stale]
+in = ["cove", "3amigo", "critique", "repeatability"]
+[rule.guard.all.reconcile]
+eq = "true"
+[rule.emit]
+next    = "/rdr-finalize"
+row     = "none"
+why     = "Profile foundational — the row is complete and a reconcile folder is on disk, so the lock is the next stage to ask."
+surface = "that the folder does not certify RECONCILED — Stage 7's preflight does, and a NOT RECONCILED pass leaves the folder too; ask `--outcome repeatability` for the Determinacy add-on before the lock"
 
 # --- re-entered: the evidence predates the demote --------------------------
 #

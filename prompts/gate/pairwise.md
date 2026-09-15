@@ -91,7 +91,9 @@ models on "do these two contradict?" is itself a signal.
 ## What a finding does
 
 A `blocks-impl` or `risks-impl` finding with OWNERSHIP single-RDR is a
-**SPEC-DEFECT** against the *less foundational* RDR of the pair — it does not
+**SPEC-DEFECT** against the *less foundational* RDR of the pair — or, where an
+umbrella or RFD has already decided the point, against whichever record
+disagrees with that named home, however foundational. It does not
 get edited in place. The cluster gate drops that RDR from Final back to Draft
 and re-enters the flow. A `joint` finding instead takes the gate's
 **JOINT-DECISION** disposition — mark, hoist the shared decision to a single
