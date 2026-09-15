@@ -835,12 +835,13 @@ same-`model:`-stamp files are not a cross-model pass however they were spawned
 (§model-stamp is the check). The win lands only where the harness supports it;
 that asymmetry is accepted — never serialize a capable harness for parity.
 
-## §model-ceiling — per-spawn model bump for delegated authoring
+## §model-ceiling — per-spawn model bump for judgment-dense work
 
-For orchestrating skills that spawn *authoring* sub-agents (e.g.
-`/rdr-joint-propose`) — a skill running in the main context cannot change its
-own model. Resolve the ceiling: `--model-ceiling <model>` arg >
-`RDR_MODEL_CEILING` marker var > unset (every spawn inherits the session model —
+For any skill that spawns a **judgment-dense** sub-agent — authoring
+(`/rdr-joint-propose`), §strong-consult, or Stage 8's decision consult — since a
+skill running in the main context cannot change its own model. Resolve the
+ceiling: `--model-ceiling <model>` arg > `RDR_MODEL_CEILING` marker var (a seam
+var — §seam-bind binds it) > unset (every spawn inherits the session model —
 the default). Per-spawn policy, gated on the member's `Profile` field:
 `small`/`mid` → session model; `large`/`foundational` → the ceiling (those
 profiles already carry the heavier obligations — scored matrix, hardened
@@ -849,8 +850,11 @@ critic — so the stronger model lands where judgment is densest). One
 the ceiling. Never spawn authoring *below* the session model — judgment-dense
 stages don't get cheaper models (mechanical extraction passes may). A stronger
 model costs more per token, not more tokens — profile-gating is the efficient
-shape; never run a whole cohort at the ceiling "to be safe." A harness without
-per-spawn model control runs at session model and notes it in the report.
+shape; never run a whole cohort at the ceiling "to be safe." Spend the other
+direction too — a mechanical spawn takes a cheaper model by the decide-test
+above, and that is what pays for the ceiling. Where the harness exposes
+per-spawn model control, pass it at the spawn (`Agent(…, model: <resolved>)`);
+where it does not, run at session model and note it in the report.
 
 **Model-adequacy fork (heavy RDRs, before any authoring).** Heavy = `profile`
 `large`/`foundational`, or `seam_lineage=2+` in `rdr status --tags` (the `floor`
@@ -889,11 +893,16 @@ evidence won't collapse, verdict-flapping at the cap, or a `return` row that
 emits `consult: strong` (a route-back to Stage 2 or 3 over the approach or a
 contradiction) — consult ONE fresh-context sub-agent at the strongest
 reasoning tier available (the §model-ceiling resolution; none set → the strongest model this harness
-offers, judged conservatively) BEFORE escalating to the human. Factored
-brief: the fork/claims in tension + the new evidence, never the justifying
-prose or prior verdicts (precedent: a second-model critique pass refuted a
-claim the first model had ratified). One consult, queried once — never a
-panel. It returns a §return-packet; escalate to the human (§stop-packet)
+offers, judged conservatively) BEFORE escalating to the human. **Spawn it at
+that ceiling explicitly** where the harness takes a per-spawn model: inheriting
+the session model silently is how a "stronger look" becomes the same look.
+Factored brief: the fork/claims in tension + the new evidence, never the
+justifying prose or prior verdicts (precedent: a second-model critique pass
+refuted a claim the first model had ratified) — plus the resources it may
+search (`{RDR_RESOURCES}`, the corpora it names, the source root), since a
+consult reasoning from the brief alone repeats the parent's blind spot. Bias
+the verdict to DX, conceptual integrity and correctness over the locally
+convenient fix. One consult, queried once — never a panel. It returns a §return-packet; escalate to the human (§stop-packet)
 only on its NEEDS_DECISION or a repeat flap. This re-orders the escalation
 ladder, it does not remove the human: genuine either/or design calls still
 stop.

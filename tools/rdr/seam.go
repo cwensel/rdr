@@ -60,9 +60,16 @@ import (
 // the seam CONTRACT rather than this binary's own appetite — the three
 // vars a skill still needed a shell resolver for were exactly the three
 // the projector never opened, so the resolver survived for them alone.
+// RDR_MODEL_CEILING joined for the same reason RDR_AUTOCOMMIT did: it is
+// a behavioural var this binary never reads, published because `rdr env`
+// carries the seam CONTRACT. rdr-common §model-ceiling names it as the
+// middle rung of the resolution (`--model-ceiling` arg > marker var >
+// unset), and without it here that rung was documented and unreachable —
+// a marker could set it, `rdr env` would not emit it, and §seam-bind's
+// `eval` would leave it unset in the shell that spawns.
 var seamVars = []string{
 	"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME",
-	"RDR_ENV", "RDR_RESOURCES", "RDR_AUTOCOMMIT",
+	"RDR_ENV", "RDR_RESOURCES", "RDR_AUTOCOMMIT", "RDR_MODEL_CEILING",
 }
 
 // seam resolves once per working directory. A projection may consult it

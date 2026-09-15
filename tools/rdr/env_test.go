@@ -56,7 +56,8 @@ RDR_ENV="$PROJECT/.rdr/env.md"
 RDR_RESOURCES="$PROJECT/.rdr/resources.md"
 RDR_SOURCE_REPO="$PROJECT"
 RDR_AUTOCOMMIT="true"
-export RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_AUTOCOMMIT
+RDR_MODEL_CEILING="test-ceiling-model"
+export RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_AUTOCOMMIT RDR_MODEL_CEILING
 `
 
 // TestEnvPublishesTheWholeContract: the verb exists because three vars —
@@ -78,7 +79,7 @@ func TestEnvPublishesTheWholeContract(t *testing.T) {
 	got := parseEnvText(out)
 	for _, want := range []string{
 		"RDR_HOME", "RDR_RECORDS", "RDR_EVIDENCE", "RDR_ENV",
-		"RDR_RESOURCES", "RDR_SOURCE_REPO", "RDR_AUTOCOMMIT",
+		"RDR_RESOURCES", "RDR_SOURCE_REPO", "RDR_AUTOCOMMIT", "RDR_MODEL_CEILING",
 		envMarkerVar, envProjectVar,
 	} {
 		if got[want] == "" {

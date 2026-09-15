@@ -84,7 +84,10 @@ ESCALATION RULE
 Only stop to ask the user when a DESIGN DECISION is required:
 genuine spec ambiguity that no reasonable reading resolves, or a
 contract-level deviation (spec defect, deferred-scope decision,
-accept-or-fix call) that Phase 3d's ladder did not settle. Never ask for permission to proceed between
+accept-or-fix call) that Phase 3d's ladder did not settle.
+BEFORE any such ask, exhaust the resources: the grounder's rung ladder (code,
+cluster peers, corpus, RFD), then ONE rdr-common §strong-consult. The ask
+carries that trail (`searched=`) and a recommendation, never a bare question. Never ask for permission to proceed between
 phases, never ask whether to run the next phase, never ask about
 mechanical translations the sub-agent can record and continue past.
 If a precondition fails (predecessor not COMPLETE, baseline red, on-disk
@@ -425,8 +428,10 @@ The orchestrator records each PASS by REWRITING that entry's `Status:`
 line in place — the open form is the plain line `Status: needs author
 decision` (qualifiers only inside a trailing parenthesis); closed is
 `Status: needs author decision → RESOLVED (<cite>)` — never a note
-appended below it. Survivors go to ONE rdr-common §strong-consult
-(brief: the entries and their `searched=` trails), recorded the same
+appended below it. Survivors go to ONE rdr-common §strong-consult, spawned at
+the resolved §model-ceiling (`$RDR_MODEL_CEILING` when the marker sets one) —
+brief: the entries, their `searched=` trails, and the resources it may search
+(`{RDR_RESOURCES}`, the source root) — recorded the same
 way. Only its survivors reach the gate as open decisions: ask the user
 one consolidated question listing each with the recommendation
 (ESCALATION RULE) and rewrite the answers in the same form.

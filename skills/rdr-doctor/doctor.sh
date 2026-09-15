@@ -207,6 +207,20 @@ else
             warn "11d usage log points at $RDR_USAGE_LOG whose directory does not exist"
           fi ;;
       esac
+
+      # 11g - the model ceiling. Optional, and unset is a legitimate choice
+      # (every spawn inherits the session model). It is reported because the
+      # failure mode is silent in the other direction: rdr-common
+      # §strong-consult and §model-ceiling both resolve through this var, so
+      # an unset one makes "consult at the strongest tier" mean "consult at
+      # whatever this session happens to be" with nothing saying so. Nothing
+      # validates the STRING - a model id this harness does not offer fails at
+      # spawn time, not here.
+      if [ -n "$RDR_MODEL_CEILING" ]; then
+        echo "  [INFO] 11g model ceiling - $RDR_MODEL_CEILING (judgment-dense spawns raise to it; mechanical legs stay cheap)"
+      else
+        echo "  [INFO] 11g model ceiling unset - every spawn inherits the session model; set RDR_MODEL_CEILING in $MARKER to raise §strong-consult and the heavy authoring spawns"
+      fi
     fi
   fi
 fi

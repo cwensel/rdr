@@ -126,6 +126,19 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 #   stops rather than inferring an answer, and rdr-doctor 12 FAILs.
 # RDR_INTRASTATE="$RDR_HOME/bin/intrastate"
 
+# RDR_MODEL_CEILING — optional. The model a judgment-dense SPAWN is raised to
+#   (rdr-common §model-ceiling). It is the middle rung of the resolution:
+#   a `--model-ceiling <model>` arg beats it, and unset means every spawn
+#   inherits the session model.
+#     unset          spawns inherit the session model — the default
+#     <a model id>   raise §strong-consult, the heavy-profile authoring spawns
+#                    and Stage 8's decision consult to this model
+#   It raises spawns, never the session: a skill cannot change its own model,
+#   so this is how the stronger look lands where judgment is densest while
+#   mechanical legs stay cheap. Name a model this harness actually offers —
+#   nothing validates the string, and an unknown one fails at spawn time.
+# RDR_MODEL_CEILING="claude-opus-5"
+
 # --- workspace membership (WORKSPACE SCOPE ONLY — delete for a repo-local marker) ---
 # The second half of the workspace assertion, here because it reads the contract
 # vars above. $WS matching says only that this marker belongs to this tree; it says
@@ -156,4 +169,4 @@ RDR_SOURCE_REPO="$MYPROJECT_ROOT"
 # }
 # unset _mine _v
 
-export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_USAGE_LOG RDR_INTRASTATE
+export WS MYPROJECT_ROOT RDR_HOME RDR_RECORDS RDR_EVIDENCE RDR_ENV RDR_RESOURCES RDR_SOURCE_REPO RDR_USAGE_LOG RDR_INTRASTATE RDR_MODEL_CEILING
