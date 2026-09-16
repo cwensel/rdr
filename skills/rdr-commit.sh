@@ -20,8 +20,16 @@ rdr_commit() {
   # A record commit needs a lint receipt (`rdr receipt`: linted at/after its last write).
   # A gate closed without lint is refused HERE — the one mechanical choke point — not documented.
   # No usage log bound (exit 2) → note and proceed: the project never opted into the log.
+  #
+  # UNSET IS NOT UNINSTALLED. An empty $RDR_HOME makes the -x test read
+  # `/bin/rdr`, so the skip below would absorb a seam that never bound and
+  # disable the gate silently — the caller already stops on the same var
+  # (`stopped:commit-helper-missing`), so the helper only runs with it bound and
+  # an empty one here means a subshell lost it. Fail closed: a missing install is
+  # a project that never opted in, a missing seam is a broken precondition.
   for p in "$@"; do
     case "$(basename "$p")" in *-postmortem.md) continue;; [0-9][0-9][0-9][0-9]-*.md) ;; *) continue;; esac
+    [ -n "$RDR_HOME" ] || { echo "stopped:commit-seam-unbound (\$RDR_HOME is empty, so the lint receipt cannot be read; re-run §seam-bind in THIS shell)" >&2; return 1; }
     [ -x "$RDR_HOME/bin/rdr" ] || { echo "note:receipt-unavailable (no \$RDR_HOME/bin/rdr)" >&2; continue; }
     out=$("$RDR_HOME/bin/rdr" receipt "$p" 2>&1 >/dev/null); rc=$?
     case "$rc" in 0) ;; 1) echo "stopped:commit-unlinted — $out" >&2; return 1;; *) echo "note:$out" >&2;; esac
