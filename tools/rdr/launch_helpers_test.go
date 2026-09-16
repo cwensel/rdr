@@ -838,7 +838,7 @@ func TestRdrLegTestAuthorRoleIsCountedNotCut(t *testing.T) {
 	if code, out := runScript(t, other, mark, other); code != 0 || !strings.Contains(out, "(implementer)") {
 		t.Errorf("a plain mark is the implementer role: exit %d\n%s", code, out)
 	}
-	if code, out := runScript(t, other, mark, "--role", "auditor", other); code != 2 || !strings.Contains(out, "implementer or test-author") {
+	if code, out := runScript(t, other, mark, "--role", "auditor", other); code != 2 || !strings.Contains(out, "implementer, test-author or verifier") {
 		t.Errorf("an unknown role is refused: exit %d\n%s", code, out)
 	}
 
@@ -893,5 +893,80 @@ func TestRdrLegTestAuthorRoleIsCountedNotCut(t *testing.T) {
 	code, out = runScript(t, repo, legCommit, "-C", repo, "-m", "x")
 	if code != 2 || !strings.Contains(out, "--start <sha>") {
 		t.Errorf("unmarked commit, no --start: want the refusal, got exit %d\n%s", code, out)
+	}
+}
+
+// A leg that audits or verifies rather than implements — a spec audit, a
+// CoVe pass, an adversarial review, a decision grounder — marks `--role
+// verifier`. The mark is what arms a consumer's guard, and three runs'
+// scorecards agree: the legs whose briefs carried no mark are exactly the
+// legs that reached for raw `cat` and `go test`. A verifier has no worklist,
+// so nothing cuts it and it needs no --start/--since; the one that commits
+// (an adversarial reviewer commits the tests it adds) commits under its own
+// subject, since a test it made fail on purpose is not a partial leg.
+func TestRdrLegVerifierRoleArmsTheGuardAndIsNotCut(t *testing.T) {
+	t.Setenv("RDR_INTRASTATE", intrastateBinary(t))
+	t.Setenv("TMPDIR", t.TempDir())
+	dir := installLaunchHelpers(t)
+	mark := filepath.Join(dir, "rdr-leg-mark")
+	repo := t.TempDir()
+	git := func(args ...string) string {
+		t.Helper()
+		out, err := exec.Command("git", append([]string{"-C", repo}, args...)...).CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	git("init", "-q")
+	git("config", "user.email", "leg@test")
+	git("config", "user.name", "leg")
+	git("config", "commit.gpgsign", "false")
+	git("commit", "-q", "--allow-empty", "-m", "init")
+
+	if code, out := runScript(t, repo, mark, "--role", "verifier", repo); code != 0 || !strings.Contains(out, "(verifier)") {
+		t.Fatalf("mark --role verifier: exit %d\n%s", code, out)
+	}
+	if code, out := runScript(t, t.TempDir(), mark, "--role-of", repo); code != 0 || strings.TrimSpace(out) != "verifier" {
+		t.Errorf("--role-of: exit %d, %q", code, out)
+	}
+	// The mark is the point: --query is what rdr-leg-guard asks, and it must
+	// answer yes, or the raw commands stay unrefused for exactly these legs.
+	if code, _ := runScript(t, t.TempDir(), mark, "--query", repo); code != 0 {
+		t.Errorf("a verifier worktree is unmarked to the guard: exit %d", code)
+	}
+
+	// Forty minutes in, with the flags a Phase 2 brief would carry: still not cut.
+	legTest := filepath.Join(dir, "rdr-leg-test")
+	late := strconv.FormatInt(time.Now().Unix()-40*60, 10)
+	code, out := runScript(t, repo, legTest, "-C", repo, "--start", git("rev-parse", "--short", "HEAD"), "--since", late, "--", "sh", "-c", "echo RAN-LATE")
+	if code != 0 {
+		t.Fatalf("verifier run: exit %d\n%s", code, out)
+	}
+	for _, w := range []string{"RAN-LATE", "budget: not asked", "a verifier leg is not budget-bounded"} {
+		if !strings.Contains(out, w) {
+			t.Errorf("output lacks %q:\n%s", w, out)
+		}
+	}
+	if strings.Contains(out, "not run:") || strings.Contains(out, "next: ") {
+		t.Errorf("a verifier run was cut or asked\n%s", out)
+	}
+	// A run with no flags at all is the read-only verifier's form (3a, 3d, 0).
+	if code, out := runScript(t, t.TempDir(), legTest, "-C", repo, "--", "sh", "-c", "echo RAN-BARE"); code != 0 ||
+		!strings.Contains(out, "RAN-BARE") || !strings.Contains(out, "budget: not asked") {
+		t.Errorf("verifier run without --start/--since: exit %d\n%s", code, out)
+	}
+
+	// 3b's commit: its own subject, no [wip] suffix, nothing asked.
+	if err := os.WriteFile(filepath.Join(repo, "adv_test.go"), []byte("package x\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	legCommit := filepath.Join(dir, "rdr-leg-commit")
+	if code, out := runScript(t, t.TempDir(), legCommit, "-C", repo, "-m", "test: adversarial cases"); code != 0 ||
+		!strings.Contains(out, "budget: not asked") || strings.Contains(out, "next: ") {
+		t.Errorf("verifier commit: exit %d\n%s", code, out)
+	}
+	if subj := git("log", "-1", "--format=%s"); subj != "test: adversarial cases" {
+		t.Errorf("verifier subject %q, want it unsuffixed — a test failing on purpose is not a partial leg", subj)
 	}
 }

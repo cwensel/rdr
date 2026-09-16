@@ -2,6 +2,9 @@
 Fields: RDR_PATH NNNN RDR_RESOURCES RDR_HOME WORKTREE ENTRY
 (Fields arrive as `NAME=value` lines; `{NAME}` is that value.)
 
+First call: `{RDR_HOME}/bin/rdr-leg-mark --role verifier {WORKTREE}`; last
+call, the same with `--clear`.
+
 You edit NOTHING — not the record, the artifacts or the source. Your only
 writes are scratch under a private `/tmp/{NNNN}-3d-<DEF id>/` (two grounders
 once collided on one shared file). You receive no other entry and no Phase 3
@@ -24,7 +27,10 @@ names), `rfd` (the RFD/JDR sections it names). Re-ask after each rung with
 searched, none settled it). Never skip a rung, never default `none`.
 
 Read the record through `{RDR_HOME}/bin/rdr inspect …`, never `sed`/`grep`
-the file. Separators `---`, never `===`.
+the file. Source and artifacts through `{RDR_HOME}/bin/rdr-leg-read -C
+{WORKTREE} <path> [--symbol S|--range A-B]`, never `cat`; the `code` rung's
+spike is `rg`/semble, and you run no suite and commit nothing. Separators
+`---`, never `===`.
 
 Return exactly this packet, nothing after it:
 verdict: PASS | NEEDS_DECISION

@@ -11,8 +11,11 @@ import (
 
 // TestBriefTemplatesAreFilledNotAuthored pins the contract launch.md's
 // BRIEFS block makes with prompts/implementation/briefs/: seven templates,
-// each under 2KB (the orchestrator sends a path and fields, so the size is
-// the leaf's read, not the parent's output); every `{FIELD}` a template
+// each under the cap (the orchestrator sends a path and fields, so the size
+// is the leaf's read, not the parent's output — the cap is a per-leaf token
+// budget, not a protocol limit, and rose to 2304 when Phase 3b took its
+// mark/clear pair: 3b is verifier, test author and committer in one leaf,
+// so it carries strictly more contract than its siblings); every `{FIELD}` a template
 // uses is declared on its `Fields:` line, so the orchestrator can fill it
 // from that line alone; and every launch.md block a template cites by its
 // heading line still starts a line there — a renamed PHASE heading would
@@ -60,8 +63,8 @@ func TestBriefTemplatesAreFilledNotAuthored(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if len(body) > 2048 {
-			t.Errorf("%s is %d bytes; the cap is 2048", name, len(body))
+		if len(body) > 2304 {
+			t.Errorf("%s is %d bytes; the cap is 2304", name, len(body))
 		}
 		text := string(body)
 		var declared []string
@@ -93,6 +96,31 @@ func TestBriefTemplatesAreFilledNotAuthored(t *testing.T) {
 		}
 		if !strings.Contains(text, "verdict: ") || !strings.Contains(text, "summary_50w: ") {
 			t.Errorf("%s does not carry the §return-packet", name)
+		}
+		// Every leaf marks its worktree and clears it, in the role launch.md's
+		// BRIEFS block assigns. The marker is what arms a consumer's guard, so
+		// an unmarked leaf is one the guard cannot refuse a raw `cat`, `go
+		// test` or `git commit` in: three runs' scorecards split exactly on
+		// this line, every marking brief using the helpers and every
+		// non-marking one reaching for the raw command.
+		role := map[string]string{
+			"phase-0.md":        "verifier",
+			"phase-1.md":        "test-author",
+			"phase-2.md":        "",
+			"phase-3a.md":       "verifier",
+			"phase-3b.md":       "verifier",
+			"phase-3c.md":       "",
+			"phase-grounder.md": "verifier",
+		}[name]
+		want := "rdr-leg-mark {WORKTREE}"
+		if role != "" {
+			want = "rdr-leg-mark --role " + role + " {WORKTREE}"
+		}
+		if !strings.Contains(text, want) {
+			t.Errorf("%s does not mark its worktree with `%s`; without the mark a consumer's guard is inert for this leaf", name, want)
+		}
+		if !strings.Contains(text, "`--clear`") {
+			t.Errorf("%s marks its worktree but never clears it", name)
 		}
 	}
 }

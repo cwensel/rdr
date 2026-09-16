@@ -13,11 +13,12 @@
 # never in the session's cwd — one leg ran its tests against main and
 # read a plausible green that only mtime forensics caught.
 #
-# In a worktree marked `--role test-author` (a Phase 1 test author) the
-# cap is not read and no budget is asked — `--start`/`--since` may be
-# omitted — but the run still happens in `-C` and is counted: a red
-# confirmation is not budget-bounded, and one that ran in the wrong tree
-# is no confirmation.
+# Only the `implementer` role is budget-bounded. In a worktree marked
+# `--role test-author` or `--role verifier` (rdr-leg-mark) the cap is not
+# read and no budget is asked — `--start`/`--since` may be omitted — but
+# the run still happens in `-C` and is counted: neither a red
+# confirmation nor a verification pass has a next item a cut could hand
+# off to, and a run that landed in the wrong tree is no evidence either way.
 #
 # `--full` marks the ONE full-suite run (the worklist's last item): only
 # then is the run's exit reported as `suite_green`; a package run is
@@ -53,7 +54,7 @@ done
 top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-test: $C is not inside a git checkout" >&2; exit 2; }
 [ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-test: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
 role=$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)
-if [ "$role" != test-author ]; then
+if [ "$role" = implementer ] || [ -z "$role" ]; then
   [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
   case $since in ''|*[!0-9]*) usage "--since <epoch> is the leg's start, in epoch seconds" ;; esac
   [ -f "$M" ] || { echo "stopped:no-routing-model — $M" >&2; exit 2; }

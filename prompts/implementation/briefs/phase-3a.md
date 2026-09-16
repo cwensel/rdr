@@ -3,7 +3,9 @@ Fields: RDR_PATH NNNN RDR_HOME ART WORKTREE BRANCH
 (Fields arrive as `NAME=value` lines; `{NAME}` is that value.)
 
 First call: `cd {WORKTREE}`; if `git branch --show-current` is not {BRANCH},
-return `stopped:worktree-isolation-failed` with no edits.
+return `stopped:worktree-isolation-failed`, no edits; else
+`{RDR_HOME}/bin/rdr-leg-mark --role verifier {WORKTREE}`; last call, the
+same with `--clear`.
 
 Your task is the PHASE 3a block of {RDR_HOME}/prompts/implementation/launch.md
 (from `PHASE 3a` to `PHASE 3b`): read it once. Inputs: {RDR_PATH} and
@@ -23,7 +25,10 @@ Read the record through `{RDR_HOME}/bin/rdr inspect …`, never `sed`/`grep`
 the file. Never edit {RDR_PATH} or the source. Scratch in /tmp, never
 {ART}. Separators `---`, never `===`.
 
-Reads: `{RDR_HOME}/bin/rdr-leg-read -C {WORKTREE} <path> [--symbol S|--range A-B]`, never `cat`.
+ONLY read and test commands, neither budget-cut, each `-C {WORKTREE}` and
+under `{RDR_HOME}/bin/` (never `cat`, `go test`): `rdr-leg-read <path>
+[--symbol S|--range A-B]`, `rdr-leg-test -- <test command>`. You commit
+nothing.
 
 Return exactly this packet, nothing after it:
 verdict: PASS | BLOCK

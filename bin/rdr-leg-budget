@@ -10,9 +10,11 @@
 #
 #   rdr-leg-budget -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> --ask <commit|run>
 #
-# In a worktree marked `--role test-author` (rdr-leg-mark) nothing is
-# asked: it prints `budget: not asked` and exits 0, since a Phase 1 red
-# confirmation is not budget-bounded. Every other role asks the row.
+# Only the `implementer` role is budget-bounded. In a worktree marked
+# `--role test-author` or `--role verifier` (rdr-leg-mark) nothing is
+# asked: it prints `budget: not asked` and exits 0, since neither a
+# Phase 1 red confirmation nor a verification pass has a next item a cut
+# could hand off to. An unmarked worktree asks the row, as before.
 #
 #   commits: N (<bucket>)
 #   elapsed: M min (<bucket>)
@@ -46,8 +48,9 @@ done
 [ -d "$C" ] || { echo "rdr-leg-budget: no such directory: $C" >&2; exit 2; }
 top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-budget: $C is not inside a git checkout" >&2; exit 2; }
 [ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-budget: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
-if [ "$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)" = test-author ]; then
-  echo "budget: not asked — a test-author leg is not budget-bounded; the run or commit still landed in $C and is counted"
+role=$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)
+if [ -n "$role" ] && [ "$role" != implementer ]; then
+  echo "budget: not asked — a $role leg is not budget-bounded; the run or commit still landed in $C and is counted"
   exit 0
 fi
 [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"

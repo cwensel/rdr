@@ -12,8 +12,9 @@
 #   rdr-leg-commit -C <worktree> --start <sha> --since <epoch> --suite-green <true|false> [-m <subject>]
 #
 # `-C` is required and must be the checkout root (rdr-leg-test's reason).
-# In a worktree marked `--role test-author` the subject is committed as
-# given (no suffix: the red suite is the deliverable, not a partial leg),
+# In a worktree marked `--role test-author` or `--role verifier` the
+# subject is committed as given (no suffix: a red suite written on
+# purpose is the deliverable, not a partial leg),
 # `--start`/`--since`/`--suite-green` may be omitted, and nothing is asked.
 #
 # Commits the whole tree (`git add -A`) under <subject>; a red tree
@@ -57,7 +58,7 @@ done
 top=$(git -C "$C" rev-parse --show-toplevel 2>/dev/null) || { echo "rdr-leg-commit: $C is not inside a git checkout" >&2; exit 2; }
 [ "$(cd "$top" && pwd -P)" = "$(cd "$C" && pwd -P)" ] || { echo "rdr-leg-commit: -C must name the checkout root, got $C (root: $top)" >&2; exit 2; }
 role=$(sh "$here/rdr-leg-mark" --role-of "$C" 2>/dev/null)
-if [ "$role" = test-author ]; then
+if [ -n "$role" ] && [ "$role" != implementer ]; then
   green=${green:-false}
 else
   [ -n "$start" ] || usage "--start <sha> is the leg's start SHA from the brief"
@@ -70,7 +71,7 @@ g() { if [ -n "$C" ]; then git -C "$C" "$@"; else git "$@"; fi; }
 
 if [ -n "$(g status --porcelain)" ]; then
   [ -n "$msg" ] || usage "the tree is dirty: -m <subject> names the commit"
-  [ "$role" != test-author ] && [ "$green" = false ] && case $msg in *"[wip]"*) ;; *) msg="$msg [wip]" ;; esac
+  { [ -z "$role" ] || [ "$role" = implementer ]; } && [ "$green" = false ] && case $msg in *"[wip]"*) ;; *) msg="$msg [wip]" ;; esac
   g add -A || exit $?
   g commit -q -m "$msg" || exit $?      # a hook's refusal is printed by git; nothing moved
   echo "committed $(g rev-parse --short HEAD)  $msg"
