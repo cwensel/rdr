@@ -35,6 +35,11 @@ remaining members.
    **Duplicate-seed guard (before claiming):** a kata-id `{IDEA}` already labeled
    `kind:rdr-tracked` means a prior seed was consumed — report its `tracks:`
    target and stop; never mint a duplicate RDR. (`kind:rdr-seed` proceeds normally.)
+   Read that label from the **list** shape, `list --status all --json`
+   filtered to the id, where labels are bare strings on each issue — a
+   tracker's own `show --json` reports `.issue.labels` as `null` even when
+   labels exist, and a guard reading it sees an unlabelled kata and mints the
+   duplicate it exists to refuse.
    This skill does **not** resolve a number — it **allocates** one. Run
    **§rdr-claim**: atomically reserve the next number as `${NNNN}-RESERVED.md`
    *before authoring* (retry-on-collision loop), so concurrent sessions can't both
