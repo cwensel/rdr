@@ -26,7 +26,7 @@ valid report. Write your list to {EVIDENCE_DIR}/<persona-file>.
 
 Where to start reading. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
+  "$RDR_HOME/bin/recs" inspect --json --filter elements,outline {RDR_PATH}
 
 Your persona names which `elements[]`/`outline[]` entries it owns. Read each by
 id — `inspect --select <id> {RDR_PATH}` prints exactly that element's bytes —
@@ -68,7 +68,7 @@ Persona 3 — QA / Tester → persona-3-qa.md
 After all three files land, the **dispatcher consolidates mechanically** — the
 hotspots are a count over the ids, not a model re-judging three files:
 
-    R="$RDR_HOME/bin/rdr"
+    R="$RDR_HOME/bin/recs"
     for f in {EVIDENCE_DIR}/persona-*.md; do "$R" anchors --record <NNNN> "$f"; done \
       | sort | uniq -c | awk '$1>=2'
 

@@ -40,7 +40,7 @@ Claude: /rdr-resolve <NNNN>
    path,metadata <NNNN>` call — never `edges` here. Do not pass a resume
    flag — the RDR's state drives it. "Did refine (or any earlier stage) already run?"
    is answered by `git log --oneline -5 -- "$RDR_PATH"` (stage-named subjects) or
-   `rdr status --tags NNNN` — never by §lens-row, which only names the next lens.
+   `recs status --tags NNNN` — never by §lens-row, which only names the next lens.
 
 ## Review gate (what the human checks — Stage `04-resolve-assumptions.md`)
 

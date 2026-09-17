@@ -44,7 +44,7 @@ doesn't blind §commit's gate — if the block omits it, treat `RDR_AUTOCOMMIT` 
 headless runs) run the resolver as written — same bindings either way.
 
 **Run the block below verbatim — do not abbreviate or paraphrase, and never
-source a marker file directly.** `rdr env` is the resolver, keying off git
+source a marker file directly.** `recs env` is the resolver, keying off git
 topology, so it binds the same seam from a consumer cwd, a worktree, or the flow
 repo. **Nearest marker wins**: a repo-local `$PROJECT/.rdr/workspace` (this
 repo's own RDR env, inside its gitignored `.rdr/` — the default) beats the shared
@@ -58,12 +58,12 @@ repo-local marker's records bind to the worktree toplevel.
 # §seam-bind — copy/run verbatim. Binds every seam var the marker exports.
 GC=$(git rev-parse --git-common-dir 2>/dev/null) || { echo "stopped:not-in-a-project (run /rdr-* from inside the consumer repo)" >&2; exit 1; }
 PROJECT=$(dirname "$(cd "$GC" && pwd -P)"); WS=$(dirname "$PROJECT"); export PROJECT WS
-eval "$("$RDR_HOME/bin/rdr" env)" || exit 1        # stops itself: no-marker / not-in-a-project
+eval "$("$RDR_HOME/bin/recs" env)" || exit 1        # stops itself: no-marker / not-in-a-project
 [ "$RDR_PROJECT" = "$PROJECT" ] || { echo "stopped:foreign-seam:$RDR_MARKER (binds $RDR_PROJECT, not $PROJECT)" >&2; exit 1; }
 ```
 
 **Two properties of that block are load-bearing — never trade them away.**
-`rdr env` answers from the **marker**, ignoring an inherited `RDR_*`, so `eval`
+`recs env` answers from the **marker**, ignoring an inherited `RDR_*`, so `eval`
 *overwrites* a stale var instead of re-exporting it (sourcing had this for
 free). A `--records`/`--repo` flag keeps the opposite rule — one dir named for
 one call is a decision. And the guard catches a **foreign seam**: siblings under
@@ -75,10 +75,10 @@ already on disk. Silent without the guard.
 **Shell state dies between Bash tool calls**, so anything you still need from the
 marker must be bound in the *same* call that uses it. Bind once per call, at the
 top — never carry an `export RDR_…=…` prefix from one call to the next, and never
-re-run this block just to reach `rdr`.
+re-run this block just to reach `recs`.
 
-**`rdr` itself never needs the block** — it finds the marker on its own, so a
-bare `"$RDR_HOME/bin/rdr" inspect …` works with no seam bound. Run §seam-bind
+**`recs` itself never needs the block** — it finds the marker on its own, so a
+bare `"$RDR_HOME/bin/recs" inspect …` works with no seam bound. Run §seam-bind
 when the *shell* needs the vars: `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT`
 (the three the projector never opens), or a path for a later command.
 
@@ -123,7 +123,7 @@ that file lists *modules* (`internal/…/x.go`) anchored at this root, never the
 root itself.
 
 Three more are optional and bound the same way: `$RDR_SOURCE_REPO` (below),
-`$RDR_AUTOCOMMIT` (§commit's gate) and `$RDR_USAGE_LOG`. `rdr env` prints
+`$RDR_AUTOCOMMIT` (§commit's gate) and `$RDR_USAGE_LOG`. `recs env` prints
 whichever of the eight the marker set, plus `$RDR_MARKER` and `$RDR_PROJECT`.
 
 `--repo` defaults to it, so no call spells it out. Unset, or an anchor naming a
@@ -144,13 +144,13 @@ reach it has no routing answer — so it **stops** rather than inferring one.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
-"$RDR_HOME/bin/rdr" status --tags NNNN >/dev/null || exit 2   # test the read before substituting it
+"$RDR_HOME/bin/recs" status --tags NNNN >/dev/null || exit 2   # test the read before substituting it
 ```
 
 Resolution order is `$RDR_INTRASTATE` (marker var, for a binary off PATH), else
 PATH. `/rdr-init` installs it and `/rdr-doctor` check 12 FAILs without it.
 
-The third line guards every `$("$RDR_HOME/bin/rdr" status --tags …)` below: a
+The third line guards every `$("$RDR_HOME/bin/recs" status --tags …)` below: a
 refused read lands its `stopped:…` line in intrastate's argv, which answers
 `unknown command "stopped:…"` and the real refusal is gone. The substitution
 stays inline (zsh does not word-split a captured `$T`), so the read is tested
@@ -166,13 +166,13 @@ spikes — e.g. a real `evidence/tooling-pass/0039-*.md` is **not** an RDR) can 
 be picked:
 
 ```sh
-# One call, no seam needed. `rdr` finds the marker itself for the records dir,
+# One call, no seam needed. `recs` finds the marker itself for the records dir,
 # pads the number (3 -> 0003, decimal, never octal), skips a
 # NNNN-slug-postmortem.md sibling, and names both files on a real collision.
 # On failure it exits 2 having already printed stopped:no-such-record /
 # stopped:ambiguous-record with the directories it searched — let that stand as
 # the stop reason; do not restate it as something else.
-RDR_PATH=$("$RDR_HOME/bin/rdr" inspect --json --filter path "$arg" |
+RDR_PATH=$("$RDR_HOME/bin/recs" inspect --json --filter path "$arg" |
            sed -n 's/.*"path": "\([^"]*\)".*/\1/p' | head -1) || exit 1
 [ -n "$RDR_PATH" ] || { echo "stopped:rdr-not-found:$arg" >&2; exit 1; }
 RDR_SLUG=$(basename "$RDR_PATH" .md)   # e.g. 0046-auto-named-constraint-identity
@@ -208,7 +208,7 @@ read from the file **in the same turn** (an exact-replace with a
 one-occurrence check); retyping from an earlier projection is where edits
 fail. Locating an edit anchor with `grep -n` on the file for a phrase just
 projected is sanctioned; window-reading content that way is not. And never
-silence an `rdr` call's stderr — a `stopped:` line is the answer, not noise. A corpus question
+silence a `recs` call's stderr — a `stopped:` line is the answer, not noise. A corpus question
 ("who cites this", "what is Draft", "what blocks") goes through
 `index --status` / `--backlinks=NNNN[:elem]` / `--cycles` — a few lines each —
 never bare `index --json` (the whole graph, MB, and nothing to grep it for).
@@ -234,31 +234,31 @@ apply. The split is permanent — see the end of this section.
 # §rdr-write. $RDR_HOME/$RDR_PATH/$RDR_RECORDS from §seam-bind.
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 M="$RDR_HOME/models/rdr-write.toml"
-PATH="$RDR_HOME/bin:$PATH"; export PATH   # the model's accessors exec `rdr` by name
+PATH="$RDR_HOME/bin:$PATH"; export PATH   # the model's accessors exec `recs` by name
 BIND=(--artifact record="$RDR_PATH" --artifact readme="$RDR_RECORDS/README.md"
       --tag nnnn=NNNN --allow-commands)
-"$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status >/dev/null || exit 2   # test the read before substituting it
+"$RDR_HOME/bin/recs" status --tags NNNN --except status,readme_status >/dev/null || exit 2   # test the read before substituting it
 
 # lock | readme — resolved AND applied, nothing retyped:
 "$IS" flow resolve --model "$M" "${BIND[@]}" --as json --outcome <lock|readme> \
-  [--tag k=v …] $("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status) \
+  [--tag k=v …] $("$RDR_HOME/bin/recs" status --tags NNNN --except status,readme_status) \
   | "$IS" flow set-state --model "$M" "${BIND[@]}" --as json --plan -
 
 # claim | demote | profile | return | fence | ground — you apply the emit:
 "$IS" flow resolve --model "$M" "${BIND[@]}" --plan-only \
   --outcome <claim|demote|profile|return|fence|ground> [--tag k=v …] \
-  $("$RDR_HOME/bin/rdr" status --tags NNNN --except status,readme_status)
+  $("$RDR_HOME/bin/recs" status --tags NNNN --except status,readme_status)
 ```
 
 `--except status,readme_status` is required: the table OWNS those two, and
 intrastate reads owned state through the model's own accessors, refusing it as
-argv (`flow-tag-owned`). Those accessors are `rdr` itself — hence
+argv (`flow-tag-owned`). Those accessors are `recs` itself — hence
 `--allow-commands` and the binds — so the tool that renders the facts reads them
 back after a write.
 
 **Hence the `PATH` line**, which is not decoration. A declared `command`
 accessor is `exec`d, not run through a shell: argv[0] resolves against `PATH`
-with no expansion (`$RDR_HOME/bin/rdr` execs that literal, relative to the
+with no expansion (`$RDR_HOME/bin/recs` execs that literal, relative to the
 model's own dir) and no placeholder to reach the seam (`{…}` is a closed
 vocabulary — `{artifact}`, `{tag.*}`). A portable model can therefore only
 spell argv[0] bare, so the *caller* supplies the path. Without the line the
@@ -291,7 +291,7 @@ value), `user_facing=<yes|no|unknown>` and `locks=<none|contract|format|cross-rd
 
 The table routes structure and status, never judgement: the gate verdict, the
 demotion call and the Profile's two dispositions arrive as your `--outcome` and
-tags. `rdr` stays read-only — it renders the facts and reads them back; it never
+tags. `recs` stays read-only — it renders the facts and reads them back; it never
 writes. A write re-arms the lint receipt (§commit).
 
 **Why only those two.** An `edit` writer substitutes a planned VALUE into an
@@ -368,15 +368,15 @@ output is the one thing NOT under the record: it is keyed by the cluster, at
 `<RDR_EVIDENCE>/cluster-reconcile/<key>/`, because the report is about the set,
 not about any one member. The key is the members' record numbers joined and
 sorted (`0117-0118`, `0122-0123-0130-0131-0132`) — so the key IS the membership,
-which is what lets `rdr status` answer 7.1 exactly instead of searching. Name a
+which is what lets `recs status` answer 7.1 exactly instead of searching. Name a
 new run's directory that way; a topical key (`dml-purpose`) is a pre-2026-06-29
 shape that no longer reads.
-**Ask for the dir; never compose one** — `rdr paths` answers from the same
-declarations `rdr status`'s probes read, so what you write to and what the
+**Ask for the dir; never compose one** — `recs paths` answers from the same
+declarations `recs status`'s probes read, so what you write to and what the
 navigator checks cannot drift apart:
 
 ```sh
-eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"
+eval "$("$RDR_HOME/bin/recs" paths --lens <lens> --next-iter <NNNN>)"
 mkdir -p "$ITER_DIR"   # the projector names, it never creates
 # EVIDENCE_DIR the lens dir · ITER/ITER_DIR where this pass writes
 # ITER_FOUND/ITER_NOTE what was on disk (a gap is named, not hidden)
@@ -398,7 +398,7 @@ source-search resolve records its verdicts inline in the RDR (CAs flip to
 "no lens/spike artifact yet," **not** "Resolve hasn't run" — the CA verdicts in
 the RDR body are the authority for Resolve-done. A consumer either points
 `$RDR_EVIDENCE` at its own dir/repo or leaves it defaulting to `$RDR_RECORDS`
-(evidence beside artifacts under one `<RDR_SLUG>/`); `rdr paths` answers under
+(evidence beside artifacts under one `<RDR_SLUG>/`); `recs paths` answers under
 both without being told which.
 
 ## §model-stamp — every lens evidence file records its producing model
@@ -435,7 +435,7 @@ and scope themselves. The skills carry **no `--resume` flag** — re-entry is a
 property of the RDR's on-disk state, which the prompt already inspects.
 
 **Author rulings live in `rulings.md`** at the record's evidence base
-(`eval "$("$RDR_HOME/bin/rdr" paths NNNN)"` → `$RDR_ROOT_EVIDENCE/rulings.md`), one
+(`eval "$("$RDR_HOME/bin/recs" paths NNNN)"` → `$RDR_ROOT_EVIDENCE/rulings.md`), one
 `- **<Qn|fixture|fork>** — RULED: <verbatim>` line each under a `## <date> — <asking
 stage>` heading. A stage reads it before the record, applies every line with no
 `absorbed @` tail, and appends ` — absorbed @<stage> <date>` to each it applied.
@@ -461,7 +461,7 @@ run-plan.md).
   **The spawn prompt carries the projector.** A sub-agent loads no SKILL.md and
   no rdr-common, so it reads the record however it can — `sed -n`/`grep`/`awk`
   by line range, every call a turn. Paste into its prompt: the absolute
-  `$RDR_HOME/bin/rdr`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list,
+  `$RDR_HOME/bin/recs`, `$RDR_PATH`, and the three reads — `inspect NNNN` (id list,
   under 20KB, never `| head`), `inspect --select NNNN:A7 NNNN` / `NNNN:§section`,
   `--json --filter metadata` — with "never `sed`/`grep` the record". The spawn
   prompt also carries the shell rule: output separators are `---`, never `===` — zsh aborts an unquoted
@@ -674,11 +674,11 @@ one rule, which is a guarantee prose cannot give.
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
-"$RDR_HOME/bin/rdr" status --tags "$NNNN" >/dev/null || exit 2   # §intrastate
+"$RDR_HOME/bin/recs" status --tags "$NNNN" >/dev/null || exit 2   # §intrastate
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
-  --outcome lens $("$RDR_HOME/bin/rdr" status --tags "$NNNN")
+  --outcome lens $("$RDR_HOME/bin/recs" status --tags "$NNNN")
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --plan-only \
-  --outcome floor $("$RDR_HOME/bin/rdr" status --tags "$NNNN")   # the accretion floor on Profile
+  --outcome floor $("$RDR_HOME/bin/recs" status --tags "$NNNN")   # the accretion floor on Profile
 ```
 
 (`--plan-only` drops the ~50-line `observed.*` echo of the tags — the one
@@ -743,7 +743,7 @@ writes `Determinacy: fired — …` or `Determinacy: n/a — …` in Normative C
 Cited by the 02/03/04 stage prompts, not by any SKILL.md — a SKILL-only reference
 count reads this as dead; it is not.
 
-Propose, refine, and resolve close by running `rdr lint`, then judging its
+Propose, refine, and resolve close by running `recs lint`, then judging its
 `placeholder:survived` findings against what this stage's `Advance when`
 requires authored. Any hit in a section this stage owed → fix now, or close
 `Gate: NOT READY (mechanical: <item>)`. This is the Stage-7 tooling-pass
@@ -753,8 +753,8 @@ section once survived propose, refine, resolve, and four lenses as verbatim
 template text.)
 
 ```sh
-"$RDR_HOME/bin/rdr" lint "$NNNN"                            # placeholder:survived + the structural share; header: blocking=N resolution=N placeholder=N advisory=N
-"$RDR_HOME/bin/rdr" status --tags --filter anchors_total,anchors_unresolved,anchors_unlooked,peer_evidence_unresolved "$NNNN"   # the anchor counts (on demand: only when named); --filter edges only to read WHICH
+"$RDR_HOME/bin/recs" lint "$NNNN"                            # placeholder:survived + the structural share; header: blocking=N resolution=N placeholder=N advisory=N
+"$RDR_HOME/bin/recs" status --tags --filter anchors_total,anchors_unresolved,anchors_unlooked,peer_evidence_unresolved "$NNNN"   # the anchor counts (on demand: only when named); --filter edges only to read WHICH
 ```
 
 **The tool reports the text; the stage judges the obligation.** A finding says
@@ -764,9 +764,9 @@ still above it. Which sections this stage owed authored is the stage's call,
 and the two messages separate the cases: a block over an *unfilled skeleton*
 is always a fix, a block over authored content is a deletion.
 
-`rdr lint` also does the structural share: unlabelled contracts, Peer-RDR
+`recs lint` also does the structural share: unlabelled contracts, Peer-RDR
 Evidence naming a record not an element, unresolvable typed references — and
-leaves the receipt §commit demands (`rdr receipt <NNNN>`: a lint at/after the
+leaves the receipt §commit demands (`recs receipt <NNNN>`: a lint at/after the
 record's last write, else the commit is refused). `conformance` findings are
 advice the rewriting stage applies in-pass (label contracts `C1..Cn`);
 `resolution` findings are the fix-now class, and the only ones that block
@@ -776,7 +776,7 @@ is the one sanctioned amendment to a locked RDR.
 
 For anchors, `resolved` is **three-valued** (§source-root): `true`, `false`, or
 **absent** — nothing looked. Absent is neither pass nor fail; the gate says the
-check did not run rather than closing over it. `rdr index --unresolved` is the
+check did not run rather than closing over it. `recs index --unresolved` is the
 corpus-wide form.
 
 **Cadence: twice per stage, not per edit.** A baseline lint before the first
@@ -857,7 +857,7 @@ per-spawn model control, pass it at the spawn (`Agent(…, model: <resolved>)`);
 where it does not, run at session model and note it in the report.
 
 **Model-adequacy fork (heavy RDRs, before any authoring).** Heavy = `profile`
-`large`/`foundational`, or `seam_lineage=2+` in `rdr status --tags` (the `floor`
+`large`/`foundational`, or `seam_lineage=2+` in `recs status --tags` (the `floor`
 row Stage 2 applies). The authoring model is a design input; decide it *before* tokens are
 spent — at stage start nothing is written, so cancel is free. Resolve:
 
@@ -948,8 +948,8 @@ A writing stage already knows the exact files it wrote — `$RDR_PATH`,
 `$RDR_RECORDS/README.md`, and its `$RDR_EVIDENCE/$RDR_SLUG/evidence/<subdir>` — bound by
 §seam-bind + §rdr-resolve. So it can commit *those paths and nothing else* without ever
 running `git status` / `git add -A` / inspecting "what's dirty". A record path is
-committed only with a lint receipt (`rdr receipt`; refused as `stopped:commit-unlinted`
-— run `rdr lint NNNN` after the last write, then retry), and signed per the TARGET
+committed only with a lint receipt (`recs receipt`; refused as `stopped:commit-unlinted`
+— run `recs lint NNNN` after the last write, then retry), and signed per the TARGET
 repo's `commit.gpgsign` (a signing failure is `stopped:commit-sign-failed`: nothing moves,
 the paths stay written — fix the signer, never retry unsigned). This is the whole point:
 **no reconnaissance, no round-trip, and no confusion about what this session owns** —
@@ -976,7 +976,7 @@ exports in the workspace/`.rdr` marker to default-on a project; unset/false = of
 `--commit` arg forces on for this run, `--no-commit` forces off. Precedence:
 `--no-commit` > `--commit` > `RDR_AUTOCOMMIT` > off. Resolve it with `rdr_autocommit_on`
 below and skip §commit entirely when it returns false (the human commits manually).
-The var is read from a fresh `eval "$("$RDR_HOME/bin/rdr" env)"` in the shell
+The var is read from a fresh `eval "$("$RDR_HOME/bin/recs" env)"` in the shell
 that commits — never restated from session memory (a resumed session's recall
 can force-commit a project that has it off).
 

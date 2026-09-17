@@ -192,8 +192,8 @@ Read the Problem Statement and Context, then:
    peer body opened, scoped to this RDR's rows (`<slug>` = its filename stem):
 
    ```sh
-   "$RDR_HOME/bin/rdr" index --anchor-intersect --json --record <slug>   # arm 1
-   "$RDR_HOME/bin/rdr" index --literal-intersect --json --record <slug>  # arm 2
+   "$RDR_HOME/bin/recs" index --anchor-intersect --json --record <slug>   # arm 1
+   "$RDR_HOME/bin/recs" index --literal-intersect --json --record <slug>  # arm 2
    ```
 
    Each emits `overlaps[]` `{records[], anchors[], cited}`, in-flight by default
@@ -210,7 +210,7 @@ Read the Problem Statement and Context, then:
    previously-empty cell, removes a guard, classifies the
    previously-unclassified), grep `Final` peers for the refusal token itself
    (the error / `unclassified` / refused literal): a Final peer *relying on the
-   refusal* is a FIRE. Open peers = `"$RDR_HOME/bin/rdr" status --json --filter status`
+   refusal* is a FIRE. Open peers = `"$RDR_HOME/bin/recs" status --json --filter status`
    `records[].path` (this record included is harmless: the token is absent
    from it by definition). This arm is not convertible: it searches for a token
    *because it is absent from the new proposal*, so it needs the proposal rather

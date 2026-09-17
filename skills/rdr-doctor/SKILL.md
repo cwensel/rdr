@@ -9,7 +9,7 @@ description: 'Use to verify an RDR setup. Read-only health check for the seam, f
 
 Read-only health check. Runs the same resolution every `/rdr-*` skill's §seam-bind
 does, but checks **every** invariant (never stops at the first failure) — the seam,
-the engine layout, the skill links, and the `rdr` projector binary — and reports
+the engine layout, the skill links, and the `recs` projector binary — and reports
 each with the one command that fixes it. The answer to "a skill said `stopped:…` —
 what's wrong?" It **writes nothing** — sources the marker, stats paths. Safe anytime,
 from any repo or worktree.
@@ -61,12 +61,14 @@ rejected. A green self-test means the contract guard still binds; a FAIL means a
 edit regressed the close packet or the fixtures. Advisory, never a seam FAIL; skip if
 the script is absent.
 
-**Projector (checks 11/11b).** The script checks `$RDR_HOME/bin/rdr` exists, runs,
+**Projector (checks 11/11b).** The script checks `$RDR_HOME/bin/recs` exists, runs,
 and reports the engine revision it was stamped with. Absent or unrunnable is a
 **FAIL** — the skills read records through it, and `/rdr-init` builds it. A binary
 whose stamp trails the engine (a plugin upgrade or a `git pull` moved the engine and
 left the old build) is a **WARN**, not a FAIL: it still answers, it is just behind.
 A `dev` stamp means someone built it by hand rather than through `/rdr-init`.
+**11g** checks the `bin/rdr` symlink: frozen records spell the command that way and
+are never amended. Missing is a **WARN** — the live flow calls `recs`.
 **11d** reports the usage log; off is a **WARN** only when autocommit is on, because
 the log is the lint receipt `§commit` refuses a record without — off means unlinted
 records commit unchecked.
@@ -81,7 +83,7 @@ Closed-by-escape warns too — closed is not proved. **12b** FAILs when that bin
 
 - **Read-only?** No file/symlink written, nothing installed — the doctor diagnoses;
   `/rdr-init` (or the user) repairs. Checks 11/11b only *read* the binary
-  (`rdr version`) — the doctor never builds it.
+  (`recs version`) — the doctor never builds it.
 - **Complete?** Every check ran; one FAIL never skips the rest.
 - **Each FAIL names one fix?** No "might be" — the command.
 

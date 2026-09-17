@@ -335,7 +335,7 @@ elif [ -f "$WS/.rdr-workspace" ];      then . "$WS/.rdr-workspace"      || exit 
 else echo "no marker in $PROJECT/.rdr or $WS — run /rdr-init" >&2; fi
 ```
 
-At runtime a skill does not hand-write that block: `rdr env` applies the same
+At runtime a skill does not hand-write that block: `recs env` applies the same
 rule and prints the bound seam (plus `$RDR_MARKER` / `$RDR_PROJECT`), answering
 from the marker so an inherited `RDR_*` cannot leak one project's seam into
 another — see `skills/rdr-common.md` §seam-bind. The shell form above is the
@@ -402,7 +402,7 @@ by scope: a repo-local marker tests **equality** on `$PROJECT`; a workspace
 marker anchors `$WS` and legitimately describes several sibling repos, so it
 tests `$WS` equality **and membership** — this repo must hold one of the four
 seam paths (`RDR_SOURCE_REPO`, `RDR_RECORDS`, `RDR_EVIDENCE`, `RDR_ENV`), the
-rule doctor.sh check 1b already applies from its own resolver. `rdr env` carries
+rule doctor.sh check 1b already applies from its own resolver. `recs env` carries
 the marker's refusal out and exits 1, so a refusal never reads as a repo that was
 never configured. Markers written before this still bind; adding the anchor is a
 `/rdr-init --reconfigure` (per-machine config, nothing versioned).
@@ -467,7 +467,7 @@ must stand alone — the reader pastes the block, not this README.
   most common internal-defect class — so the cure is deletion, not a lint to keep
   them in sync.
 - **Exact state lives in a tool call, never in prose.** The *state* — counts,
-  ids, edges, anchor tallies, list diffs — comes from `rdr` (or a scoped grep);
+  ids, edges, anchor tallies, list diffs — comes from `recs` (or a scoped grep);
   the *transition* — which stage, lens, or gate verdict follows from that state
   — comes from `intrastate` over the routing models. Each returns a value that
   is then *used as a value*, never re-walked or re-transcribed step by step,

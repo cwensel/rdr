@@ -11,11 +11,11 @@ Your task is the PHASE 0 block of {RDR_HOME}/prompts/implementation/launch.md
 (from the line `PHASE 0 —` to the line `PHASE 1 —`): read that block once,
 then do its four steps — `{ART}/req-list.md` (REQ-N exact quotes with element
 ids, EXCLUDED, ASSUMPTION, QUESTIONS) and `{ART}/impact.md` via
-`{RDR_HOME}/bin/rdr impact {NNNN} --literal … > {ART}/impact.md`. Create {ART}
+`{RDR_HOME}/bin/recs impact {NNNN} --literal … > {ART}/impact.md`. Create {ART}
 if missing. Predecessor req-list/deviations to read first: {PREDECESSOR_ARTIFACTS}.
 
 Read the record through the projector, never `sed`/`grep` the record file:
-`{RDR_HOME}/bin/rdr inspect {NNNN}` (the id list), `inspect --json --filter
+`{RDR_HOME}/bin/recs inspect {NNNN}` (the id list), `inspect --json --filter
 elements,counts {RDR_PATH}`, `inspect --select {NNNN}:C4 {RDR_PATH}` (exact
 bytes — batch selects by summed line range, ~250 lines a call, read each id
 once). Source and artifacts through `{RDR_HOME}/bin/rdr-leg-read -C

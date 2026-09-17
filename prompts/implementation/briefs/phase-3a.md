@@ -21,7 +21,7 @@ violation: append the line-leading `## Verdict — clean` under your heading
 — an absent file reads as an unrun Phase 3 and stops the gate. Append with
 a heredoc (`>>`); 3b writes the same file, after you.
 
-Read the record through `{RDR_HOME}/bin/rdr inspect …`, never `sed`/`grep`
+Read the record through `{RDR_HOME}/bin/recs inspect …`, never `sed`/`grep`
 the file. Never edit {RDR_PATH} or the source. Scratch in /tmp, never
 {ART}. Separators `---`, never `===`.
 

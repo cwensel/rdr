@@ -28,14 +28,14 @@ say so and point at `/rdr-implement NNNN`.
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** to bind `$RDR_ENV`,
    `$RDR_RESOURCES`, and `$RDR_RECORDS` (the consumer's RDR directory, exported by the
    marker). The output base comes from
-   `eval "$("$RDR_HOME/bin/rdr" paths --cluster <key> --next-iter <NNNN>)"` →
+   `eval "$("$RDR_HOME/bin/recs" paths --cluster <key> --next-iter <NNNN>)"` →
    `$EVIDENCE_DIR` and `$ITER_DIR` (§evidence). `<key>` is the resolved members'
    record numbers joined in ascending order — `0117-0118`,
-   `0122-0123-0130-0131-0132`. The key is the membership, and `rdr status` reads
+   `0122-0123-0130-0131-0132`. The key is the membership, and `recs status` reads
    it to answer 7.1; a topical name (`dml-purpose`) is a pre-2026-06-29 shape and
    reads as never reconciled. Use the members the stage RESOLVED, not the ones
    proposed: a dropped candidate is not in the key.
-2. **Build the cluster**: `"$RDR_HOME/bin/rdr" index --json --cluster-of NNNN --closure --final-unimplemented`
+2. **Build the cluster**: `"$RDR_HOME/bin/recs" index --json --cluster-of NNNN --closure --final-unimplemented`
    is the membership — `cluster[]` is the set (relation and `via` per member),
    `out_of_scope[]` the record of what was dropped and why; a `candidate` is
    confirmed (re-run with it as a second seed) or dismissed, never expanded

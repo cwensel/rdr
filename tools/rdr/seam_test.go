@@ -399,7 +399,7 @@ func TestCommitRefusesARecordWithoutALintReceipt(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(home, "bin"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	build := exec.Command("go", "build", "-o", filepath.Join(home, "bin", "rdr"), ".")
+	build := exec.Command("go", "build", "-o", filepath.Join(home, "bin", "recs"), ".")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build: %v\n%s", err, out)
 	}
@@ -450,7 +450,7 @@ func TestCommitRefusesARecordWithoutALintReceipt(t *testing.T) {
 	if code, out := commit(); code != 1 || !strings.Contains(out, "stopped:commit-unlinted") {
 		t.Fatalf("unlinted record: exit %d %q, want 1 stopped:commit-unlinted", code, out)
 	}
-	lint := exec.Command(filepath.Join(home, "bin", "rdr"), "lint", "--records", repo, "0007")
+	lint := exec.Command(filepath.Join(home, "bin", "recs"), "lint", "--records", repo, "0007")
 	lint.Env = append(os.Environ(), "RDR_USAGE_LOG="+log)
 	if out, err := lint.CombinedOutput(); err != nil {
 		if ee, ok := err.(*exec.ExitError); !ok || ee.ExitCode() > 1 {

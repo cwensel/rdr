@@ -33,7 +33,7 @@ they consume — state it once, here:
   as an immutable contract.
 - **MVV in scope** (Stage 7 Scope Verification) — Phase 1 turns it into
   `REQ-MVV`, the runnable end-to-end test.
-- **Predecessors COMPLETE** — `predecessors_state=complete` (`rdr status`;
+- **Predecessors COMPLETE** — `predecessors_state=complete` (`recs status`;
   `stopped:predecessor-incomplete:<predecessors_incomplete>` otherwise). This is
   the same gate the TEMPLATE's Predecessors field names; launch.md's PRECHECKS
   resolve it and halt otherwise.

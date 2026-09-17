@@ -25,7 +25,7 @@ func anchorsLines(t *testing.T, args ...string) []string {
 	t.Helper()
 	code, out, errb := runCapture(t, append([]string{"anchors"}, args...)...)
 	if code != 0 {
-		t.Fatalf("rdr anchors %s: exit %d: %s", strings.Join(args, " "), code, errb)
+		t.Fatalf("recs anchors %s: exit %d: %s", strings.Join(args, " "), code, errb)
 	}
 	out = strings.TrimSpace(out)
 	if out == "" {

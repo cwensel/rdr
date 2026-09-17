@@ -1,6 +1,14 @@
-# `rdr` — a read-only projector for RDR records
+# `recs` — a read-only projector for RDR records
 
-`rdr` reads RDR markdown and projects it as data. It never writes to a
+It installs as `$RDR_HOME/bin/recs`, and `$RDR_HOME/bin/rdr` is a symlink
+to it. The binary reads the engine's numbered records, so a name that is
+one document kind's acronym would misdescribe it — and `rdr` is already
+the repo, the records dir, the kata project, the skills prefix and the
+seam vars. Frozen records and evidence spell the command `bin/rdr`; their
+content is never amended, and the symlink keeps every one of those
+spellings runnable.
+
+`recs` reads RDR markdown and projects it as data. It never writes to a
 record: **markdown remains the source of truth**, and everything here is a
 view of it. If the model and a record disagree, the record is right and the
 model has drift to fix.
@@ -16,21 +24,21 @@ edge graph. `lint` is the conformance authority (§Lint).
 Flags precede the positional argument — Go's flag parser stops at the
 first non-flag word.
 
-    rdr inspect 55                         # sections (§, nested) then elements, one line each: id, range, byte size, label
-    rdr inspect --grep 'RetryBudget' 0055  # which elements hold the literal (case-sensitive): id, range, hit lines, first match; a miss is no-match at exit 0
-    rdr inspect --touched-since abc123 --json 0055   # which ids the diff from that rev to the working tree overlaps: .touched[].{id,kind,line_start,line_end}, the hunks beside them
-    rdr inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
-    rdr inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
-    rdr inspect --select 0055:C4 0055      # the bytes the id names
-    rdr inspect --select edges 0055        # the typed relations alone
-    rdr inspect --select 0055:A1 --select 0055:C4 0055   # several, in order; text is the bytes in sequence, --json an array
-    rdr inspect 0055 0056 0057             # a named set: each record's projection in turn, --json with identity per row
-    rdr inspect cli/0055:C4                # the corpus's own citation spelling, as printed by lint, reaches the bytes
-    rdr index --derived --records ../rdr/cli
-    rdr index --coverage --records ../rdr/cli
-    rdr index --unresolved --records ../rdr/cli --repo ../src
-    rdr index --cluster-of 0130 --records ../rdr/cli
-    rdr impact 0113 --literal '.dml.sql'   # the predecessor tests the record's changes will turn red: rows by family, from its override/predecessor edges and the retired literals
+    recs inspect 55                         # sections (§, nested) then elements, one line each: id, range, byte size, label
+    recs inspect --grep 'RetryBudget' 0055  # which elements hold the literal (case-sensitive): id, range, hit lines, first match; a miss is no-match at exit 0
+    recs inspect --touched-since abc123 --json 0055   # which ids the diff from that rev to the working tree overlaps: .touched[].{id,kind,line_start,line_end}, the hunks beside them
+    recs inspect --json 0055                # the envelope: outline, elements, anchors, metadata, fields, edges, warnings, coverage, counts
+    recs inspect --json --filter metadata,counts 0055   # only those keys — one call, ~4% of the envelope
+    recs inspect --select 0055:C4 0055      # the bytes the id names
+    recs inspect --select edges 0055        # the typed relations alone
+    recs inspect --select 0055:A1 --select 0055:C4 0055   # several, in order; text is the bytes in sequence, --json an array
+    recs inspect 0055 0056 0057             # a named set: each record's projection in turn, --json with identity per row
+    recs inspect cli/0055:C4                # the corpus's own citation spelling, as printed by lint, reaches the bytes
+    recs index --derived --records ../rdr/cli
+    recs index --coverage --records ../rdr/cli
+    recs index --unresolved --records ../rdr/cli --repo ../src
+    recs index --cluster-of 0130 --records ../rdr/cli
+    recs impact 0113 --literal '.dml.sql'   # the predecessor tests the record's changes will turn red: rows by family, from its override/predecessor edges and the retired literals
 
 Go stdlib only — no third-party dependencies, by design. RDR markdown is
 line-oriented (headings, fences, bullet trees with bold labels), so a line
@@ -43,7 +51,7 @@ and a static binary gives `rdr-doctor` one thing to check for.
 
 ## What this tool is for
 
-`rdr` exists to make the **skills in this repo** cheaper and more
+`recs` exists to make the **skills in this repo** cheaper and more
 reliable, and that is the only measure of a change to it. Before it
 existed, every turn of the flow that needed a structural fact about a
 record — its Status, which sections are filled, how many assumptions are
@@ -193,7 +201,7 @@ What still binds, mechanically:
 | `TestBulletGateProjectsTheSameItems` | a gate written as a labelled list projects the same keys as one written as sub-headings, and the two shapes never both fire |
 | `TestMethodVocabularyMatchesREADME` | the eight Method labels match this README's authoritative list — still two documents, so still a real check |
 | `TestLoadReadsWhatTheTemplateStates` | the loader returns the values `TEMPLATE.md` visibly writes |
-| `TestSidecarDeclaresWhatTheReaderNeeds` | every minted element kind has a section, and the lifecycle sets are the ones lint and `rdr status` depend on |
+| `TestSidecarDeclaresWhatTheReaderNeeds` | every minted element kind has a section, and the lifecycle sets are the ones lint and `recs status` depend on |
 | `TestSidecarRefusesRatherThanSkips` | an unrecognised sidecar shape is an error naming it, never a silent default |
 | `TestObservedSectionsResolve` | the one label table left in Go — the corpus-derived `Observed` tier — still names sections the template has |
 | `TestFixturesKeepTheirShapeSignals` | the fixture set still spans the shapes the corpus contains |
@@ -319,7 +327,7 @@ it is exactly what a reword or a move breaks.
 
 `Method: Peer RDR` Evidence names an element, never a bare record. A
 citation that resolves to a whole 4,000-line record has named a document,
-not a reason — `rdr lint` reports it as `peer-evidence:no-element`.
+not a reason — `recs lint` reports it as `peer-evidence:no-element`.
 
 **Content is never amended; structure is migrated.** A terminal record's
 prose, verdicts and decisions are frozen. Its *structure* may be brought
@@ -337,7 +345,7 @@ records get labels the same way, in-pass.
 
 ## Lint
 
-`rdr lint [<NNNN>] [--locking]` is the conformance authority: one pass,
+`recs lint [<NNNN>] [--locking]` is the conformance authority: one pass,
 three severities, and a rule about which records each may speak about.
 With no argument it lints the whole records dir. It exits 0 on PASS —
 findings or not — and 1 when a finding blocks a lock.
@@ -625,7 +633,7 @@ whose structure is fully read but whose reference is untyped is not that.
 
 ### Queries over the graph
 
-`rdr index` projects the whole records dir once — sub-second over a
+`recs index` projects the whole records dir once — sub-second over a
 143-record corpus, byte-deterministic, no cache to go stale — and answers
 the corpus-level questions the flow used to answer by opening every file.
 
@@ -639,24 +647,24 @@ graph, three edge kinds and a direction test — and so resolves nothing:
 is `inspect`'s rule at corpus scale: resolve when a facet can show it,
 never because the corpus happened to be in hand.
 
-    rdr index [--json]            # the graph: records, elements, edges, derived backlinks
-    rdr index --status            # records grouped by status
-    rdr index --backlinks         # the reverse edge set, transposed — never re-parsed
-    rdr index --backlinks=0055:C4 # who cites this contract — typed edges and mentions
-    rdr index --backlinks=0055    # who cites this record or anything in it
-    rdr index --cluster-of N      # Stage 7.1's membership rule, as a query
-    rdr index --cluster-of N[,M] --closure --final-unimplemented   # 7.1 step 1: the rule to a fixpoint, scoped; out_of_scope[] says what was dropped and why
-    rdr index --topo[=N,M,…]      # build order over predecessor edges: Kahn, ties by Priority then number; cycles[] and external[] apart
-    rdr index --topo=N,M --edges predecessors,overrides   # …with override edges: an overridden record builds before its overrider
-    rdr index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
-    rdr index --literal-intersect # in-flight pairs whose contracts share a literal, uncited first
-    rdr index --anchor-intersect --record 0113   # only the pairs touching one record; also --literal-intersect, --open-joint
-    rdr index --json --filter records,elements   # only the named graph keys
-    rdr index --unresolved        # typed edges whose target was looked for and not found
-    rdr index --readme[=PATH]     # the README index table checked against the records
-    rdr index --row-json 0055     # ONE record's index row, as JSON; reads no records
-    rdr index --derived           # the labelling backlog per record, structural ids apart
-    rdr index --coverage          # the drift alarm (§The resilience contract)
+    recs index [--json]            # the graph: records, elements, edges, derived backlinks
+    recs index --status            # records grouped by status
+    recs index --backlinks         # the reverse edge set, transposed — never re-parsed
+    recs index --backlinks=0055:C4 # who cites this contract — typed edges and mentions
+    recs index --backlinks=0055    # who cites this record or anything in it
+    recs index --cluster-of N      # Stage 7.1's membership rule, as a query
+    recs index --cluster-of N[,M] --closure --final-unimplemented   # 7.1 step 1: the rule to a fixpoint, scoped; out_of_scope[] says what was dropped and why
+    recs index --topo[=N,M,…]      # build order over predecessor edges: Kahn, ties by Priority then number; cycles[] and external[] apart
+    recs index --topo=N,M --edges predecessors,overrides   # …with override edges: an overridden record builds before its overrider
+    recs index --anchor-intersect  # in-flight pairs sharing code anchors, uncited first
+    recs index --literal-intersect # in-flight pairs whose contracts share a literal, uncited first
+    recs index --anchor-intersect --record 0113   # only the pairs touching one record; also --literal-intersect, --open-joint
+    recs index --json --filter records,elements   # only the named graph keys
+    recs index --unresolved        # typed edges whose target was looked for and not found
+    recs index --readme[=PATH]     # the README index table checked against the records
+    recs index --row-json 0055     # ONE record's index row, as JSON; reads no records
+    recs index --derived           # the labelling backlog per record, structural ids apart
+    recs index --coverage          # the drift alarm (§The resilience contract)
 
 `--anchor-intersect` is the after-propose scan: two in-flight records
 citing the same `path::Symbol` with no edge of any kind between them are
@@ -821,7 +829,7 @@ of a record's non-blank lines that lie inside a warning's range
 (`coverage` in the envelope). It is exactly zero on a record that
 conforms to the template and near zero over the whole corpus, and a rise
 after a `TEMPLATE.md` change is the drift alarm — it points at the
-template entry the same-commit rule required and did not get. `rdr index
+template entry the same-commit rule required and did not get. `recs index
 --coverage` reports it per record and in total, with warnings by code,
 and lists every unknown heading and author label that recurs across
 three or more records: one record's invention is the author's, the same
@@ -1000,7 +1008,7 @@ Every var this binary reads is written in a marker file the flow already
 maintains, so it reads the marker rather than waiting to be told.
 
     cd anywhere/in/the/project
-    rdr status                     # no --records, no exports, no seam bound
+    recs status                     # no --records, no exports, no seam bound
 
 From the working directory it walks up for the project root, applies the
 flow's own nearest-marker-wins rule (a repo-local `.rdr/workspace` beats
@@ -1036,7 +1044,7 @@ so an exported var cannot mask a broken bind.
 `$RDR_EVIDENCE` and `$RDR_HOME` joined that list when the fact table
 landed (§Facts). Neither is a records path: the first roots the exact-path
 probes a fact declares, the second is where the fact table itself lives.
-`rdr env` publishes every seam var the marker set, including the three this
+`recs env` publishes every seam var the marker set, including the three this
 tool never opens — `$RDR_ENV`, `$RDR_RESOURCES`, `$RDR_AUTOCOMMIT` — which
 were the only reason `§seam-bind` still carried a shell resolver.
 
@@ -1052,7 +1060,7 @@ for the caller's own guard.
 
 ## Paths
 
-`rdr paths` answers the two questions six skill and prompt sites used to
+`recs paths` answers the two questions six skill and prompt sites used to
 build by hand: where does this lens write, and which iteration is next.
 
 It exists because a restatement is a copy that can go stale alone, and two
@@ -1094,7 +1102,7 @@ one file; a tree that declares no cap gets no bucket.
 
 ## Anchors
 
-`rdr anchors --record NNNN FILE...` prints, sorted and unique, the element
+`recs anchors --record NNNN FILE...` prints, sorted and unique, the element
 ids the files cite that the record's projection mints — the same outline,
 element and anchor ids `inspect` lists. Findings ledgers anchor rows to
 those ids, so reconciling a re-run against its origin ledger is `comm -13`
@@ -1112,7 +1120,7 @@ makes that explicit).
 
 ## Impact
 
-`rdr impact <record> [--literal TOKEN]...` predicts which predecessor
+`recs impact <record> [--literal TOKEN]...` predicts which predecessor
 tests a locked record's contract changes will turn red, so Stage 8's
 implementer meets the list up front instead of one red test at a time
 inside its loop. The launch precheck proves the baseline green, so every
@@ -1228,7 +1236,7 @@ Two things the table deliberately does NOT declare, both recorded in it:
   the failure it guards is precisely a lens that ran reading as un-run.
 
 The table is found at `$RDR_HOME/models/rdr-facts.toml`, or beside the
-binary (`$RDR_HOME/bin/rdr` → `../models/`) when no marker is bound.
+binary (`$RDR_HOME/bin/recs` → `../models/`) when no marker is bound.
 Reading it needs a TOML parser and the stdlib has none, so `toml.go` reads
 the subset the table uses — table headers, string/int/bool values, lists,
 comments. Every line outside that subset is REFUSED with its line number.
@@ -1238,7 +1246,7 @@ misspelled.
 
 ## status — the navigator's read, in one call
 
-`rdr status NNNN` evaluates the fact table over one record. It is the
+`recs status NNNN` evaluates the fact table over one record. It is the
 verb the table was written for: before it, answering "where is this
 record and what runs next" cost an `inspect --json --filter`, a
 `--select §decision-rationale` byte read, an `ls` per lens folder, a
@@ -1247,15 +1255,15 @@ the results. Each of those is a TURN, which re-sends the conversation.
 
 Three renderings of ONE evaluation:
 
-    rdr status 0055                # one fact per line — the cheap human read
-    rdr status --json 0055         # the neutral vector (§Facts)
-    rdr status --tags 0055         # `--tag k=v` argv for a resolver
-    rdr status --flat 0055         # a flat JSON object of strings — a command reader's shape
-    rdr status --tags 0055 --except status,readme_status   # the vector MINUS named facts
-    rdr status --checklist 0055    # the stage checklist, three-valued (`?` = nothing looked)
-    rdr status 0122 0123 0130      # a NAMED SET — one row per record
-    rdr status                     # the Draft+Final worklist, each row with its facts
-    rdr status --argv              # the worklist + Deferred, one tab-separated argv line each (bin/rdr-next)
+    recs status 0055                # one fact per line — the cheap human read
+    recs status --json 0055         # the neutral vector (§Facts)
+    recs status --tags 0055         # `--tag k=v` argv for a resolver
+    recs status --flat 0055         # a flat JSON object of strings — a command reader's shape
+    recs status --tags 0055 --except status,readme_status   # the vector MINUS named facts
+    recs status --checklist 0055    # the stage checklist, three-valued (`?` = nothing looked)
+    recs status 0122 0123 0130      # a NAMED SET — one row per record
+    recs status                     # the Draft+Final worklist, each row with its facts
+    recs status --argv              # the worklist + Deferred, one tab-separated argv line each (bin/rdr-next)
     rdr-gate complete 0055 --tag suite_green=true   # `--tags --filter <the gate's facts>` + the resolve, one command (bin/rdr-gate)
 
 ### Three arities, two costs
@@ -1283,7 +1291,7 @@ RDR 0025 — "read results return on stdout as a flat JSON object of
 strings"). `--json` nests under `facts[]` and carries the kinds and the
 record number, which is right for a structured reader and wrong for an
 accessor: an accessor reads `{"<key>":"<value>"}` and nothing else, so a
-model binding `rdr status --json` as its reader refuses
+model binding `recs status --json` as its reader refuses
 `flow-accessor-failed` with no hint that the SHAPE is the problem. That
 is the whole reason this rendering exists rather than asking a caller to
 reshape the vector — when a consumer parses a projected string, the
@@ -1311,8 +1319,8 @@ refuses exactly as `--filter`'s does.
 It matters because it is half of a write's read-back. A model that
 declares an `edit` writer over a record's `- **Status**:` line verifies
 the write by reading it back through the role's declared reader; with
-`--flat` that reader is `rdr` itself, so the tool that renders the facts
-is the tool that confirms them, and `rdr` still never writes. Values are
+`--flat` that reader is `recs` itself, so the tool that renders the facts
+is the tool that confirms them, and `recs` still never writes. Values are
 `--tags`' values — same renderer, sentinels included — so a fact reads
 identically whether it crosses as argv or as a reader's object.
 
@@ -1332,7 +1340,7 @@ them — `Profile` alone carries the field's whole rationale tail, which is
 most of the payload. Measured on that cluster: 43,888 bytes to 1,569, a
 28× reduction.
 
-    rdr status --json --filter impl_state 0122 0123 0130 0131 0132
+    recs status --json --filter impl_state 0122 0123 0130 0131 0132
 
 Identity survives filtering (`record`, `path`), because a row a caller
 cannot attribute to a record is not an answer. A name the table does not
@@ -1358,9 +1366,9 @@ seam, and a navigator that writes is no longer derivable-from-disk.
 
 The composition this exists for is one Bash call:
 
-    rdr status --tags NNNN >/dev/null || exit 2    # a refusal splatted into argv is lost
+    recs status --tags NNNN >/dev/null || exit 2    # a refusal splatted into argv is lost
     intrastate flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
-      $(rdr status --tags NNNN)
+      $(recs status --tags NNNN)
 
 An **unquoted** `$(…)` splits its output on IFS whitespace and then globs
 the words. It does not split on lines, and quotes inside the output are
@@ -1452,8 +1460,8 @@ arity (`records:text`, `records:select:element`) and every select class
 
 **`--filter` keeps only the top-level keys you name**, comma-separated:
 
-    rdr inspect --json --filter metadata,counts 0142
-    rdr inspect --json --filter path 0142
+    recs inspect --json --filter metadata,counts 0142
+    recs inspect --json --filter path 0142
 
 `--select` answers *"give me exactly one facet"*. `--filter` answers the
 other question, because the envelope is lopsided — on a large record
@@ -1513,7 +1521,7 @@ passed one, which is the failure this flow exists to prevent.
 
 ## The usage log
 
-`rdr` writes nothing — with one opt-in exception, off by default.
+`recs` writes nothing — with one opt-in exception, off by default.
 
 Turn it on and every invocation appends one line recording what was
 asked and what it cost. This exists because the consumer-integration
@@ -1549,7 +1557,7 @@ the log is about *these* records and means nothing away from them. A
 truthy setting with no marker to anchor to writes nothing rather than
 inventing a location.
 
-    rdr inspect --select 0142:C1 0142        # with the marker's RDR_USAGE_LOG="true"
+    recs inspect --select 0142:C1 0142        # with the marker's RDR_USAGE_LOG="true"
 
     {"bytes_out":490,"cmd":"inspect","elapsed_ms":551,"exit":0,"facet":"select:element","target":"0142","ts":"2026-08-24T20:38:11-07:00"}
 
@@ -1565,7 +1573,7 @@ the full envelope, and the log says so.
 
 ## Open joint decisions
 
-    rdr index --open-joint          # in-flight records; --all for every record; --json for the rows
+    recs index --open-joint          # in-flight records; --all for every record; --json for the rows
 
 One row per open joint decision, from either place a record states one: a
 body `Joint-check: … (home: OPEN)` line (`signal: joint-check`, with the
@@ -1576,7 +1584,7 @@ once lost the only open line to `| head` and reported none.
 
 ## Cycles
 
-    rdr index --cycles              # --json for the rows
+    recs index --cycles              # --json for the rows
 
 Four shapes the flow cannot make progress through, and nothing from the
 relations that are symmetric by design (`cluster`, `peer-evidence`,
@@ -1596,7 +1604,7 @@ four Final records whose homes sit on the two Drafts still in flight.
 
 ## §receipt — was it linted since it was last written?
 
-    rdr receipt 0143          # 0: prints the lint's log line; 1: stopped:no-lint-receipt; 2: no log bound
+    recs receipt 0143          # 0: prints the lint's log line; 1: stopped:no-lint-receipt; 2: no log bound
 
 The log's first real audit found a record carried through four stages in
 a day with two `inspect` calls and no `lint`, every gate closed. The
@@ -1649,10 +1657,10 @@ could break an answer would be worse than no log.
       main.go              subcommand dispatch, flags, inspect, the per-record index facets
       usagelog.go          the opt-in usage log: $RDR_USAGE_LOG, one JSONL line per invocation
       seam.go              marker discovery: the records dir and source root, bound without a shell
-      env.go               `rdr env`: publishes the bound seam, marker-authoritative
-      paths.go             `rdr paths`: the evidence dir and the iteration, from the same table the facts read
+      env.go               `recs env`: publishes the bound seam, marker-authoritative
+      paths.go             `recs paths`: the evidence dir and the iteration, from the same table the facts read
       status.go            the navigator's read: facts evaluated, rendered three ways
-      impact.go            `rdr impact`: the predecessor tests a record's changes will turn red, by the convention models/rdr-impact.toml declares
+      impact.go            `recs impact`: the predecessor tests a record's changes will turn red, by the convention models/rdr-impact.toml declares
       corpus.go            the corpus facets: graph, status, backlinks-to, anchor intersection, README drift
       internal/ident/      the element ID grammar, slugs, content hash
       internal/edge/       the typed relation model: kinds and reference grammars

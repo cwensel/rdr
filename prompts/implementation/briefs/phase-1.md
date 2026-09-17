@@ -23,7 +23,7 @@ suite on {BRANCH}.
 ONLY read, test and commit commands (never `cat`, `go test`, `git commit`): `{RDR_HOME}/bin/rdr-leg-read -C {WORKTREE} <path> [--symbol S|--range A-B]`,
 `rdr-leg-test -C {WORKTREE} -- <test command>` (no budget cut) and
 `rdr-leg-commit -C {WORKTREE} -m "<subject>"`. The record:
-`{RDR_HOME}/bin/rdr inspect …` (`--select {NNNN}:<id>` for exact quotes), never
+`{RDR_HOME}/bin/recs inspect …` (`--select {NNNN}:<id>` for exact quotes), never
 `sed`/`grep` it; never edit {RDR_PATH}. Scratch in /tmp, never {ART}.
 Separators `---`, never `===`.
 

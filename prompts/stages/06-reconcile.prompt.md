@@ -1,7 +1,7 @@
 For the RDR at {RDR_PATH}, reconcile every open spike and every assumption
 the review rounds disturbed, before this RDR can lock. Read {RDR_RESOURCES} for
 the corpora and design docs. Spikes live under {SPIKE_DIR} and this report is
-written to {ITER_DIR} — both bound by `rdr paths` in the skill's step 1, never
+written to {ITER_DIR} — both bound by `recs paths` in the skill's step 1, never
 composed by hand.
 Pre-Lock needs-verification list(s):
 <paste the list(s)>
@@ -16,11 +16,11 @@ Build the open set from FOUR sources:
 1. The Pre-Lock needs-(re)verification list(s) — assumptions flipped back to
    Pending, and new A-N claims added during fix passes.
 2. Every Critical Assumption currently Status: Pending or Unverified.
-3. `spikes_unrun` (`"$RDR_HOME/bin/rdr" status --tags NNNN`) — the spikes the
+3. `spikes_unrun` (`"$RDR_HOME/bin/recs" status --tags NNNN`) — the spikes the
    RDR names under {SPIKE_DIR} with no entry in `evidence/spikes/`, already
    subtracted; plus any a findings file names that the RDR does not.
 4. An exactness-word sweep over what a review round touched or introduced:
-   `rdr lint NNNN | grep prose:exactness` — the one lint slice this stage
+   `recs lint NNNN | grep prose:exactness` — the one lint slice this stage
    reads, never the whole output — for the terms of art, plus the quantifiers
    (all/every, first/nearest) read by eye. (Stage 4 already swept every
    exactness word against an Evidence Record; this is only the post-mutation

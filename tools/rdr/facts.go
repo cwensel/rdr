@@ -56,7 +56,7 @@ type FactTable struct {
 	Description string
 	Roots       map[string]FactRoot
 	Facts       []FactDecl
-	// Iter is the re-entry convention `rdr paths` reads. Optional: a
+	// Iter is the re-entry convention `recs paths` reads. Optional: a
 	// table that declares none is still a valid fact table.
 	Iter Iteration
 	// Source is the path the table was read from, for error messages
@@ -65,7 +65,7 @@ type FactTable struct {
 }
 
 // Iteration is the re-entry convention, declared rather than compiled in.
-// `rdr paths` reads it to answer where a lens writes and which pass is
+// `recs paths` reads it to answer where a lens writes and which pass is
 // next; nothing else does, so an absent block simply leaves `paths`
 // without trees to offer rather than breaking a fact.
 type Iteration struct {
@@ -79,7 +79,7 @@ type Iteration struct {
 	// already holds a first pass.
 	First string
 	// Trees are the bases that take iterations, by name (`lens`,
-	// `cluster`, …). The name is what `rdr paths` selects with.
+	// `cluster`, …). The name is what `recs paths` selects with.
 	Trees map[string]IterTree
 }
 
@@ -91,7 +91,7 @@ type IterTree struct {
 	Root  string
 	Under string
 	// Cap is the iteration past which the tree's loop is flapping;
-	// `rdr paths` buckets ITER against it. 0 means the tree declares
+	// `recs paths` buckets ITER against it. 0 means the tree declares
 	// none, and then no bucket is emitted.
 	Cap int
 }
@@ -1520,7 +1520,7 @@ func (e *FactEnv) implArtifact(d FactDecl) (Fact, bool) {
 	return Fact{}, false
 }
 
-// impactFamilies reads the `families: N` header line `rdr impact` writes
+// impactFamilies reads the `families: N` header line `recs impact` writes
 // (emitImpact); the first such line decides, and a file without one, or
 // with a non-integer after the key, is unreadable.
 func impactFamilies(raw []byte) (int, bool) {
@@ -2595,7 +2595,7 @@ func canonicalSet(in []string) []string {
 // factTablePath finds the table.
 //
 // $RDR_HOME is the engine root and the marker exports it, so that is the
-// first answer. Failing that, the binary installs at $RDR_HOME/bin/rdr,
+// first answer. Failing that, the binary installs at $RDR_HOME/bin/recs,
 // so `models/` beside the executable's own directory is the same place
 // reached a different way — which is what keeps a `go test` binary and a
 // directly-invoked build working with no marker at all.
@@ -2663,7 +2663,7 @@ func bindSchema(f *flags) error {
 // It is factTablePath's twin, and resolves the same three ways: an
 // explicit flag, then $RDR_HOME, then beside the binary. The template
 // sits at the ENGINE ROOT and the sidecar under models/, so the two
-// differ only in the join — the binary installs at $RDR_HOME/bin/rdr, so
+// differ only in the join — the binary installs at $RDR_HOME/bin/recs, so
 // two Dir calls reach the root either way, which keeps a `go test` binary
 // and a directly-invoked build working with no marker at all.
 //

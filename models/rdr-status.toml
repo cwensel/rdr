@@ -2,7 +2,7 @@
 #
 # `skills/rdr-status/SKILL.md` answers "I lost my place — what do I run
 # next?". N1 and N2 moved its SIGNALS into data (`rdr-facts.toml`, read by
-# `rdr status --tags NNNN`). This file is the other half: the ROUTING,
+# `recs status --tags NNNN`). This file is the other half: the ROUTING,
 # which was §How it decides next plus `rdr-common.md` §lens-row — prose a
 # model re-derived on every run.
 #
@@ -13,11 +13,11 @@
 # human three months from now.
 #
 # THE COUPLING IS THE FACT NAMES, AND NOTHING ELSE. Neither binary calls
-# the other: `rdr` renders tags, `intrastate` resolves them, and the
+# the other: `recs` renders tags, `intrastate` resolves them, and the
 # skill composes the two in one Bash call —
 #
 #   intrastate flow resolve --model "$RDR_HOME/models/rdr-status.toml" \
-#     --outcome locate $(rdr status --tags NNNN)
+#     --outcome locate $(recs status --tags NNNN)
 #
 # so every `[tags.*]` name below must match a fact `rdr-facts.toml`
 # declares. A rename there is a breaking change to this file in another
@@ -423,7 +423,7 @@ required      = true
 # (`cluster`, `open_joint_decisions`, the three gate id-lists,
 # `spikes_unrun`) and no row guards any of them, so they contribute no
 # dimension. Each was once declared anyway, purely so the call would not
-# refuse: the skill passes the whole `rdr status --tags NNNN` output in
+# refuse: the skill passes the whole `recs status --tags NNNN` output in
 # one substitution, a set arrives as a JSON array literal, and an
 # undeclared key used to be validated against the zero declaration —
 # whose kind is not `set` — so the array was refused as "not set-valued"
@@ -2165,7 +2165,7 @@ surface = "the demote date from the qualifier and the runs' newest evidence date
 # The judgement stays with Stage 5: whether a locked contract is
 # algorithmic is a reading. What the table routes on is the line that
 # reading leaves behind, `Determinacy: fired — …` or `Determinacy: n/a —
-# <reason>` in Normative Contracts, which `rdr status` reads as
+# <reason>` in Normative Contracts, which `recs status` reads as
 # `determinacy`. `unjudged` is the absent sentinel and it STOPS: a
 # missing judgement must never read as n/a (§stop-packet), and it stops
 # once, here, instead of being re-walked at Stages 5, 6 and 7.

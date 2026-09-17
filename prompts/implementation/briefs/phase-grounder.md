@@ -18,15 +18,15 @@ rdr-write model):
   {RDR_HOME}/bin/rdr-gate ground {NNNN} --tag searched=<none|code|cluster|corpus|rfd> --tag found=<true|false>
 Start at `searched=none found=false`. `next:` names the rung, `surface:` its
 command: `code` (the source at {WORKTREE} — `rg`/semble the behaviour, a
-cheap spike), `cluster` (`{RDR_HOME}/bin/rdr index --cluster-of {NNNN}`, then
-each peer's Status and Overrides via `rdr inspect --select MMMM:§…`),
+cheap spike), `cluster` (`{RDR_HOME}/bin/recs index --cluster-of {NNNN}`, then
+each peer's Status and Overrides via `recs inspect --select MMMM:§…`),
 `corpus` (`arc search` the question's nouns over the corpora {RDR_RESOURCES}
 names), `rfd` (the RFD/JDR sections it names). Re-ask after each rung with
 `searched=<that rung>` and whether it settled the entry; stop at `apply`
 (settled — the cite is the answer, no question) or `ask` (every rung
 searched, none settled it). Never skip a rung, never default `none`.
 
-Read the record through `{RDR_HOME}/bin/rdr inspect …`, never `sed`/`grep`
+Read the record through `{RDR_HOME}/bin/recs inspect …`, never `sed`/`grep`
 the file. Source and artifacts through `{RDR_HOME}/bin/rdr-leg-read -C
 {WORKTREE} <path> [--symbol S|--range A-B]`, never `cat`; the `code` rung's
 spike is `rg`/semble, and you run no suite and commit nothing. Separators

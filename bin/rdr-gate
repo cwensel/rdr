@@ -2,7 +2,7 @@
 # rdr-gate — one Stage 8 gate, asked as one command.
 #
 # launch.md's gates were a three-line idiom: bind intrastate, render the
-# facts with `rdr status --tags --filter …`, resolve the outcome's row. That
+# facts with `recs status --tags --filter …`, resolve the outcome's row. That
 # idiom is exactly what a harness command guard cannot verify — a computed
 # command name, a `complete` literal — and one run drew six refusals for it.
 # This script IS the idiom as one plain executable. Neither binary calls the
@@ -12,7 +12,7 @@
 #
 #   rdr-gate <outcome> [<NNNN>] [--tag k=v …]
 #
-#   outcome    model            facts rendered by `rdr status --tags --filter …`   --tag observed by the caller
+#   outcome    model            facts rendered by `recs status --tags --filter …`   --tag observed by the caller
 #   precheck   rdr-launch.toml  status,predecessors_state,related_final_unordered,   baseline
 #                               prerequisites_unimplemented
 #   size       rdr-launch.toml  profile,lines,req_count                              files suite pressure
@@ -34,7 +34,7 @@
 set -f   # the argv is one shell word per fact; never let a value glob
 
 here=$(dirname "$0")
-R="$here/rdr"
+R="$here/recs"
 H="${RDR_HOME:-$here/..}"
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
 

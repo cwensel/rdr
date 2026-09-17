@@ -54,7 +54,7 @@ One invocation runs the full loop for one lens:
 1. Read [`rdr-common.md`](rdr-common.md) **whole, with the Read tool** (it exceeds the 30KB
    Bash cap — `cat` truncates and costs a retry; never `sed`/`grep` §-slices); run **§seam-bind** + **§rdr-resolve**.
    Bind the lens dir and this pass's iteration in one call (§evidence):
-   `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
+   `eval "$("$RDR_HOME/bin/recs" paths --lens <lens> --next-iter <NNNN>)"` →
    `$EVIDENCE_DIR`, `$ITER`, `$ITER_DIR` (write to `$ITER_DIR`; at `ITER=1` it
    *is* the base). **Re-entry** is self-detected: a `Status: Draft [revised from
    Final …` or `[routed back from … @prelock …]` `; re-verify <IDs>]` qualifier
@@ -64,7 +64,7 @@ One invocation runs the full loop for one lens:
    the re-lock. Whenever `lens_stale`
    names this lens (`status --tags`), scope = `<IDs>` ∪ `.touched[].id` of
    `base=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): finalize' -- "$RDR_PATH")`
-   `"$RDR_HOME/bin/rdr" inspect --touched-since "$base" --json <NNNN>`;
+   `"$RDR_HOME/bin/recs" inspect --touched-since "$base" --json <NNNN>`;
    `re-verify none` → the touched ids alone. Compute it once, here, saving the
    JSON to `$ITER_DIR/touched.json`; a spawn brief carries the id list — never
    a diff.

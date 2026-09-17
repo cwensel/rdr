@@ -1,6 +1,6 @@
 package main
 
-// `rdr paths` binds the evidence directory and the iteration number once,
+// `recs paths` binds the evidence directory and the iteration number once,
 // so a skill stops rebuilding them in prose.
 //
 // Six sites hand-built these: rdr-common §evidence, rdr-prelock's re-entry

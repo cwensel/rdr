@@ -19,7 +19,7 @@ questions are the silence/contradiction half.
 ```text
 Step 0 (GROUNDING — do this first): run the codebase claim sweep from
 0-grounding.md against {RDR_PATH}, including its scoping — one
-`"$RDR_HOME/bin/rdr" inspect --json --filter edges,elements {RDR_PATH}`
+`"$RDR_HOME/bin/recs" inspect --json --filter edges,elements {RDR_PATH}`
 gives `edges[]` kind `source-anchor`
 (each with `to`, `line`, `line_end` and a three-valued `resolved`: true =
 CONFIRMED, false = NOT-FOUND,

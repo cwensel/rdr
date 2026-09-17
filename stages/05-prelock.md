@@ -109,7 +109,7 @@ small/single-file RDR runs no lens (no contract to ground, no PM/UX or
 time-shifted surface); the Stage 7 sweep is its only pre-lock check.
 
 **Output convention.** Evidence is **per-RDR-first**: each RDR owns one lens
-folder per lens, and `rdr paths --lens <l> --next-iter <NNNN>` binds it plus the
+folder per lens, and `recs paths --lens <l> --next-iter <NNNN>` binds it plus the
 iteration this pass owes (rdr-common §evidence) — ask for it rather than
 composing one. Each lens writes its *element* files there, shape lens-specific.
 On a **re-entry pass** (qualified Status, above) the answer carries an iteration
@@ -157,7 +157,7 @@ RUN: <1–3, repeatability only — omit otherwise>
 From the arg header above, bind for this session and the lens body below:
   - {RDR_PATH} = RDR:; <rdr-slug> = its filename stem; <lens> = LENS:; <N> = RUN:.
   - {EVIDENCE_DIR} and this pass's iteration, in one call:
-    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"` →
+    `eval "$("$RDR_HOME/bin/recs" paths --lens <lens> --next-iter <NNNN>)"` →
     `$EVIDENCE_DIR` (the lens base) and `$ITER` / `$ITER_DIR` (where THIS pass
     writes: the base at `ITER=1`, an `iter-N/` subfolder after — never
     overwriting one). It reads the seam itself, nearest-wins, so nothing sources

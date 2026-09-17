@@ -158,7 +158,7 @@ N/A-bulleted). -->
   you nor is cited by you is reachable by no rule over the
   records. So declare it when peers will not cite each other,
   even outside a tandem propose. It is a claim, not the
-  membership: 7.1 unions it with the derived set (`rdr index
+  membership: 7.1 unions it with the derived set (`recs index
   --cluster-of NNNN`) and judges. Written at Propose and
   frozen at Final, it cannot see a later joiner, which is
   why the union runs at 7.1 rather than reading this alone.]
@@ -188,7 +188,7 @@ Evidence Record before marking this RDR Final.]
     behavior under test.
     **Method: Peer RDR cites an element ID, not a record**:
     `cli/0055:C4`, `0055:A3` — the element the claim rests
-    on, never the whole file. `rdr inspect NNNN` lists them.
+    on, never the whole file. `recs inspect NNNN` lists them.
     A filename or heading-text reference is a *mention*:
     fine for context, not for a load-bearing claim.]
   - **If wrong**: [single sentence — what fails; how

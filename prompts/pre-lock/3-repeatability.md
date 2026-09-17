@@ -38,7 +38,7 @@ Contracts) are outside the read; the marker is their disposition.
 
 Write the judgement once, as one line in Normative Contracts outside the fences:
 `Determinacy: fired — C2 (hashing), C4 (step order)` or
-`Determinacy: n/a — <one-clause reason>`. `rdr status` reads it as the
+`Determinacy: n/a — <one-clause reason>`. `recs status` reads it as the
 `determinacy` fact and `--outcome repeatability` routes the lite variant below
 on it; with no line the table stops with `stopped:determinacy-trigger-unjudged`.
 Foundational runs the full ×3 lens regardless; the lite diff escalates on the
@@ -103,7 +103,7 @@ Based only on the RDR at {RDR_PATH}, produce the four items below.
 
 Start from the contracts, not the whole file. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --filter elements,outline {RDR_PATH}
+  "$RDR_HOME/bin/recs" inspect --json --filter elements,outline {RDR_PATH}
 
 and read `elements[]` where `kind` is `C` (normative contracts), `MVV`, or `S` —
 each by id, `inspect --select <id> {RDR_PATH}`. Those are

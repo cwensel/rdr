@@ -8,14 +8,14 @@ Paste 2 — resolver + fix body (verbatim):
 From the arg header above, bind for this session:
   - {RDR_PATH} = RDR:; <rdr-slug> = its filename stem; <lens> = LENS:.
   - {RDR_ENV} / {RDR_RESOURCES} = the seam files. Bind them with
-    `eval "$("$RDR_HOME/bin/rdr" env)"` → `$RDR_ENV` / `$RDR_RESOURCES`. It
+    `eval "$("$RDR_HOME/bin/recs" env)"` → `$RDR_ENV` / `$RDR_RESOURCES`. It
     applies nearest-wins (a repo-local `.rdr/workspace` beats the shared
     `$WS/.rdr-workspace`), so **never** source `$WS/.rdr-workspace` directly —
     under a repo-local marker that binds another project's seam. Keep it in the
     same shell as any command reading `$RDR_ENV`/`$EVIDENCE_DIR` (state dies
     between calls — re-run, don't carry).
   - {EVIDENCE_DIR} = the lens-output dir, from
-    `eval "$("$RDR_HOME/bin/rdr" paths --lens <lens> --next-iter <NNNN>)"`.
+    `eval "$("$RDR_HOME/bin/recs" paths --lens <lens> --next-iter <NNNN>)"`.
     Read the findings from `$PRIOR_DIR` — the pass that just ran wrote there
     (the highest iteration on disk; the base after a first pass). `$ITER_DIR`
     is where a re-run would write, `$ITER_BUCKET` the loop's pass tag.
@@ -36,7 +36,7 @@ premortem/AT-origin rows equal to the rest. A defect the prose raises but no row
 indexes still gets resolved (say so; it's a ledger bug, not a skip). `C-N` is a
 per-file row handle; across files the key is the element id — dual-model runs
 diff `LC_ALL=C comm` over `"$R" anchors --record <NNNN>` of `critique.md` vs
-`critique-modelB.md` (`$R="$RDR_HOME/bin/rdr"`; two findings on one id collapse).
+`critique-modelB.md` (`$R="$RDR_HOME/bin/recs"`; two findings on one id collapse).
 
 Each finding passes the GROUNDING GATE before it can edit the draft, gets a
 durable DISPOSITION, and is anchored to an origin concern. Do these in order; the
@@ -76,7 +76,7 @@ not let it quietly expand this RDR (the "scope-expansion wormhole"). On a
 re-run the trace is a diff, not a re-read (`$PRIOR_DIR` is this pass, from the
 same `paths` eval):
   ```sh
-  R="$RDR_HOME/bin/rdr"; L=$(mktemp); N=$(mktemp)
+  R="$RDR_HOME/bin/recs"; L=$(mktemp); N=$(mktemp)
   "$R" anchors --record <NNNN> "$EVIDENCE_DIR"/*.md > "$L"   # origin ledger
   "$R" anchors --record <NNNN> "$PRIOR_DIR"/*.md > "$N"      # this pass
   LC_ALL=C comm -13 "$L" "$N"   # net-new scope

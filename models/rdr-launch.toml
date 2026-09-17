@@ -11,7 +11,7 @@
 # DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
 # accessors. The caller acts on `emit`; nothing here writes.
 #
-# WHERE EVERY DIMENSION COMES FROM. Facts are rendered by `rdr status
+# WHERE EVERY DIMENSION COMES FROM. Facts are rendered by `recs status
 # --tags --filter …` and declared in rdr-facts.toml, whose names are the
 # contract (`profile`, `lines`, `req_count`, `impl_orphans`,
 # `impl_open_decisions`, `impl_mvv_recorded`, `impl_verification_recorded`,
@@ -88,7 +88,7 @@ domain        = ["size", "complete", "precheck", "shard", "budget"]
 single_valued = true
 required      = true
 
-# --- facts, rendered by `rdr status --tags --filter …` -----------------------
+# --- facts, rendered by `recs status --tags --filter …` -----------------------
 
 # `none` is the fact's declared absent sentinel: no Profile field.
 [tags.profile]
@@ -157,7 +157,7 @@ domain        = ["0", "1+", "none"]
 single_valued = true
 required      = true
 
-# impact.md's `families:` header count, bucketed; rendered by `rdr status
+# impact.md's `families:` header count, bucketed; rendered by `recs status
 # --tags --filter impact_families`. `none` = impact.md unread.
 [tags.impact_families]
 provenance    = "observed"
@@ -257,7 +257,7 @@ domain        = ["commit", "run"]
 single_valued = true
 required      = true
 
-# --- the precheck's facts, rendered by `rdr status --tags --filter status,predecessors_state,related_final_unordered,prerequisites_unimplemented`
+# --- the precheck's facts, rendered by `recs status --tags --filter status,predecessors_state,related_final_unordered,prerequisites_unimplemented`
 
 # The record's bare lifecycle Status; only Final implements.
 [tags.status]
@@ -807,7 +807,7 @@ why  = "Final, every predecessor COMPLETE (or none declared), no unordered Final
 # ===========================================================================
 #
 # impact_families = 3 cells, asked once by the orchestrator after Phase 1.
-# Phase 0 wrote impact.md from `rdr impact` or halted, so an unread one is
+# Phase 0 wrote impact.md from `recs impact` or halted, so an unread one is
 # an artifact inconsistency (the Resume precheck's word), never an empty
 # blast radius. The worklist is fixed here and every Phase 2 leg walks it
 # from the position its brief carries: the Phase 1 tests, then each

@@ -660,7 +660,7 @@ func TestStatusFlatRefusesTheAmbiguousCalls(t *testing.T) {
 	}
 }
 
-// `intrastate flow resolve --model … $(rdr status --tags NNNN)`, and an
+// `intrastate flow resolve --model … $(recs status --tags NNNN)`, and an
 // UNQUOTED `$(…)` splits on whitespace and globs the pieces. A value
 // carrying a space therefore does not arrive as one argument: it arrives
 // as several, the first being `k=<head>` — a well-formed tag with a
@@ -913,7 +913,7 @@ func TestTagsSurviveABracketedModelID(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------
-// The SET arity: `rdr status NNNN NNNN …`
+// The SET arity: `recs status NNNN NNNN …`
 //
 // Stage 8's predecessor precheck and Stage 7.1's Final-and-unimplemented
 // filter both hold a list of records and used to read N `status.md`

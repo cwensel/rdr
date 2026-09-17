@@ -63,7 +63,7 @@ func isFixtureArtifact(rel string) bool {
 		return true
 	}
 	// `anchors/` holds findings ledgers — files that CITE a record's
-	// ids, read by `rdr anchors` — and no record.
+	// ids, read by `recs anchors` — and no record.
 	if parts[0] == "anchors" {
 		return true
 	}

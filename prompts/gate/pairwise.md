@@ -20,8 +20,8 @@ single-RDR lens reads both sides of.
 SELECT THE PAIRS by query, not by reading the cluster:
 
 ```sh
-"$RDR_HOME/bin/rdr" index --json --anchor-intersect
-"$RDR_HOME/bin/rdr" index --json --backlinks=<NNNN>
+"$RDR_HOME/bin/recs" index --json --anchor-intersect
+"$RDR_HOME/bin/recs" index --json --backlinks=<NNNN>
 ```
 
 - `overlaps[]` `{records[], anchors[], cited}` — two in-flight records citing
@@ -73,7 +73,7 @@ For each finding, emit:
 
 Do not paraphrase quotes — use exact wording. If you cannot find a direct
 quote, say "NO DIRECT QUOTE" and explain why you still believe the conflict
-exists. When the quote is an addressable element, `rdr inspect --select <id>
+exists. When the quote is an addressable element, `recs inspect --select <id>
 <NNNN>` prints exactly that element's bytes — quote from it, not from memory.
 ```
 

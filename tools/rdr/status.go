@@ -1,6 +1,6 @@
 package main
 
-// `rdr status` — the navigator's read, in one call.
+// `recs status` — the navigator's read, in one call.
 //
 // `skills/rdr-status/SKILL.md` answers "I lost my place, what do I run
 // next?" and used to pay for that answer in choreography: an `inspect
@@ -34,7 +34,7 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
-// statusCmd is `rdr status [NNNN…]`: one record's fact vector, a NAMED
+// statusCmd is `recs status [NNNN…]`: one record's fact vector, a NAMED
 // SET of records', or the in-flight worklist with each record's facts.
 //
 // The three arities are three different questions and two different
@@ -586,7 +586,7 @@ func (i indentWriter) Write(p []byte) (int, error) {
 // emitTags renders the facts as a resolver's argv: `--tag` and `k=v` on
 // their own lines.
 //
-// The consuming call is `intrastate flow resolve --model … $(rdr status
+// The consuming call is `intrastate flow resolve --model … $(recs status
 // --tags NNNN)`, and an UNQUOTED command substitution splits its output
 // on IFS whitespace and then globs the words — it does not split on
 // lines, and quotes inside the output are literal characters, not

@@ -47,8 +47,8 @@ cascade on a different model, start the session on it.
 **Precondition — two projections, no body read.**
 
 ```sh
-"$RDR_HOME/bin/rdr" status --tags --filter status,status_form,reentry_target <NNNN>
-"$RDR_HOME/bin/rdr" inspect --json --filter outline,counts <NNNN>
+"$RDR_HOME/bin/recs" status --tags --filter status,status_form,reentry_target <NNNN>
+"$RDR_HOME/bin/recs" inspect --json --filter outline,counts <NNNN>
 ```
 
 Read literally: the tag vector for `status`, `status_form`, `reentry_target`
@@ -80,7 +80,7 @@ from that target to a scope; `intrastate lint` proves every target has a row.
 One chained call answers it — the same facts, no second projection:
 
 ```sh
-IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
+IS="${RDR_INTRASTATE:-$(command -v intrastate)}"; M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/recs"
 "$R" status --tags NNNN >/dev/null || exit 2   # rdr-common §intrastate; the substitution stays inline (zsh)
 "$IS" flow resolve --model "$M" --outcome locate  --plan-only $("$R" status --tags NNNN)   # emit.next == resolve:reentry on a demoted Draft
 "$IS" flow resolve --model "$M" --outcome reentry --plan-only $("$R" status --tags NNNN)
@@ -281,7 +281,7 @@ every re-ask after a stage returns:
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"
 "$IS" flow resolve --model "$RDR_HOME/models/rdr-cascade.toml" --outcome posture --plan-only \
-  $("$RDR_HOME/bin/rdr" status --tags --filter profile,status NNNN) --tag ask_each=<true|false>
+  $("$RDR_HOME/bin/recs" status --tags --filter profile,status NNNN) --tag ask_each=<true|false>
 ```
 
 Apply the three emits as values, each at its one site: `confirm_upfront` —

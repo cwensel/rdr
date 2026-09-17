@@ -46,7 +46,7 @@ const (
 	// `### Why not a cache` under Approach — not a foreign section, so
 	// it is not a finding; its lines belong to the section above it.
 	// Whether such a heading is in fact an unmodelled TEMPLATE.md
-	// addition is a corpus-level question (`rdr index --coverage`
+	// addition is a corpus-level question (`recs index --coverage`
 	// reports headings that recur across records), not a per-record one.
 	MatchAuthorSubsection
 	// MatchPrefix means an observed bullet label opens with a vocabulary

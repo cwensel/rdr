@@ -56,16 +56,16 @@ import (
 // whether a lens ran is a fact about a directory, so the tool that
 // answers it has to know where that directory is.
 // RDR_ENV, RDR_RESOURCES and RDR_AUTOCOMMIT joined last, and none of them
-// is read by this tool at all. They are here because `rdr env` publishes
+// is read by this tool at all. They are here because `recs env` publishes
 // the seam CONTRACT rather than this binary's own appetite — the three
 // vars a skill still needed a shell resolver for were exactly the three
 // the projector never opened, so the resolver survived for them alone.
 // RDR_MODEL_CEILING joined for the same reason RDR_AUTOCOMMIT did: it is
-// a behavioural var this binary never reads, published because `rdr env`
+// a behavioural var this binary never reads, published because `recs env`
 // carries the seam CONTRACT. rdr-common §model-ceiling names it as the
 // middle rung of the resolution (`--model-ceiling` arg > marker var >
 // unset), and without it here that rung was documented and unreachable —
-// a marker could set it, `rdr env` would not emit it, and §seam-bind's
+// a marker could set it, `recs env` would not emit it, and §seam-bind's
 // `eval` would leave it unset in the shell that spawns.
 var seamVars = []string{
 	"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME",
@@ -167,7 +167,7 @@ exit 0`
 
 	// The engine checkout is every consumer's. A workspace marker admits
 	// it as a member (2pb4: the skills are read from it), so `cd $RDR_HOME
-	// && ./bin/rdr …` binds whichever consumer the SHARED marker names —
+	// && ./bin/recs …` binds whichever consumer the SHARED marker names —
 	// one leg ground a record number from there against another project's
 	// corpus, and that project had a record of the same number. From the
 	// engine there is no cwd to bind a consumer by; refuse every consumer

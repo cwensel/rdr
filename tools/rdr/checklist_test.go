@@ -260,7 +260,7 @@ func TestChecklistAndArgvNameThemselvesInTheUsageLog(t *testing.T) {
 }
 
 // TestRdrNextRendersTheWorklist runs bin/rdr-next end to end over the
-// fixture: `rdr status --argv` from a freshly built binary beside the
+// fixture: `recs status --argv` from a freshly built binary beside the
 // script, `intrastate flow resolve` per row, chaining where the model
 // says to. Skips without `intrastate` (as TestLaunchModelResolvesTheFixture
 // does) or without a Go toolchain to build the binary the script binds.
@@ -276,7 +276,7 @@ func TestRdrNextRendersTheWorklist(t *testing.T) {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput(); err != nil {
+	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "recs"), ".").CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	script, err := os.ReadFile(filepath.Join(home, "bin", "rdr-next"))

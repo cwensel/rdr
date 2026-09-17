@@ -13,7 +13,7 @@ to fix).
 2. Find redundancy — the same claim in three sections, Problem-Statement
    recaps inside Alternatives. Collapse to one authoritative statement and
    cross-reference.
-3. **Collapse change-history into live text.** `rdr lint`'s
+3. **Collapse change-history into live text.** `recs lint`'s
    `prose:change-history` names the banned tokens where they survive; also
    delete "re-proposed/​re-promoted" Metadata narration and per-section
    "read against §X" annotation, which no rule decides. Fold whatever is still TRUE into the live

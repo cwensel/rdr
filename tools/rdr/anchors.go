@@ -1,6 +1,6 @@
 package main
 
-// `rdr anchors` reads the element ids a findings file cites, so two
+// `recs anchors` reads the element ids a findings file cites, so two
 // ledgers are diffed by `comm` rather than re-read side by side.
 //
 // A lens re-run had to be reconciled against its origin ledger — which

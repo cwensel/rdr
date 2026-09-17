@@ -41,7 +41,7 @@ const routingModelName = "rdr-status.toml"
 var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml", "rdr-loop.toml"}
 
 // callerTags names, per model, the observed tags a caller supplies by hand
-// (an orchestrator's own packet fields and Ledger, never an `rdr status`
+// (an orchestrator's own packet fields and Ledger, never an `recs status`
 // fact) rather than reading a fact `rdr-facts.toml` declares. The model
 // header is the contract for these, not the fact table, so the fact-match
 // checks below skip them. `ask_each` is declared now for the sibling
@@ -63,8 +63,8 @@ var callerTags = map[string]map[string]bool{
 	"rdr-launch.toml": {"files": true, "suite": true, "pressure": true, "suite_green": true, "baseline": true, "commits": true, "elapsed": true, "ask": true},
 	"rdr-write.toml":  {"user_facing": true, "locks": true, "floor": true, "blocker_class": true, "searched": true, "found": true, "nnnn": true},
 	// The loop caps: every tag is a value the caller holds from a tool
-	// call this pass — `rdr paths --next-iter`'s ITER_BUCKET, whether
-	// `rdr anchors` and `comm` printed anything, the resolve's fix size,
+	// call this pass — `recs paths --next-iter`'s ITER_BUCKET, whether
+	// `recs anchors` and `comm` printed anything, the resolve's fix size,
 	// and 7.1's open-entry count. A pass number belongs to one lens or
 	// cluster, not the record, so no fact renders it.
 	"rdr-loop.toml": {"iter": true, "found": true, "net_new": true, "fix": true, "open": true},
@@ -759,7 +759,7 @@ func TestLockPreservesJointDecisionQualifier(t *testing.T) {
 	// writer's. Pin it by RUNNING the write, which is the only way to know
 	// the anchor's capture group actually re-emits.
 	bin := intrastateBinary(t)
-	t.Setenv("PATH", rdrOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("PATH", recsOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
 	dir := t.TempDir()
 	rec := filepath.Join(dir, "0042-frame-grammar.md")
 	const qualified = "- **Status**: Draft [joint decision → 0042-frame-grammar § A3: who owns the trailing pad byte]"
@@ -1003,17 +1003,17 @@ func intrastateBinary(t *testing.T) string {
 	return found
 }
 
-// rdrOnPath builds this package into a temp dir named `rdr` and returns
-// it for $PATH, so a model's declared command reader (`rdr status
-// --flat`, `rdr index --row-json`) runs THIS build rather than whatever
+// recsOnPath builds this package into a temp dir named `recs` and returns
+// it for $PATH, so a model's declared command reader (`recs status
+// --flat`, `recs index --row-json`) runs THIS build rather than whatever
 // is installed. Without it the reader resolves an older binary or none,
 // and the test would either pass against the wrong code or skip.
-func rdrOnPath(t *testing.T) string {
+func recsOnPath(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	out, err := exec.Command("go", "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput()
+	out, err := exec.Command("go", "build", "-o", filepath.Join(dir, "recs"), ".").CombinedOutput()
 	if err != nil {
-		t.Fatalf("building rdr for the reader PATH: %v\n%s", err, out)
+		t.Fatalf("building recs for the reader PATH: %v\n%s", err, out)
 	}
 	return dir
 }
@@ -1049,7 +1049,7 @@ func filteredTagArgv(t *testing.T, table, rec, filter string) []string {
 }
 
 // TestLaunchModelResolvesTheFixture is the seam end to end, once per
-// gate: `rdr status --tags --filter …` renders the facts, the launch
+// gate: `recs status --tags --filter …` renders the facts, the launch
 // prompt adds what it observed, and `intrastate flow resolve --plan-only`
 // selects one row. Fixture 0030 is the table's one COMPLETE cell on disk
 // and, being small and short, its inline cell at PRECHECKS — where the
@@ -1178,7 +1178,7 @@ func TestLaunchModelResolvesTheFixture(t *testing.T) {
 	}
 
 	// The shard route reads one fact: 0030's artifacts carry an impact.md
-	// in `rdr impact`'s shape with `families: 2`, so the worklist is
+	// in `recs impact`'s shape with `families: 2`, so the worklist is
 	// sharded; 0021 has no artifacts dir, so the fact renders its sentinel
 	// and the route stops on the unread projection rather than reading
 	// nothing as an empty radius.
@@ -1508,7 +1508,7 @@ func TestLensRowSpanIsInclusive(t *testing.T) {
 }
 
 // TestCommandAccessorsNameTheBinaryBare pins argv[0] of every declared
-// `command` accessor to the bare name `rdr`, which is the only spelling
+// `command` accessor to the bare name `recs`, which is the only spelling
 // that is portable — and the one a reader is most likely to "fix".
 //
 // A command accessor is exec'd, not run through a shell. `$RDR_HOME` in
@@ -1521,10 +1521,10 @@ func TestLensRowSpanIsInclusive(t *testing.T) {
 // (rdr-common §rdr-write, doctor 11f).
 //
 // The failure this prevents is quiet: the accessor dies at
-// `flow-accessor-failed: exec: "rdr": executable file not found in
+// `flow-accessor-failed: exec: "recs": executable file not found in
 // $PATH` — mid-write, after every input check has passed. The suite does
-// not catch it on its own, because rdrOnPath() prepends a freshly built
-// `rdr` to PATH for exactly the tests that exercise these readers, which
+// not catch it on its own, because recsOnPath() prepends a freshly built
+// `recs` to PATH for exactly the tests that exercise these readers, which
 // manufactures the one condition under which a bare argv[0] resolves.
 func TestCommandAccessorsNameTheBinaryBare(t *testing.T) {
 	re := regexp.MustCompile(`^\s*command\s*=\s*\[\s*"([^"]*)"`)
@@ -1548,8 +1548,8 @@ func TestCommandAccessorsNameTheBinaryBare(t *testing.T) {
 				continue
 			}
 			seen++
-			if m[1] != "rdr" {
-				t.Errorf("models/%s:%d declares argv[0] %q; a command accessor is exec'd, so only the bare name `rdr` resolves portably (the caller puts $RDR_HOME/bin on PATH):\n%s",
+			if m[1] != "recs" {
+				t.Errorf("models/%s:%d declares argv[0] %q; a command accessor is exec'd, so only the bare name `recs` resolves portably (the caller puts $RDR_HOME/bin on PATH):\n%s",
 					e.Name(), i+1, m[1], strings.TrimSpace(line))
 			}
 		}
@@ -1763,7 +1763,7 @@ func TestLockAndFenceResolveTheFixtures(t *testing.T) {
 	_, table := bindStatusFixture(t)
 	model := repoFile(t, filepath.Join("models", "rdr-write.toml"))
 	records, _, _ := statusFixture(t)
-	t.Setenv("PATH", rdrOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("PATH", recsOnPath(t)+string(os.PathListSeparator)+os.Getenv("PATH"))
 	// `status` and `readme_status` are OWNED since the write table became a
 	// state machine: intrastate reads them through the model's own command
 	// readers and refuses them as argv. So the record and readme roles are

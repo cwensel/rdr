@@ -1,6 +1,6 @@
 package main
 
-// `rdr status --checklist` — the stage checklist, rendered by the tool.
+// `recs status --checklist` — the stage checklist, rendered by the tool.
 //
 // `skills/rdr-status/SKILL.md` printed this table by hand: a glyph per
 // stage row, derived from the fact vector by six prose rules a model

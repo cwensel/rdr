@@ -653,7 +653,7 @@ func TestPeerElementHintNamesRealElements(t *testing.T) {
 	}
 	withPeer := fix(Options{Corpus: []*scan.Document{corpus(t)["0010"]}})
 	for _, want := range []string{"cli/0010:C1 \"", "cli/0010:C2 \"", "cli/0010:A1 \"The reader tolerates no reordering.\"",
-		"not the labels the author wrote", "`rdr inspect cli/0010`"} {
+		"not the labels the author wrote", "`recs inspect cli/0010`"} {
 		if !strings.Contains(withPeer, want) {
 			t.Errorf("hint with the peer in hand lacks %q: %s", want, withPeer)
 		}
@@ -665,7 +665,7 @@ func TestPeerElementHintNamesRealElements(t *testing.T) {
 	if strings.Contains(alone, ":A1") || strings.Contains(alone, ":A3") || strings.Contains(alone, ":C4") {
 		t.Errorf("hint without the peer invents an id: %s", alone)
 	}
-	if !strings.Contains(alone, "cli/0010:A<n>") || !strings.Contains(alone, "`rdr inspect cli/0010`") {
+	if !strings.Contains(alone, "cli/0010:A<n>") || !strings.Contains(alone, "`recs inspect cli/0010`") {
 		t.Errorf("hint without the peer lost the form or the command: %s", alone)
 	}
 }
@@ -839,7 +839,7 @@ func TestPeerElementHintListsEveryIdBounded(t *testing.T) {
 	}
 	for _, want := range []string{
 		"holds cli/0142:C1 \"F-1 (the retirement floor): a\u2026\", cli/0142:A1 \"assumption number 1 holds in\u2026\"",
-		"cli/0142:A11 \"", ", +3 more;", "not the labels the author wrote (F-1, P-a)", "`rdr inspect cli/0142`",
+		"cli/0142:A11 \"", ", +3 more;", "not the labels the author wrote (F-1, P-a)", "`recs inspect cli/0142`",
 	} {
 		if !strings.Contains(hint, want) {
 			t.Errorf("hint lacks %q: %s", want, hint)

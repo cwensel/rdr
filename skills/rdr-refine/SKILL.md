@@ -37,7 +37,7 @@ Claude: /rdr-refine <NNNN>
 
 ## Review gate (Stage `03-refine.md`)
 
-- All change-history gone — `rdr lint`'s `prose:change-history` is the check;
+- All change-history gone — `recs lint`'s `prose:change-history` is the check;
   only the current design remains.
 - Decision rationale NOT cut by mistake (rationale = *why this design*; history =
   *what it used to be* — keep the first, cut the second).

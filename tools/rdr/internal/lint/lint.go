@@ -584,7 +584,7 @@ func resolutionFindings(d *scan.Document, terminal bool, opts Options) []Finding
 
 // peerElementFix is the hint for a Peer-RDR citation naming a record and
 // no element. The command it prints is one the projector accepts VERBATIM
-// — `rdr inspect cli/0112` resolves since the citation spelling became a
+// — `recs inspect cli/0112` resolves since the citation spelling became a
 // record name — and the ids it offers are read off the peer's actual
 // elements, never invented: every contract and assumption it holds,
 // spelled with the citation's own prefix and tagged with the author's
@@ -602,7 +602,7 @@ func peerElementFix(to string, corpus []*scan.Document) string {
 	if !strings.Contains(to, "/") {
 		prefix = ""
 	}
-	listed := "; `rdr inspect " + to + "` lists them"
+	listed := "; `recs inspect " + to + "` lists them"
 	target := refRecord(to)
 	for _, p := range corpus {
 		if p.Record != target {

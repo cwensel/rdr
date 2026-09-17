@@ -23,7 +23,7 @@ The ONLY read, test and commit commands — never `cat`, `go test` or
 `return-partial` → the status.md capsule, then INCOMPLETE, no more runs;
 `--full`/`--suite-green true` only on the ONE full run, the last item.
 
-Never edit {RDR_PATH}; read it via `{RDR_HOME}/bin/rdr inspect …`, not
+Never edit {RDR_PATH}; read it via `{RDR_HOME}/bin/recs inspect …`, not
 `sed`/`grep`. Scratch in /tmp, never {ART}. Separators `---`, never `===`.
 
 Return exactly this packet, nothing after:

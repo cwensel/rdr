@@ -508,7 +508,7 @@ func TestIndexGraphIsDeterministic(t *testing.T) {
 
 // TestIndexStatusGroups: `--status` groups every record by its status.
 // The WORKLIST half of this facet — Draft and Final, never Implemented —
-// moved to `rdr status` with no argument, where the facts come with it;
+// moved to `recs status` with no argument, where the facts come with it;
 // TestStatusWorklistIsTheInFlightSet is its heir and pins the same rule.
 func TestIndexStatusGroups(t *testing.T) {
 	dir := corpusDir(t)
@@ -1772,7 +1772,7 @@ func TestSummaryListsSections(t *testing.T) {
 	if !strings.Contains(out, "§ ") || !strings.Contains(out, ":§metadata ") {
 		t.Errorf("no section rows in the summary:\n%s", out)
 	}
-	if !strings.Contains(out, "read: rdr inspect --select <id>") {
+	if !strings.Contains(out, "read: recs inspect --select <id>") {
 		t.Errorf("the summary should end with the read instruction:\n%s", out)
 	}
 	sec := strings.Index(out, "§ ")
@@ -2765,7 +2765,7 @@ func TestStopsLandOnStdoutToo(t *testing.T) {
 }
 
 // TestTrailingFlagsRunAsIfTypedFirst: a flag typed after the target
-// (`rdr lint 0112 --json`) used to stop with a misleading "flags go
+// (`recs lint 0112 --json`) used to stop with a misleading "flags go
 // before the target" refusal, because the flag package stops parsing at
 // the first positional and never sees it. hoistFlags reorders argv ahead
 // of Parse, so the trailing form must behave exactly like the leading

@@ -85,7 +85,7 @@ func receipt(args []string, f *flags, stdout, stderr io.Writer) int {
 	if !latest.IsZero() {
 		was = latest.Format(time.RFC3339)
 	}
-	fmt.Fprintf(stderr, "stopped:no-lint-receipt (%s written %s; last lint %s) — run: rdr lint %s\n",
+	fmt.Fprintf(stderr, "stopped:no-lint-receipt (%s written %s; last lint %s) — run: recs lint %s\n",
 		num, since.Format(time.RFC3339), was, num)
 	return 1
 }

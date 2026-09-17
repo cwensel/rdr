@@ -711,7 +711,7 @@ func TestStructuralIdsAreNotBacklog(t *testing.T) {
 // draw from ONE namespace. An unlabelled first list mints positional
 // S1..S3 while a second list's author-written 1..3 are unique and keep
 // theirs — both were minted as S1..S3, so three ids each named two
-// different elements and `rdr inspect 0012:S1` was a coin flip.
+// different elements and `recs inspect 0012:S1` was a coin flip.
 func TestDerivedKeysNeverCollideWithAuthoredOnes(t *testing.T) {
 	doc := Bytes([]byte(`# Recommendation 0012: Scenarios
 

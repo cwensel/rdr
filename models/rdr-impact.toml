@@ -1,10 +1,10 @@
-# rdr-impact.toml — the test-naming conventions `rdr impact` reads, as data.
+# rdr-impact.toml — the test-naming conventions `recs impact` reads, as data.
 #
 # Stage 8's Phase 0 auditor owes the implementer a blast radius: which
 # predecessor tests will a locked record's contract changes turn red. The
 # answer used to be nothing — the implementer met each red test mid-loop
 # and had to decide, one at a time, whether it was a regression or a
-# retired contract. `rdr impact` predicts the set up front from two
+# retired contract. `recs impact` predicts the set up front from two
 # things the corpus already carries: the records the RDR states it
 # overrides or succeeds (its Metadata edges), and the literals the change
 # retires (the caller names those; they are judgement).

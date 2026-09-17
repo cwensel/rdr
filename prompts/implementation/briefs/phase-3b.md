@@ -9,7 +9,7 @@ same with `--clear`.
 
 Task: the PHASE 3b block of {RDR_HOME}/prompts/implementation/launch.md
 (from `PHASE 3b` to `PHASE 3d`), read once. Inputs: the record's Failure
-Modes section (`{RDR_HOME}/bin/rdr inspect {NNNN}` lists the section ids;
+Modes section (`{RDR_HOME}/bin/recs inspect {NNNN}` lists the section ids;
 `inspect --select {NNNN}:§<id> {RDR_PATH}` prints it), {ART}/req-list.md, the
 source tree. You do NOT read the Phase 1 tests or any Phase 3a finding.
 

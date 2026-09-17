@@ -51,7 +51,7 @@ conformant record whose tally the scanner tests pin by hand.
 goldens — an interior edit, a pure deletion and a blank-length add —
 so the overlap rule is pinned without a git repository in the tree.
 
-`status/` is a ten-record corpus for the fact table and `rdr status`,
+`status/` is a ten-record corpus for the fact table and `recs status`,
 and it is the only fixture tree that ships more than records: the facts
 are exact-path PROBES, so the paths have to exist. `records/` holds the
 records and each one's artifact folder; `evidence/` is a synthetic

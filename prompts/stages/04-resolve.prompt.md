@@ -35,7 +35,7 @@ there.
 SCOPED RE-ENTRY. Ask the projector, don't parse the Status line:
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata,edges <NNNN>
+"$RDR_HOME/bin/recs" inspect --json --filter metadata,edges <NNNN>
 ```
 
 `metadata[]` where `label=="Status"` → `.status.form == "revised-from"` means this
@@ -50,7 +50,7 @@ id in one call (`--select <NNNN>:I-4`), never by line windows. Read each named
 assumption by id, not the whole Critical Assumptions section:
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --select <NNNN>:A2 <NNNN>
+"$RDR_HOME/bin/recs" inspect --select <NNNN>:A2 <NNNN>
 ```
 
 Third branch — `revised-from` with an EMPTY `reverify` set and a refine commit
@@ -59,7 +59,7 @@ assumptions whose lines that commit touched. Never `git show` it; ask:
 
 ```sh
 sha=$(git -C "$RDR_RECORDS" log -1 --format=%h --grep='^docs(rdr): refine' -- "$RDR_PATH")
-"$RDR_HOME/bin/rdr" inspect --touched-since "$sha^" --json <NNNN>   # .touched[].id, A* only
+"$RDR_HOME/bin/recs" inspect --touched-since "$sha^" --json <NNNN>   # .touched[].id, A* only
 ```
 
 Use the id list as a value; write it into the qualifier so the next stage
@@ -74,7 +74,7 @@ On any scoped re-entry the reuse audit and the {RDR_ENV} / {RDR_RESOURCES} reads
 above are owed only for behaviours the in-scope assumptions introduce; otherwise
 the close packet says `reuse audit: n/a — scoped re-entry`. A landing-order
 precondition on a peer ("NNNN lands first") is answered by
-`"$RDR_HOME/bin/rdr" status --tags <peer>` — `status=Final` and
+`"$RDR_HOME/bin/recs" status --tags <peer>` — `status=Final` and
 `gate_stale=false` — never by reading the peer's files or history.
 
 For each Critical Assumption in scope:
@@ -140,7 +140,7 @@ A revised or narrowed clause runs rdr-common §amendment-sweep.
 
 **Delegated — no user in this context** (a `/rdr-draft-to-lock` spawn): the round
 cannot be asked here, and a §return-packet cannot carry it. Write it to
-`$RDR_ROOT_EVIDENCE/author-round.md` (`rulings.md`'s sibling; `eval "$("$RDR_HOME/bin/rdr" paths NNNN)"`)
+`$RDR_ROOT_EVIDENCE/author-round.md` (`rulings.md`'s sibling; `eval "$("$RDR_HOME/bin/recs" paths NNNN)"`)
 under `## <date> — resolve`, one `- **<Qn|fixture>** — <item> — grounding: <cite>`
 line each, fixtures in full. Return `verdict: NEEDS_DECISION`, the file in
 `evidence_paths`, `next_action: rule on the <N> items in author-round.md <date>`.
@@ -149,7 +149,7 @@ before the record and finishes the round.
 
 Verify EXACTNESS words too — each needs an Evidence Record (prefer a named
 normative fixture from the round above) or coverage by the Minimum Viable
-Validation. `rdr lint`'s `prose:exactness` names the terms of art inside the
+Validation. `recs lint`'s `prose:exactness` names the terms of art inside the
 normative fences; the QUANTIFIERS (all/every, first/nearest) are yours to read,
 because only you can tell "all rows" the commitment from "all three" the
 sentence. For byte-stable output, run the determinism checklist (hash fn+lib,

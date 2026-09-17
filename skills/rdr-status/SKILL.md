@@ -33,7 +33,7 @@ roots. Then derive position as below. Do **not** edit any file.
 
 ```sh
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)
-M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/rdr"
+M="$RDR_HOME/models/rdr-status.toml"; R="$RDR_HOME/bin/recs"
 [ -x "$IS" ] || { echo "stopped:no-intrastate — run /rdr-init to install it" >&2; exit 1; }
 "$R" status --tags NNNN >/dev/null || exit 2   # rdr-common §intrastate: a refused read must not be substituted
 "$IS" flow resolve --model "$M" --outcome locate $("$R" status --tags NNNN)
@@ -86,11 +86,11 @@ is unbound or names no directory. Say so; never fill the gap. ANY refusal (exit
 print the error and stop. Never hand-derive the row or the checklist from the
 facts — a hand-rendered status reads a demoted Final as a fresh Draft.
 
-Only one signal needs a second `rdr` call, and only when `status_form` is not
+Only one signal needs a second `recs` call, and only when `status_form` is not
 `none` — the Status qualifier's prose is deliberately not a fact:
 
 ```sh
-"$RDR_HOME/bin/rdr" inspect --json --filter metadata NNNN   # the qualifier text
+"$RDR_HOME/bin/recs" inspect --json --filter metadata NNNN   # the qualifier text
 ```
 
 ### When the model is not consulted
@@ -98,7 +98,7 @@ Only one signal needs a second `rdr` call, and only when `status_form` is not
 If the note fired, the facts and the routing both have to come from elsewhere:
 
 ```sh
-"$RDR_HOME/bin/rdr" status --json NNNN     # ~250 lines / 5KB — read it whole, do not page it
+"$RDR_HOME/bin/recs" status --json NNNN     # ~250 lines / 5KB — read it whole, do not page it
 ```
 
 and read the rows of `$RDR_HOME/models/rdr-status.toml` for the routing. **They
@@ -165,7 +165,7 @@ fetched for it.
 1. **Header** — `RDR NNNN-<slug> — <Status line verbatim>`. The bare status is
    `status`; the qualifier text needs the `--filter metadata` call, and only when
    `status_form` is not `none`.
-2. **Stage checklist** — print `"$RDR_HOME/bin/rdr" status --checklist NNNN`
+2. **Stage checklist** — print `"$RDR_HOME/bin/recs" status --checklist NNNN`
    verbatim. `?` marks a fact nothing looked at (unbound root), never `–`. Lenses
    shown are the ones that ran; the one owed is `emit.next`.
 3. **Next** — `emit.next` with `NNNN` appended, e.g.

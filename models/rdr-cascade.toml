@@ -7,7 +7,7 @@
 # DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
 # accessors. The caller acts on `emit`; nothing here writes.
 #
-# THE `packet` GROUP'S TAGS ARE CALLER-SUPPLIED, NOT FACTS. No `rdr status
+# THE `packet` GROUP'S TAGS ARE CALLER-SUPPLIED, NOT FACTS. No `recs status
 # --tags` vector renders them: the orchestrator binds each from the packet
 # it holds (`verdict:`, `blocking:`, `next_action:`) and its own Ledger
 # (`retry`), and passes them as `--tag k=v` — the `observed` provenance's
@@ -19,7 +19,7 @@
 # model's caller tags in an allowlist.
 #
 # The sibling `posture` group below reads two real facts (`profile`,
-# `status`, rendered by `rdr status --tags`) plus one more caller-supplied
+# `status`, rendered by `recs status --tags`) plus one more caller-supplied
 # tag (`ask_each`, the `--ask-each` flag) — see its own banner.
 #
 # THE ANSWER IS `emit`: `next` is the disposition; `stage` says what
@@ -100,7 +100,7 @@ domain        = ["none", "imperative", "stop", "stage"]
 single_valued = true
 required      = true
 
-# Rendered by `rdr status --tags --filter profile,status`; `none` is the
+# Rendered by `recs status --tags --filter profile,status`; `none` is the
 # fact's declared absent sentinel.
 [tags.profile]
 provenance    = "observed"
@@ -109,7 +109,7 @@ domain        = ["small", "mid", "large", "foundational", "none"]
 single_valued = true
 required      = true
 
-# Rendered by `rdr status --tags --filter profile,status`.
+# Rendered by `recs status --tags --filter profile,status`.
 [tags.status]
 provenance    = "observed"
 kind          = "enum"

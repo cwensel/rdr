@@ -109,19 +109,19 @@ for base in "$PROJECT/.claude/skills" "$PROJECT/.codex/skills"; do
   fi
 done
 [ -n "$seen10" ] || echo "  [INFO] 10 no consumer skill links here (engine repo, or hand-driven consumer) - n/a"
-# 11 - the projector binary rdr-init builds. Skills call it as "$RDR_HOME/bin/rdr";
+# 11 - the projector binary rdr-init builds. Skills call it as "$RDR_HOME/bin/recs";
 # it is gitignored, so a fresh clone/plugin install has none until /rdr-init runs.
-RDR_BIN="$RDR_HOME/bin/rdr"
+RDR_BIN="$RDR_HOME/bin/recs"
 if [ ! -x "$RDR_BIN" ]; then
   if command -v go >/dev/null 2>&1; then
-    fail "11 projector not built ($RDR_BIN) - \$rdr-init in Codex or /rdr-init in Claude builds it, or: (cd \"\$RDR_HOME/tools/rdr\" && go build -o \"\$RDR_HOME/bin/rdr\" .)"
+    fail "11 projector not built ($RDR_BIN) - \$rdr-init in Codex or /rdr-init in Claude builds it, or: (cd \"\$RDR_HOME/tools/rdr\" && go build -o \"\$RDR_HOME/bin/recs\" .)"
   else
     fail "11 projector not built and 'go' is not on PATH - install Go (go.dev/dl), then \$rdr-init in Codex or /rdr-init in Claude"
   fi
 else
   ver=$("$RDR_BIN" version 2>/dev/null) || ver=""
   if [ -z "$ver" ]; then
-    fail "11 projector present but 'rdr version' failed ($RDR_BIN) - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
+    fail "11 projector present but 'recs version' failed ($RDR_BIN) - rebuild: \$rdr-init in Codex or /rdr-init in Claude"
   else
     pass "11 projector built - $RDR_BIN ($ver)"
     # 11e - the tracked scripts beside the built binary (bin/ is otherwise
@@ -132,20 +132,33 @@ else
     for s in rdr-next rdr-gate rdr-leg-commit; do [ -x "$RDR_HOME/bin/$s" ] || miss11e="$miss11e $s"; done
     [ -z "$miss11e" ] && pass "11e rdr-next, rdr-gate, rdr-leg-commit present beside the projector" \
       || warn "11e missing in $RDR_HOME/bin:$miss11e - /rdr-status's next-step column or launch.md's gates have no command; restore from the engine"
-    # 11f - the write table's readers exec `rdr` BY NAME. A command accessor is
+    # 11g - the legacy spelling. Every frozen record and evidence file calls
+    # the binary "$RDR_HOME/bin/rdr", and content on a terminal record is
+    # never amended, so the symlink is what keeps those spellings runnable.
+    # The build writes it (stages/00-bootstrap.md step 6); a copy that
+    # dropped it leaves history unrunnable, which is a WARN, not a FAIL -
+    # the live flow calls `recs` and answers fine without it.
+    if [ -L "$RDR_HOME/bin/rdr" ]; then
+      pass "11g bin/rdr -> $(readlink "$RDR_HOME/bin/rdr") - the spelling frozen records and evidence call"
+    elif [ -e "$RDR_HOME/bin/rdr" ]; then
+      warn "11g $RDR_HOME/bin/rdr is a file, not a symlink to recs - an old build left behind; it answers as whatever revision it was, not this one. Fix: ln -sfn recs \"\$RDR_HOME/bin/rdr\""
+    else
+      warn "11g no $RDR_HOME/bin/rdr symlink - commands quoted in frozen records and evidence do not run; the live flow is unaffected. Fix: ln -sfn recs \"\$RDR_HOME/bin/rdr\""
+    fi
+    # 11f - the write table's readers exec `recs` BY NAME. A command accessor is
     # exec'd, not shelled: argv[0] takes no $RDR_HOME (it would exec the literal)
     # and no {…} placeholder reaches the seam, so the bare name is the only
     # portable spelling and the caller owns PATH (rdr-common §rdr-write exports
     # it). Unreachable, a lock or readme flip dies mid-write on
     # flow-accessor-failed, after every input check passed. Warn: the §rdr-write
     # block self-supplies, so this bites only callers outside it.
-    onpath=$(command -v rdr 2>/dev/null)
+    onpath=$(command -v recs 2>/dev/null)
     if [ -z "$onpath" ]; then
-      warn "11f 'rdr' is not on PATH - a model's command accessor (rdr-write's record/readme readers) cannot exec it; rdr-common §rdr-write exports PATH=\"\$RDR_HOME/bin:\$PATH\" - carry that line in any hand-run flow resolve --allow-commands"
+      warn "11f 'recs' is not on PATH - a model's command accessor (rdr-write's record/readme readers) cannot exec it; rdr-common §rdr-write exports PATH=\"\$RDR_HOME/bin:\$PATH\" - carry that line in any hand-run flow resolve --allow-commands"
     elif [ "$onpath" != "$RDR_BIN" ]; then
-      warn "11f 'rdr' on PATH is $onpath, not $RDR_BIN - the write table's readers would run that build; put \"\$RDR_HOME/bin\" FIRST on PATH"
+      warn "11f 'recs' on PATH is $onpath, not $RDR_BIN - the write table's readers would run that build; put \"\$RDR_HOME/bin\" FIRST on PATH"
     else
-      pass "11f 'rdr' resolves on PATH to the projector - the write table's command accessors can exec it"
+      pass "11f 'recs' resolves on PATH to the projector - the write table's command accessors can exec it"
     fi
     # 11b - staleness. The binary is stamped with the engine revision it was built
     # from (-X main.version). A plugin upgrade or a git pull moves the engine and
@@ -188,12 +201,12 @@ else
       # recording?" is never a guess, and so a marker that says on but resolves
       # nowhere is visible rather than silently writing nothing. Off stops being
       # neutral once autocommit is on: the log is the lint receipt §commit
-      # demands, and with no log `rdr receipt` exits 2 and every record commit
+      # demands, and with no log `recs receipt` exits 2 and every record commit
       # proceeds unchecked - a gate closed without lint is no longer caught.
       case "$RDR_USAGE_LOG" in
         ""|0|false|off|no|OFF|FALSE|No|NO)
           case "$RDR_AUTOCOMMIT" in
-            1|true|on|yes|TRUE|ON|Yes|YES) warn "11d usage log off while autocommit is on - no lint receipt, so §commit cannot refuse an unlinted record (rdr receipt exits 2, commits proceed with a note) - /rdr-init --usage-log turns it on" ;;
+            1|true|on|yes|TRUE|ON|Yes|YES) warn "11d usage log off while autocommit is on - no lint receipt, so §commit cannot refuse an unlinted record (recs receipt exits 2, commits proceed with a note) - /rdr-init --usage-log turns it on" ;;
             *) echo "  [INFO] 11d usage log off - /rdr-init --usage-log turns it on (with autocommit off there is no commit to gate)" ;;
           esac ;;
         1|true|on|yes|TRUE|ON|Yes|YES)

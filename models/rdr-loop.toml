@@ -9,16 +9,16 @@
 # DECIDE-ONLY (intrastate RDR 0010): zero owned tags, no `[initial]`, no
 # accessors. The caller acts on `emit`; nothing here writes.
 #
-# EVERY TAG IS CALLER-SUPPLIED. None is an `rdr status` fact: a pass number
+# EVERY TAG IS CALLER-SUPPLIED. None is an `recs status` fact: a pass number
 # belongs to one lens or one cluster, not to the record, so no fact vector
 # renders it. Each is a VALUE the caller already holds from a tool call —
 # never estimated — passed as `--tag k=v`, the `observed` provenance's
 # declared shape:
-#   iter     — ITER_BUCKET from `rdr paths … --next-iter`: the pass the
+#   iter     — ITER_BUCKET from `recs paths … --next-iter`: the pass the
 #              next run would write, against the tree's declared cap
 #              (rdr-facts.toml `[iteration.tree.*] cap`). `over` is one
 #              past the cap, so a rerun at `over` IS the fourth pass.
-#   found    — whether `rdr anchors` over the pass just resolved printed
+#   found    — whether `recs anchors` over the pass just resolved printed
 #              anything (`some`) or nothing (`none`).
 #   net_new  — whether `comm -13 <ledger> <pass>` printed anything: an
 #              anchor this pass raised that the origin ledger never had.
@@ -73,7 +73,7 @@ domain        = ["1", "2", "3", "over"]
 single_valued = true
 required      = true
 
-# `rdr anchors` over the pass just resolved printed something.
+# `recs anchors` over the pass just resolved printed something.
 [tags.found]
 provenance    = "observed"
 kind          = "enum"

@@ -138,7 +138,7 @@ PRECHECKS (orchestrator runs these directly — cheap reads only)
   as `no such file or directory`, which looks exactly like a broken checkout
   and is not one. Capture the exit before any tree changes hands;
   `proceed` → continue; a `stopped:*` halts as INCOMPLETE with `emit.why`,
-  naming `predecessors_incomplete` (`"$RDR_HOME/bin/rdr" status --json
+  naming `predecessors_incomplete` (`"$RDR_HOME/bin/recs" status --json
   --filter predecessors_incomplete <slug>` — an unresolvable record and an
   absent capsule are members; nothing looked is not COMPLETE). Record the
   predecessors' artifact paths to pass to Phase 0 and Phase 1.
@@ -217,7 +217,7 @@ Sub-agent's task:
      `literals:` header line; else name them — the exact tokens (marker
      strings, extensions, error codes) the CHANGE-tagged REQs retire or
      rename, ≤10. Then, always fresh,
-     `"$RDR_HOME/bin/rdr" impact <slug> --literal '<tok>' … > <art>/impact.md`
+     `"$RDR_HOME/bin/recs" impact <slug> --literal '<tok>' … > <art>/impact.md`
      (override + predecessor records are read from the record; a
      `stopped:*` is a halt in the packet's next_action, never an empty file).
 Sub-agent returns a §return-packet (rdr-common); summary_50w carries REQ

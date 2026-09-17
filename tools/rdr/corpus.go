@@ -12,7 +12,7 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
-// The corpus facets of `rdr index`: the whole records dir projected once,
+// The corpus facets of `recs index`: the whole records dir projected once,
 // with the flow's standing questions answered as queries over it instead
 // of by opening every file. See scan/corpus.go for the queries; this file
 // is their rendering.
@@ -95,7 +95,7 @@ func graphShowsEdges(f *flags) bool {
 // uninvited would defeat the filter.
 var graphIdentityKeys = []string{"schema"}
 
-// indexGraph is the bare `rdr index`: the one graph document, or as text
+// indexGraph is the bare `recs index`: the one graph document, or as text
 // the record table an index README carries.
 func indexGraph(f *flags, stdout, stderr io.Writer) int {
 	// Text output is the record table, which shows no verdict; JSON
@@ -146,7 +146,7 @@ func statusWord(r scan.Summary) string {
 // It once also answered the WORKLIST (`--in-flight`: Draft, and Final
 // not yet Implemented), which is a different question with a different
 // caller: the navigator, which then had to go and derive each record's
-// signals itself. That form moved to `rdr status` with no argument,
+// signals itself. That form moved to `recs status` with no argument,
 // where the facts come with it. Grouping the whole corpus stayed here,
 // because it is a question about the corpus and not about what to do
 // next.

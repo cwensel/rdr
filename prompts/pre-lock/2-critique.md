@@ -93,8 +93,8 @@ Structure:
    - **ID** — `C-1`, `C-2`, … stable within this file.
    - **RDR passage** — MUST be the element id the projector addresses
      (`NNNN:C4`, `NNNN:A3`; `NNNN:§slug` for prose) — it survives a reword and
-     it is the key a re-run's ledger diff (`rdr anchors`) compares by, so a
-     quoted phrase is a row the diff cannot see; `"$RDR_HOME/bin/rdr" inspect
+     it is the key a re-run's ledger diff (`recs anchors`) compares by, so a
+     quoted phrase is a row the diff cannot see; `"$RDR_HOME/bin/recs" inspect
      {RDR_PATH}` lists them, one per line. "The RDR generally" is not one.
    - **Origin** — the section that raised it: `§1`/`§2`/`§3`/`premortem`/`AT-N`
      (may be several). Premortem and AT origins rank equal to the rest.

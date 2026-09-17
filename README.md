@@ -398,7 +398,7 @@ implementation prompt ([`prompts/implementation/launch.md`](prompts/implementati
 - **IMPL-DECISION** — valid implementation latitude; record only when it affects future interpretation.
 - **IMPL-GAP** — the code diverged from a correct locked REQ, found by Phase 3 or a review and fixed in-phase; the record was right (spec drift is SPEC-DEFECT / SPEC-UNDER, implementation drift is IMPL-GAP).
 
-The list is declared once, in `models/rdr-facts.toml` (`impl_deviation_types_unknown`), so `rdr status` names an entry typed outside it.
+The list is declared once, in `models/rdr-facts.toml` (`impl_deviation_types_unknown`), so `recs status` names an entry typed outside it.
 
 ## License
 

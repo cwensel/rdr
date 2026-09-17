@@ -1,6 +1,6 @@
 package main
 
-// `rdr impact` predicts which predecessor tests a locked record's contract
+// `recs impact` predicts which predecessor tests a locked record's contract
 // changes will turn red, so the implementer meets the list before the
 // loop rather than one red test at a time inside it.
 //

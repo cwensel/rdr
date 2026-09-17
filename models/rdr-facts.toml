@@ -3,7 +3,7 @@
 # `skills/rdr-status/SKILL.md` answers "I lost my place — what do I run
 # next?" by reading two things: the record's own projection, and what is
 # on disk. Both halves used to be prose in that skill, re-derived by a
-# model on every run. This file declares them, and `rdr` evaluates them.
+# model on every run. This file declares them, and `recs` evaluates them.
 #
 # A fact is one of two kinds:
 #
@@ -14,7 +14,7 @@
 #           un-run, and the flow's own rule is that a skipped check must
 #           never read as a passed one — the inverse is just as wrong.
 #
-#   field — a projection path into `rdr inspect --json`. The projector
+#   field — a projection path into `recs inspect --json`. The projector
 #           already normalises emphasis, punctuation, qualifier grammars
 #           and vocabulary tiers; a fact reads the field it publishes
 #           rather than re-parsing the string it rendered.
@@ -86,7 +86,7 @@ suffix = ""
 # Iteration — where a re-entry pass writes, declared rather than guessed
 # ===========================================================================
 #
-# `rdr paths` answers the two questions six skill and prompt sites used to
+# `recs paths` answers the two questions six skill and prompt sites used to
 # hand-build: WHERE does this lens write, and WHICH iteration is next. Both
 # were prose restated per site — the shape that produced a live defect when
 # two of them named a directory the migration had moved, and nothing noticed
@@ -126,7 +126,7 @@ first = "loose"
 # The per-lens tree: `$RDR_EVIDENCE/<slug>/evidence/<lens>/`, the base a
 # Stage-5 lens writes to and the one `--lens` selects.
 # `cap` is the iteration past which a tree's loop is flapping, not
-# progressing. `rdr paths --next-iter` buckets ITER against it as
+# progressing. `recs paths --next-iter` buckets ITER against it as
 # ITER_BUCKET ("1".."cap", else "over"), the tag `models/rdr-loop.toml`
 # routes on; a tree with no cap has no bucket. Data, so the cap a stage
 # doc states and the one the loop enforces are one number.
@@ -282,7 +282,7 @@ description = "The Profile keyword that selects the Stage-5 lens row."
 # PROSE, and the only fact so marked. The rationale tail is a sentence an
 # author wrote for a reader — on the reference corpus, 91 records of 144
 # carry one — so it is a JSON string in `--json` and is not rendered as a
-# tag at all. A tag crosses through an unquoted `$(rdr status --tags …)`,
+# tag at all. A tag crosses through an unquoted `$(recs status --tags …)`,
 # which splits on whitespace and globs the pieces, so this value would
 # arrive as `profile_raw=mid`: a well-formed tag with a silently
 # truncated value, and a caller routing on words the record never said.
@@ -760,7 +760,7 @@ description = "repeatability's runs were diffed — owed by both variants."
 #
 # PROSE, for the reason the open vocabulary above already implies: a
 # model id is not a shell word. `claude-opus-5[1m]` carries brackets, and
-# `[1m]` is a glob — an unquoted `$(rdr status --tags …)` would glob it
+# `[1m]` is a glob — an unquoted `$(recs status --tags …)` would glob it
 # away or split it. The tag renderer is right to refuse such a value, but
 # it refuses the WHOLE call, so an undeclared id here took the navigator
 # down on every record whose critique ran under a bracketed model:
@@ -1139,7 +1139,7 @@ domain      = ["0", "1+", "none"]
 absent      = "none"
 description = "IN-SCOPE rows in triage.md whose Outcome is neither fixed:<sha> nor held:<reason>; none when there is no ledger."
 
-# Phase 0 writes impact.md from `rdr impact`; the launch table's shard
+# Phase 0 writes impact.md from `recs impact`; the launch table's shard
 # route reads only the header's `families:` count. Unread is `none`, a
 # named stop, never `0` — an empty blast radius was looked for.
 [fact.impact_families]

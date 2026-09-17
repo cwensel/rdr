@@ -64,7 +64,7 @@ For each divergence:
 by the implementation taxonomy (README *Post-Mortem
 Process*). Spec drift is SPEC-DEFECT + SPEC-UNDER;
 implementation drift is IMPL-GAP; an entry typed outside
-the list is listed by name — `rdr status` flags it as
+the list is listed by name — `recs status` flags it as
 `impl_deviation_types_unknown`.]
 
 | Type | Count |

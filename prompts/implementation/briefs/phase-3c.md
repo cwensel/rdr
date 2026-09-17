@@ -24,7 +24,7 @@ commands — never `cat`, `go test` or `git commit` yourself — are
 `return-partial` → the {ART}/status.md capsule (`phase: 3c`, `next:
 respawn 3c`), then INCOMPLETE. New open entries: Phase 2's form.
 
-Never edit {RDR_PATH}; read it via `rdr inspect`, not `sed`/`grep`. Scratch in /tmp, never {ART}. Separators `---`, not `===`.
+Never edit {RDR_PATH}; read it via `recs inspect`, not `sed`/`grep`. Scratch in /tmp, never {ART}. Separators `---`, not `===`.
 
 Return exactly this packet, nothing after:
 verdict: PASS | BLOCK | INCOMPLETE | NEEDS_DECISION

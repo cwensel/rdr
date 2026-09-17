@@ -15,7 +15,7 @@ One deterministic source-reading sweep, not a review loop.
 ```text
 Scope the sweep first. Run once:
 
-  "$RDR_HOME/bin/rdr" inspect --json --filter edges,elements {RDR_PATH}
+  "$RDR_HOME/bin/recs" inspect --json --filter edges,elements {RDR_PATH}
 
 (`--repo` defaults to `$RDR_SOURCE_REPO`, rdr-common §source-root; without a repo
 root every `resolved` comes back ABSENT.) Take two lists — this is your

@@ -2264,7 +2264,7 @@ func TestImplArtifactFactsReadTheLedger(t *testing.T) {
 		}
 	})
 
-	// impact_families reads only the `families:` header line `rdr impact`
+	// impact_families reads only the `families:` header line `recs impact`
 	// writes; the sections below it are the Phase 2 leg's, not the fact's.
 	// A file without that line was not the projection's output and is
 	// unread — the shard route must stop on it, not read it as `0`.

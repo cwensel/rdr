@@ -8,9 +8,9 @@
 # edits — and largest stops — in the flow, and the most mechanical.
 #
 # ---------------------------------------------------------------------
-# WHY THIS IS A TABLE AND NOT AN `rdr` SUBCOMMAND
+# WHY THIS IS A TABLE AND NOT A `recs` SUBCOMMAND
 #
-# `rdr` stays READ-ONLY. Its own doctrine — "It never writes to a record"
+# `recs` stays READ-ONLY. Its own doctrine — "It never writes to a record"
 # (tools/rdr/README.md §What it refuses to do) — is unchanged by this
 # file, deliberately and not by omission. The alternative was four write
 # verbs in the projector; it was rejected because every such verb is Go
@@ -22,16 +22,16 @@
 # So the composition is the one `rdr-status.toml` already proves, now
 # with the apply half closed for the two edits that carry no prose:
 #
-#   rdr status --tags NNNN --except status,readme_status
+#   recs status --tags NNNN --except status,readme_status
 #      (the observed facts, as argv)
 #        →  intrastate flow resolve --model rdr-write.toml --as json
-#             (this table; owned state read through `rdr` itself)
+#             (this table; owned state read through `recs` itself)
 #        →  intrastate flow set-state --plan -
 #             (applies the `edit` carrier, read-back verified)
 #
-# Neither binary calls the other AS A LIBRARY — intrastate invokes `rdr`
+# Neither binary calls the other AS A LIBRARY — intrastate invokes `recs`
 # only as a declared command reader, argv fixed in this file and visible
-# to lint. `rdr` renders the facts and reads state back; it never writes.
+# to lint. `recs` renders the facts and reads state back; it never writes.
 # For `lock` and `readme-flip` the caller now types nothing: no `sed`, no
 # value, one pipe. For the rest (`profile`, `demote`, `claim`,
 # `readme-add`) the emitted edit is still applied by hand, because those
@@ -156,10 +156,10 @@ description = "RDR write side: the record's facts to the one structural edit."
 status        = "Draft"
 readme_status = "none"
 
-# The readers are `rdr` itself, in the flat-object shape a command reader
+# The readers are `recs` itself, in the flat-object shape a command reader
 # takes (RDR 0025). The tool that renders the facts is the tool that
 # confirms them after a write, so a read-back cannot disagree with the
-# vector the same call site guarded on — and `rdr` still never writes.
+# vector the same call site guarded on — and `recs` still never writes.
 #
 # ARGV[0] IS BARE ON PURPOSE, AND CANNOT BE OTHERWISE. A command accessor is
 # `exec`d: there is no shell, so `$RDR_HOME` in argv[0] is not expanded (it
@@ -171,7 +171,7 @@ readme_status = "none"
 # checkout, and `TestCommandAccessorsNameTheBinaryBare` fails.
 [read.record]
 role    = "record"
-command = ["rdr", "status", "--flat", "--filter", "status", "{artifact}"]
+command = ["recs", "status", "--flat", "--filter", "status", "{artifact}"]
 keys    = ["status"]
 timeout = "20s"
 
@@ -185,7 +185,7 @@ role    = "readme"
 # as the bare flag (optional-argument form) with the path silently
 # dropped. It is therefore POSITIONAL here — the one spelling a declared
 # reader can get right.
-command = ["rdr", "index", "--row-json", "{tag.nnnn}", "--flat", "{artifact}"]
+command = ["recs", "index", "--row-json", "{tag.nnnn}", "--flat", "{artifact}"]
 keys    = ["readme_status"]
 timeout = "20s"
 
@@ -341,7 +341,7 @@ domain        = ["none", "demoted-target", "revised-from", "routed-back", "joint
 single_valued = true
 required      = true
 
-# NO SET-VALUED TAG IS DECLARED HERE, and that is the point. `rdr status
+# NO SET-VALUED TAG IS DECLARED HERE, and that is the point. `recs status
 # --tags` emits the whole fact vector while this table guards on a
 # subset — the intended shape, since only guard atoms make dimensions.
 # Six set-valued facts ride that vector (`cluster`, `open_joint_decisions`,
@@ -504,7 +504,7 @@ required      = true
 # besides the seed, the `ground` group's one observed FACT dimension. Not
 # `clustered`: that reads the DECLARED Cluster field, and a record with no
 # field but cross-cutting peers read "no peers" and skipped the rung whose
-# surface is that very command. `rdr status --tags` always renders it.
+# surface is that very command. `recs status --tags` always renders it.
 [tags.peers]
 provenance    = "observed"
 kind          = "enum"
@@ -513,7 +513,7 @@ single_valued = true
 required      = true
 
 # rdr-facts.toml's `clustered` — whether the record declares Cluster
-# siblings; the prelock group's dimension. `rdr status --tags` always
+# siblings; the prelock group's dimension. `recs status --tags` always
 # renders it (`fact.clustered`'s `absent = "false"`), same as `status` or
 # `gate_written` above.
 [tags.clustered]
@@ -526,7 +526,7 @@ required      = true
 # bucketed; `none` when the file is unread. The `fence` group reads it
 # beside `clustered`: a clustered record locks only with its predicted
 # blast radius written (rdr#2r7s — 7 of cli/0112's 22 deviations were
-# cross-record entanglements `rdr impact` had predicted, after the lock).
+# cross-record entanglements `recs impact` had predicted, after the lock).
 [tags.impact_families]
 provenance    = "observed"
 kind          = "enum"
@@ -1135,7 +1135,7 @@ surface = "the status, verbatim"
 # `rulings_open` rides beside it: an author ruling nobody has applied is
 # the same "not ready to lock" shape. So is a clustered record with no
 # `{ARTIFACT_DIR}/impact.md`: Scope Verification names the retired
-# literals and runs `rdr impact` before the lock, so a predicted re-cut of
+# literals and runs `recs impact` before the lock, so a predicted re-cut of
 # a peer's shipped REQ is a lock condition, not Phase 0's discovery.
 
 [[rule]]
@@ -1178,7 +1178,7 @@ eq = "none"
 [rule.emit]
 op   = "stopped:impact-unwritten"
 why  = "The record declares Cluster siblings and {ARTIFACT_DIR}/impact.md is unread — the predecessor tests its changes will turn red are a lock condition for a clustered record, not a Phase 0 discovery."
-surface = "name the retired literals (≤10, judgement), run `\"$RDR_HOME/bin/rdr\" impact <slug> --literal '<tok>' … > {ARTIFACT_DIR}/impact.md`, then read its families: a predicted re-cut of a peer's shipped REQ is an Overrides entry or NOT READY with the peer named; re-run"
+surface = "name the retired literals (≤10, judgement), run `\"$RDR_HOME/bin/recs\" impact <slug> --literal '<tok>' … > {ARTIFACT_DIR}/impact.md`, then read its families: a predicted re-cut of a peer's shipped REQ is an Overrides entry or NOT READY with the peer named; re-run"
 
 [[rule]]
 id = "fence-clear"
@@ -1933,7 +1933,7 @@ op      = "ground"
 target  = "packet"
 ground  = "cluster"
 why     = "Code did not settle it and the record has peers — one often already decided it (20 of 75)."
-surface = "`rdr index --cluster-of NNNN`, then per peer `rdr inspect --select MMMM:§decision-rationale MMMM` (and its open decisions: `rdr index --open-joint --record MMMM`)"
+surface = "`recs index --cluster-of NNNN`, then per peer `recs inspect --select MMMM:§decision-rationale MMMM` (and its open decisions: `recs index --open-joint --record MMMM`)"
 
 [[rule]]
 id = "ground-corpus-standalone"

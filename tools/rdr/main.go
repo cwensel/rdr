@@ -1,17 +1,20 @@
-// Command rdr is the deterministic, read-only reader for RDR markdown records.
+// Command recs is the deterministic, read-only reader for the numbered
+// records this engine keeps. It never writes to one. Markdown remains the
+// source of truth; this binary only projects it.
 //
-// It never writes to a record. Markdown remains the source of truth; this
-// binary only projects it.
+// It installs as $RDR_HOME/bin/recs, with $RDR_HOME/bin/rdr a symlink to
+// it: frozen records and evidence spell the command that way, and their
+// content is never amended.
 //
 // Usage:
 //
-//	rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
-//	rdr index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]|--row-json NNNN] [--records DIR]
-//	rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-//	rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
-//	rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
-//	rdr env [--json]
-//	rdr version
+//	recs inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select outline|elements|warnings|<element-id>] [--grep TEXT] [--touched-since REV] [--project P] [--records DIR]
+//	recs index [--json] [--status|--backlinks[=ID]|--cluster-of N|--anchor-intersect|--literal-intersect|--unresolved|--derived|--coverage|--readme[=PATH]|--row-json NNNN] [--records DIR]
+//	recs lint [<NNNN|path>] [--locking] [--json] [--records DIR]
+//	recs status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
+//	recs impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
+//	recs env [--json]
+//	recs version
 //
 // Exit codes:
 //
@@ -57,19 +60,19 @@ var version = "dev"
 // when the envelope's shape changes, independently of the engine revision.
 const schemaVersion = scan.SchemaVersion
 
-const usage = `rdr — read-only projector for RDR markdown records
+const usage = `recs — read-only projector for RDR markdown records
 
 usage:
-  rdr inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--grep TEXT] [--touched-since REV] [--all] [--project P] [--records DIR] [--repo DIR]
-  rdr index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
-  rdr lint [<NNNN|path>] [--locking] [--json] [--records DIR]
-  rdr receipt <NNNN|path> [--since RFC3339] [--records DIR]
-  rdr status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
-  rdr paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
-  rdr anchors --record <NNNN|slug|path> [--unresolved] FILE...
-  rdr impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
-  rdr env [--json]
-  rdr version
+  recs inspect <NNNN|slug|path> [--json] [--filter k1,k2] [--select <facet>|<id>] [--grep TEXT] [--touched-since REV] [--all] [--project P] [--records DIR] [--repo DIR]
+  recs index [--json] [<facet>] [--filter k1,k2] [--records DIR] [--repo DIR]
+  recs lint [<NNNN|path>] [--locking] [--json] [--records DIR]
+  recs receipt <NNNN|path> [--since RFC3339] [--records DIR]
+  recs status [<NNNN|slug|path>…] [--json|--tags|--flat|--checklist|--argv] [--filter f1,f2] [--except f3,f4] [--facts PATH] [--records DIR]
+  recs paths <NNNN|slug|path> [--lens L|--cluster KEY|--tree N[=OP]] [--next-iter] [--json]
+  recs anchors --record <NNNN|slug|path> [--unresolved] FILE...
+  recs impact <NNNN|slug|path> [--literal TOKEN]... [--model PATH] [--repo DIR] [--json] [--records DIR]
+  recs env [--json]
+  recs version
 
 index with no facet is the corpus graph: every record, element and edge,
 plus the derived backlinks (README §Queries over the graph). Facets:
@@ -146,7 +149,7 @@ resolver; --flat renders the flat JSON object of strings a declared
 command reader returns (intrastate RDR 0025), which is what lets an
 accessor read a record's own state back after a write.
 A fact the table declares prose is not rendered as a tag: an
-unquoted $(rdr status --tags NNNN) splits on whitespace, so a sentence
+unquoted $(recs status --tags NNNN) splits on whitespace, so a sentence
 would arrive truncated at the first space. Name SEVERAL records for the
 set question (Stage 8's predecessors, 7.1's cluster): each is resolved by
 name, so the corpus is never scanned, and one that does not resolve is a
@@ -230,7 +233,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 
 	switch args[0] {
 	case "version":
-		fmt.Fprintf(stdout, "rdr %s (schema %s)\n", version, schemaVersion)
+		fmt.Fprintf(stdout, "recs %s (schema %s)\n", version, schemaVersion)
 		return 0
 
 	case "inspect", "index", "lint", "receipt", "status", "env", "paths", "anchors", "impact":
@@ -238,7 +241,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		fs.SetOutput(stderr)
 		f := declareFlags(args[0], fs)
 		// The flag package stops parsing at the first positional, so a flag
-		// typed after the target (`rdr status 0020 --tags`) is the natural
+		// typed after the target (`recs status 0020 --tags`) is the natural
 		// argv shape, not a mistake — hoist it ahead of the positionals so
 		// Parse sees it and it is accepted, rather than refused.
 		if err := fs.Parse(hoistFlags(fs, args[1:])); err != nil {
@@ -419,7 +422,7 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 
 // hoistFlags reorders argv so every flag token precedes every positional,
 // which is what fs.Parse requires to see a flag typed after the target
-// (`rdr status 0020 --tags`) rather than stopping at the target and
+// (`recs status 0020 --tags`) rather than stopping at the target and
 // leaving the flag as a stray positional. A flag that takes a value keeps
 // its neighbour (`--select A9`, `--grep -seed-label`); an undefined flag
 // moves alone, so Parse still refuses it with its own "flag provided but
@@ -566,7 +569,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		// this once enumerated had fallen behind the table's probes
 		// (propose-premortem, reconcile, …). A list the flag does not
 		// enforce is guidance that goes wrong on its own.
-		f.lens = fs.String("lens", "", "the lens whose evidence dir to bind: a folder name under the table's lens tree; the probe facts (rdr status) name the ones the flow reads")
+		f.lens = fs.String("lens", "", "the lens whose evidence dir to bind: a folder name under the table's lens tree; the probe facts (recs status) name the ones the flow reads")
 		f.cluster = fs.String("cluster", "", "the Stage 7.1 cluster key whose dir to bind (the members' numbers joined)")
 		f.tree = fs.String("tree", "", "any tree the table declares, as <name>[=<operand>]")
 		f.nextIter = fs.Bool("next-iter", false, "list the bound dir and report the iteration the next pass should write")
@@ -994,7 +997,7 @@ func recordFiles(paths []string) []string {
 	return out
 }
 
-// inspect is `rdr inspect [flags] NNNN…`: one record's projection, or a
+// inspect is `recs inspect [flags] NNNN…`: one record's projection, or a
 // NAMED SET of records', each resolved by name so only those files are
 // read. The set is the arity `status` already has, and it exists for the
 // same reason: 7.1's critique agent held a list of members and tried
@@ -1589,7 +1592,7 @@ func summary(doc *scan.Document, w io.Writer) int {
 	// The read instruction lands where the ranges are read: a model that
 	// has just seen `118-1128` reaches for sed -n; the id beside it is the
 	// call that returns the same bytes and survives the next edit.
-	fmt.Fprintf(w, "read: rdr inspect --select <id> %s   (a section or element; repeat --select for several; never sed -n on these ranges)\n", doc.Record)
+	fmt.Fprintf(w, "read: recs inspect --select <id> %s   (a section or element; repeat --select for several; never sed -n on these ranges)\n", doc.Record)
 	return 0
 }
 

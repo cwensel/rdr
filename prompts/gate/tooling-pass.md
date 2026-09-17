@@ -10,16 +10,16 @@ section or disturb an evidence record an earlier stage had clean. For a small
 RDR that ran no lens it is the *only* mechanical check; for any RDR it is the
 conformance backstop when Refine/Resolve was skimped.
 
-**Status**: Mostly scripted. C1, C2, C5, C6 and C10 are projections of `rdr`;
+**Status**: Mostly scripted. C1, C2, C5, C6 and C10 are projections of `recs`;
 C3, C4 and C9 remain judgment on a narrowed read.
 
-**Cost**: seconds via `rdr`.
+**Cost**: seconds via `recs`.
 
 ## Run first
 
 ```bash
-"$RDR_HOME/bin/rdr" lint --locking {RDR_NUMBER} > "$ITER_DIR/lint.txt"; echo "lint exit $?"
-"$RDR_HOME/bin/rdr" inspect --json --filter outline,assumptions,edges,metadata {RDR_NUMBER}
+"$RDR_HOME/bin/recs" lint --locking {RDR_NUMBER} > "$ITER_DIR/lint.txt"; echo "lint exit $?"
+"$RDR_HOME/bin/recs" inspect --json --filter outline,assumptions,edges,metadata {RDR_NUMBER}
 ```
 
 `lint` exit 1 = at least one blocking finding (printed with a leading `!`); its
@@ -103,7 +103,7 @@ and nothing was looked for — report those SKIPPED, never as pass or fail. A ba
 `file:line` with no symbol emits no source-anchor edge at all; that absence is
 itself a finding (rewrite as `path::Symbol`). A stale line number alone, where
 the symbol still resolves, is a NON-finding and does not block Final.
-Corpus-wide: `rdr index --unresolved`.
+Corpus-wide: `recs index --unresolved`.
 
 CHECK 6 — Status consistency  (projection-narrowed)
 `metadata[]` Status carries `status.{value,qualifier,form,tier}`; each
@@ -113,11 +113,11 @@ or `Unverified` whose property is then relied on as a settled fact in prose
 elsewhere in the RDR. Also flag any place a checklist box and the Finalization
 Gate (inline or `{ARTIFACT_DIR}/gate.md`) disagree about the same assumption's
 status — these cannot both be right. (Transitional: once a contract is
-single-sourced there is no second copy to disagree.) `rdr index --status` groups
+single-sourced there is no second copy to disagree.) `recs index --status` groups
 the corpus for a cross-record question.
 
 CHECK 9 — Evidence-field budget  (ADVISORY — except a `foundational` record at lock, where it BLOCKS)
-This check IS `rdr lint`: report `evidence:over-budget`, never re-derive it
+This check IS `recs lint`: report `evidence:over-budget`, never re-derive it
 (`--filter elements` is 139KB on cli/0138 to produce six lines).
 One question per hit, and it is the author's at the Gate: is the load-bearing
 anchor still findable, and does the balance belong in `{ARTIFACT_DIR}` with the
@@ -129,7 +129,7 @@ relocated, and "flagged, accepted" is not a disposition (cli/0112 locked at
 2,841 lines that way; Phase 1 paid 39 minutes grounding it).
 
 CHECK 10 — Linking: labelled contracts and resolvable citations
-This check IS `rdr lint`. Report its findings; do not re-read for them.
+This check IS `recs lint`. Report its findings; do not re-read for them.
   - `label:contracts` (advisory) — a normative block with no `**Cn**` label;
     the rewriting stage labels them C1..Cn in-pass. `label:contracts-required`
     is the same finding on a record postdating the rule (no grandfathering).
@@ -179,7 +179,7 @@ its self-clear (per `rdr-common.md` §no-heartbeat).
 These checks are the mechanical share of the implementation-prompt review lens,
 isolated from the analytical share so a script could absorb them — see
 `.rdr/RDR-PROCESS-IMPROVEMENT.md` §D.2, which places this sweep last, immediately
-before the Gate. Most now have: `rdr` is that script. C3 originates in the X4
+before the Gate. Most now have: `recs` is that script. C3 originates in the X4
 triage (`action-items/X4-triage-report.md`), which found 24/54 assumptions
 self-referencing across RDRs 0001–0010 — RDRs authored *before* the structured
 Evidence Record and the Resolve stage existed; both now prevent that failure at

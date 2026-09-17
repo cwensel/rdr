@@ -1,7 +1,7 @@
 #!/bin/sh
 # rdr-next — the worklist with each record's next step, one line per record.
 #
-# `rdr status --argv` renders every in-flight and parked record as a
+# `recs status --argv` renders every in-flight and parked record as a
 # tab-separated line (slug, Status, its `--tag k=v` argv, qualifier);
 # `intrastate flow resolve` answers each row from the routing model. This
 # script only composes the two — neither binary calls the other, and the
@@ -17,7 +17,7 @@
 set -f   # the argv is one shell word per fact; never let a value glob
 
 here=$(dirname "$0")
-R="$here/rdr"
+R="$here/recs"
 H="${RDR_HOME:-$here/..}"
 M="$H/models/rdr-status.toml"
 IS="${RDR_INTRASTATE:-$(command -v intrastate)}"   # marker var, else PATH (rdr-common §intrastate)

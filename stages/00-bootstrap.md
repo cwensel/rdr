@@ -199,8 +199,8 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
    them would drift; see `skills/rdr-common.md`). Leave an existing
    `README.md` untouched.
 
-6. BUILD the projector. `rdr` is the deterministic, read-only reader the skills
-   call as `"$RDR_HOME/bin/rdr" inspect …`; it is gitignored, so every fresh clone
+6. BUILD the projector. `recs` is the deterministic, read-only reader the skills
+   call as `"$RDR_HOME/bin/recs" inspect …`; it is gitignored, so every fresh clone
    or plugin install has none until this step runs. Go stdlib only — no module
    downloads, so this works offline. Stamp it with the engine revision it was
    built from, so `/rdr-doctor` can tell a current binary from a stale one:
@@ -213,9 +213,10 @@ NOT edit the project's root .gitignore, do NOT add tracked files.
      STAMP=$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$RDR_HOME/.claude-plugin/plugin.json" 2>/dev/null | head -1)
      [ -n "$STAMP" ] || STAMP=installed
    fi
-   (cd "$RDR_HOME/tools/rdr" && go build -ldflags "-X main.version=$STAMP" -o "$RDR_HOME/bin/rdr" .) \
+   (cd "$RDR_HOME/tools/rdr" && go build -ldflags "-X main.version=$STAMP" -o "$RDR_HOME/bin/recs" .) \
      || { echo "stopped:projector-build-failed — run the go build above by hand to see the compiler error"; exit 1; }
-   "$RDR_HOME/bin/rdr" version
+   ln -sfn recs "$RDR_HOME/bin/rdr"   # the legacy spelling frozen records call
+   "$RDR_HOME/bin/recs" version
    ```
 
    The build is REQUIRED: with no `go` on PATH, stop with `stopped:no-go-toolchain`

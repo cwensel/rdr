@@ -12,7 +12,7 @@ $RDR_HOME/prompts/gate/tooling-pass.md and run its checks verbatim. It runs on
 every RDR as a post-mutation regression check, since the rounds and the Stage 6
 reconcile just rewrote this draft. Bind the report dir in one call
 (rdr-common §evidence — ask for the dir, never compose one):
-`eval "$("$RDR_HOME/bin/rdr" paths --lens tooling-pass --next-iter <NNNN>)"`;
+`eval "$("$RDR_HOME/bin/recs" paths --lens tooling-pass --next-iter <NNNN>)"`;
 `mkdir -p "$ITER_DIR"` → write `tooling-pass.md` there (at `ITER=1` it *is*
 the base; re-runs land in `iter-N/`). One eval per pass — after the `mkdir`,
 a re-eval names the NEXT iteration and splits the pass across two dirs. Lint once to `$ITER_DIR/lint.txt` (the sweep's "Run first");
@@ -30,7 +30,7 @@ a sweep you spawn gets that path in its brief. On BLOCK, split the findings:
 
 LOOP-BREAKER: before any NOT-READY return pointer, diff this pass against the
 prior one from the same `paths` eval (`$PRIOR_DIR`; absent = first pass, skip):
-`R="$RDR_HOME/bin/rdr"; LC_ALL=C comm -12 <("$R" anchors --record <NNNN>
+`R="$RDR_HOME/bin/recs"; LC_ALL=C comm -12 <("$R" anchors --record <NNNN>
 "$PRIOR_DIR"/tooling-pass.md) <("$R" anchors --record <NNNN> "$ITER_DIR"/tooling-pass.md)`.
 A non-empty result is a finding re-reported after its named stage ran — a
 ROUTING failure, not an author failure — stop per §stop-packet
@@ -55,7 +55,7 @@ NOT READY, class `determinacy`, with `emit.surface` quoted.
 
 Joint-decision fence: before the lock, re-run propose's arms 1 and 2 as one
 rdr-common §rdr-write call,
-`--outcome fence $("$RDR_HOME/bin/rdr" status --tags --filter overlap_uncited,rulings_open,clustered,impact_families NNNN)`;
+`--outcome fence $("$RDR_HOME/bin/recs" status --tags --filter overlap_uncited,rulings_open,clustered,impact_families NNNN)`;
 it must emit `op = none`. `stopped:overlap-uncited` is NOT READY (a shared
 decision nobody fired on — fire it, do not sync the copies), and
 `stopped:overlap-unchecked` means nothing looked. `stopped:rulings-open` is NOT
@@ -82,7 +82,7 @@ where the lock keeps it citable; gate.md never carries a second copy to drift:
    deferred; name the specific test/proof. A record that declares Cluster
    siblings also names its blast radius here: name the retired literals
    (the exact tokens the CHANGE-tagged contracts retire or rename, ≤10,
-   judgement) and run `"$RDR_HOME/bin/rdr" impact <slug> --literal '<tok>'
+   judgement) and run `"$RDR_HOME/bin/recs" impact <slug> --literal '<tok>'
    … > {ARTIFACT_DIR}/impact.md`; a predicted re-cut of a peer's shipped
    REQ is a lock condition — an Overrides entry, or NOT READY with the peer
    named. The fence refuses to lock a clustered record without the file

@@ -10,9 +10,9 @@ import (
 	"time"
 )
 
-// installLaunchHelpers builds this package as `rdr` in a temp dir and copies
+// installLaunchHelpers builds this package as `recs` in a temp dir and copies
 // bin/rdr-gate and bin/rdr-leg-commit beside it — the layout the scripts
-// bind (`$(dirname "$0")/rdr`), with RDR_HOME pointed at the engine for the
+// bind (`$(dirname "$0")/recs`), with RDR_HOME pointed at the engine for the
 // models. Same shape as TestRdrNextRendersTheWorklist; skips without a Go
 // toolchain, and the callers skip without intrastate.
 func installLaunchHelpers(t *testing.T) string {
@@ -26,7 +26,7 @@ func installLaunchHelpers(t *testing.T) string {
 		t.Fatal(err)
 	}
 	dir := t.TempDir()
-	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "rdr"), ".").CombinedOutput(); err != nil {
+	if out, err := exec.Command(goBin, "build", "-o", filepath.Join(dir, "recs"), ".").CombinedOutput(); err != nil {
 		t.Fatalf("go build: %v\n%s", err, out)
 	}
 	for _, s := range []string{"rdr-gate", "rdr-leg-commit", "rdr-leg-budget", "rdr-leg-test", "rdr-leg-read", "rdr-leg-mark", "rdr-leg-guard"} {

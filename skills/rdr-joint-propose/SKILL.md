@@ -51,9 +51,9 @@ proposal content.
 projection — one pass, no seed body read:
 
 ```sh
-"$RDR_HOME/bin/rdr" index --anchor-intersect --json --all
-"$RDR_HOME/bin/rdr" index --literal-intersect --json --all
-"$RDR_HOME/bin/rdr" status
+"$RDR_HOME/bin/recs" index --anchor-intersect --json --all
+"$RDR_HOME/bin/recs" index --literal-intersect --json --all
+"$RDR_HOME/bin/recs" status
 ```
 
 Both emit `overlaps[]` `{records[], anchors[], cited}`, which together **are**
@@ -76,7 +76,7 @@ it greps `Final` peers for a refusal token *because it is missing from the new
 proposal*, which needs the proposal, not the corpus. It stays with the authoring
 prompt, per member.
 
-Order = `"$RDR_HOME/bin/rdr" index --json --topo=<members>` `order[]`
+Order = `"$RDR_HOME/bin/recs" index --json --topo=<members>` `order[]`
 (predecessor edges first; ties by Priority, then number; `cycles[]` is a
 deadlock to surface, not to order). Within an overlap group the likely
 **contract owner** (locus *is* the shared anchor; the lower-level seam) may be
@@ -87,7 +87,7 @@ moved first — a prior the loop corrects; this pass makes corrections rare.
 Spawn one proposer per member, sequentially in order (§delegation spawn;
 model per §model-ceiling). Brief = the bound seam vars + `{RDR_PATH}`, the peer
 roster (NNNN + title — awareness, never solutions; take the ROW lines of
-`rdr status`, not the facts under them — do not widen it), and: run the sibling
+`recs status`, not the facts under them — do not widen it), and: run the sibling
 [`02-propose.prompt.md`](02-propose.prompt.md) **in full — including step 8**,
 which now compares real peer proposals — plus two batch-only additions:
 

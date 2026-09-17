@@ -76,7 +76,7 @@ Claude: /rdr-finalize <NNNN>
   README index row flipped to Final (the row seed created). On NOT READY the
   prompt flips nothing — return to the named stage.
 - A clustered record has `{ARTIFACT_DIR}/impact.md` (Scope Verification's
-  `rdr impact` run; the fence's `stopped:impact-unwritten` is the tool's word,
+  `recs impact` run; the fence's `stopped:impact-unwritten` is the tool's word,
   never read by eye) and any predicted re-cut of a peer's shipped REQ is an
   Overrides entry or a named blocker.
 - **Ablation, three records (rdr#2r7s):** for a `foundational` or clustered
@@ -91,7 +91,7 @@ Claude: /rdr-finalize <NNNN>
 - The lock commit (standalone `docs(rdr): finalize …`, **never** `fixup!`) is part of the READY action above — see Usage / rdr-common §commit.
 - Locked → one call names what follows (the `after-lock` group of
   `$RDR_HOME/models/rdr-status.toml`; both facts are on demand, so filter by name):
-  `"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --outcome after-lock --plan-only $("$RDR_HOME/bin/rdr" status --tags --filter related_final_unimplemented,cluster_members_in_flight NNNN)`.
+  `"$IS" flow resolve --model "$RDR_HOME/models/rdr-status.toml" --outcome after-lock --plan-only $("$RDR_HOME/bin/recs" status --tags --filter related_final_unimplemented,cluster_members_in_flight NNNN)`.
   `emit.next` + NNNN is `Next:`, except `next_arg: sibling` → `/rdr-draft-to-lock
   <the status=Draft member of index --json --cluster-of NNNN>` (every sibling locks
   before 7.1 runs once over the set) and `next_arg: cluster` → the members

@@ -1,6 +1,6 @@
 package main
 
-// `rdr env` publishes the bound seam, so a skill stops carrying a shell
+// `recs env` publishes the bound seam, so a skill stops carrying a shell
 // resolver to read the three vars this tool never opens.
 //
 // The verb is deliberately NOT `envOrSeam`. Every other seam read in this

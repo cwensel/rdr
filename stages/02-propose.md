@@ -67,8 +67,8 @@ peer, and only the true joint forks surfaced to the user.
   **Arms 1 and 2 are queries** — one pass each, no peer body opened:
 
   ```sh
-  "$RDR_HOME/bin/rdr" index --anchor-intersect --json   # arm 1: modify-anchors
-  "$RDR_HOME/bin/rdr" index --literal-intersect --json  # arm 2: contract literals
+  "$RDR_HOME/bin/recs" index --anchor-intersect --json   # arm 1: modify-anchors
+  "$RDR_HOME/bin/recs" index --literal-intersect --json  # arm 2: contract literals
   ```
 
   Both emit `overlaps[]` `{records[], anchors[], cited}`, in-flight and uncited

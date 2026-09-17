@@ -18,7 +18,7 @@ import (
 // file cannot answer the question — a record citing `0055:A9` knows
 // nothing about whether 0055 has an A9 — so resolution needs the records
 // dir, and source-anchor resolution needs the repo. Folding it into the
-// scanner would make scanning depend on a corpus, and `rdr inspect
+// scanner would make scanning depend on a corpus, and `recs inspect
 // path/to/one.md` would stop working on a loose file.
 //
 // UNCHECKED IS NOT UNRESOLVED. `resolved` is three-valued: true, false,
@@ -399,7 +399,7 @@ func (r *Resolver) walk(visit func(body []byte) bool) {
 // MaxSearchBytes skips a file too large to be source. A generated blob is
 // not where a cited symbol is defined, and reading it costs more than the
 // whole rest of the walk. Exported so every walk over the repo — this
-// resolver's and `rdr impact`'s — draws the same line.
+// resolver's and `recs impact`'s — draws the same line.
 const MaxSearchBytes = 4 << 20
 
 // SkipDir is the one list of directories no repo walk descends into:
