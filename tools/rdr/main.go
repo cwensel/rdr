@@ -1713,16 +1713,28 @@ func indexDerived(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "%s %3dw  %s\n", r.Record, r.Warnings, derivedLine(scan.Counts{Elements: r.Elements, Derived: r.Derived, Structural: r.Structural}))
 	}
 	fmt.Fprintf(stdout, "total %d records  %s\n", len(rows), derivedLine(total))
-	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
+	for _, s := range skipped {
+		fmt.Fprintf(stdout, "skipped %s (%s)\n", s.Target, s.Why)
 	}
 	return 0
 }
 
 // records walks the records dir, scanning every NNNN-*.md that is a
 // record. Files that are not records are returned as skipped, never
-// silently dropped.
-func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []string, code int) {
+// silently dropped — and so are files that could not be read.
+//
+// ONE BAD FILE DOES NOT TAKE THE WALK DOWN. An unreadable file used to
+// abort the whole walk with `stopped:unreadable`, so a single malformed
+// fragment beside the records answered every corpus question with
+// nothing: `index --status`, and any status fact that walks peers. A
+// corpus walk is a SET of files, and one of them being unreadable is a
+// fact about that file — the other 157 records still hold the answer the
+// caller asked for. So the bad file becomes a skipped row carrying its
+// reason and the walk finishes.
+//
+// An empty dir still stops: nothing was read at all, which is a bound
+// records dir that is wrong rather than a corpus with a bad file in it.
+func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []scan.Skip, code int) {
 	dir, tried := resolveRecordsDir(*f.records)
 	paths, _ := filepath.Glob(filepath.Join(dir, "[0-9][0-9][0-9][0-9]-*.md"))
 	paths = recordFiles(paths)
@@ -1732,19 +1744,30 @@ func records(f *flags, stderr io.Writer) (docs []*scan.Document, skipped []strin
 			absOrSelf(dir), whereItLooked(tried))
 		return nil, nil, 2
 	}
+	docs, skipped = scanPaths(paths, *f.project)
+	return docs, skipped, 0
+}
+
+// notARecord is the reason a readable file that is not an RDR is skipped.
+const notARecord = "not an RDR: no Metadata Status and no Critical Assumptions"
+
+// scanPaths scans every path, returning the records and a skip row per
+// file that is not one. It is the shared body of the two corpus walks,
+// so both report a bad file the same way.
+func scanPaths(paths []string, project string) (docs []*scan.Document, skipped []scan.Skip) {
 	for _, p := range paths {
-		doc, err := scan.File(p, scan.Options{Project: *f.project})
+		doc, err := scan.File(p, scan.Options{Project: project})
 		if err != nil {
-			fmt.Fprintf(stderr, "stopped:unreadable (%s: %v)\n", p, err)
-			return nil, nil, 2
+			skipped = append(skipped, scan.Skip{Target: p, Why: fmt.Sprintf("unreadable: %v", err)})
+			continue
 		}
 		if !doc.IsRecord() {
-			skipped = append(skipped, p)
+			skipped = append(skipped, scan.Skip{Target: p, Why: notARecord})
 			continue
 		}
 		docs = append(docs, doc)
 	}
-	return docs, skipped, 0
+	return docs, skipped
 }
 
 // coverageRow is one record's unclassified-line count.
@@ -1885,8 +1908,8 @@ func indexCoverage(f *flags, stdout, stderr io.Writer) int {
 		}
 		fmt.Fprintf(stdout, "recurring %-7s %-48q %-28s %d records\n", r.Kind, r.Text, where, r.Records)
 	}
-	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
+	for _, s := range skipped {
+		fmt.Fprintf(stdout, "skipped %s (%s)\n", s.Target, s.Why)
 	}
 	return 0
 }
@@ -2039,7 +2062,7 @@ func scanTargets(dir, project string, want map[string]bool) (docs []*scan.Docume
 
 // scanDir scans every record in a directory. It is the corpus builder
 // both the index facets and inspect's resolver use.
-func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err error) {
+func scanDir(dir, project string) (docs []*scan.Document, skipped []scan.Skip, err error) {
 	// Same rescue as a single-record lookup: `index` and `lint` read a
 	// relative --records the way `inspect` does, so one wrong cwd does
 	// not report an empty corpus.
@@ -2050,17 +2073,10 @@ func scanDir(dir, project string) (docs []*scan.Document, skipped []string, err 
 	if len(paths) == 0 {
 		return nil, nil, fmt.Errorf("%s holds no NNNN-*.md%s", absOrSelf(dir), whereItLooked(tried))
 	}
-	for _, p := range paths {
-		doc, e := scan.File(p, scan.Options{Project: project})
-		if e != nil {
-			return nil, nil, fmt.Errorf("%s: %w", p, e)
-		}
-		if !doc.IsRecord() {
-			skipped = append(skipped, p)
-			continue
-		}
-		docs = append(docs, doc)
-	}
+	// A bad file is a skipped row here too, for records()' reason: this
+	// walk answers the same corpus questions and must not fail them all
+	// over one file.
+	docs, skipped = scanPaths(paths, project)
 	return docs, skipped, nil
 }
 
@@ -2120,7 +2136,7 @@ func indexEdges(f *flags, stdout, stderr io.Writer) int {
 // missing target is not a broken promise; including them would bury the
 // typed findings under thousands of prose references to records that
 // live in another dir or were never written.
-func unresolvedFacet(docs []*scan.Document, skipped []string, f *flags, stdout, stderr io.Writer) int {
+func unresolvedFacet(docs []*scan.Document, skipped []scan.Skip, f *flags, stdout, stderr io.Writer) int {
 	var rows []edgeRow
 	for _, d := range docs {
 		for _, e := range d.Edges {

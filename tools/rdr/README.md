@@ -864,6 +864,14 @@ as PASS. So the contract is stated before the parsing, and tested:
 - **Read, never judge.** A parse warning on a terminal record is always
   a projector bug to fix with a fixture, never a reason to edit the
   record.
+- **One bad file does not take the walk down.** A corpus walk is a SET
+  of files, so a file it cannot read is a fact about that file and not
+  about the corpus: it becomes a `skipped` row carrying its reason and
+  the other records still answer. The reason travels WITH the row —
+  `unreadable: …` or `not an RDR: …` — because a print site that names
+  the reason itself reports a file nobody looked inside as "not an RDR".
+  An empty records dir still stops: nothing was read at all, which is a
+  bound dir that is wrong rather than a corpus with a bad file in it.
 
 The **unclassified-line rate** is the property as a number: the share
 of a record's non-blank lines that lie inside a warning's range
@@ -889,6 +897,7 @@ and one variant per known failure (`testdata/README.md`):
 | `TestWrappedMetadata` | wrapped values join, a guidance comment ends them, a nested bullet is not part of the value; legacy and author labels classify; an unknown one warns and is still recorded |
 | `TestAuthorStructure` | author sub-headings are not findings; a foreign section warns once; prose-named labels are observed, the author's are recorded |
 | `TestIndexCoverage` | the corpus rate, warnings by code, and the recurrence table with its threshold |
+| `TestOneBadFileDoesNotTakeTheWalkDown` | an unreadable file is a skipped row with its reason, not an aborted walk; a headless fragment reads as a non-record |
 
 ## One template, read never judge
 

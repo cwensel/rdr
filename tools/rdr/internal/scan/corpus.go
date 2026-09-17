@@ -148,15 +148,30 @@ type Graph struct {
 	Elements  []GraphElement       `json:"elements"`
 	Edges     []GraphEdge          `json:"edges"`
 	Backlinks map[string][]BackRef `json:"backlinks"`
-	Skipped   []string             `json:"skipped"`
+	Skipped   []Skip               `json:"skipped"`
+}
+
+// Skip is one file a corpus walk did not read, and why.
+//
+// The reason TRAVELS with the row rather than being supplied by the
+// print site, because the walk now has more than one reason to skip: a
+// file that is not a record, and a file it could not read at all. A
+// print site that names the reason itself gets the second case wrong —
+// it reports an unreadable file as "not an RDR", which is a confident
+// wrong answer about a file nobody looked inside.
+type Skip struct {
+	// Target is the path that was not read.
+	Target string `json:"target"`
+	// Why is the reason, in the caller's words.
+	Why string `json:"why"`
 }
 
 // BuildGraph assembles the graph over already-resolved documents.
-func BuildGraph(docs []*Document, skipped []string) Graph {
+func BuildGraph(docs []*Document, skipped []Skip) Graph {
 	g := Graph{Schema: SchemaVersion, Records: []Summary{}, Elements: []GraphElement{},
 		Edges: []GraphEdge{}, Backlinks: map[string][]BackRef{}, Skipped: skipped}
 	if g.Skipped == nil {
-		g.Skipped = []string{}
+		g.Skipped = []Skip{}
 	}
 	for _, d := range docs {
 		g.Records = append(g.Records, Summarize(d))

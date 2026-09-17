@@ -288,7 +288,7 @@ func TestIndexCoverage(t *testing.T) {
 			Kind, Text string
 			Records    int
 		}
-		Skipped []string
+		Skipped []map[string]string
 	}
 	if err := json.Unmarshal([]byte(out), &got); err != nil {
 		t.Fatal(err)
@@ -298,6 +298,11 @@ func TestIndexCoverage(t *testing.T) {
 	}
 	if got.Warnings["section:unknown-to-template"] != 3 || len(got.Skipped) != 1 {
 		t.Errorf("warnings %v skipped %v", got.Warnings, got.Skipped)
+	}
+	// The skip carries its reason, so a consumer can tell a file that is
+	// not a record from one that could not be read.
+	if len(got.Skipped) == 1 && got.Skipped[0]["why"] != notARecord {
+		t.Errorf("skipped why = %q, want %q", got.Skipped[0]["why"], notARecord)
 	}
 	for _, r := range got.Recurring {
 		if r.Records != 3 {
@@ -2976,6 +2981,85 @@ func TestIndexAnchorIntersectOverTheStatusCorpus(t *testing.T) {
 		}
 		if uncited != 1 {
 			t.Errorf("%s: %d uncited pairs, want 1:\n%s", rec, uncited, out)
+		}
+	}
+}
+
+// TestOneBadFileDoesNotTakeTheWalkDown is records()' own promise, which
+// it kept for a file that is not a record and broke for a file it could
+// not read: "files that are not records are returned as skipped, never
+// silently dropped". An unreadable file aborted the whole walk with
+// `stopped:unreadable` and exit 2, so a single malformed fragment in a
+// records dir answered every corpus question — `index --status`, a
+// status fact that walks peers — with nothing at all.
+//
+// A corpus walk is a set of files. One of them being unreadable is a
+// fact about that file, and the other 157 records still have the answer
+// the caller asked for. So the bad file becomes a skipped row carrying
+// its reason, the walk finishes, and the caller can see exactly what was
+// not read — the same shape `status` already writes, because a skipped
+// row with no reason is an absence nobody can act on.
+func TestOneBadFileDoesNotTakeTheWalkDown(t *testing.T) {
+	dir := t.TempDir()
+	clean, _ := os.ReadFile(fixturePath("current-shape.md"))
+	if err := os.WriteFile(filepath.Join(dir, "0004-checksum.md"), clean, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// Unreadable, not merely malformed: a directory named like a record
+	// is the case that reaches os.ReadFile's error path on every OS.
+	if err := os.Mkdir(filepath.Join(dir, "0009-unreadable.md"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// A fragment whose first field bullet precedes any heading: the shape
+	// that used to panic, and which must now read as a non-record.
+	if err := os.WriteFile(filepath.Join(dir, "0010-fragment.md"),
+		[]byte("- **Label**: a field with no heading above it\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	for _, facet := range []string{"--status", "--coverage", "--derived"} {
+		t.Run(facet, func(t *testing.T) {
+			code, out, errb := runCapture(t, "index", facet, "--records", dir)
+			if code != 0 {
+				t.Fatalf("one bad file gave exit %d; the readable record still has an answer\nstderr: %s", code, errb)
+			}
+			if !strings.Contains(out, "0004") {
+				t.Errorf("the readable record is missing from the walk:\n%s", out)
+			}
+			if !strings.Contains(out, "0009-unreadable.md") {
+				t.Errorf("the unreadable file was silently dropped, not skipped:\n%s", out)
+			}
+		})
+	}
+
+	// The reason travels with the row: a JSON consumer must be able to
+	// tell "not an RDR" from "could not be read".
+	code, out, errb := runCapture(t, "index", "--coverage", "--json", "--records", dir)
+	if code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	var env struct {
+		Skipped []map[string]string `json:"skipped"`
+	}
+	if err := json.Unmarshal([]byte(out), &env); err != nil {
+		t.Fatalf("unmarshal: %v\n%s", err, out)
+	}
+	why := map[string]string{}
+	for _, s := range env.Skipped {
+		why[filepath.Base(s["target"])] = s["why"]
+	}
+	if len(env.Skipped) != 2 {
+		t.Fatalf("want two skipped rows, got %v", env.Skipped)
+	}
+	if w := why["0009-unreadable.md"]; !strings.Contains(w, "unreadable") {
+		t.Errorf("unreadable file's reason = %q, want it to say so", w)
+	}
+	if w := why["0010-fragment.md"]; !strings.Contains(w, "not an RDR") {
+		t.Errorf("fragment's reason = %q, want the not-a-record reason", w)
+	}
+	for _, s := range env.Skipped {
+		if strings.TrimSpace(s["why"]) == "" {
+			t.Errorf("a skipped row with no reason is an absence nobody can act on: %v", s)
 		}
 	}
 }

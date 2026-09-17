@@ -38,7 +38,7 @@ func (o *optString) Set(v string) error {
 }
 
 // corpus scans and resolves the records dir once for every facet below.
-func corpus(f *flags, stderr io.Writer) ([]*scan.Document, []string, int) {
+func corpus(f *flags, stderr io.Writer) ([]*scan.Document, []scan.Skip, int) {
 	return corpusResolving(f, stderr, true)
 }
 
@@ -58,7 +58,7 @@ func corpus(f *flags, stderr io.Writer) ([]*scan.Document, []string, int) {
 // and this file's own doctrine is that an unchecked edge must never read
 // as a checked one. So the default stays "resolve", and only a caller
 // that has proved the verdict is unreachable may say otherwise.
-func corpusResolving(f *flags, stderr io.Writer, resolve bool) ([]*scan.Document, []string, int) {
+func corpusResolving(f *flags, stderr io.Writer, resolve bool) ([]*scan.Document, []scan.Skip, int) {
 	docs, skipped, code := records(f, stderr)
 	if code != 0 {
 		return nil, nil, code
@@ -130,7 +130,7 @@ func indexGraph(f *flags, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "total %d records  %d elements  %d edges  %d targets with backlinks\n",
 		len(g.Records), len(g.Elements), len(g.Edges), len(g.Backlinks))
 	for _, p := range skipped {
-		fmt.Fprintf(stdout, "skipped %s (not an RDR: no Metadata Status and no Critical Assumptions)\n", p)
+		fmt.Fprintf(stdout, "skipped %s (%s)\n", p.Target, p.Why)
 	}
 	return 0
 }
@@ -182,6 +182,13 @@ func statusFacet(f *flags, stdout, stderr io.Writer) int {
 		fmt.Fprintf(stdout, "%-12s %3d  %s\n", k, len(ids), strings.Join(ids, " "))
 	}
 	fmt.Fprintf(stdout, "total %d records\n", len(docs))
+	// The skipped rows print here as they do on every other facet: a file
+	// the walk did not read is part of this facet's answer, and one that
+	// was unreadable is exactly what a caller grouping a corpus by status
+	// needs told.
+	for _, p := range skipped {
+		fmt.Fprintf(stdout, "skipped %s (%s)\n", p.Target, p.Why)
+	}
 	return 0
 }
 
