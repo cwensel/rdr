@@ -1,0 +1,148 @@
+#!/usr/bin/env python3
+"""Apply `recs lint --json` patch fields to a records dir.
+
+    tools/apply-fixes/apply-fixes --records rdr/cli --project cli [--code CODE]... [--dry-run]
+
+THE PROJECTOR WRITES NO RECORD. `recs lint` derives every repair and hands
+it over as a `patch` field; this script is the throwaway half that puts the
+bytes on disk. Keeping the two apart is the point — a patch is inspectable
+before it touches a file, it diffs against the previous run, and the
+deriving half stays useful for a stage that wants to be told what to write
+rather than have it written underneath it.
+
+Two properties the lint pass guarantees and this script relies on:
+
+  * Ranges within one record do not overlap. Where several findings repair
+    one line they SHARE a patch object, so patches are deduplicated by
+    identity before applying — computing one per finding against the
+    original line would make the second silently discard the first.
+  * Applying the full set is a FIXPOINT. A second run proposes nothing, so
+    there is no iterate-until-clean step. `--check` asserts exactly that.
+
+Patches are applied BOTTOM-UP by line, so earlier ranges keep their line
+numbers while later ones change length.
+"""
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from collections import defaultdict
+
+
+def lint(records, project, engine):
+    """Run the projector and return its reports."""
+    recs = os.path.join(engine, "bin", "recs")
+    if not os.path.exists(recs):
+        sys.exit(f"no projector at {recs} (set --engine or $RDR_HOME)")
+    cmd = [recs, "lint", "--json", "--records", records]
+    if project:
+        cmd += ["--project", project]
+    out = subprocess.run(cmd, capture_output=True, text=True)
+    # lint exits 1 for BLOCK, which is a verdict about the corpus and not
+    # a failure of the run. Only a usage or read error (2) is fatal here.
+    if out.returncode not in (0, 1):
+        sys.exit(out.stderr.strip() or f"recs lint exited {out.returncode}")
+    reports = json.loads(out.stdout)
+    return reports if isinstance(reports, list) else [reports]
+
+
+def patches_for(report, codes):
+    """The distinct patches of one report, deduplicated by identity.
+
+    Findings that share a line share one patch OBJECT in the projector;
+    across a JSON round trip identity is gone, so the stand-in is the
+    (range, op, text) triple — two findings on one line yield the same
+    triple exactly because they shared the object.
+    """
+    seen, out = set(), []
+    for f in report.get("findings", []):
+        p = f.get("patch")
+        if not p:
+            continue
+        if codes and f["code"] not in codes:
+            continue
+        key = (p["line_start"], p["line_end"], p["op"], p["text"])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(p)
+    return out
+
+
+def apply_to(lines, patches):
+    """Apply patches to a list of lines, bottom-up. Returns new lines."""
+    for p in sorted(patches, key=lambda p: p["line_start"], reverse=True):
+        start, end = p["line_start"] - 1, p["line_end"]
+        text = p["text"].split("\n")
+        op = p["op"]
+        if op == "replace":
+            lines[start:end] = text
+        elif op == "prepend":
+            lines[start:start] = text
+        elif op == "insert":
+            lines[end:end] = text
+        else:
+            sys.exit(f"unknown patch op {op!r}")
+    return lines
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--records", required=True, help="records dir to rewrite")
+    ap.add_argument("--project", default="", help="project prefix for NNNN lookup")
+    ap.add_argument("--engine", default=os.environ.get("RDR_HOME", ""),
+                    help="engine root holding bin/recs (default $RDR_HOME)")
+    ap.add_argument("--code", action="append", default=[],
+                    help="only apply patches from this finding code; repeatable")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="report what would change and write nothing")
+    ap.add_argument("--check", action="store_true",
+                    help="verify the set is already a fixpoint; exit 1 if not")
+    args = ap.parse_args()
+
+    reports = lint(args.records, args.project, args.engine)
+    codes = set(args.code)
+
+    changed = files = 0
+    pending = defaultdict(list)
+    for r in reports:
+        ps = patches_for(r, codes)
+        if ps:
+            pending[r["path"]] = ps
+
+    if args.check:
+        if pending:
+            for path, ps in sorted(pending.items()):
+                print(f"{path}: {len(ps)} patch(es) still proposed")
+            print(f"NOT A FIXPOINT: {len(pending)} file(s)", file=sys.stderr)
+            return 1
+        print("fixpoint: no patches proposed")
+        return 0
+
+    for path, ps in sorted(pending.items()):
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        # A trailing newline is a line in the split and must survive the
+        # round trip; splitting and rejoining on "\n" preserves it.
+        lines = src.split("\n")
+        out = "\n".join(apply_to(list(lines), ps))
+        if out == src:
+            continue
+        files += 1
+        changed += len(ps)
+        if args.dry_run:
+            print(f"would patch {path}: {len(ps)} patch(es)")
+            continue
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(out)
+        print(f"patched {path}: {len(ps)} patch(es)")
+
+    verb = "would apply" if args.dry_run else "applied"
+    print(f"{verb} {changed} patch(es) across {files} file(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

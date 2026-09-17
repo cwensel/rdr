@@ -132,6 +132,19 @@ type Patch struct {
 	// Text is the replacement or inserted lines, newline-separated and
 	// without a trailing newline.
 	Text string `json:"text"`
+	// ByteStart and ByteEnd are the half-open byte span WITHIN LineStart
+	// that the repair actually rewrites, 0-based, when the repair is a
+	// substitution inside one line. Both zero means the patch is
+	// whole-line and the span says nothing.
+	//
+	// It is a narrowing of Text, never an alternative to it: an applier
+	// that writes Text over the line range gets the same result either
+	// way. The span is what lets a reader, or a reviewer of a bulk run,
+	// see that a 200-character line changed in fourteen bytes — and it
+	// is what a caller needs to apply the repair to a line it is also
+	// editing for another reason.
+	ByteStart int `json:"byte_start,omitempty"`
+	ByteEnd   int `json:"byte_end,omitempty"`
 }
 
 // The three patch ops.

@@ -67,6 +67,7 @@ func templateFindings(d *scan.Document) []Finding {
 	out = append(out, headingFindings(d)...)
 	out = append(out, labelFindings(d)...)
 	out = append(out, citationFindings(d)...)
+	out = append(out, registryCitationFindings(d)...)
 	out = append(out, vocabularyFindings(d)...)
 	out = append(out, gateFindings(d)...)
 	out = append(out, placeholderFindings(d)...)
@@ -1311,3 +1312,183 @@ func inheritedSpans(d *scan.Document) lineSpans {
 // normative home (jdr/README.md), so the mark is the vocabulary already
 // in use rather than a new one invented for the lint.
 var hoistedHeading = regexp.MustCompile(`(?i)^\s*hoisted\s+from\b`)
+
+// --- inherited citations ----------------------------------------------
+
+// namesRFD matches a citation that spells out the document it means:
+// `RFD 0004 DX-13`. Only this form is substitutable — the replacement
+// names a document too, so the sentence still reads.
+var namesRFD = regexp.MustCompile(`(?i)\bRFD[ -]*\d{3,4}\b`)
+
+// continuesAnchor matches a compound citation's tail: what follows the
+// first anchor when the clause names several — `/8/9/14`, `, DX-9`, ` and
+// DX-14`. Its presence means the evidence is one of a list the author
+// wrote once, and the substitution would swallow the rest.
+var continuesAnchor = regexp.MustCompile(
+	`^(?:\s*[/,]\s*(?:DX|JD|D)?-?\d+[a-z]?\b|\s+(?:and|&|or)\s+(?:DX|JD|D)-?\d+[a-z]?\b)`)
+
+// registryCitationFindings propose the JDR spelling for a citation that
+// still names an anchor's OLD home: `RFD 0004 DX-13` where the registry
+// cli/0001 inherited DX-13, so `JDR cli/0001 §DX-13` is where the entry
+// actually lives now.
+//
+// It is the migration the alias exists to make optional. Resolution
+// already answers these citations through `inherits:`, so nothing is
+// broken and nothing blocks; what the fix field buys is that the corpus
+// can be brought to the current spelling mechanically, and that the
+// citations a script did NOT reach are the ones left over afterwards.
+// That is the engine's standing doctrine for a terminal record: citation
+// form is migratable, "delivered as lint fix fields applied by a script,
+// never a write verb". This tool still writes no record.
+//
+// WHAT IT CANNOT REACH, AND WHY THAT IS NOT A GAP TO CLOSE. Only the
+// spelling that NAMES the RFD is rewritten. The corpus also writes the
+// anchor bare, in an enumeration whose head named the document once:
+//
+//	Final → `Draft [re-verify A17,A24 @refine]` on DX-6 / DX-12 / DX-13
+//
+// Substituting `JDR cli/0001 §DX-12` for the bare `DX-12` there produces
+// a sentence no author wrote, three times over in one clause, and the
+// repair that WOULD read well — rewriting the enumeration — is prose
+// surgery rather than a citation substitution. A patch that reads the
+// intent of a list is the guess the never-guess rule forbids, so the bare
+// form is reported without a patch and left to a hand pass.
+func registryCitationFindings(d *scan.Document) []Finding {
+	if d == nil || model.ClassOf(d.Path) != model.ClassRDR {
+		return nil // a registry does not cite its own entries by the old home
+	}
+	var out []Finding
+	// Per line, the substitutions it needs, and the indices of the
+	// findings that will share its patch.
+	pending := map[int][]substitution{}
+	var lines []int
+	var patchable []int
+	for _, e := range d.Edges {
+		if e.Resolved == nil || !*e.Resolved || !strings.HasPrefix(e.To, "rfd/") {
+			continue
+		}
+		// `rfd/0004` names the document, not an anchor, and a document
+		// did not move — only its entries did. Cut rather than index:
+		// a bare target has no separator at all.
+		doc, anchor, ok := strings.Cut(strings.TrimPrefix(e.To, "rfd/"), ":")
+		if !ok || anchor == "" {
+			continue
+		}
+		// The registry that took this anchor over. The edge's own Alias
+		// says so once the anchor has LEFT the RFD; before that the RFD
+		// still answers the citation directly and the alias is silent —
+		// but the entry has already moved, which is exactly when the
+		// migration wants to run. So the claim is asked of the registry
+		// tree either way, and Alias is the fast path.
+		home := strings.TrimPrefix(e.Alias, "jdr:")
+		if home == "" {
+			home = scan.RegistryInheriting(doc, anchor)
+		}
+		if home == "" {
+			continue // no registry claims it; the RFD is still its home
+		}
+		want := "JDR " + home + " §" + strings.ToUpper(strings.TrimPrefix(anchor, "§"))
+		f := Finding{
+			Tier:      TierConformance,
+			Code:      "citation:registry-form",
+			Element:   e.From,
+			Message:   "citation " + e.Evidence + " names " + e.To + ", which JDR " + home + " inherited; the current form is the registry id",
+			LineStart: e.Line,
+			LineEnd:   e.LineEnd,
+			Fix:       "write the citation as " + want,
+		}
+		if e.Quoted {
+			// A verbatim quotation is not the author's to restyle. It is
+			// reported so the set is complete and patched never.
+			f.Fix = "quoted: the citation is someone else's text; leave it and let the alias resolve it"
+			out = append(out, f)
+			continue
+		}
+		// ONLY THE SPELLING THAT NAMES THE RFD IS REWRITTEN. `RFD 0004
+		// DX-13` says which document it means, so replacing the whole of
+		// it with `JDR cli/0001 §DX-13` yields a sentence that reads. A
+		// bare `DX-13`, written where an enumeration named the document
+		// once, does not: see this function's own doc comment.
+		if !namesRFD.MatchString(e.Evidence) {
+			f.Fix = "the citation names the anchor bare; rewrite the enumeration by hand to " + want
+			out = append(out, f)
+			continue
+		}
+		line, ok := uniqueLine(d, e.Line, e.LineEnd, e.Evidence)
+		if !ok {
+			out = append(out, f)
+			continue
+		}
+		f.LineStart, f.LineEnd = line, line
+		text := d.Line(line)
+		// uniqueLine has already established the evidence appears exactly
+		// once in the range, so this index is the substitution point and
+		// not a first-of-several guess.
+		at := strings.Index(text, e.Evidence)
+		// A COMPOUND CITATION IS NOT A SUBSTITUTION. The corpus writes
+		// `RFD 0004 DX-6/8/9/14` — one document named once, four anchors
+		// after it. The edge's evidence is only the first, so replacing
+		// it leaves `JDR cli/0001 §DX-6/8/9/14`, where the tail has
+		// silently become part of the anchor and three citations have
+		// been erased into it. The repair that would read — four separate
+		// JDR citations — is a rewrite of the clause, not a swap of its
+		// first token, so the compound form goes the way of the bare
+		// form: reported, unpatched.
+		if at < 0 || d.Fenced(line) {
+			out = append(out, f)
+			continue
+		}
+		if continuesAnchor.MatchString(text[at+len(e.Evidence):]) {
+			f.Fix = "the citation names several anchors at once; rewrite the clause by hand, the first being " + want
+			out = append(out, f)
+			continue
+		}
+		if _, seen := pending[line]; !seen {
+			lines = append(lines, line)
+		}
+		pending[line] = append(pending[line], substitution{from: e.Evidence, to: want})
+		patchable = append(patchable, len(out))
+		out = append(out, f)
+	}
+
+	// ONE PATCH PER LINE, SHARED BY EVERY FINDING ON IT. Record 0113
+	// writes `RFD 0004 DX-18` and `RFD 0004 DX-6` on line 5453. A patch
+	// computed per citation against the ORIGINAL line makes the second
+	// discard the first when both are applied, so one citation stays
+	// unmigrated — silently, because both patches applied cleanly. The
+	// repair is not to order them: the patch's unit is the LINE, so a
+	// line is rewritten once with every citation on it already
+	// substituted, and an applier deduplicating by identity applies it
+	// once however many findings name it.
+	//
+	// This is what makes the set a fixpoint. Without it a second run
+	// found the citation the first had skipped, which is the
+	// iterate-until-clean step the patch grammar promises not to need.
+	patches := map[int]*Patch{}
+	for _, line := range lines {
+		text := d.Line(line)
+		first := len(text)
+		last := 0
+		for _, sub := range pending[line] {
+			if at := strings.Index(text, sub.from); at >= 0 && at < first {
+				first = at
+			}
+			if at := strings.Index(text, sub.from); at >= 0 && at+len(sub.from) > last {
+				last = at + len(sub.from)
+			}
+			text = strings.Replace(text, sub.from, sub.to, 1)
+		}
+		patches[line] = &Patch{
+			LineStart: line, LineEnd: line, Op: OpReplace, Text: text,
+			// The span covers every substitution on the line, from the
+			// first rewritten byte to the last. A line with one citation
+			// names exactly that citation; a line with several names the
+			// range they span, because that is what the repair touches.
+			ByteStart: first, ByteEnd: last,
+		}
+	}
+	for _, i := range patchable {
+		out[i].Patch = patches[out[i].LineStart]
+	}
+	return out
+}

@@ -203,3 +203,150 @@ author's citation to restyle.
 	}
 }
 
+
+// rfdJdrFixture writes an RFD and a registry that inherits from it, binds
+// both roots, and returns a record scanned against them.
+func rfdJdrFixture(t *testing.T, body string) *scan.Document {
+	t.Helper()
+	root := t.TempDir()
+	rfd := filepath.Join(root, "rfd", "0004")
+	jdr := filepath.Join(root, "jdr", "cli")
+	for _, d := range []string{rfd, jdr} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(rfd, "README.md"),
+		[]byte("# RFD 0004 Getting data in\n\n## 3 Mechanisms\n\n| DX-6 | a row |\n| DX-13 | another |\n| DX-18 | a third |\n"),
+		0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(jdr, "0001-data-corpus.md"), []byte(`---
+state: open
+inherits: RFD 0004 DX-1..DX-18
+---
+
+# JDR cli/0001 What classifies a row?
+
+## DX-6 — the domain
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	scan.SetJDRRoot(filepath.Join(root, "jdr"))
+	scan.SetRFDRoot(filepath.Join(root, "rfd"))
+	model.SetClassRoots(filepath.Join(root, "jdr"), filepath.Join(root, "rfd"))
+	t.Cleanup(func() {
+		scan.SetJDRRoot("")
+		scan.SetRFDRoot("")
+		model.SetClassRoots("", "")
+	})
+	d := scan.Bytes([]byte(body), scan.Options{Project: "cli"})
+	docs := []*scan.Document{d}
+	scan.NewResolver(docs, "").ResolveAll(docs)
+	return d
+}
+
+// TestRegistryCitationFix: the migration the alias makes optional. A
+// citation that spells out the RFD is substitutable and carries a patch
+// with the byte span it rewrites; the spellings that are not are reported
+// and left to a hand pass.
+func TestRegistryCitationFix(t *testing.T) {
+	d := rfdJdrFixture(t, `# Recommendation 0107: Registry Citations
+
+## Metadata
+
+- **Status**: Implemented
+- **Date**: 2026-08-01
+
+## Problem Statement
+
+The band RFD 0004 DX-6 fixes is the chain key's.
+The clause RFD 0004 DX-6/8/9/14 names four at once.
+An enumeration names DX-13 bare after its head.
+`)
+	byLine := map[int]Finding{}
+	for _, f := range Run(d, Options{}).Findings {
+		if f.Code == "citation:registry-form" {
+			byLine[f.LineStart] = f
+		}
+	}
+	if len(byLine) == 0 {
+		t.Fatal("no citation:registry-form findings — the rule did not run")
+	}
+
+	// The substitutable spelling: patched, with the span it rewrites.
+	f, ok := byLine[10]
+	if !ok {
+		t.Fatal("no finding on the substitutable citation")
+	}
+	if f.Patch == nil {
+		t.Fatal("the substitutable citation carries no patch")
+	}
+	if !strings.Contains(f.Patch.Text, "JDR cli/0001 §DX-6") {
+		t.Errorf("patch text = %q, want the JDR spelling", f.Patch.Text)
+	}
+	if strings.Contains(f.Patch.Text, "RFD 0004 DX-6") {
+		t.Errorf("patch text still carries the old spelling: %q", f.Patch.Text)
+	}
+	// The span names the bytes the repair touches, and nothing more.
+	line := d.Line(10)
+	if got := line[f.Patch.ByteStart:f.Patch.ByteEnd]; got != "RFD 0004 DX-6" {
+		t.Errorf("byte span covers %q, want the citation exactly", got)
+	}
+
+	// THE COMPOUND FORM IS NOT SUBSTITUTABLE. Replacing its first anchor
+	// leaves `JDR cli/0001 §DX-6/8/9/14`, which erases three citations
+	// into one anchor.
+	if f := byLine[11]; f.Patch != nil {
+		t.Errorf("compound citation was patched to %q — the tail is not part of the anchor", f.Patch.Text)
+	}
+
+	// THE BARE FORM IS NOT SUBSTITUTABLE either: the replacement names a
+	// document, and the enumeration's head already named one.
+	if f := byLine[12]; f.Patch != nil {
+		t.Errorf("bare citation was patched to %q", f.Patch.Text)
+	}
+}
+
+// TestRegistryCitationPatchIsOnePerLine: two citations on one line share
+// ONE patch, already carrying both substitutions.
+//
+// A patch computed per citation against the original line makes the
+// second discard the first when both are applied, so one citation stays
+// unmigrated — silently, because both applied cleanly. On the live corpus
+// that cost record 0113 a citation and made the patch set fail to be a
+// fixpoint: a second run found what the first had dropped.
+func TestRegistryCitationPatchIsOnePerLine(t *testing.T) {
+	d := rfdJdrFixture(t, `# Recommendation 0108: Two On One Line
+
+## Metadata
+
+- **Status**: Implemented
+- **Date**: 2026-08-01
+
+## Problem Statement
+
+The home is RFD 0004 DX-6 and also RFD 0004 DX-18 on one line.
+`)
+	var patches []*Patch
+	for _, f := range Run(d, Options{}).Findings {
+		if f.Code == "citation:registry-form" && f.Patch != nil {
+			patches = append(patches, f.Patch)
+		}
+	}
+	if len(patches) != 2 {
+		t.Fatalf("got %d patched findings, want 2 (one per citation)", len(patches))
+	}
+	if patches[0] != patches[1] {
+		t.Error("the two findings carry different patch objects; an applier would apply the line twice")
+	}
+	text := patches[0].Text
+	for _, want := range []string{"JDR cli/0001 §DX-6", "JDR cli/0001 §DX-18"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("shared patch %q is missing %q — applying it would drop a citation", text, want)
+		}
+	}
+	if strings.Contains(text, "RFD 0004") {
+		t.Errorf("shared patch %q still carries an unmigrated citation", text)
+	}
+}

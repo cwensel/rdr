@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 )
@@ -327,4 +328,57 @@ func EntryIDIn(s string) string {
 		return normalizeEntry(m[1])
 	}
 	return ""
+}
+
+// RegistryInheriting names the one registry that took `anchor` over from
+// RFD `num`, or "" when none did or more than one claims it.
+//
+// Same exclusivity as the resolver's alias arm, and for the same reason:
+// two claimants make the anchor ambiguous, and a migration that picked
+// one would rewrite a corpus of citations toward a guess. The registries
+// come from the bound JDR root, so an unbound root claims nothing and the
+// migration simply has no proposal to make.
+func RegistryInheriting(num, anchor string) string {
+	regs, read := cachedRegistries()
+	if !read {
+		return ""
+	}
+	var claimant *Registry
+	for _, reg := range regs {
+		if !reg.InheritsAnchorFrom(num, anchor) {
+			continue
+		}
+		if claimant != nil {
+			return ""
+		}
+		claimant = reg
+	}
+	if claimant == nil {
+		return ""
+	}
+	return claimant.Key()
+}
+
+// cachedRegistries reads the bound JDR tree once per root. The alias
+// question is asked once per CITATION — 375 of them on the live corpus —
+// and walking the registry tree for each would turn a lint pass into a
+// few hundred tree walks for an answer that cannot change mid-run.
+var regCache struct {
+	mu   sync.Mutex
+	root string
+	regs []*Registry
+	read bool
+	done bool
+}
+
+func cachedRegistries() ([]*Registry, bool) {
+	root := JDRRoot()
+	regCache.mu.Lock()
+	defer regCache.mu.Unlock()
+	if regCache.done && regCache.root == root {
+		return regCache.regs, regCache.read
+	}
+	regCache.regs, regCache.read = LoadRegistries(root)
+	regCache.root, regCache.done = root, true
+	return regCache.regs, regCache.read
 }

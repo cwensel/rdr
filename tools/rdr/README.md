@@ -403,7 +403,11 @@ grandfathering rule actually asks.
 
 Lint attaches a machine-applicable `patch` — `{line_start, line_end, op,
 text}`, where `op` is `replace`, `prepend` or `insert` — to each finding
-whose repair is computed rather than judged. It changes no verdict:
+whose repair is computed rather than judged. A repair that is a
+substitution inside one line also carries `byte_start`/`byte_end`, the
+half-open span it actually rewrites: a narrowing of `text`, never an
+alternative to it, so an applier that writes `text` over the range gets
+the same result either way. It changes no verdict:
 everything it adds is advisory, and a corpus that blocks nothing exits 0.
 
 This was `--strict`, an opt-in beside a narrower default that spoke only
@@ -419,6 +423,7 @@ read by a script; this tool writes no record.
 | `heading:level` | the heading, re-levelled | the promotion would capture a following sibling |
 | `label:missing` | the id the projector already derived | the section labels nothing, the fence is indented or fenced, the label would not read back |
 | `citation:form` | the line, every citation on it at once | the target is a section, the text is fenced or repeats in range |
+| `citation:registry-form` | the line, every citation on it at once | the citation names the anchor bare, or names several anchors at once (`RFD 0004 DX-6/8/9/14`), or is quoted, or is fenced |
 | `section:legacy-name` | never | always — see below |
 | `gate:inline` | never | always — a cross-file move |
 | `gate:cross-cutting-missing` | never | always — the Gate re-answers the retained item; the fix names the gate.md holding the prior text |
@@ -434,6 +439,21 @@ what remains are the findings whose repair is withheld by design. Two properties
 applier depends on: patches are applied bottom-up by `line_start`, and
 findings that repair the same line SHARE one patch, so it must
 deduplicate by identity before applying.
+
+**The applier is `tools/apply-fixes/apply-fixes`**, and it is the throwaway
+half on purpose: deriving a repair is the part worth keeping, putting the
+bytes on disk is not. It runs `recs lint --json` over a records dir, applies
+every `patch` bottom-up, and honours both properties above.
+
+```
+tools/apply-fixes/apply-fixes --records rdr/cli --project cli \
+    [--code citation:registry-form]... [--dry-run] [--check]
+```
+
+`--code` narrows to one rule, `--dry-run` writes nothing, and `--check`
+asserts the fixpoint — it exits 1 if any patch is still proposed, which is
+how a migration proves it converged rather than assuming it. **The projector
+still writes no record; the script does.**
 
 **A rule earns a patch only where its repair is exact**, and the corpus
 taught which those are. Re-levelling moves no id, because a canonical
