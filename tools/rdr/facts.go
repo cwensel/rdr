@@ -225,6 +225,7 @@ var factSources = map[string]bool{
 	"cluster-member": true, "cluster-key": true, "header-field": true,
 	"model-compare": true, "section-prose": true, "readme-row": true,
 	"stale-lens": true, "stale-path": true, "seam-lineage": true, "contracts": true,
+	"jdr-membership": true,
 	"impl-artifact": true, "record-lines": true, "spike-diff": true,
 	// the gate facts, evaluated in the block at the end of this file
 	"assumption-ids": true, "reverify-ids": true, "edge-tally": true,
@@ -645,6 +646,15 @@ func factFromTable(tbl toml.Table) (FactDecl, error) {
 		default:
 			return d, fmt.Errorf("fact %q: a seam-lineage selects count, bucket or disposition, got %q", name, d.Select)
 		}
+	case "jdr-membership":
+		// The five shapes jdr-membership.toml guards and carries. An
+		// unknown select would evaluate to nothing while reading as
+		// declared, which is the failure the other sources guard too.
+		switch d.Select {
+		case "registries", "member", "cited", "bound_by", "cite_only", "has_citation", "has_binding":
+		default:
+			return d, fmt.Errorf("fact %q: a jdr-membership selects registries, member, cited, bound_by, cite_only, has_citation or has_binding, got %q", name, d.Select)
+		}
 	case "contracts":
 		// Three selects: the Transient-marked count, the Surface-marked
 		// count, and the durable bucket the `profile` rows read. The
@@ -881,6 +891,8 @@ func (t *FactTable) evaluate(d FactDecl, e *FactEnv) (Fact, bool) {
 		return e.readmeRow(d)
 	case "seam-lineage":
 		return e.seamLineage(d)
+	case "jdr-membership":
+		return e.jdrMembership(d)
 	case "contracts":
 		return e.contractCounts(d)
 	case "stale-lens":
@@ -3681,4 +3693,130 @@ func (e *FactEnv) iterMax(d FactDecl) (Fact, bool) {
 		}
 	}
 	return Fact{Name: d.Name, Kind: d.Kind, Value: strconv.Itoa(max)}, true
+}
+
+// jdrMembership answers a record's relation to the registries whose seam
+// it touches. The facts are PER RECORD, not per (record, registry): the
+// registry is not an operand, because asking "is this record on registry
+// X" requires the caller to have already chosen X, and choosing X is the
+// fire routing models/jdr-membership.toml decides. `jdr_registries`
+// carries the whole answer, and its arity is what routing reads — none
+// seeds, one routes, more than one stops and asks.
+//
+// Every fact here goes ABSENT when no registry tree is bound. A consumer
+// that has not adopted the class has not written a non-member record; it
+// has written one nothing has looked at, and the distinction is the same
+// one `resolved` carries on an edge.
+func (e *FactEnv) jdrMembership(d FactDecl) (Fact, bool) {
+	if e.Doc == nil {
+		return Fact{}, false
+	}
+	regs, read := scan.LoadRegistries(scan.JDRRoot())
+	if !read {
+		return Fact{}, false // nothing looked
+	}
+
+	// M1, the anchor test: the record's source anchors against each
+	// registry's declared loci, by the rule the overlap graph shares.
+	// M2, the lineage test: the locus its Seam Lineage names.
+	var lineage string
+	if f := metadataField(e.Doc, "Seam Lineage"); f != nil && f.Seam != nil {
+		lineage = f.Seam.Locus
+	}
+	member := map[string]bool{}
+	implOnly := map[string]bool{}
+	for _, reg := range regs {
+		hits, inPlan := 0, 0
+		for _, edg := range e.Doc.Edges {
+			if edg.Kind != edge.SourceAnchor {
+				continue
+			}
+			for _, locus := range reg.Seam {
+				if !scan.MatchesLocus(edg.To, locus) {
+					continue
+				}
+				hits++
+				// L3's proxy: an edge carries its line, and the outline
+				// says which section owns it. A hit under Implementation
+				// Plan is a MODIFY; anywhere else the record cites the
+				// seam for contrast.
+				if e.Doc.SectionOf(edg.Line) == "Implementation Plan" {
+					inPlan++
+				}
+				break
+			}
+		}
+		lineageHit := false
+		if lineage != "" {
+			for _, locus := range reg.Seam {
+				if scan.MatchesLocus(lineage, locus) {
+					lineageHit = true
+					break
+				}
+			}
+		}
+		if hits > 0 || lineageHit {
+			member[reg.Key()] = true
+			if hits > 0 && inPlan == 0 {
+				implOnly[reg.Key()] = true
+			}
+		}
+	}
+
+	switch d.Select {
+	case "registries":
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(keysOf(member))}, true
+	case "member":
+		return Fact{Name: d.Name, Kind: d.Kind, Value: boolText(len(member) > 0)}, true
+	case "cite_only":
+		// True only when EVERY registry this record belongs to sees it as
+		// a citer. A record that modifies one seam and merely cites
+		// another is a modifier, and the advisory is not for it.
+		return Fact{Name: d.Name, Kind: d.Kind,
+			Value: boolText(len(member) > 0 && len(implOnly) == len(member))}, true
+	case "cited", "has_citation":
+		var out []string
+		for _, edg := range e.Doc.Edges {
+			if strings.HasPrefix(edg.To, "jdr:") {
+				out = append(out, strings.TrimPrefix(edg.To, "jdr:"))
+			}
+		}
+		if d.Select == "has_citation" {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: boolText(len(out) > 0)}, true
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(out)}, true
+	case "bound_by", "has_binding":
+		// The entries that name THIS record. Read off the registry's own
+		// text: an entry's `Binds:` names the records it binds.
+		var out []string
+		for _, reg := range regs {
+			for entry, recs := range reg.Binds {
+				for _, r := range recs {
+					if r == e.Doc.Record {
+						out = append(out, reg.Key()+":§"+entry)
+					}
+				}
+			}
+		}
+		if d.Select == "has_binding" {
+			return Fact{Name: d.Name, Kind: d.Kind, Value: boolText(len(out) > 0)}, true
+		}
+		return Fact{Name: d.Name, Kind: d.Kind, Members: canonicalSet(out)}, true
+	}
+	return Fact{}, false
+}
+
+func keysOf(m map[string]bool) []string {
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	return out
+}
+
+func boolText(v bool) string {
+	if v {
+		return "true"
+	}
+	return "false"
 }

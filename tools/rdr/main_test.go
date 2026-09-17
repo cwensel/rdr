@@ -1801,6 +1801,7 @@ func TestEveryIndexFacetNamesItselfInTheUsageLog(t *testing.T) {
 		{"-status", "status"},
 		{"-cycles", "cycles"},
 		{"-open-joint", "open-joint"},
+		{"-jdr-members=cli/0001", "jdr-members"},
 		{"-anchor-intersect", "anchor-intersect"},
 		{"-literal-intersect", "literal-intersect"},
 		{"-readme", "readme"},

@@ -38,7 +38,7 @@ const routingModelName = "rdr-status.toml"
 // binary calls the other, so a check that covered only the first would
 // leave the second free to drift — and the write model carries its own
 // copy of the status vocabulary plus `readme_status`'s.
-var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml", "rdr-loop.toml"}
+var routingModelNames = []string{"rdr-status.toml", "rdr-write.toml", "rdr-cascade.toml", "rdr-launch.toml", "rdr-loop.toml", "jdr-membership.toml"}
 
 // callerTags names, per model, the observed tags a caller supplies by hand
 // (an orchestrator's own packet fields and Ledger, never an `recs status`

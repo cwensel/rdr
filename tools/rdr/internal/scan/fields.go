@@ -61,6 +61,11 @@ type SeamLineage struct {
 	// Disposition is true when an `Accretion disposition:` line is
 	// written, in the value or as a nested bullet under the field.
 	Disposition bool `json:"disposition"`
+	// Locus is the code locus the field names — a `path::Symbol` or a
+	// path — or "" when the head is prose. It is what matches a record
+	// against a JDR's declared seam; a prose head names no locus a
+	// machine can match, and inventing one would be a guess.
+	Locus string `json:"locus,omitempty"`
 }
 
 // Status is a Status value normalised to {value, qualifier, raw}.
@@ -247,6 +252,7 @@ func (d *Document) seamLineage(f *Field) *SeamLineage {
 	} else {
 		out.Form = "unread"
 	}
+	out.Locus, _ = model.SeamLineageLocus(f.Value)
 	out.Disposition = model.AccretionDispositionLine(f.Value)
 	for j := f.LineEnd + 1; j <= len(d.lines) && !out.Disposition; j++ {
 		ln := d.lines[j-1]
@@ -331,6 +337,19 @@ func (d *Document) metadataNode() *Node {
 }
 
 // nodeAt returns the innermost node containing a line.
+// SectionOf names the template section that owns a line — the canonical
+// heading, not the author's spelling. It is how a source anchor's edge is
+// attributed to a section without putting a section on every Edge: an
+// edge carries its line, and the outline already knows who owns it.
+func (d *Document) SectionOf(line int) string {
+	for _, n := range d.nodes {
+		if n.LineStart <= line && line <= n.LineEnd && n.Canonical != "" {
+			return n.Canonical
+		}
+	}
+	return ""
+}
+
 func (d *Document) nodeAt(line int) *Node {
 	var out *Node
 	for _, n := range d.nodes {

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
@@ -626,6 +627,122 @@ func literalFacet(f *flags, stdout, stderr io.Writer) int {
 	fmt.Fprintf(stdout, "total %d pairs sharing contract literals over %s records%s, %d with no cross-citation\n", len(overlaps), scope, scopeNote(record), fires)
 	if fires > 0 {
 		fmt.Fprintln(stdout, "an uncited pair names the same contract literal in neither record's citation: ask the joint-decision question before either locks")
+	}
+	return 0
+}
+
+// jdrMember is one record's membership of a registry, for --jdr-members.
+type jdrMember struct {
+	Record   string   `json:"record"`
+	Registry string   `json:"registry"`
+	Member   bool     `json:"member"`
+	CiteOnly bool     `json:"cite_only"`
+	Cited    []string `json:"cited,omitempty"`
+	BoundBy  []string `json:"bound_by,omitempty"`
+}
+
+// jdrMembersFacet answers the registry's own question over the corpus:
+// which records touch this seam. Membership is DERIVED — a record is a
+// member because its anchors fall on the seam, never because a `cluster`
+// field says so — so this is the query that replaces reading that field.
+//
+// Without a bound JDR root there is nothing to ask against, and that is a
+// stop rather than an empty answer: an empty set would read as "no record
+// is on this seam", which is a claim the tool cannot make with no tree
+// to look at.
+func jdrMembersFacet(f *flags, key string, all bool, stdout, stderr io.Writer) int {
+	regs, read := scan.LoadRegistries(scan.JDRRoot())
+	if !read {
+		fmt.Fprintln(stderr, "stopped:no-jdr-root (set $RDR_JDRS in the marker, or the registry tree cannot be read)")
+		fmt.Fprintln(stdout, "stopped:no-jdr-root")
+		return 2
+	}
+	var want *scan.Registry
+	for _, r := range regs {
+		if key == "" || r.Key() == key || r.Number == key {
+			want = r
+			break
+		}
+	}
+	if want == nil {
+		fmt.Fprintf(stderr, "stopped:no-such-registry (%s is not under %s)\n", key, scan.JDRRoot())
+		return 2
+	}
+	docs, _, code := corpus(f, stderr)
+	if code != 0 {
+		return code
+	}
+	rows := []jdrMember{}
+	for _, d := range docs {
+		if !all && !scan.Summarize(d).InFlight {
+			continue
+		}
+		hits, inPlan := 0, 0
+		for _, e := range d.Edges {
+			if e.Kind != edge.SourceAnchor {
+				continue
+			}
+			for _, locus := range want.Seam {
+				if !scan.MatchesLocus(e.To, locus) {
+					continue
+				}
+				hits++
+				if d.SectionOf(e.Line) == "Implementation Plan" {
+					inPlan++
+				}
+				break
+			}
+		}
+		var cited []string
+		for _, e := range d.Edges {
+			if strings.HasPrefix(e.To, "jdr:"+want.Key()) || strings.HasPrefix(e.To, "jdr:"+want.Number+":") {
+				cited = append(cited, strings.TrimPrefix(e.To, "jdr:"))
+			}
+		}
+		var bound []string
+		for entry, recs := range want.Binds {
+			for _, r := range recs {
+				if r == d.Record {
+					bound = append(bound, entry)
+				}
+			}
+		}
+		if hits == 0 && len(cited) == 0 && len(bound) == 0 {
+			continue
+		}
+		sort.Strings(cited)
+		sort.Strings(bound)
+		rows = append(rows, jdrMember{Record: d.Record, Registry: want.Key(),
+			Member: hits > 0, CiteOnly: hits > 0 && inPlan == 0, Cited: cited, BoundBy: bound})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].Record < rows[j].Record })
+	if *f.json {
+		return emit(map[string]any{
+			"schema": scan.SchemaVersion, "registry": want.Key(),
+			"seam": want.Seam, "members": rows,
+		}, stdout, stderr)
+	}
+	if len(rows) == 0 {
+		fmt.Fprintf(stdout, "no record touches %s (seam: %s)\n", want.Key(), strings.Join(want.Seam, ", "))
+		return 0
+	}
+	fmt.Fprintf(stdout, "%s — seam: %s\n", want.Key(), strings.Join(want.Seam, ", "))
+	for _, r := range rows {
+		mark := "member"
+		switch {
+		case !r.Member:
+			mark = "cites, off-seam"
+		case r.CiteOnly:
+			mark = "member (cite-only)"
+		}
+		line := fmt.Sprintf("  %-6s %-20s", r.Record, mark)
+		if len(r.BoundBy) > 0 {
+			line += "  bound: " + strings.Join(r.BoundBy, ",")
+		}
+		if len(r.Cited) > 0 {
+			line += "  cites: " + strings.Join(r.Cited, ",")
+		}
+		fmt.Fprintln(stdout, line)
 	}
 	return 0
 }

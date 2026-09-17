@@ -152,6 +152,43 @@ var seamLineageCounts = []struct {
 	{"none-declared", regexp.MustCompile(`(?i)\bno prior (?:closed )?(?:accretion|point-fix)`)},
 }
 
+// seamLocusHead splits a Seam Lineage value at the em-dash the template's
+// form uses — `<seam> — Nth point-fix; trail: …` — so the head is the
+// locus and the tail is the count and trail.
+var seamLocusHead = regexp.MustCompile(`^(.*?)\s+[—–]\s`)
+
+// seamAnchorIn finds a `path::Symbol` anchor or a bare path in a locus
+// head. The corpus writes the head three ways: a full anchor, a bare
+// file path, and a PROSE description of the seam ("the constraint↔index
+// name-identity boundary"). Only the first two name a locus a machine can
+// match; prose is left unread, which is the honest answer — inventing a
+// locus from prose is the guess the projector never makes.
+var seamAnchorIn = regexp.MustCompile("`?([A-Za-z0-9_./-]+\\.[A-Za-z0-9]+(?:::[A-Za-z0-9_.]+)?)`?")
+
+// SeamLineageLocus reads the code locus out of a Seam Lineage value: the
+// head before the em-dash, reduced to the `path::Symbol` or path it
+// names. It returns the locus and whether one was READ — a prose head
+// yields false, never a guess.
+//
+// This is what lets a record be matched against a JDR's declared seam
+// (test M2 in jdr/README.md). `area:*` is deliberately not returned: the
+// projector knows no areas, and a registry spells its area as the loci it
+// stands for.
+func SeamLineageLocus(value string) (string, bool) {
+	head := value
+	if m := seamLocusHead.FindStringSubmatch(value); m != nil {
+		head = m[1]
+	}
+	head = strings.TrimSpace(head)
+	if head == "" || strings.HasPrefix(strings.ToLower(head), "area:") {
+		return "", false
+	}
+	if m := seamAnchorIn.FindStringSubmatch(head); m != nil {
+		return m[1], true
+	}
+	return "", false
+}
+
 // SeamLineageCount reads the point-fix count out of a Seam Lineage value.
 // It returns the count, the form that carried it, and false when no
 // declared form is present (the value is unread, not zero).

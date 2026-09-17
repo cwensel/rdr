@@ -981,6 +981,13 @@ var routingFacts = map[string]string{
 	"contracts_surface":     "how many labelled contracts the Surface marker folds into their root, for the Profile axis",
 	"contracts_durable":     "the Profile contract axis: labelled minus Transient and Surface, bucketed, subtracted by the projector",
 	"spikes_unrun":          "Stage 6's third open-set source: spikes the record names with no run on disk, as a set rather than a walk",
+	// The JDR carriers. Read by the CALLER, not by a guarded row: a set is
+	// guarded only by `contains`, which costs 2^|elements| and has no
+	// negated form, so jdr-membership.toml guards the presence bools and
+	// these name the entries a finding prints.
+	"jdr_registries": "the fire routing itself: none seeds a registry, one routes, more than one stops and asks — a stop, never a cell, because a tiebreak is a guess",
+	"jdr_cited":      "which entries the record names, so a jdr:cited-off-seam finding prints them rather than only asserting some exist",
+	"jdr_bound_by":   "which entries name the record, so a jdr:bound-off-seam finding prints them",
 
 	// the rollups: the set behind a routed word, and the two set questions
 	// no row guards because they are about another record

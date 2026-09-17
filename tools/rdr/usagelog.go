@@ -283,6 +283,7 @@ func usageFacet(cmd string, f *flags, target string) string {
 			{f.status != nil && *f.status, "status"},
 			{f.cycles != nil && *f.cycles, "cycles"},
 			{f.openJoint != nil && *f.openJoint, "open-joint"},
+			{f.jdrMembers != nil && *f.jdrMembers != "", "jdr-members"},
 			{f.anchors != nil && *f.anchors, "anchor-intersect"},
 			{f.literals != nil && *f.literals, "literal-intersect"},
 			{f.readme.set, "readme"},

@@ -90,11 +90,19 @@ table's side.
 
 | Fact | Meaning |
 | --- | --- |
-| `jdr_registries: set` | the registries this record's anchors touch — **0, 1 or more is the routing dimension** |
+| `jdr_registries: set` | the registries this record's anchors or **Seam Lineage** locus touch — **0, 1 or more is the routing dimension** |
 | `jdr_member: bool` | the set is non-empty |
+| `jdr_has_citation: bool` | the record names at least one entry |
+| `jdr_has_binding: bool` | at least one entry names the record |
 | `jdr_cited: set` | the registry entries its `jdr` / `joint-decision-home` edges name |
-| `jdr_bound_by: set` | the entries that name this record |
+| `jdr_bound_by: set` | the entries whose **Binds:** line names this record |
 | `jdr_cite_only: bool` | every seam hit sits under a section other than Implementation Plan |
+
+All of them go **absent** when no JDR root is bound — a consumer that has not
+adopted the class has not written a non-member record, it has written one
+nothing has looked at. `recs index --jdr-members <registry>` asks the same
+question from the registry's side, and stops rather than answering an empty
+set when no root is bound.
 
 `jdr_registries` is a set rather than a count because §Fire routing's three
 arms read off it directly: none seeds, one routes, **more than one stops and
@@ -113,6 +121,7 @@ along so a finding can name the entries.
 | is a joint decision still open against this record | `open_joint_decisions`, read off the Status field |
 | which records cite this entry | `index --backlinks=jdr:<project>/NNNN:§<entry>` — `BuildGraph` keys backlinks by target verbatim, so a registry entry is a backlink key for free |
 | do two records share an anchor | `index --anchor-intersect`, whose path rule `MatchesLocus` shares |
+| which entries does a registry bind | the registry's own **Binds:** lines, read by the projector |
 
 A second mechanism for any of these would be a copy that drifts, which is the
 defect this whole document class exists to prevent.

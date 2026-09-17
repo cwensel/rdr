@@ -395,6 +395,9 @@ func dispatch(cmd string, fs *flag.FlagSet, f *flags, stdout, stderr io.Writer) 
 		if *f.cycles {
 			return cyclesFacet(f, stdout, stderr)
 		}
+		if *f.jdrMembers != "" {
+			return jdrMembersFacet(f, *f.jdrMembers, *f.all, stdout, stderr)
+		}
 		if *f.openJoint {
 			return openJointFacet(f, *f.all, stdout, stderr)
 		}
@@ -494,6 +497,7 @@ type flags struct {
 	unresolved, anchors *bool
 	literals            *bool
 	openJoint, cycles   *bool
+	jdrMembers          *string
 	record              *string // index: scope the pair facets to one record
 	locking             *bool
 	since               *string     // receipt: the instant a lint must postdate
@@ -553,6 +557,7 @@ func declareFlags(cmd string, fs *flag.FlagSet) *flags {
 		f.edges = fs.String("edges", "predecessors", "topo: the edge kinds ordered over — predecessors, or predecessors,overrides (an overridden record builds before its overrider)")
 		f.unresolved = fs.Bool("unresolved", false, "typed edges whose target was looked for and not found")
 		f.cycles = fs.Bool("cycles", false, "dependency shapes the flow cannot progress through: ownership cycles (predecessor/overrides/moved-to), Joint-check home cycles, and Final records whose home is Draft or whose check is OPEN")
+		f.jdrMembers = fs.String("jdr-members", "", "records whose anchors touch a registry's declared seam: `cli/0001` or `0001`; membership is derived, never read off a cluster field")
 		f.openJoint = fs.Bool("open-joint", false, "open joint decisions across in-flight records: Joint-check lines whose home is OPEN, and Status qualifiers in joint-decision form; --all: every record")
 		f.anchors = fs.Bool("anchor-intersect", false, "pairs of in-flight records citing the same code anchors, uncited pairs first")
 		f.literals = fs.Bool("literal-intersect", false, "pairs of in-flight records whose contracts share a backticked literal, uncited pairs first")

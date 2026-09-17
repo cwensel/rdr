@@ -90,34 +90,30 @@ kind          = "bool"
 single_valued = true
 required      = true
 
-# --- carriers: declared for wire hygiene, guarded by nothing ----------------
+# --- the carriers are NOT declared, deliberately ---------------------------
 #
-# Declaring a set is what makes an array literal parse as a set and holds it
-# to its elements; declaring one this table never guards on costs the
-# coverage product nothing. They are here so a finding can name the entries
-# rather than only asserting that some exist. `elements` is open-ended by
-# nature — entry ids are minted per registry — so these stay undeclared as
-# domains and are carried verbatim.
+# `jdr_registries`, `jdr_cited`, `jdr_bound_by` and `jdr_blocks` all cross
+# on the wire and none is declared here. Since intrastate RDR 0020 an
+# undeclared key is a pure carrier — admitted verbatim, echoed in
+# `observed` — so a declaration this table never guards is dead weight,
+# and the suite says so (TestAlwaysOnSetFactsNeedNoDeclaration).
+#
+# They are still worth naming, because a reader will look for them:
+#
+#   jdr_registries  the registries the record touches. ITS ARITY IS THE
+#                   FIRE ROUTING: none seeds, one routes, more than one
+#                   STOPS AND ASKS. The stop is why it is not a guarded
+#                   dimension — a tiebreak is a guess, and the table
+#                   refuses to author one.
+#   jdr_cited       the entries the record names, so a finding can print
+#                   them rather than only asserting some exist.
+#   jdr_bound_by    the entries that name the record.
+#   jdr_blocks      whether a binding entry is open. NOT a new fact: the
+#                   engine already answers it as `open_joint_decisions`.
 
-# The entry ids this record's edges name.
-[tags.jdr_cited]
-provenance = "observed"
-kind       = "scalar"
 
-# The entry ids that name this record.
-[tags.jdr_bound_by]
-provenance = "observed"
-kind       = "scalar"
 
-# Whether any entry binding this record is `open`. NOT a new fact: the
-# engine already answers it as `open_joint_decisions`, read off the Status
-# field, and an open entry is the analogue of a Draft home — a Final
-# record bound by one is a home ahead of its lock, which `index --cycles`
-# reports. Declared here as a carrier so a row can name it, never
-# recomputed.
-[tags.jdr_blocks]
-provenance = "observed"
-kind       = "scalar"
+
 
 # --- the emitted vocabulary -------------------------------------------------
 #

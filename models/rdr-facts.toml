@@ -347,6 +347,75 @@ domain      = ["0", "1", "2+", "unread", "none"]
 absent      = "none"
 description = "seam_lineage_count bucketed for the floor rows; `unread` is a written count in no declared form, `none` is no field."
 
+# --- jdr membership -------------------------------------------------------
+#
+# A record's relation to the registries whose seam it touches, for
+# `models/jdr-membership.toml` to route on. PER RECORD, not per (record,
+# registry): the registry is not an operand, because asking "is this
+# record on registry X" needs the caller to have chosen X already, and
+# choosing X is the fire routing that table decides.
+#
+# ALL FIVE GO ABSENT when no JDR root is bound. A consumer that has not
+# adopted the class has not written a non-member record; it has written
+# one nothing has looked at. That is the same three-valued rule an edge's
+# `resolved` carries, and it is why none of these declares an `absent`
+# sentinel: a sentinel would claim the cell positively.
+
+# The registries this record's anchors or Seam Lineage locus touch.
+# ITS ARITY IS THE ROUTING DIMENSION: none seeds a registry, one routes to
+# it, more than one stops and asks — no longest-prefix tiebreak, because a
+# tiebreak is a guess.
+[fact.jdr_registries]
+kind        = "set"
+source      = "jdr-membership"
+select      = "registries"
+description = "The registries whose declared seam this record touches, by key; absent when no JDR root is bound."
+
+[fact.jdr_member]
+kind        = "bool"
+source      = "jdr-membership"
+select      = "member"
+description = "The record touches at least one registry's seam (M1 anchors, or M2 the Seam Lineage locus)."
+
+[fact.jdr_cite_only]
+kind        = "bool"
+source      = "jdr-membership"
+select      = "cite_only"
+description = "Every seam hit sits outside Implementation Plan — the record cites the seam rather than modifying it. The jdr:cite-only-member advisory."
+
+# The presence bools the table guards on. A set is guarded only by
+# `contains` — a superset test with no negated form, costing 2^|elements|
+# cells — and two `unless` blocks negate their CONJUNCTION rather than
+# each other, so "cited AND NOT bound" is not expressible over the sets.
+# The projector answers the presence question; the sets ride along so a
+# finding can name the entries.
+[fact.jdr_has_citation]
+kind        = "bool"
+source      = "jdr-membership"
+select      = "has_citation"
+description = "This record names at least one entry of a registry it touches."
+
+[fact.jdr_has_binding]
+kind        = "bool"
+source      = "jdr-membership"
+select      = "has_binding"
+description = "At least one registry entry names this record on its Binds line."
+
+# Carried, not guarded: a set costs 2^|elements| in a coverage product and
+# `contains` has no negated form, so the table guards the bools above and
+# names the entries from these.
+[fact.jdr_cited]
+kind        = "set"
+source      = "jdr-membership"
+select      = "cited"
+description = "The registry entries this record's jdr and joint-decision-home edges name."
+
+[fact.jdr_bound_by]
+kind        = "set"
+source      = "jdr-membership"
+select      = "bound_by"
+description = "The registry entries whose Binds line names this record."
+
 [fact.accretion_disposition]
 kind        = "bool"
 source      = "seam-lineage"

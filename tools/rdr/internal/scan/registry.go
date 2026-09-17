@@ -36,6 +36,10 @@ type Registry struct {
 	Inherits map[string]bool
 	// Seam is the declared loci, from `seam:` frontmatter.
 	Seam []string
+	// Binds maps an entry id to the records that entry names. An entry
+	// states them on a `**Binds:**` line; every bound record must be a
+	// member, and one that is not is the `jdr:bound-off-seam` finding.
+	Binds map[string][]string
 }
 
 // entryHeading matches an entry's own heading or bullet: `## D1 — …`,
@@ -94,6 +98,14 @@ func LoadRegistries(root string) ([]*Registry, bool) {
 
 var registryFile = regexp.MustCompile(`^(\d{3,4})-`)
 
+// bindsLine matches an entry's `**Binds:** 0113, 0120.` line — the
+// records that entry binds.
+var bindsLine = regexp.MustCompile(`(?i)\*{0,2}Binds:?\*{0,2}\s*([^\n]*)`)
+
+// recordRefIn matches a record number in a Binds list, with or without a
+// project prefix.
+var recordRefIn = regexp.MustCompile(`\b(?:[a-z][a-z0-9-]*/)?(\d{4})\b`)
+
 func registryNumber(base string) string {
 	if m := registryFile.FindStringSubmatch(base); m != nil {
 		return m[1]
@@ -103,7 +115,7 @@ func registryNumber(base string) string {
 
 // parseRegistry reads the citable surface out of a registry's text.
 func parseRegistry(body string) *Registry {
-	reg := &Registry{Entries: map[string]bool{}, Inherits: map[string]bool{}}
+	reg := &Registry{Entries: map[string]bool{}, Inherits: map[string]bool{}, Binds: map[string][]string{}}
 	front, rest := splitFrontmatter(body)
 	reg.Seam = frontmatterList(front, "seam")
 	for _, raw := range frontmatterList(front, "inherits") {
@@ -111,8 +123,27 @@ func parseRegistry(body string) *Registry {
 			reg.Inherits[id] = true
 		}
 	}
-	for _, m := range entryHeading.FindAllStringSubmatch(rest, -1) {
-		reg.Entries[normalizeEntry(m[1])] = true
+	for _, m := range entryHeading.FindAllStringSubmatchIndex(rest, -1) {
+		// Two spellings, on purpose: the key is normalized so `DX-13`,
+		// `dx-13` and `DX13` are one anchor for lookup, and the WRITTEN
+		// form is what a finding prints. A normalized id in output reads
+		// as a typo of the citation it is reporting on.
+		written := strings.ToLower(rest[m[2]:m[3]])
+		id := normalizeEntry(written)
+		reg.Entries[id] = true
+		// The entry's own `Binds:` line, to the end of its block. An
+		// entry is a bullet or a heading, so the block ends at the next
+		// one — a bound record named after that belongs to its entry,
+		// not this one.
+		tail := rest[m[1]:]
+		if nx := entryHeading.FindStringIndex(tail); nx != nil {
+			tail = tail[:nx[0]]
+		}
+		if bm := bindsLine.FindStringSubmatch(tail); bm != nil {
+			for _, r := range recordRefIn.FindAllString(bm[1], -1) {
+				reg.Binds[written] = append(reg.Binds[written], strings.TrimPrefix(r, "cli/"))
+			}
+		}
 	}
 	for _, m := range registrySection.FindAllStringSubmatch(rest, -1) {
 		// A heading that IS an entry is already recorded under its id;
