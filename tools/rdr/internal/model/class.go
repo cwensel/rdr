@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"sync"
 )
@@ -68,17 +69,92 @@ func SetClassRoots(jdr, rfd string) {
 // ClassOf reports which tier a file belongs to, from the root it sits
 // under.
 func ClassOf(path string) DocClass {
+	c, _ := classOf(path, "")
+	return c
+}
+
+// titleClass matches the class a document's own H1 declares: `# RFD 0001
+// Document Tiers`, `# JDR cli/0002 What does retrofit promise?`. The
+// number is not read — only which of the three words opens the title.
+//
+// It is a NARROW grammar on purpose. A title is the document naming
+// itself, which is a strong signal, and a body heuristic over section
+// names is a weak one: an RFD's `Problem Statement` and a JDR's `Problem
+// statement` differ by a letter. So the fallback reads the one line that
+// says the tier outright and nothing else.
+var titleClass = regexp.MustCompile(`(?im)^#\s+(RFD|JDR|RDR)\s`)
+
+// ClassOfDoc reports a file's tier from the root it sits under, falling
+// back to the document's own title when no root is bound.
+//
+// WHY A FALLBACK AT ALL. The root is the better authority and stays
+// primary: it is a fact the seam states, where a title is a string an
+// author typed. But an unbound root is not an absent document class — it
+// is a caller that has not bound the seam, and every file then read as an
+// RDR. That is the right default for a consumer who never adopted the
+// other two tiers, and the wrong one for a COPY of this repo: a registry
+// verified outside its bindings is judged against the record template and
+// reports eleven findings about sections it is defined by not having.
+// Reading the title recovers the class in exactly that case and changes
+// nothing when a root is bound.
+//
+// A BOUND ROOT THAT DISAGREES WITH THE TITLE IS A STOP. Both authorities
+// are then claiming the file and only one can be right — the file is in
+// the wrong tree, or its title is wrong — and either way the projector
+// cannot judge it without choosing which to believe. Choosing is the guess
+// the never-guess rule forbids, and guessing wrong here mis-judges a whole
+// document rather than one reference. The reason names both readings so
+// the author can see which to fix.
+func ClassOfDoc(path, title string) (DocClass, error) {
+	c, err := classOf(path, title)
+	return c, err
+}
+
+func classOf(path, title string) (DocClass, error) {
 	classMu.RLock()
 	jdr, rfd := jdrRoot, rfdRoot
 	classMu.RUnlock()
+	rooted, bound := ClassRDR, false
 	switch {
 	case under(path, jdr):
-		return ClassJDR
+		rooted, bound = ClassJDR, true
 	case under(path, rfd):
-		return ClassRFD
-	default:
-		return ClassRDR
+		rooted, bound = ClassRFD, true
 	}
+	declared := titleDeclares(title)
+	switch {
+	case declared == "":
+		// No title to read, or a title that names no tier: the root
+		// answers, which is every caller that existed before this.
+		return rooted, nil
+	case !bound:
+		// Neither root is bound OR the file sits under neither. The title
+		// is the only authority present, and for an RDR title it agrees
+		// with the default anyway.
+		return declared, nil
+	case declared != rooted:
+		return rooted, fmt.Errorf(
+			"stopped:class-disagreement (%s sits under the %s root but its title declares %s; "+
+				"move the file to the %s tree or correct the title — the projector will not choose between them)",
+			path, rooted, declared, declared)
+	}
+	return rooted, nil
+}
+
+// titleDeclares reads the tier a document's title names, or "" when it
+// names none.
+func titleDeclares(title string) DocClass {
+	m := titleClass.FindStringSubmatch(title)
+	if m == nil {
+		return ""
+	}
+	switch strings.ToUpper(m[1]) {
+	case "JDR":
+		return ClassJDR
+	case "RFD":
+		return ClassRFD
+	}
+	return ClassRDR
 }
 
 // under reports whether path sits inside root, component-aligned so

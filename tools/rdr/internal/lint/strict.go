@@ -1284,7 +1284,7 @@ func (s lineSpans) covers(line int) bool {
 // has no inherited text and yields nothing — which is every RDR in the
 // corpus, so the common path costs one class check.
 func inheritedSpans(d *scan.Document) lineSpans {
-	if d == nil || model.ClassOf(d.Path) != model.ClassJDR {
+	if d == nil || d.ClassOf() != model.ClassJDR {
 		return nil
 	}
 	reg := scan.RegistryAt(d.Path)
@@ -1329,7 +1329,7 @@ func inheritedSpans(d *scan.Document) lineSpans {
 // for a key its template never declares would report on a field the
 // document does not have.
 func inheritsFindings(d *scan.Document) []Finding {
-	if d == nil || model.ClassOf(d.Path) != model.ClassJDR {
+	if d == nil || d.ClassOf() != model.ClassJDR {
 		return nil
 	}
 	reg := scan.RegistryAt(d.Path)
@@ -1458,7 +1458,7 @@ var entryIDSpelling = regexp.MustCompile(`(?i)^(DX|JD|D)-?(\d+[a-z]?)$`)
 // intent of a list is the guess the never-guess rule forbids, so the bare
 // form is reported without a patch and left to a hand pass.
 func registryCitationFindings(d *scan.Document) []Finding {
-	if d == nil || model.ClassOf(d.Path) != model.ClassRDR {
+	if d == nil || d.ClassOf() != model.ClassRDR {
 		return nil // a registry does not cite its own entries by the old home
 	}
 	var out []Finding

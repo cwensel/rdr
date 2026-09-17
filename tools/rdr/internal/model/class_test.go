@@ -2,6 +2,7 @@ package model
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -98,4 +99,84 @@ func containsBracket(s string) bool {
 		}
 	}
 	return false
+}
+
+// TestClassFromTitleWhenNoRootBound: a copy read outside its bindings is
+// still judged against its own tier's template.
+//
+// The root stays the primary authority — it is a fact the seam states,
+// where a title is a string an author typed. But an unbound root is not an
+// absent document class; it is a caller that has not bound the seam, and
+// every file then reads as an RDR. Right for a consumer that never adopted
+// the other tiers, wrong for a COPY of this repo: a registry judged
+// against the record template reports eleven findings about sections it is
+// defined by not having.
+func TestClassFromTitleWhenNoRootBound(t *testing.T) {
+	SetClassRoots("", "")
+	t.Cleanup(func() { SetClassRoots("", "") })
+
+	for _, tc := range []struct {
+		path, title string
+		want        DocClass
+		why         string
+	}{
+		{"/tmp/copy/jdr/cli/0002-refusals.md", "# JDR cli/0002 What does retrofit promise?",
+			ClassJDR, "the title declares the tier the unbound root cannot"},
+		{"/tmp/copy/rfd/0001/README.md", "# RFD 0001 Document Tiers: RFD, JDR, RDR",
+			ClassRFD, "same, for a capability"},
+		{"/tmp/copy/rdr/cli/0138-advisory.md", "# RDR 0138 Advisory identity",
+			ClassRDR, "an RDR title agrees with the default"},
+		{"/tmp/copy/rdr/cli/0138-advisory.md", "# 0138 Advisory identity",
+			ClassRDR, "a title naming no tier leaves the root to answer"},
+		{"/tmp/copy/rdr/cli/0138-advisory.md", "",
+			ClassRDR, "no title at all is the pre-existing answer"},
+	} {
+		got, err := ClassOfDoc(tc.path, tc.title)
+		if err != nil {
+			t.Errorf("ClassOfDoc(%q, %q) errored: %v", tc.path, tc.title, err)
+			continue
+		}
+		if got != tc.want {
+			t.Errorf("ClassOfDoc(%q, %q) = %q, want %q — %s", tc.path, tc.title, got, tc.want, tc.why)
+		}
+	}
+}
+
+// TestBoundRootDisagreeingWithTitleStops: two authorities claiming one
+// file, and the projector refuses to choose.
+//
+// The file is in the wrong tree or its title is wrong. Either way judging
+// it means believing one authority over the other, which is the guess the
+// never-guess rule forbids — and guessing wrong here mis-judges a whole
+// document rather than one reference. The reason names both readings.
+func TestBoundRootDisagreeingWithTitleStops(t *testing.T) {
+	SetClassRoots("/repo/jdr", "/repo/rfd")
+	t.Cleanup(func() { SetClassRoots("", "") })
+
+	// A registry sitting in the RFD tree.
+	_, err := ClassOfDoc("/repo/rfd/0006/README.md", "# JDR cli/0002 What does retrofit promise?")
+	if err == nil {
+		t.Fatal("a JDR title under the RFD root must stop; the projector cannot judge it either way")
+	}
+	for _, want := range []string{"stopped:class-disagreement", "rfd", "jdr"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Errorf("reason %q does not name %q; the author must see both readings", err, want)
+		}
+	}
+
+	// Agreement is silent, under either root.
+	for _, tc := range []struct{ path, title string }{
+		{"/repo/rfd/0001/README.md", "# RFD 0001 Document Tiers"},
+		{"/repo/jdr/cli/0001-data-corpus.md", "# JDR cli/0001 What classifies a row?"},
+	} {
+		if _, err := ClassOfDoc(tc.path, tc.title); err != nil {
+			t.Errorf("ClassOfDoc(%q, %q) errored on agreement: %v", tc.path, tc.title, err)
+		}
+	}
+
+	// A record outside both roots keeps its default, whatever its title
+	// says, because no root is claiming it.
+	if c, err := ClassOfDoc("/repo/rdr/cli/0138-a.md", "# RDR 0138 A record"); err != nil || c != ClassRDR {
+		t.Errorf("ClassOfDoc(record) = %q, %v; want rdr with no error", c, err)
+	}
 }

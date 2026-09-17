@@ -233,8 +233,18 @@ func File(path string, opts Options) (*Document, error) {
 	// and not inside Bytes. It is set before the scan because the heading
 	// pass reads it: a registry's `Interface record` is its template's
 	// section, and against the RDR table it is unknown-to-template.
+	//
+	// The document's own TITLE is read beside the root, as the fallback
+	// for a caller with no roots bound — a copy of this repo verified
+	// outside its bindings, where every file would otherwise read as a
+	// record. A bound root that disagrees with the title is a stop, not a
+	// silent preference: see model.ClassOfDoc.
 	if opts.Class == "" {
-		opts.Class = model.ClassOf(path)
+		c, err := model.ClassOfDoc(path, titleLine(raw))
+		if err != nil {
+			return nil, err
+		}
+		opts.Class = c
 	}
 	doc := Bytes(raw, opts)
 	doc.Path = path
@@ -253,6 +263,20 @@ func File(path string, opts Options) (*Document, error) {
 	}
 	doc.classAnchors()
 	return doc, nil
+}
+
+// titleLine is the document's H1 as written, or "" when it has none. It
+// is read off the raw bytes because the class must be known BEFORE the
+// scan — the heading pass reads the class to classify its own headings —
+// so the parsed outline is not available yet.
+func titleLine(raw []byte) string {
+	for _, ln := range strings.SplitN(string(raw), "\n", 64) {
+		t := strings.TrimSpace(ln)
+		if strings.HasPrefix(t, "# ") {
+			return t
+		}
+	}
+	return ""
 }
 
 // classAnchors mints the citable anchors of a NON-RDR tier, which are
@@ -276,7 +300,10 @@ func File(path string, opts Options) (*Document, error) {
 func (d *Document) classAnchors() {
 	body := strings.Join(d.lines, "\n")
 	anchors := map[string]bool{}
-	switch model.ClassOf(d.Path) {
+	// The document's OWN class, not a re-read of its path: File has
+	// already decided it, title fallback included, and re-deriving here
+	// would drop that answer for a copy whose roots are unbound.
+	switch d.ClassOf() {
 	case model.ClassRFD:
 		anchors = parseRFD(body, d.Record, d.Path).Anchors
 	case model.ClassJDR:
