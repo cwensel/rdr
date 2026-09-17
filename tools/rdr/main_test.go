@@ -3208,3 +3208,51 @@ func TestClassTemplateLoads(t *testing.T) {
 		})
 	}
 }
+
+// TestHeadingClassificationIsClassAware is the last of the class split:
+// the heading pass read every document against the RDR template, so a
+// registry's own required sections came back unknown-to-template and its
+// `Problem statement` came back a legacy name of the RDR's `Problem
+// Statement`.
+//
+// Four findings on a document that conforms to its own template exactly,
+// and all four the same category error: `template:missing-section`
+// selects its list by class, and this pass did not. It is the one that
+// decides what a heading IS.
+func TestHeadingClassificationIsClassAware(t *testing.T) {
+	dir := t.TempDir()
+	jdrRoot := filepath.Join(dir, "jdr", "cli")
+	if err := os.MkdirAll(jdrRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	// Every heading here is one jdr/TEMPLATE.md requires.
+	jdr := "# JDR cli/0001 What classifies a row\n\n## Problem statement\n\nX.\n\n" +
+		"## Principles\n\n1. **Hold** — because.\n\n## D1 — the fork\n\nY.\n\n" +
+		"## Interface record\n\nZ.\n\n## What this does not decide\n\nW.\n"
+	path := filepath.Join(jdrRoot, "0001-data-corpus.md")
+	if err := os.WriteFile(path, []byte(jdr), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("RDR_JDRS", filepath.Join(dir, "jdr"))
+
+	code, out, errb := runCapture(t, "lint", path)
+	if code == 2 {
+		t.Fatalf("exit 2: %s", errb)
+	}
+	for _, bad := range []string{"unknown-to-template", "section:legacy-name"} {
+		if strings.Contains(out, bad) {
+			t.Errorf("a registry conforming to its own template reported %s:\n%s", bad, out)
+		}
+	}
+
+	// The finding is KEPT where it is correct: a heading matching neither
+	// template is still unknown, which is what makes the check worth
+	// having.
+	foreign := filepath.Join(jdrRoot, "0002-foreign.md")
+	if err := os.WriteFile(foreign, []byte(jdr+"\n## Implementation Plan\n\nNot a registry section.\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, out, _ = runCapture(t, "lint", foreign); !strings.Contains(out, "unknown-to-template") {
+		t.Errorf("a heading in NEITHER template must still be unknown:\n%s", out)
+	}
+}

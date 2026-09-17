@@ -108,6 +108,12 @@ type classTemplate struct {
 	// itself. A skipped check must not read as a passed one, and it does
 	// not — it reads as no finding, the same as a conforming document.
 	required []string
+	// sections is EVERY section the class's template declares, Required
+	// or not, in template order. The required list answers "what does
+	// this document owe"; this one answers "is this heading one of its
+	// template's" — a different question, and the one the heading
+	// classifier asks.
+	sections []Section
 }
 
 // ClassRequiredSections is the Required section names for a class, in
@@ -132,14 +138,47 @@ func ClassRequiredSections(c DocClass) []string {
 		}
 		return out
 	}
+	return classTemplateFor(c).required
+}
+
+// ClassTemplateTable is the section table a class's headings are read
+// against: the RDR's bound table, or the class's own template.
+//
+// It is the heading classifier's half of the class split. The required
+// list says what a document OWES; this says what its headings ARE, and
+// reading a registry's `Interface record` against the RDR table reported
+// a section its template requires as unknown-to-template.
+//
+// A class whose template could not be read yields an EMPTY table, not
+// the RDR's. Empty means every heading is unknown, which is visible and
+// wrong-looking; falling back to the RDR's means every heading is
+// confidently misclassified, which is the failure this split exists to
+// end.
+func ClassTemplateTable(c DocClass) TemplateTable {
+	if c == ClassRDR {
+		return Template()
+	}
+	return TemplateTable{Sections: classTemplateFor(c).sections}
+}
+
+// ClassUsesRDRAliases reports whether the RDR alias table applies to a
+// class. Only the RDR's own history is in it: `Problem statement` is a
+// recognised PREDECESSOR of the RDR's `Problem Statement` and is a
+// registry's current, correct spelling, so consulting the table for a
+// registry turns a conforming heading into a legacy-name finding with a
+// rename fix attached.
+func ClassUsesRDRAliases(c DocClass) bool { return c == ClassRDR }
+
+// classTemplateFor reads and caches a non-RDR class's template.
+func classTemplateFor(c DocClass) *classTemplate {
 	classMu.Lock()
 	defer classMu.Unlock()
 	if t, ok := classTmpl[c]; ok {
-		return t.required
+		return t
 	}
-	t := &classTemplate{required: readClassTemplate(c)}
+	t := readClassTemplate(c)
 	classTmpl[c] = t
-	return t.required
+	return t
 }
 
 // ClassOfTemplate reports which class a TEMPLATE.md path states, from the
@@ -180,20 +219,12 @@ func SetClassTemplate(c DocClass, path string) error {
 	if err != nil {
 		return fmt.Errorf("stopped:no-template (%s: %v)", path, err)
 	}
-	secs, err := parseSections(string(src))
-	if err != nil {
+	if _, err := parseSections(string(src)); err != nil {
 		return fmt.Errorf("stopped:malformed-template (%s: %v)", path, err)
-	}
-	var out []string
-	for _, sec := range secs {
-		if sec.Class != Required || strings.Contains(sec.Name, "[") {
-			continue
-		}
-		out = append(out, sec.Name)
 	}
 	classMu.Lock()
 	defer classMu.Unlock()
-	classTmpl[c] = &classTemplate{required: out}
+	classTmpl[c] = parseClassTemplate(string(src))
 	return nil
 }
 
@@ -203,31 +234,40 @@ func SetClassTemplate(c DocClass, path string) error {
 // a template that marks a section `[Conditional` means the same thing
 // whichever tier writes it, and an unmarked section means Required
 // everywhere.
-func readClassTemplate(c DocClass) []string {
+func readClassTemplate(c DocClass) *classTemplate {
 	path := classTemplatePath(c)
 	if path == "" {
-		return nil
+		return &classTemplate{}
 	}
 	src, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		return &classTemplate{}
 	}
-	secs, err := parseSections(string(src))
+	return parseClassTemplate(string(src))
+}
+
+// parseClassTemplate reads a class template's sections into both lists.
+func parseClassTemplate(src string) *classTemplate {
+	secs, err := parseSections(src)
 	if err != nil {
-		return nil
+		return &classTemplate{}
 	}
-	var out []string
-	for _, s := range secs {
+	t := &classTemplate{}
+	parents := parentOf(secs)
+	for i, s := range secs {
+		t.sections = append(t.sections, Section{
+			Name: s.Name, Level: s.Level, Class: s.Class, Parent: parents[i], Keys: s.Keys})
 		// A scaffold names a per-instance slot, never a section every
 		// document owes. The JDR template's `## D1 — [The fork, as a
 		// question]` is one entry's shape, not a heading a registry with
-		// entries named D2 and D3 is missing.
+		// entries named D2 and D3 is missing. It stays in `sections`,
+		// because a heading matching that shape IS the template's.
 		if s.Class != Required || strings.Contains(s.Name, "[") {
 			continue
 		}
-		out = append(out, s.Name)
+		t.required = append(t.required, s.Name)
 	}
-	return out
+	return t
 }
 
 // classTemplatePath locates a class's TEMPLATE.md beside the RDR one, at

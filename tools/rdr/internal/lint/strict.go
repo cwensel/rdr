@@ -123,7 +123,13 @@ func headingFindings(d *scan.Document) []Finding {
 		if n.Level < 2 {
 			continue // the title is the record's, not the template's
 		}
-		m := model.LookupSection(model.Template(), n.Heading, n.Level)
+		// The document's OWN class, for the reason template:missing-section
+		// selects its list by class: a registry's `Problem statement` is
+		// its template's exact spelling, and against the RDR table it is a
+		// case-variant of the RDR's `Problem Statement` — reported with a
+		// rename fix that would migrate the document toward a template
+		// that does not govern it.
+		m := model.LookupSectionIn(d.ClassOf(), n.Heading, n.Level)
 		if m.Canonical == nil {
 			continue
 		}

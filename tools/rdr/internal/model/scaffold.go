@@ -71,10 +71,45 @@ var scaffoldPatterns = []scaffoldPattern{
 	},
 }
 
+// jdrEntryScaffold matches a registry ENTRY heading: `D1 — the fork`,
+// `DX-13 — a pg_dump data band`, `JD-5: …`.
+//
+// A registry IS its entries, so this is the scaffold that matters most
+// in that tier — jdr/TEMPLATE.md writes `## D1 — [The fork, as a
+// question]` once and an instance repeats it per decision, with ids the
+// template cannot enumerate because they are the registry's own
+// numbering. Without it every entry of every registry reads
+// unknown-to-template, which is the document's entire body.
+//
+// The id grammar is registry.go's entryHeading, minus the heading and
+// bullet markers a Section name no longer carries.
+var jdrEntryScaffold = regexp.MustCompile(`^(?:DX|JD|D)-?\d+[a-z]?\b`)
+
+// classScaffolds are the scaffold patterns of a non-RDR tier. The RDR's
+// own — Alternative, Step, Phase — are not consulted for another class,
+// for the reason its alias table is not: they are that template's
+// scaffolding and no other's.
+var classScaffolds = map[DocClass][]scaffoldPattern{
+	ClassJDR: {{
+		re:        jdrEntryScaffold,
+		canonical: "D1 — [The fork, as a question]",
+		note:      "an instance of the registry's entry scaffold, with the id and question filled in",
+	}},
+}
+
 // matchScaffold reports whether a heading is a filled-in template
 // scaffold, and which canonical section it belongs to.
 func matchScaffold(name string) (canonical, note string, ok bool) {
-	for _, p := range scaffoldPatterns {
+	return matchScaffoldIn(ClassRDR, name)
+}
+
+// matchScaffoldIn is matchScaffold for a document class.
+func matchScaffoldIn(c DocClass, name string) (canonical, note string, ok bool) {
+	pats := scaffoldPatterns
+	if c != ClassRDR {
+		pats = classScaffolds[c]
+	}
+	for _, p := range pats {
 		if p.re.MatchString(name) {
 			return p.canonical, p.note, true
 		}

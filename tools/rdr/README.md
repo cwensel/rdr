@@ -951,7 +951,26 @@ the root is a fact the seam already states. A file under neither root is a
 record, which is what every caller saw before the classes existed and what a
 consumer that binds neither root still gets.
 
-Only the required-section list is per class. The Method vocabulary, the element
+**Heading CLASSIFICATION is per class too**, and it is the pass that decides
+what a heading IS. A registry's `Principles`, `Interface record` and `What
+this does not decide` are sections `jdr/TEMPLATE.md` REQUIRES, and against the
+RDR table all three came back `unknown-to-template`. Three things follow the
+class: the section table a heading is looked up in, the SCAFFOLD patterns
+(a registry's entries are `D1 — …`, `DX-13 — …`, which its template writes
+once and an instance repeats per decision), and the ALIAS table — which is not
+consulted outside the RDR at all, because it holds the RDR's own history:
+`Problem statement` is a recognised predecessor of the RDR's `Problem
+Statement` and is a registry's current, correct spelling, so consulting it
+turned a conforming heading into a legacy-name finding with a rename fix
+attached. `parse:section:unknown-to-template` still fires on a heading that
+matches NEITHER, because that finding is correct and worth keeping.
+
+A class whose template could not be read gets an EMPTY section table, not the
+RDR's: empty means every heading reads unknown, which is visible and
+wrong-looking, where falling back to the RDR's means every heading is
+confidently misclassified — the failure this split exists to end.
+
+The rest of the schema is still the RDR's. The Method vocabulary, the element
 grammar and the metadata field set stay the RDR's, because no rule that reads
 them runs on a registry. And `citation:form` — an RDR migration rule — does not
 run over text a registry hoisted from an earlier home: that text is preserved

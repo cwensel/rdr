@@ -298,6 +298,23 @@ func FieldAliasCanonical(label string) string {
 // benign one — a re-levelled section is the same section written by an
 // older template.
 func LookupSection(te TemplateTable, name string, level int) Match {
+	return lookupSection(te, name, level, ClassRDR)
+}
+
+// LookupSectionIn is LookupSection for a document class: the class's own
+// template table, and the RDR alias table consulted only for the RDR.
+//
+// The alias table holds the RDR's OWN history — `Problem statement` is a
+// recognised predecessor of the RDR's `Problem Statement`. It is also a
+// registry's current and correct spelling, so consulting the table for a
+// registry turned a conforming heading into a legacy-name finding with a
+// rename fix attached: the projector telling a document to migrate
+// toward a template that does not govern it.
+func LookupSectionIn(c DocClass, name string, level int) Match {
+	return lookupSection(ClassTemplateTable(c), name, level, c)
+}
+
+func lookupSection(te TemplateTable, name string, level int, c DocClass) Match {
 	name = strings.TrimSpace(name)
 
 	for i := range te.Sections {
@@ -327,7 +344,7 @@ func LookupSection(te TemplateTable, name string, level int) Match {
 		}
 	}
 
-	if canonical, note, ok := matchScaffold(name); ok {
+	if canonical, note, ok := matchScaffoldIn(c, name); ok {
 		for i := range te.Sections {
 			if te.Sections[i].Name == canonical {
 				return Match{
@@ -341,7 +358,7 @@ func LookupSection(te TemplateTable, name string, level int) Match {
 	}
 
 	for _, a := range SectionAliases {
-		if !strings.EqualFold(a.name, name) {
+		if !ClassUsesRDRAliases(c) || !strings.EqualFold(a.name, name) {
 			continue
 		}
 		if a.canonical == "" {

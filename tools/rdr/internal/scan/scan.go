@@ -30,10 +30,14 @@ const SchemaVersion = "2"
 
 // Document is the projection of one record.
 type Document struct {
-	Schema  string `json:"schema"`
-	Record  string `json:"record"`
-	Project string `json:"project,omitempty"`
-	Path    string `json:"path"`
+	Schema string `json:"schema"`
+	Record string `json:"record"`
+	// Class is the tier this document belongs to, read from the root it
+	// sits under. Omitted when it is the RDR, which is the default and
+	// what every consumer of this JSON saw before the classes existed.
+	Class   model.DocClass `json:"class,omitempty"`
+	Project string         `json:"project,omitempty"`
+	Path    string         `json:"path"`
 	Title   string `json:"title"`
 	Lines   int    `json:"lines"`
 
@@ -212,6 +216,11 @@ type Options struct {
 	Project string
 	// Record overrides the record number read from the title / filename.
 	Record string
+	// Class is which tier's template the headings are read against.
+	// Empty means ClassRDR, which is what a document held in memory gets
+	// and what every caller saw before the classes existed: the class is
+	// read from the ROOT a file sits under, and bytes have no root.
+	Class model.DocClass
 }
 
 // File reads and scans one record.
@@ -219,6 +228,13 @@ func File(path string, opts Options) (*Document, error) {
 	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
+	}
+	// The class is a fact about WHERE the file sits, so it is known here
+	// and not inside Bytes. It is set before the scan because the heading
+	// pass reads it: a registry's `Interface record` is its template's
+	// section, and against the RDR table it is unknown-to-template.
+	if opts.Class == "" {
+		opts.Class = model.ClassOf(path)
 	}
 	doc := Bytes(raw, opts)
 	doc.Path = path
@@ -380,6 +396,7 @@ func Bytes(raw []byte, opts Options) *Document {
 	}
 	doc := &Document{
 		Schema:   SchemaVersion,
+		Class:    opts.Class,
 		Project:  opts.Project,
 		Record:   opts.Record,
 		Lines:    len(lines),
@@ -484,6 +501,16 @@ func (d *Document) Select(id string) (start, end int, ok bool) {
 		}
 	}
 	return 0, 0, false
+}
+
+// ClassOf is the tier this document is read as. Empty is ClassRDR: the
+// default is the answer every caller saw before the classes existed, and
+// the one a document held in memory gets.
+func (d *Document) ClassOf() model.DocClass {
+	if d.Class == "" {
+		return model.ClassRDR
+	}
+	return d.Class
 }
 
 func (d *Document) warn(code string, start, end int, format string, args ...any) {
@@ -694,7 +721,7 @@ func (d *Document) findHeading(name string) *Node {
 // ID as the section it stands for. Everything else slugs its own text and
 // is flagged derived.
 func (d *Document) classify() {
-	te := model.Template()
+	class := d.ClassOf()
 	seen := map[string]int{}
 	for i, n := range d.nodes {
 		var key string
@@ -702,7 +729,7 @@ func (d *Document) classify() {
 			n.Match = "title"
 			key = "title"
 		} else {
-			m := model.LookupSection(te, n.Heading, n.Level)
+			m := model.LookupSectionIn(class, n.Heading, n.Level)
 			n.Match = m.Kind.String()
 			if m.Canonical != nil {
 				n.Canonical = m.Canonical.Name
