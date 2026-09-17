@@ -273,6 +273,12 @@ func run(args []string, stdout, stderr io.Writer) int {
 		if *f.repo != "" {
 			bindFlag("RDR_SOURCE_REPO", *f.repo)
 		}
+		// The registry tree a `jdr:` citation resolves against. Bound here
+		// for the same reason the two above are: one place, so every facet
+		// that resolves edges reads the same tree. Unset leaves every
+		// registry citation unchecked, which is the honest answer for a
+		// consumer that has not adopted the class.
+		scan.SetJDRRoot(envOrSeam("RDR_JDRS"))
 		// Every stopped: line lands on BOTH streams. Sessions habitually
 		// 2>/dev/null a read they expect to succeed, and a stated absence
 		// that lives only on the suppressed stream reads as an empty

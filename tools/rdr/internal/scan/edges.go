@@ -824,6 +824,18 @@ func (d *Document) mentionEdges(claimed map[int][][2]int) {
 			continue
 		}
 		line := d.Line(i)
+		// A registry citation in prose is TYPED, not a mention. `JDR
+		// cli/0001 §DX-13` states a relation by construction — the record
+		// is bound by that entry — where a bare `cli/0055` states none.
+		// It is read here because a citation is as likely to sit in
+		// Decision Rationale as in a field.
+		for _, jr := range edge.FindJDRRefs(line) {
+			if d.claimedAt(claimed, i, jr.Start) {
+				continue
+			}
+			d.addEdge(Edge{From: d.sectionOwner(i), To: jr.ID(), Kind: edge.JDR,
+				Line: i, LineEnd: i, Evidence: jr.Raw}, claimed, [2]int{jr.Start, jr.End})
+		}
 		for _, r := range edge.FindRefs(line, false) {
 			if d.claimedAt(claimed, i, r.Start) {
 				continue

@@ -58,6 +58,32 @@ type Resolver struct {
 	// primed pass that must walk it once, both produce the same verdicts
 	// as the versions that walk repeatedly.
 	onRead func()
+	// registries maps `[<project>/]<NNNN>` to the registry projection, for
+	// every registry under the JDR root.
+	registries map[string]*Registry
+	// registriesRead is the `consulted` of the registry tree, and carries
+	// the same distinction for the same reason: an unbound JDR root and a
+	// root holding no registries must not report the same verdict. Unbound
+	// leaves every registry citation unchecked, which is the honest answer
+	// — a consumer that has not adopted the class yet has not written a
+	// dangling reference, it has written one nothing has looked for.
+	registriesRead bool
+}
+
+// BindRegistries gives the resolver the registry tree a JDR citation
+// resolves against. Without it every `jdr` edge stays unchecked.
+func (r *Resolver) BindRegistries(regs []*Registry, read bool) {
+	r.registriesRead = read
+	for _, reg := range regs {
+		r.registries[reg.Key()] = reg
+		// A bare-number citation resolves inside one instance dir, the
+		// way a bare record number does.
+		if reg.Project != "" {
+			if _, taken := r.registries[reg.Number]; !taken {
+				r.registries[reg.Number] = reg
+			}
+		}
+	}
 }
 
 // SourceReads counts source files read by every resolver walk in this
@@ -80,6 +106,18 @@ func NewResolver(docs []*Document, repo string) *Resolver {
 	return NewResolverOver(docs, repo, len(docs) > 0)
 }
 
+// jdrRoot is the registry tree every resolver reads. It is a package var
+// rather than a parameter because `internal/scan` cannot reach the seam
+// (that resolver lives in package main), and threading it through five
+// constructors would let one of them drift.
+var jdrRoot string
+
+// SetJDRRoot binds the registry tree. Called once, from the seam.
+func SetJDRRoot(dir string) { jdrRoot = dir }
+
+// JDRRoot is the bound registry tree, or "" when none is.
+func JDRRoot() string { return jdrRoot }
+
 // NewResolverOver is NewResolver with the records-dir fact stated rather
 // than inferred. consulted=true means a dir was read; every element
 // target it does not hold is then genuinely absent from the corpus and
@@ -90,8 +128,14 @@ func NewResolverOver(docs []*Document, repo string, consulted bool) *Resolver {
 		slugs:     map[string]string{},
 		repo:      repo,
 		symbols:   map[string]bool{},
-		consulted: consulted,
+		consulted:  consulted,
+		registries: map[string]*Registry{},
 	}
+	// The JDR root binds in the ONE constructor every path funnels
+	// through, not at the five call sites, so a facet that resolves edges
+	// cannot report a registry citation unchecked while its neighbour
+	// checks one. Unset leaves registriesRead false — nothing-looked.
+	r.BindRegistries(LoadRegistries(JDRRoot()))
 	for _, d := range docs {
 		if d.Record == "" {
 			continue
@@ -112,11 +156,23 @@ func NewResolverOver(docs []*Document, repo string, consulted bool) *Resolver {
 func (r *Resolver) Resolve(d *Document) {
 	for i := range d.Edges {
 		e := &d.Edges[i]
+		// A registry target is decided by its TARGET, not by its kind.
+		// `joint-decision-home` is classed TargetElement because a home is
+		// usually an owner clause in a sibling record — but the same
+		// qualifier may name a JDR entry, and that one is a registry
+		// citation wearing an element kind. Reading the prefix is what
+		// keeps one edge kind able to name either home.
+		if strings.HasPrefix(e.To, "jdr:") {
+			e.Resolved = r.resolveRegistry(e.To)
+			continue
+		}
 		switch e.Kind.Class() {
 		case edge.TargetElement:
 			e.Resolved = r.resolveElement(e)
 		case edge.TargetSymbol:
 			e.Resolved = r.resolveSymbol(e.To)
+		case edge.TargetRegistry:
+			e.Resolved = r.resolveRegistry(e.To)
 		}
 	}
 }
@@ -1007,4 +1063,28 @@ func sortStrings(s []string) {
 			s[j], s[j-1] = s[j-1], s[j]
 		}
 	}
+}
+
+// resolveRegistry decides a `jdr:` target: the registry must exist under
+// the JDR root, and when the citation names an entry, that entry must
+// exist in it — by id or by an inherited alias.
+//
+// Three-valued like every other resolution. An unbound root is nil, not
+// false: a consumer that has not adopted the class has written no
+// dangling reference, and reporting one would be the false finding this
+// whole extension was written to avoid.
+func (r *Resolver) resolveRegistry(target string) *bool {
+	if !r.registriesRead {
+		return nil // nothing looked
+	}
+	rest := strings.TrimPrefix(target, "jdr:")
+	doc, anchor, hasAnchor := strings.Cut(rest, ":")
+	reg, ok := r.registries[doc]
+	if !ok {
+		return truth(false)
+	}
+	if !hasAnchor || anchor == "" {
+		return truth(true) // the document itself
+	}
+	return truth(reg.Has(anchor))
 }

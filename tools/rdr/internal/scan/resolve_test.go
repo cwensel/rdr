@@ -1039,3 +1039,83 @@ var seekBenchRepo string
 func init() {
 	flag.StringVar(&seekBenchRepo, "seekrepo", "", "source tree for BenchmarkSeekStrategies")
 }
+
+// TestRegistryCitationsResolve: a `jdr:` target is decided against the
+// registry tree, three-valued like every other resolution.
+//
+// The alias arm is the migration's whole safety net. A registry that took
+// decisions over from an RFD declares `inherits`, and a spelling the
+// migration script did not reach still resolves — an alias hit is not a
+// finding (jdr/README.md §Citation).
+func TestRegistryCitationsResolve(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reg := `---
+state: open
+inherits: RFD 0004 DX-1..DX-18
+---
+
+# JDR cli/0001 What must agree?
+
+## Principles
+
+1. **One home** — cite, never restate.
+
+## D1 — The fork
+
+**Resolved: (a).**
+
+## Interface record
+
+- **JD-5** ` + "`decided`" + ` — the answer.
+`
+	if err := os.WriteFile(filepath.Join(dir, "0001-the-seam.md"), []byte(reg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	regs, read := LoadRegistries(root)
+	if !read || len(regs) != 1 {
+		t.Fatalf("LoadRegistries: read=%v n=%d, want true/1", read, len(regs))
+	}
+	r := NewResolverOver(nil, "", true)
+	r.BindRegistries(regs, read)
+
+	for _, tc := range []struct {
+		target string
+		want   *bool
+		why    string
+	}{
+		{"jdr:cli/0001", truth(true), "the document itself"},
+		{"jdr:cli/0001:§jd-5", truth(true), "an entry id"},
+		{"jdr:cli/0001:§d1", truth(true), "a decision heading"},
+		{"jdr:cli/0001:§principles", truth(true), "a prose anchor"},
+		{"jdr:cli/0001:§dx-13", truth(true), "an INHERITED alias — not a finding"},
+		{"jdr:cli/0001:§dx-19", truth(false), "outside the inherited range"},
+		{"jdr:cli/0001:§jd-99", truth(false), "registry exists, entry does not"},
+		{"jdr:cli/0002:§jd-1", truth(false), "no such registry"},
+		{"jdr:0001:§jd-5", truth(true), "a bare number resolves inside one instance dir"},
+	} {
+		got := r.resolveRegistry(tc.target)
+		if got == nil || *got != *tc.want {
+			t.Errorf("resolveRegistry(%q) = %v, want %v — %s", tc.target, deref(got), *tc.want, tc.why)
+		}
+	}
+
+	// An unbound root is nothing-looked, never a miss: a consumer that has
+	// not adopted the class has written no dangling reference.
+	unbound := NewResolverOver(nil, "", true)
+	unbound.BindRegistries(LoadRegistries(filepath.Join(root, "nope")))
+	if got := unbound.resolveRegistry("jdr:cli/0001:§jd-5"); got != nil {
+		t.Errorf("unbound root resolved %v, want nil (nothing looked)", *got)
+	}
+}
+
+func deref(b *bool) any {
+	if b == nil {
+		return nil
+	}
+	return *b
+}
