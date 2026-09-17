@@ -397,3 +397,38 @@ func TestJointCheckLineMintsHomeAndTargetEdges(t *testing.T) {
 		}
 	}
 }
+
+// TestJDRQualifierDoesNotResolveAgainstARecord is the check DOCUMENT-TIERS.md
+// §3 asked for before anything was built on the qualifier: the Status
+// grammar parses `Final [joint decision → JDR 0001 §JD-18: …]`, but
+// qualifierEdges hands the home text to edge.FindRefs — the RECORD grammar
+// — so `JDR 0001` was read as record 0001 and `JDR cli/0001 §DX-13` as
+// element `cli/0001`.
+//
+// The harm is a false positive, not a miss. Where a record 0001 exists the
+// home resolved TRUE against a document that is not the registry, and the
+// propose gate requires that edge to resolve before a record advances; so
+// a lock could be cleared by the wrong document. Where it does not, the
+// author is told record 0001 is unresolved rather than that the registry
+// was never found.
+//
+// A `JDR` reference is therefore claimed by the JDR grammar first, and
+// what remains for the record grammar is a reference with no `JDR` marker.
+func TestJDRQualifierDoesNotResolveAgainstARecord(t *testing.T) {
+	head := "# Recommendation 0042: X\n\n## Metadata\n\n- **Date**: 2026-09-16\n"
+	for _, tc := range []struct{ name, status, to string }{
+		{"bare number", "Final [joint decision → JDR 0001 §JD-18: the enforcer]", "jdr:0001:§jd-18"},
+		{"project-qualified", "Final [joint decision → JDR cli/0001 §DX-13: the shape]", "jdr:cli/0001:§dx-13"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			d := Bytes([]byte(head+"- **Status**: "+tc.status+"\n\n## Problem Statement\n\nX.\n"), Options{})
+			homes := edgesOf(d, edge.JointDecisionHome)
+			if len(homes) != 1 {
+				t.Fatalf("want one home edge, got %v", homes)
+			}
+			if got := homes[0].To; got != tc.to {
+				t.Errorf("home target = %q, want %q — a JDR reference must never mint a record target", got, tc.to)
+			}
+		})
+	}
+}

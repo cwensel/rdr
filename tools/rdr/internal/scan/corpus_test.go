@@ -354,3 +354,50 @@ func TestLiteralIntersectWideningOnlyAdds(t *testing.T) {
 		t.Errorf("--all must widen past in-flight: %d vs %d", len(all), len(open))
 	}
 }
+
+// TestMatchesLocus pins the seam rule: a locus is a full `path::Symbol`
+// or a path prefix, matched by the SAME path rule the overlap graph uses.
+// The negative cases are the point — a rule that over-matches puts records
+// on a seam they do not touch, and membership is what gates a registry's
+// lint.
+func TestMatchesLocus(t *testing.T) {
+	for _, tc := range []struct {
+		anchor, locus string
+		want          bool
+		why           string
+	}{
+		// A full anchor locus: both halves.
+		{"corpus_scan.go::resolveChainsAt", "corpus_scan.go::resolveChainsAt", true, "exact"},
+		{"internal/cli/corpus_scan.go::resolveChainsAt", "corpus_scan.go::resolveChainsAt", true, "component-aligned suffix, the short spelling authors write"},
+		{"corpus_scan.go::resolveChainsAt", "internal/cli/corpus_scan.go::resolveChainsAt", true, "and the other way round"},
+		{"corpus_scan.go::planCorpusMint", "corpus_scan.go::resolveChainsAt", false, "same file, different symbol"},
+		{"other.go::resolveChainsAt", "corpus_scan.go::resolveChainsAt", false, "same symbol, different file"},
+		{"internal/cli/recorpus_scan.go::resolveChainsAt", "corpus_scan.go::resolveChainsAt", false, "suffix must be component-aligned, not textual"},
+		// The receiver-qualified fallback, as the resolver does it.
+		{"corpus.go::Loader.loadCorpusRecords", "corpus.go::loadCorpusRecords", true, "a method resolves to its member"},
+		// A path-prefix locus: the area spelling a registry actually uses.
+		{"internal/cli/corpus_produce.go::planCorpusMint", "internal/cli/corpus_", false, "a prefix must be component-aligned, so a partial filename is not a locus"},
+		{"internal/cli/corpus.go::loadCorpusRecords", "internal/cli", true, "a directory prefix"},
+		{"internal/cli/corpus.go::loadCorpusRecords", "internal/cli/", true, "trailing slash is the same locus"},
+		{"internal/cli/corpus.go::loadCorpusRecords", "cli", false, "a PREFIX locus anchors at the path head: a bare component would match vendor/x/cli too"},
+		{"internal/clip/corpus.go::x", "internal/cli", false, "prefix must not match a longer component"},
+		// Depth tolerance, and the ambiguity limit that bounds it. One
+		// repo's `internal/cli/x.go` is another record's
+		// `a/b/internal/cli/x.go`; a head-anchored match would drop the
+		// second out of the seam SILENTLY, which is a narrowing nobody
+		// declared. A multi-component locus therefore matches mid-path —
+		// and a single-component one does not, because `cli` alone names
+		// every cli dir in the tree and an ambiguous reference stays
+		// unresolved rather than guessed.
+		{"a/b/internal/cli/x.go::F", "internal/cli", true, "multi-component locus matches at any component boundary"},
+		{"vendor/foo/cli/x.go::F", "cli", false, "a one-component locus would claim every cli dir; head-anchored only"},
+		// area:* is never a locus.
+		{"internal/cli/corpus.go::loadCorpusRecords", "area:data-corpus", false, "the projector knows no areas; a registry spells its loci"},
+		{"", "internal/cli", false, "empty anchor"},
+		{"internal/cli/corpus.go::x", "", false, "empty locus"},
+	} {
+		if got := MatchesLocus(tc.anchor, tc.locus); got != tc.want {
+			t.Errorf("MatchesLocus(%q, %q) = %v, want %v — %s", tc.anchor, tc.locus, got, tc.want, tc.why)
+		}
+	}
+}

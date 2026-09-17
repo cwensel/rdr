@@ -67,9 +67,17 @@ import (
 // unset), and without it here that rung was documented and unreachable —
 // a marker could set it, `recs env` would not emit it, and §seam-bind's
 // `eval` would leave it unset in the shell that spawns.
+// RDR_RFDS and RDR_JDRS are the other two document tiers' roots. They are
+// read, not merely published: an RFD principle and a JDR entry are
+// resolvable targets once their root is bound, and unbound they are the
+// third value — nothing looked — rather than a miss. Both sit OUTSIDE
+// RDR_RECORDS by construction, since the record resolver globs
+// $RDR_RECORDS/NNNN-*.md non-recursively and would otherwise read a
+// registry as a record.
 var seamVars = []string{
 	"RDR_RECORDS", "RDR_SOURCE_REPO", "RDR_USAGE_LOG", "RDR_EVIDENCE", "RDR_HOME",
 	"RDR_ENV", "RDR_RESOURCES", "RDR_AUTOCOMMIT", "RDR_MODEL_CEILING",
+	"RDR_RFDS", "RDR_JDRS",
 }
 
 // seam resolves once per working directory. A projection may consult it

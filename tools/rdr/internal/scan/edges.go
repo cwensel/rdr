@@ -333,7 +333,7 @@ func placeholderValue(v string) bool {
 	return false
 }
 
-// issueEdges reads the tracker and RFD references out of a value.
+// issueEdges reads the tracker, RFD and registry references out of a value.
 func (d *Document) issueEdges(from, value string, line, lineEnd int, field string, claimed map[int][][2]int) {
 	for _, m := range edge.IssueRe.FindAllStringSubmatchIndex(value, -1) {
 		id := firstGroup(value, m)
@@ -353,6 +353,12 @@ func (d *Document) issueEdges(from, value string, line, lineEnd int, field strin
 		}
 		d.addEdge(Edge{From: from, To: "rfd/" + id, Kind: edge.RFD, Line: line, LineEnd: lineEnd,
 			Evidence: value[m[0]:m[1]], Field: field}, claimed, [2]int{m[0], m[1]})
+	}
+	// Registry references are namespaced the same way and for the same
+	// reason: `JDR 0001` and record 0001 are different documents.
+	for _, r := range edge.FindJDRRefs(value) {
+		d.addEdge(Edge{From: from, To: r.ID(), Kind: edge.JDR, Line: line, LineEnd: lineEnd,
+			Evidence: r.Raw, Field: field}, claimed, [2]int{r.Start, r.End})
 	}
 }
 
@@ -382,6 +388,15 @@ func (d *Document) qualifierEdges(claimed map[int][][2]int) {
 			m := model.JointDecisionGrammar.FindStringSubmatch(q)
 			if m == nil {
 				continue
+			}
+			// A registry home first. `JDR 0001 §JD-18` is a record
+			// reference by shape, so before the JDR grammar claimed it
+			// the home minted an edge to RECORD 0001 — true wherever
+			// that record exists, against a document that is not the
+			// registry, on the edge the propose gate clears a lock with.
+			for _, r := range edge.FindJDRRefs(m[1]) {
+				d.addEdge(Edge{From: d.docID(), To: r.ID(), Kind: edge.JointDecisionHome,
+					Line: f.LineStart, LineEnd: f.LineEnd, Evidence: q, Field: "Status"}, claimed, [2]int{})
 			}
 			for _, r := range edge.FindRefs(m[1], true) {
 				d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: edge.JointDecisionHome,

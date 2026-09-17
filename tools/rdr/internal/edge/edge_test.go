@@ -179,8 +179,8 @@ func TestNonRecordReferences(t *testing.T) {
 // untyped. A kind added without a class would silently resolve as an
 // element reference.
 func TestKindTable(t *testing.T) {
-	if len(Kinds) != 15 {
-		t.Errorf("Kinds has %d entries; the issue's enum has 14, plus surface-of", len(Kinds))
+	if len(Kinds) != 16 {
+		t.Errorf("Kinds has %d entries; the issue's enum has 14, plus surface-of and jdr", len(Kinds))
 	}
 	seen := map[Kind]bool{}
 	for _, k := range Kinds {

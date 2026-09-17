@@ -201,6 +201,14 @@ func sameAnchor(a, b string) bool {
 	if sa != sb {
 		return false
 	}
+	return samePath(pa, pb)
+}
+
+// samePath is the path half of the anchor rule, alone: equal, or one a
+// component-aligned suffix of the other. The `/` in the suffix test is
+// what makes it component-aligned — without it `validate.go` would match
+// `revalidate.go`.
+func samePath(pa, pb string) bool {
 	if pa == pb {
 		return true
 	}
@@ -209,6 +217,69 @@ func sameAnchor(a, b string) bool {
 		long, short = short, long
 	}
 	return strings.HasSuffix(long, "/"+short)
+}
+
+// MatchesLocus reports whether a source anchor falls on a seam locus.
+//
+// A locus is either a full `path::Symbol` or a path prefix, and this is
+// the ONE place that rule lives. It shares `samePath` with `sameAnchor`
+// so seam membership and the overlap graph cannot drift apart: two
+// records that the overlap graph says share an anchor must be on the
+// same seam when a registry declares it, and a second copy of the path
+// rule is how that stops being true.
+//
+// `area:*` is NOT a locus. A registry spells its area as the loci it
+// stands for (jdr/README.md §Membership is derived), because the
+// projector has no table mapping an area name to code and inventing one
+// would be a guess.
+func MatchesLocus(anchor, locus string) bool {
+	if anchor == "" || locus == "" || strings.HasPrefix(locus, "area:") {
+		return false
+	}
+	if lp, ls, ok := strings.Cut(locus, "::"); ok {
+		// A full anchor locus: both halves, by the anchor rule.
+		ap, as, _ := strings.Cut(anchor, "::")
+		if ls != as {
+			// The receiver-qualified fallback the resolver uses:
+			// `Server.Encode` names `Encode` on a receiver, and a locus
+			// naming the member matches the anchor naming the method.
+			if i := strings.LastIndex(as, "."); i < 0 || as[i+1:] != ls {
+				return false
+			}
+		}
+		return samePath(ap, lp)
+	}
+	// A path-prefix locus: component-aligned against the anchor's path.
+	//
+	// It anchors at a COMPONENT BOUNDARY, not at the head of the string,
+	// for the same reason `sameAnchor` accepts a short spelling: one
+	// repo's `internal/cli/corpus.go` is another record's
+	// `a/b/internal/cli/corpus.go`, and a locus that matched only at the
+	// head would drop the second out of the seam silently. A seam "may
+	// widen, never narrow" (jdr/README.md §Identity), and a matcher that
+	// quietly fails to match is a narrowing nobody declared.
+	//
+	// The boundary is what keeps it honest: `internal/cli` never matches
+	// `internal/clip`, and a bare `cli` never matches `vendor/x/cli`
+	// unless the locus itself says `vendor/x/cli`.
+	ap, _, _ := strings.Cut(anchor, "::")
+	loc := strings.Trim(locus, "/")
+	if ap == loc {
+		return true
+	}
+	if strings.HasPrefix(ap, loc+"/") {
+		return true
+	}
+	// Matching mid-path needs the locus to be unambiguous on its own, and
+	// a single component is not: `cli` would claim `vendor/x/cli` and
+	// every other `cli` dir in the tree. The projector's standing rule is
+	// that an ambiguous reference stays unresolved rather than being
+	// guessed at, so a one-component locus matches only at the head, and
+	// a registry that means a nested dir spells enough of it to say so.
+	if !strings.Contains(loc, "/") {
+		return false
+	}
+	return strings.Contains(ap, "/"+loc+"/")
 }
 
 // dedupeAnchors drops every spelling of an anchor but the fullest, so a

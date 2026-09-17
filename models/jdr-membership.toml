@@ -23,10 +23,17 @@
 # held to their elements on the wire, costing the product nothing, and
 # carried into the finding so a lint line can name the entries.
 #
-# `jdr_member` is likewise published rather than re-derived here. It is
-# `jdr_seam_hits >= 1 OR jdr_lineage_match`, and folding those two into the
-# table would add a 65-value int to every cell for an answer the projector
-# already has.
+# `jdr_member` is likewise published rather than re-derived here: it is
+# whether `jdr_registries` is non-empty, and the projector computes that
+# set by running every seam locus through `scan.MatchesLocus`. Folding the
+# intersection into the table would need an operator the grammar does not
+# have.
+#
+# THE FACTS ARE PER RECORD, NOT PER PAIR. The registry is not an operand,
+# because asking "is this record on registry X" requires the caller to
+# have already chosen X — and choosing X is the fire routing this table
+# decides. `jdr_registries` carries the whole answer, and its arity is
+# what §Fire routing reads: none seeds, one routes, more than one stops.
 
 outcomes = ["route"]
 
@@ -46,7 +53,7 @@ required      = true
 # The four dimensions, and the whole product: 2^4 = 16 cells, each claimed
 # by exactly one row below. No escape row — the table is proved.
 
-# `jdr_seam_hits >= 1 OR jdr_lineage_match`, computed by the projector.
+# Whether `jdr_registries` is non-empty, computed by the projector.
 # A member is a record whose anchors touch the seam; membership is DERIVED
 # and never declared, which is why no row reads a `cluster` field.
 [tags.jdr_member]
@@ -102,9 +109,12 @@ kind       = "scalar"
 provenance = "observed"
 kind       = "scalar"
 
-# Whether any entry binding this record is `open`. An open entry is the
-# analogue of a Draft home, so a Final record bound by one is a home ahead
-# of its lock — reported by `index --cycles`, not by this table.
+# Whether any entry binding this record is `open`. NOT a new fact: the
+# engine already answers it as `open_joint_decisions`, read off the Status
+# field, and an open entry is the analogue of a Draft home — a Final
+# record bound by one is a home ahead of its lock, which `index --cycles`
+# reports. Declared here as a carrier so a row can name it, never
+# recomputed.
 [tags.jdr_blocks]
 provenance = "observed"
 kind       = "scalar"

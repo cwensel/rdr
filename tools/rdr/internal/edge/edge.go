@@ -84,6 +84,9 @@ const (
 	Issue Kind = "issue"
 	// RFD is a reference to an RFD by number or path.
 	RFD Kind = "rfd"
+	// JDR is a reference to a joint decision registry, by entry
+	// (`JDR cli/0001 §DX-13`) or to the document (`JDR cli/0001`).
+	JDR Kind = "jdr"
 	// Mentions is the weak kind: a bare record reference in prose, with no
 	// stated relation. Kept separate so typed queries are not polluted.
 	Mentions Kind = "mentions"
@@ -95,7 +98,7 @@ const (
 var Kinds = []Kind{
 	Predecessor, Overrides, MovedTo, Cluster, PeerEvidence,
 	JointDecisionHome, Reverify, TransientDeletedBy, SurfaceOf, CrossCuttingOwner,
-	SourceAnchor, Artifact, Issue, RFD, Mentions,
+	SourceAnchor, Artifact, Issue, RFD, JDR, Mentions,
 }
 
 // Typed reports whether the kind states a relation. Mentions does not:
@@ -114,6 +117,13 @@ const (
 	TargetSymbol TargetClass = "symbol"
 	// TargetPath is a filesystem path — an artifact, a spike output.
 	TargetPath TargetClass = "path"
+	// TargetRegistry is a JDR entry or document (`jdr:cli/0001:§dx-13`).
+	// Its own class, not TargetElement, because a registry lives in its
+	// own numbering: a JDR 0001 and a record cli/0001 are different
+	// documents, and merging them is the defect the `jdr:` prefix exists
+	// to prevent. Not TargetExternal either — unlike an RFD number, a
+	// registry entry is resolvable once the JDR root is bound.
+	TargetRegistry TargetClass = "registry"
 	// TargetExternal is an identifier outside both the records dir and
 	// the repo: a tracker id, an RFD number.
 	TargetExternal TargetClass = "external"
@@ -128,6 +138,8 @@ func (k Kind) Class() TargetClass {
 		return TargetPath
 	case Issue, RFD:
 		return TargetExternal
+	case JDR:
+		return TargetRegistry
 	}
 	return TargetElement
 }
@@ -343,7 +355,21 @@ func FindRefs(s string, bare bool) []Ref {
 	}
 	var out []Ref
 	claimed := make([]bool, len(s)+1)
+	// A JDR reference is claimed FIRST, so the record grammar never sees
+	// it. `JDR 0001 §JD-18` is four digits and a `§` anchor — a record
+	// reference by shape — so without this the joint-decision home minted
+	// an edge to record 0001, which resolves TRUE wherever that record
+	// exists. A registry lives in its own namespace and is read by
+	// JDRRe; here it is only a span to keep out of the record grammar.
+	for _, m := range JDRRe.FindAllStringIndex(s, -1) {
+		for i := m[0]; i < m[1]; i++ {
+			claimed[i] = true
+		}
+	}
 	for _, m := range recordRef.FindAllStringSubmatchIndex(s, -1) {
+		if claimed[m[0]] {
+			continue
+		}
 		// The markerless slug alternative fires inside a filename that
 		// merely contains a record-shaped segment; decline it there.
 		if m[16] >= 0 && hyphenContinuation(s, m[16]) {
@@ -581,6 +607,67 @@ var ArtifactRe = regexp.MustCompile(`\{(SPIKE_DIR|ARTIFACT_DIR|EVIDENCE_DIR|RDR_
 var IssueRe = regexp.MustCompile(
 	`(?:\b_issues/(?:archive/)?([0-9A-Za-z][A-Za-z0-9_.-]*)` +
 		`|\bkata\s+[#*` + "`" + `]*(#?[0-9a-z]{2,6})\b)`)
+
+// JDRRe matches a joint decision registry: `JDR cli/0001 §DX-13`,
+// `JDR 0001 §JD-18`, or the bare document `JDR cli/0001`. The optional
+// project prefix mirrors the record grammar, and the `§` anchor names an
+// entry.
+//
+// IT IS MATCHED BEFORE THE RECORD GRAMMAR, AND THAT ORDER IS THE POINT.
+// `JDR 0001 §JD-18` is four digits followed by a `§` anchor, which is
+// exactly what a record reference looks like — so before this existed the
+// qualifier's home minted an edge to RECORD 0001. Where such a record
+// exists the home resolved true against the wrong document, and the
+// propose gate clears a lock on that edge. Claiming the span here is what
+// keeps the record grammar from seeing it.
+var JDRRe = regexp.MustCompile(
+	`\bJDR\s+(?:([a-z][a-z0-9-]*)/)?(\d{3,4})(?:\s*§\s*([A-Za-z][A-Za-z0-9-]*))?`)
+
+// JDRRef is one registry reference: the document, and the entry when the
+// citation reaches inside it.
+type JDRRef struct {
+	// Project is the qualifier written in the reference (`cli`), or ""
+	// when the author wrote a bare number.
+	Project string
+	// Registry is the four-digit number.
+	Registry string
+	// Entry is the entry id (`DX-13`, `JD-18`), or "" for a reference to
+	// the document.
+	Entry string
+	// Start and End bound the span in the source string.
+	Start, End int
+	// Raw is the reference as written.
+	Raw string
+}
+
+// ID renders the reference as a target, in the registry's own namespace.
+// The `jdr:` prefix is what keeps a JDR 0001 from colliding with a record
+// cli/0001 — two different documents that share a number.
+func (r JDRRef) ID() string {
+	id := "jdr:"
+	if r.Project != "" {
+		id += r.Project + "/"
+	}
+	id += r.Registry
+	if r.Entry != "" {
+		id += ":§" + strings.ToLower(r.Entry)
+	}
+	return id
+}
+
+// FindJDRRefs recovers every registry reference in a string.
+func FindJDRRefs(s string) []JDRRef {
+	var out []JDRRef
+	for _, m := range JDRRe.FindAllStringSubmatchIndex(s, -1) {
+		r := JDRRef{Start: m[0], End: m[1], Raw: s[m[0]:m[1]]}
+		r.Project, r.Registry, r.Entry = group(s, m, 1), group(s, m, 2), group(s, m, 3)
+		if r.Registry == "" {
+			continue
+		}
+		out = append(out, r)
+	}
+	return out
+}
 
 // RFDRe matches an RFD by number (`RFD 0004`) or by path (`rfd/0004/…`).
 var RFDRe = regexp.MustCompile(`\b(?:RFD\s+(\d{3,4})|rfd/(\d{3,4})(?:/([A-Za-z0-9_./-]*))?)`)

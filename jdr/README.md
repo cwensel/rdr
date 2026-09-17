@@ -77,30 +77,63 @@ merely adjacent (two).
 
 ### Membership is derived, and the projector computes it
 
-`recs` publishes one fact per (record, registry); a model routes on the fact.
-The intrastate guard vocabulary has no set intersection, so the intersection is
-the projector's job and the decision is the table's.
+`recs` publishes the facts; a model routes on them. The intrastate guard
+vocabulary has no set intersection, so the intersection is the projector's job
+and the decision is the table's.
+
+The facts are **per record**, in the shape the rollup facts already use
+(`rdr-facts.toml`'s predecessor and cluster rollups read many peers and answer
+once). The registry is not an operand: asking "is this record on registry X"
+requires the caller to have already chosen X, and choosing X *is* the fire
+routing this table decides. A per-record rollup keeps the decision on the
+table's side.
 
 | Fact | Meaning |
 | --- | --- |
-| `jdr_seam_hits: int` | the record's `source-anchor` edge targets that fall on the seam |
-| `jdr_lineage_match: bool` | the locus token of its **Seam Lineage** field is on the seam |
-| `jdr_cited: set` | the registry's entries its `jdr` / `joint-decision-home` edges name |
-| `jdr_member: bool` | `jdr_seam_hits >= 1` ∨ `jdr_lineage_match` |
+| `jdr_registries: set` | the registries this record's anchors touch — **0, 1 or more is the routing dimension** |
+| `jdr_member: bool` | the set is non-empty |
+| `jdr_cited: set` | the registry entries its `jdr` / `joint-decision-home` edges name |
 | `jdr_bound_by: set` | the entries that name this record |
-| `jdr_cite_only: bool` | every hit sits under a section other than Implementation Plan |
-| `jdr_blocks: bool` | any entry binding this record is `open` |
+| `jdr_cite_only: bool` | every seam hit sits under a section other than Implementation Plan |
+
+`jdr_registries` is a set rather than a count because §Fire routing's three
+arms read off it directly: none seeds, one routes, **more than one stops and
+asks**. A count would answer the same question; the set also names them, which
+is what the stop has to print.
 
 The table guards on the bools and carries the sets: a `set` is guarded only
 by `contains`, a superset test with no negated form that costs 2^|elements|
 cells, so the projector publishes a companion bool for each and the sets ride
 along so a finding can name the entries.
 
-A seam locus is a full `path::Symbol` or a path prefix, matched by the
-projector's existing rule: symbol whole-word, path as a component-aligned
-suffix, a receiver-qualified anchor resolving to its member. **`area:*` is not
-a locus the projector understands** — a registry spells its area as the listed
-loci it stands for, and the tests run over that list.
+**What is deliberately NOT a new fact**, because the engine already answers it:
+
+| Question | Already answered by |
+| --- | --- |
+| is a joint decision still open against this record | `open_joint_decisions`, read off the Status field |
+| which records cite this entry | `index --backlinks=jdr:<project>/NNNN:§<entry>` — `BuildGraph` keys backlinks by target verbatim, so a registry entry is a backlink key for free |
+| do two records share an anchor | `index --anchor-intersect`, whose path rule `MatchesLocus` shares |
+
+A second mechanism for any of these would be a copy that drifts, which is the
+defect this whole document class exists to prevent.
+
+A seam locus is a full `path::Symbol` or a path prefix, matched by
+`scan.MatchesLocus`, which shares its path rule with the overlap graph's
+`sameAnchor` so seam membership and the overlap graph cannot drift apart. The
+path halves match when one is a component-aligned suffix of the other (authors
+write both `corpus.go::F` and `internal/cli/corpus.go::F`), and a
+receiver-qualified anchor resolves to its member.
+
+A **prefix** locus matches at any component boundary, not just the path head:
+one repo's `internal/cli/x.go` is another record's `a/b/internal/cli/x.go`, and
+a head-anchored match would drop the second out of the seam silently — a
+narrowing nobody declared, when a seam may only widen. The bound on that
+tolerance is ambiguity: a **single-component** locus matches at the head only,
+because `cli` alone would claim every `cli` directory in the tree, and an
+ambiguous reference stays unresolved rather than guessed at.
+
+**`area:*` is not a locus the projector understands** — a registry spells its
+area as the listed loci it stands for, and the tests run over that list.
 
 Three lint codes fall out, and [`models/jdr-membership.toml`](../models/jdr-membership.toml)
 decides them:
@@ -111,8 +144,8 @@ decides them:
   seam.
 - `jdr:cite-only-member` — advisory. The anchors that hit the seam are all
   under sections other than Implementation Plan: the record cites the seam for
-  contrast rather than modifying it. Deterministic, because every edge carries
-  its `From` section.
+  contrast rather than modifying it. Deterministic, because an edge carries its
+  line and the outline says which section owns that line.
 
 ### Routing a fire
 
