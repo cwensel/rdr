@@ -200,7 +200,7 @@ func (r *Resolver) Resolve(d *Document) {
 		// it. That is how section freeze falls out of resolution rather
 		// than needing a rule of its own.
 		if strings.HasPrefix(e.To, "rfd/") && strings.Contains(e.To, ":§") {
-			e.Resolved = r.resolveRFD(e.To)
+			e.Resolved, e.Alias = r.resolveRFDEdge(e.To)
 			continue
 		}
 		switch e.Kind.Class() {
@@ -1127,19 +1127,78 @@ func (r *Resolver) resolveRegistry(target string) *bool {
 }
 
 // resolveRFD decides an `rfd/NNNN:§anchor` target: the RFD must exist
-// under the RFD root, and the anchor must exist in it.
+// under the RFD root, and the anchor must exist in it — or in the one
+// registry that took the anchor over. It is resolveRFDEdge without the
+// alias half, for the callers that only want the verdict.
 func (r *Resolver) resolveRFD(target string) *bool {
+	res, _ := r.resolveRFDEdge(target)
+	return res
+}
+
+// resolveRFDEdge is resolveRFD with the alias half reported: the verdict,
+// and the registry key that answered it when the RFD itself did not.
+func (r *Resolver) resolveRFDEdge(target string) (*bool, string) {
 	if !r.rfdsRead {
-		return nil // nothing looked
+		return nil, ""
 	}
 	rest := strings.TrimPrefix(target, "rfd/")
 	num, anchor, hasAnchor := strings.Cut(rest, ":")
 	f, ok := r.rfds[num]
 	if !ok {
-		return truth(false)
+		return truth(false), ""
 	}
 	if !hasAnchor || anchor == "" {
-		return truth(true)
+		return truth(true), ""
 	}
-	return truth(f.Has(anchor))
+	if f.Has(anchor) {
+		return truth(true), ""
+	}
+	return r.inheritedRFDAnchor(num, anchor)
+}
+
+// inheritedRFDAnchor is the alias arm of an RFD anchor resolution: the
+// anchor is gone from the RFD, but a registry declared it in `inherits`,
+// so the citation still names something that exists — under its new home.
+//
+// This is what makes the split safe to perform rather than merely safe to
+// describe. Twenty-one terminal records cite `RFD 0004 DX-13`, and a
+// terminal record is never rewritten wholesale; the moment the DX rows
+// leave RFD 0004 those citations would read as dangling on records no one
+// is permitted to amend. The alias answers them without an edit, which is
+// exactly what jdr/README.md means by "an alias hit is not a finding".
+//
+// EXACTLY ONE registry, or unresolved. Two registries that both claim the
+// anchor make the citation genuinely ambiguous — it names an id that now
+// lives in two places, and the reader cannot tell which. The projector's
+// standing rule is that an ambiguous reference stays unresolved (§3 fire
+// routing: "No longest-prefix tiebreak. A tiebreak is a guess"), so the
+// second claimant turns a resolved citation back into a finding rather
+// than picking a winner.
+//
+// Unread registries leave this nil-safe by construction: registriesRead
+// false means the map is empty, so the loop finds nothing and the caller
+// gets the RFD's own false. That is the honest answer — the anchor really
+// is absent from the RFD, and no alias table was available to say
+// otherwise.
+func (r *Resolver) inheritedRFDAnchor(num, anchor string) (*bool, string) {
+	if !r.registriesRead {
+		return truth(false), ""
+	}
+	// Registries are indexed under both `cli/0001` and `0001`, so the
+	// same registry is reachable twice; count DOCUMENTS, not keys, or a
+	// single claimant reads as the ambiguous pair.
+	var claimant *Registry
+	for _, reg := range r.registries {
+		if reg == claimant || !reg.InheritsAnchorFrom(num, anchor) {
+			continue
+		}
+		if claimant != nil {
+			return truth(false), "" // two homes; ambiguous, so unresolved
+		}
+		claimant = reg
+	}
+	if claimant == nil {
+		return truth(false), ""
+	}
+	return truth(true), "jdr:" + claimant.Key()
 }

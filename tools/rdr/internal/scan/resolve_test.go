@@ -1195,3 +1195,139 @@ state: committed
 		t.Errorf("unbound RFD root resolved %v, want nil (nothing looked)", *got)
 	}
 }
+
+// TestInheritedRFDAnchorResolvesThroughRegistry: the RFD 0004 split, as
+// the corpus will see it. The DX rows LEAVE the RFD — that is the whole
+// point of the split, the registry is their home now — and the 375
+// citations that still spell `RFD 0004 DX-n` sit on terminal records no
+// one may rewrite wholesale. The registry's `inherits:` is what keeps
+// them resolving, and it is scoped: an alias answers a citation against
+// the home it actually took the anchor over from, never another.
+func TestInheritedRFDAnchorResolvesThroughRegistry(t *testing.T) {
+	root := t.TempDir()
+	rfdRoot := filepath.Join(root, "rfd", "0004")
+	jdrRoot := filepath.Join(root, "jdr", "cli")
+	for _, d := range []string{rfdRoot, jdrRoot} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// The RFD AFTER the split: narrative and principles kept, every DX
+	// row gone. §3c stays because a section is not a decision row.
+	if err := os.WriteFile(filepath.Join(rfdRoot, "README.md"), []byte(`---
+state: committed
+---
+
+# RFD 0004 Getting data in
+
+## 3 The mechanisms
+
+### 3c How the mechanisms compose
+
+## Principles
+
+- **P-1** MUST name the chain key.
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The registry that took them over, ids preserved.
+	if err := os.WriteFile(filepath.Join(jdrRoot, "0001-data-corpus.md"), []byte(`---
+state: open
+rfd: 0004
+seam:
+  - internal/cli/corpus.go
+inherits: RFD 0004 DX-1..DX-18
+---
+
+# JDR cli/0001 What classifies a row?
+
+## DX-13 — The band
+
+## DX-7 — The chain key
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	r := NewResolverOver(nil, "", true)
+	r.BindRFDs(LoadRFDs(filepath.Join(root, "rfd")))
+	r.BindRegistries(LoadRegistries(filepath.Join(root, "jdr")))
+
+	for _, tc := range []struct {
+		target string
+		want   bool
+		alias  string
+		why    string
+	}{
+		{"rfd/0004:§dx-13", true, "jdr:cli/0001", "the busiest row: 12 records cite it, and it is gone from the RFD"},
+		{"rfd/0004:§dx-7", true, "jdr:cli/0001", "the other twelve-record row"},
+		{"rfd/0004:§dx-1", true, "jdr:cli/0001", "the low end of the inherited range"},
+		{"rfd/0004:§dx-18", true, "jdr:cli/0001", "the high end; a range is inclusive at both ends"},
+		{"rfd/0004:§3c", true, "", "a section the RFD kept — a direct hit, never an alias"},
+		{"rfd/0004:§p-1", true, "", "a principle, the RFD's own citable surface"},
+		{"rfd/0004:§dx-19", false, "", "outside the inherited range; nothing took it over"},
+		{"rfd/0004:§4", false, "", "a section the split removed and no registry claims"},
+	} {
+		got, alias := r.resolveRFDEdge(tc.target)
+		if got == nil || *got != tc.want {
+			t.Errorf("resolveRFDEdge(%q) = %v, want %v — %s", tc.target, deref(got), tc.want, tc.why)
+		}
+		if alias != tc.alias {
+			t.Errorf("resolveRFDEdge(%q) alias = %q, want %q — %s", tc.target, alias, tc.alias, tc.why)
+		}
+	}
+
+	// SCOPED. RFD 0006's decisions were not taken over by this registry,
+	// so its DX-13 is a different anchor that happens to share a string.
+	// An unscoped alias table would resolve it on the id alone, which is
+	// a guess wearing a map hit.
+	if err := os.MkdirAll(filepath.Join(root, "rfd", "0006"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "rfd", "0006", "README.md"),
+		[]byte("# RFD 0006 Advisories\n\n## 1 Scope\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r2 := NewResolverOver(nil, "", true)
+	r2.BindRFDs(LoadRFDs(filepath.Join(root, "rfd")))
+	r2.BindRegistries(LoadRegistries(filepath.Join(root, "jdr")))
+	if got, alias := r2.resolveRFDEdge("rfd/0006:§dx-13"); got == nil || *got || alias != "" {
+		t.Errorf("rfd/0006:§dx-13 = %v alias=%q, want false/\"\" — the registry inherited from 0004, not 0006",
+			deref(got), alias)
+	}
+
+	// TWO CLAIMANTS STAY UNRESOLVED. An id that now lives in two homes is
+	// genuinely ambiguous, and the projector's rule is that an ambiguous
+	// reference stays unresolved rather than picking a longest prefix.
+	if err := os.WriteFile(filepath.Join(jdrRoot, "0002-second.md"), []byte(`---
+state: open
+rfd: 0004
+inherits: RFD 0004 DX-13
+---
+
+# JDR cli/0002 A second claimant
+
+## DX-13 — Also here
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	r3 := NewResolverOver(nil, "", true)
+	r3.BindRFDs(LoadRFDs(filepath.Join(root, "rfd")))
+	r3.BindRegistries(LoadRegistries(filepath.Join(root, "jdr")))
+	if got, alias := r3.resolveRFDEdge("rfd/0004:§dx-13"); got == nil || *got || alias != "" {
+		t.Errorf("two claimants resolved %v alias=%q, want false/\"\" — a tiebreak is a guess",
+			deref(got), alias)
+	}
+	// The rows only ONE of them claims are unaffected.
+	if got, alias := r3.resolveRFDEdge("rfd/0004:§dx-7"); got == nil || !*got || alias != "jdr:cli/0001" {
+		t.Errorf("rfd/0004:§dx-7 = %v alias=%q, want true/jdr:cli/0001 — one claimant is not ambiguous",
+			deref(got), alias)
+	}
+
+	// An unbound JDR root leaves the RFD's own false standing: the anchor
+	// really is absent, and no alias table was available to say otherwise.
+	r4 := NewResolverOver(nil, "", true)
+	r4.BindRFDs(LoadRFDs(filepath.Join(root, "rfd")))
+	if got, alias := r4.resolveRFDEdge("rfd/0004:§dx-13"); got == nil || *got || alias != "" {
+		t.Errorf("unbound JDR root = %v alias=%q, want false/\"\"", deref(got), alias)
+	}
+}

@@ -34,6 +34,16 @@ type Registry struct {
 	// resolved, not a finding: the alias is what lets a spelling the
 	// migration did not reach keep working (jdr/README.md §Citation).
 	Inherits map[string]bool
+	// InheritsFrom holds the same anchors keyed by the document they were
+	// taken FROM: `0004` -> {`dx1`, …}, read out of the `RFD NNNN` half
+	// of the `inherits:` value.
+	//
+	// Scoping matters because the alias answers a citation that still
+	// names the OLD home. `RFD 0004 DX-13` is a claim about RFD 0004, and
+	// a registry that inherited DX-13 from some other RFD has not made
+	// that claim true. Inherits alone would resolve it anyway — the id is
+	// the same string — which is a guess wearing a map hit.
+	InheritsFrom map[string]map[string]bool
 	// Seam is the declared loci, from `seam:` frontmatter.
 	Seam []string
 	// Binds maps an entry id to the records that entry names. An entry
@@ -115,12 +125,21 @@ func registryNumber(base string) string {
 
 // parseRegistry reads the citable surface out of a registry's text.
 func parseRegistry(body string) *Registry {
-	reg := &Registry{Entries: map[string]bool{}, Inherits: map[string]bool{}, Binds: map[string][]string{}}
+	reg := &Registry{Entries: map[string]bool{}, Inherits: map[string]bool{},
+		InheritsFrom: map[string]map[string]bool{}, Binds: map[string][]string{}}
 	front, rest := splitFrontmatter(body)
 	reg.Seam = frontmatterList(front, "seam")
 	for _, raw := range frontmatterList(front, "inherits") {
+		from := inheritedFrom(raw)
 		for _, id := range expandInherits(raw) {
 			reg.Inherits[id] = true
+			if from == "" {
+				continue
+			}
+			if reg.InheritsFrom[from] == nil {
+				reg.InheritsFrom[from] = map[string]bool{}
+			}
+			reg.InheritsFrom[from][id] = true
 		}
 	}
 	for _, m := range entryHeading.FindAllStringSubmatchIndex(rest, -1) {
@@ -165,6 +184,29 @@ func parseRegistry(body string) *Registry {
 // written.
 func normalizeEntry(id string) string {
 	return strings.ToLower(strings.ReplaceAll(id, "-", ""))
+}
+
+// inheritsSource matches the `RFD NNNN` half of an `inherits:` value —
+// the document these anchors were taken over FROM. Absent is legal: a
+// registry may inherit from a home the frontmatter does not name, and
+// that alias then answers no RFD-scoped citation, only a bare one.
+var inheritsSource = regexp.MustCompile(`(?i)\bRFD\s+(\d{3,4})\b`)
+
+// inheritedFrom reads the RFD number an `inherits:` value names, or ""
+// when it names none.
+func inheritedFrom(s string) string {
+	if m := inheritsSource.FindStringSubmatch(s); m != nil {
+		return m[1]
+	}
+	return ""
+}
+
+// InheritsAnchorFrom reports whether this registry took over `anchor`
+// from RFD `num`. It is the scoped half of Has: a citation that still
+// names the old home resolves here, and only against the registry that
+// actually claimed that home's anchor.
+func (r *Registry) InheritsAnchorFrom(num, anchor string) bool {
+	return r.InheritsFrom[num][normalizeEntry(strings.TrimPrefix(anchor, "§"))]
 }
 
 // expandInherits turns `RFD 0004 DX-1..DX-18` into every id it names.

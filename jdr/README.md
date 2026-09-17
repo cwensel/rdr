@@ -203,7 +203,14 @@ reported as a home ahead of its lock.
 
 A registry that took over anchors from an earlier home declares them in
 `inherits`, so a legacy spelling still resolves. **An alias hit is not a
-finding.**
+finding.** The edge carries the registry that answered it, so the citations
+the migration has not reached stay countable.
+
+The alias is **scoped and exclusive**. `inherits: RFD 0004 DX-1..DX-18` answers
+a citation of RFD 0004's DX-13 and no other document's — an id is only an alias
+for the home it was actually taken from. And exactly one registry may claim an
+anchor: two claimants make the citation genuinely ambiguous, so it stays
+unresolved rather than resolving to a guess.
 
 ## Entry lifecycle
 

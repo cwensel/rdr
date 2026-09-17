@@ -66,6 +66,18 @@ type Edge struct {
 	// the resolver can report a reference whose number and slug name two
 	// different records.
 	Slug string `json:"slug,omitempty"`
+	// Alias names the document that answered this edge when the target's
+	// own document did not — a registry whose `inherits:` took over the
+	// anchor the citation still spells against its old home. Empty on a
+	// direct hit.
+	//
+	// Resolved already says the citation is sound; Alias says WHY, and
+	// the distinction is what a migration reads. An alias hit is not a
+	// finding (jdr/README.md §Citation), but it is a citation the script
+	// did not reach, so the set of them is the migration's remaining
+	// work. Without the mark that set is indistinguishable from the
+	// citations that never needed touching.
+	Alias string `json:"alias,omitempty"`
 }
 
 // edges is the extraction pass. Order matters only in that the typed
