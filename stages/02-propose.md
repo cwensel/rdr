@@ -158,9 +158,9 @@ left in those two sections. If `floor` answered `raise`, the undecided
 contract is named (Resolve sizes Profile one tier above it).
 The `Joint-check:` and `Ground-sweep:` verdict lines are recorded in Decision
 Rationale (either absent does not advance — that check never ran). If it fired, the joint
-decision has a named home — the consumer's umbrella-decision record (e.g. an
-RFD), or the shared interface declared in both RDRs — an open fire does not
-advance. If the RDR declares a
+decision has a named home — the seam's JDR entry (`JDR <project>/NNNN §<id>`),
+or the shared interface declared in both RDRs — an open fire does not
+advance. Never an RFD: a capability document cannot hold a locked row. If the RDR declares a
 `Cluster`, every member has completed propose before any member advances to
 refine (the tandem barrier — see TEMPLATE.md `Cluster`), and an open bridge
 choice — (a) skip to end-state / (b) `Transient` marker — does not advance.

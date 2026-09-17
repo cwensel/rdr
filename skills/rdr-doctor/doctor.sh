@@ -160,6 +160,23 @@ else
     else
       pass "11f 'recs' resolves on PATH to the projector - the write table's command accessors can exec it"
     fi
+    # 11h - the other two document tiers' roots. Both are OPTIONAL: a
+    # consumer that cites no RFD and keeps no registry needs neither, and
+    # an unset root leaves those citations unchecked rather than reported
+    # as dangling. So an unset root is an INFO, a set-but-missing one is a
+    # WARN — that is the case that silently turns every citation into
+    # "nothing looked" while the author believes it is checked.
+    for v in RDR_RFDS:RFD RDR_JDRS:JDR; do
+      var=${v%%:*}; tier=${v#*:}
+      eval "d=\$$var"
+      if [ -z "$d" ]; then
+        echo "  [INFO] 11h $var unset - $tier citations resolve as \"nothing looked\"; set it in the marker to check them - n/a"
+      elif [ -d "$d" ]; then
+        pass "11h $tier root resolves - $d"
+      else
+        warn "11h $var set but missing ($d) - every $tier citation reads unchecked while the marker claims a root; fix the path or unset it"
+      fi
+    done
     # 11b - staleness. The binary is stamped with the engine revision it was built
     # from (-X main.version). A plugin upgrade or a git pull moves the engine and
     # leaves the old binary in place; it still answers, so this warns, never fails.

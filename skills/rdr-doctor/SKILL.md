@@ -69,6 +69,9 @@ left the old build) is a **WARN**, not a FAIL: it still answers, it is just behi
 A `dev` stamp means someone built it by hand rather than through `/rdr-init`.
 **11g** checks the `bin/rdr` symlink: frozen records spell the command that way and
 are never amended. Missing is a **WARN** — the live flow calls `recs`.
+**11h** reports the RFD and JDR roots. Both optional: unset is an **INFO** (those
+citations read "nothing looked"), set-but-missing is a **WARN** — the case that
+leaves every citation unchecked while the marker claims a root.
 **11d** reports the usage log; off is a **WARN** only when autocommit is on, because
 the log is the lint receipt `§commit` refuses a record without — off means unlinted
 records commit unchecked.

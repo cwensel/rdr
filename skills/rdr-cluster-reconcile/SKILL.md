@@ -85,8 +85,8 @@ say so and point at `/rdr-implement NNNN`.
   recorded revision was diffed; each answer that surfaced has its siblings'
   scoped answer-vs-fences checks shown here — including a sibling whose own text
   never moved.
-- Each home is a paragraph per decision, and no sibling restates its mechanism
-  prose; each shared census/figure/enumeration has one artifact of record, with
+- Each home is a JDR entry (the registry seeded if the seam had none), one
+  entry per decision, and no sibling restates its mechanism prose; each shared census/figure/enumeration has one artifact of record, with
   a disagreeing peer figure typed CITATION REPAIR rather than joint decision,
   demotion, or deferral.
 - Each **DEFER-TO-IMPLEMENTATION** clears all three conditions, its entry is

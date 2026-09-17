@@ -213,7 +213,7 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 			// as mentions, because a Metadata line is owned by this pass
 			// and nothing else will see them — dropping them would be the
 			// silent loss the whole projector is built to avoid.
-			if metadataFieldKinds[f.Canonical] != "" || f.Canonical == "Related Issues" {
+			if metadataFieldKinds[f.Canonical] != "" || f.Canonical == "Related Issues" || f.Canonical == "Parent" {
 				for _, r := range edge.FindRefs(f.Value, false) {
 					d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: edge.Mentions,
 						Line: f.LineStart, LineEnd: f.LineEnd, Evidence: r.Raw, Field: f.Canonical, Slug: r.Slug},
@@ -248,6 +248,11 @@ func (d *Document) metadataEdges(claimed map[int][][2]int) {
 			}
 		case f.Canonical == "Seam Lineage":
 			d.anchorsIn(d.docID(), f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
+			d.issueEdges(d.docID(), f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
+		case f.Canonical == "Parent":
+			// The governing RFD. issueEdges reads the anchored and bare
+			// forms alike, so `RFD 0004` names the document and `RFD 0004
+			// P-2` names the principle — the half that is contract.
 			d.issueEdges(d.docID(), f.Value, f.LineStart, f.LineEnd, f.Canonical, claimed)
 		}
 	}
@@ -881,7 +886,7 @@ func (d *Document) mentionEdges(claimed map[int][][2]int) {
 // warning channel nobody reads.
 func (d *Document) unmappedWarnings(claimed map[int][][2]int) {
 	for _, f := range d.Metadata {
-		if metadataFieldKinds[f.Canonical] == "" && f.Canonical != "Related Issues" {
+		if metadataFieldKinds[f.Canonical] == "" && f.Canonical != "Related Issues" && f.Canonical != "Parent" {
 			continue
 		}
 		if placeholderValue(f.Value) {

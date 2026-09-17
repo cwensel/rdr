@@ -116,6 +116,12 @@ N/A-bulleted). -->
   Draft Profile until Resolve has run. -->
 - **Priority**: High | Medium | Low
 - **Related Issues**: [Links to related issues/tickets]
+- **Parent**: [The governing RFD (`RFD NNNN`), or omit if
+  none. The capability this record serves; its principles
+  (`RFD NNNN P-n`) are what the record must not contradict.
+  Declares the traceability graph rather than leaving it to
+  be inferred. An RFD SECTION is context, never contract —
+  cite a principle for the normative half.]
 - **Predecessors**: [Required field (the value may be
   empty — omit the line if there are no predecessors).
   Comma-separated `NNNN-slug` of

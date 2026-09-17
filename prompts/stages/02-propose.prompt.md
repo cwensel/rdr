@@ -232,8 +232,10 @@ Read the Problem Statement and Context, then:
    On fire, PAUSE — emit §stop-packet `stopped:joint-decision:<the joint
    question>` and WAIT. This is a human-judgment fork, not a gate failure to
    report and move past: name the peer RDR(s) and both answers — hoist to the
-   consumer's umbrella-decision record (e.g. an RFD) as the single normative
-   home, cite-don't-restate; or declare the shared interface in both RDRs.
+   seam's JDR entry as the single normative home (seed the registry if the
+   seam has none), cite-don't-restate; or declare the shared interface in
+   both RDRs. An RFD is never the home: it is a capability, and a locked row
+   inside one is what the JDR class exists to end.
    Don't choose for the user, and don't close as if the stage finished. A fire
    is detection, not demotion: siblings proceed under recorded tolerance once
    the joint decision has a home.
