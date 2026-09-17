@@ -3,6 +3,8 @@ package scan
 import (
 	"strings"
 	"testing"
+
+	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 )
 
 // head is a synthetic record head with the given status, in the shape that
@@ -399,5 +401,28 @@ func TestMatchesLocus(t *testing.T) {
 		if got := MatchesLocus(tc.anchor, tc.locus); got != tc.want {
 			t.Errorf("MatchesLocus(%q, %q) = %v, want %v — %s", tc.anchor, tc.locus, got, tc.want, tc.why)
 		}
+	}
+}
+
+// TestGraphCarriesAliasHit: an alias hit is a fact about WHY a citation
+// resolved, and the corpus index must carry it for the same reason
+// `inspect` does — a reader asking which citations still name a home the
+// registry took over gets the answer from the graph or not at all.
+//
+// The projection is positional, so an unfielded GraphEdge drops the alias
+// silently: resolution is right, the report is not. That is the shape this
+// test exists to catch.
+func TestGraphCarriesAliasHit(t *testing.T) {
+	d := synth(t, "0001", head("0001", "Alpha", "Final")+"\n## Problem Statement\n\nSynthetic.\n")
+	d.Edges = []Edge{{
+		From: "cli/0001", To: "rfd/0004:§dx-13", Kind: edge.RFD,
+		Resolved: truth(true), Alias: "jdr:cli/0001", Line: 10, LineEnd: 10,
+	}}
+	g := BuildGraph([]*Document{d}, nil)
+	if len(g.Edges) != 1 {
+		t.Fatalf("want 1 edge, got %d", len(g.Edges))
+	}
+	if got := g.Edges[0].Alias; got != "jdr:cli/0001" {
+		t.Errorf("GraphEdge.Alias = %q, want %q — the alias hit is dropped by the projection", got, "jdr:cli/0001")
 	}
 }

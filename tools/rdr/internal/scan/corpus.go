@@ -128,9 +128,15 @@ type GraphEdge struct {
 	To       string    `json:"to"`
 	Kind     edge.Kind `json:"kind"`
 	Resolved *bool     `json:"resolved,omitempty"`
-	Line     int       `json:"line"`
-	LineEnd  int       `json:"line_end"`
-	Field    string    `json:"field,omitempty"`
+	// Alias names the registry that answered this edge when the RFD
+	// itself no longer holds the anchor — the same fact `inspect` emits.
+	// Resolved says the citation is sound; Alias says why, and a reader
+	// auditing a migration needs the why from the graph, not only from a
+	// per-record call.
+	Alias   string `json:"alias,omitempty"`
+	Line    int    `json:"line"`
+	LineEnd int    `json:"line_end"`
+	Field   string `json:"field,omitempty"`
 }
 
 // BackRef is one inbound edge as the backlink table lists it.
@@ -179,7 +185,9 @@ func BuildGraph(docs []*Document, skipped []Skip) Graph {
 			g.Elements = append(g.Elements, GraphElement{d.Record, e.ID, e.Kind, e.Label, e.Hash, e.LineStart, e.LineEnd, e.Joint})
 		}
 		for _, e := range d.Edges {
-			g.Edges = append(g.Edges, GraphEdge{d.Record, e.From, e.To, e.Kind, e.Resolved, e.Line, e.LineEnd, e.Field})
+			g.Edges = append(g.Edges, GraphEdge{Record: d.Record, From: e.From, To: e.To,
+				Kind: e.Kind, Resolved: e.Resolved, Alias: e.Alias,
+				Line: e.Line, LineEnd: e.LineEnd, Field: e.Field})
 			g.Backlinks[e.To] = append(g.Backlinks[e.To], BackRef{e.From, e.Kind})
 		}
 	}

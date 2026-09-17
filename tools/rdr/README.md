@@ -667,6 +667,12 @@ is the author saying where the symbol lived; a move is a note, not a
 finding. The member still matches as a whole word, so `Codec.Encode` does
 not resolve out of `EncodeAll`.
 
+When a registry has taken an anchor over from the RFD that once held it
+(`inherits:`), the citation still resolves and the edge carries `alias`
+naming the registry that answered — `jdr:cli/0001`. `resolved` says the
+citation is sound; `alias` says why. Both `inspect` and `index` carry it,
+because a reader auditing a migration asks the corpus, not one record.
+
 An unmapped reference form — a citation shape no grammar reads — lands in
 `warnings[]` as `edge:unmapped-reference`. It is **not** an unclassified
 line: the rate measures structural drift against TEMPLATE.md, and a line
