@@ -206,6 +206,14 @@ A registry that took over anchors from an earlier home declares them in
 finding.** The edge carries the registry that answered it, so the citations
 the migration has not reached stay countable.
 
+**Text taken over is not the registry's to restyle.** A citation inside hoisted
+text keeps the spelling its old home wrote: the migration rules that rewrite an
+author's own citations skip it, for the same reason they skip a quotation. Two
+declarations mark it, and a registry may use either — `inherits:` names the
+anchors, so each named entry's block is covered; and a heading that opens
+`Hoisted from …` covers its whole section, which is what carries entries
+hoisted as bullets or ids that continue past the declared range.
+
 The alias is **scoped and exclusive**. `inherits: RFD 0004 DX-1..DX-18` answers
 a citation of RFD 0004's DX-13 and no other document's — an id is only an alias
 for the home it was actually taken from. And exactly one registry may claim an

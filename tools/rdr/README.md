@@ -855,6 +855,29 @@ There is one template, and it is the file: `model.Template()` returns
 `TEMPLATE.md` as the binary read it at startup. Every record is read
 against it whatever its age.
 
+**One template per DOCUMENT CLASS, though.** The projector reads three tiers
+and only one of them is an RDR. A registry judged by the RDR template is not
+a near miss, it is a category error: `jdr/cli/0001` conforms to
+`jdr/TEMPLATE.md` exactly and was reported as missing Critical Assumptions,
+Proposed Solution, Implementation Plan and eight more sections a registry is
+*defined* by not having. So `template:missing-section` selects its
+required-section list by class — `TEMPLATE.md`, `jdr/TEMPLATE.md`,
+`rfd/TEMPLATE.md`, all read with the same heading-and-bracket grammar, where
+unmarked still means Required.
+
+The class is read from the **root** the file sits under (`RDR_JDRS`,
+`RDR_RFDS`), never from its content: a heading set is a guess — an RFD's
+`Problem Statement` and a JDR's `Problem statement` differ by a letter — while
+the root is a fact the seam already states. A file under neither root is a
+record, which is what every caller saw before the classes existed and what a
+consumer that binds neither root still gets.
+
+Only the required-section list is per class. The Method vocabulary, the element
+grammar and the metadata field set stay the RDR's, because no rule that reads
+them runs on a registry. And `citation:form` — an RDR migration rule — does not
+run over text a registry hoisted from an earlier home: that text is preserved
+verbatim by declaration, which is what makes the legacy citation still resolve.
+
 The reader used to carry four **epoch** tables and a fingerprint that
 placed each record in the generation that produced it, so a frozen record
 was judged by its own template rather than today's. That machinery is

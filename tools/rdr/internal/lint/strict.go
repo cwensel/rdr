@@ -477,6 +477,20 @@ func readsBackAs(kind ident.Kind, line, key string) bool {
 // The findings stay per-citation, because each is its own fact; they
 // share the one patch that repairs their line.
 func citationFindings(d *scan.Document) []Finding {
+	// TEXT A REGISTRY INHERITED IS NOT THE REGISTRY'S TO RESTYLE. This is
+	// the quoted-reference rule at document scale, and the same reason
+	// stands behind it: a registry that takes over an earlier home's
+	// entries hoists them with ids and wording preserved — that is what
+	// `inherits:` asserts and what makes a legacy citation still resolve.
+	// Rewriting a citation inside hoisted text edits someone else's
+	// words, and it edits them on the one document whose whole job is to
+	// have not changed them. On jdr/cli/0001 all 26 findings sat inside
+	// the inherited Interface record.
+	//
+	// It is scoped to the inherited SPANS, not to the class: a registry's
+	// own prose is its own, and a citation the author wrote there is as
+	// migratable as any.
+	inherited := inheritedSpans(d)
 	var out []Finding
 	// Per line, the substitutions that line needs, in the order the
 	// edges were read.
@@ -495,6 +509,9 @@ func citationFindings(d *scan.Document) []Finding {
 		}
 		if e.Quoted {
 			continue // a verbatim quotation is not the author's to restyle
+		}
+		if inherited.covers(e.Line) {
+			continue // hoisted text, preserved verbatim by declaration
 		}
 		// SECTION AND ANCHOR CITATIONS ARE NOT REWRITTEN. A `§Name`
 		// citation is a bounded FRAGMENT of the target's heading or bold
@@ -1232,3 +1249,65 @@ func profileWord(v string) string {
 	}
 	return strings.ToLower(v)
 }
+
+// --- inherited text ---------------------------------------------------
+
+// lineSpans is a set of line ranges, closed at both ends.
+type lineSpans [][2]int
+
+func (s lineSpans) covers(line int) bool {
+	for _, r := range s {
+		if line >= r[0] && line <= r[1] {
+			return true
+		}
+	}
+	return false
+}
+
+// inheritedSpans are the line ranges a registry took over from an earlier
+// home: the block of each entry its `inherits:` frontmatter names.
+//
+// The declaration is the authority, not a heuristic over the prose. A
+// registry SAYS which anchors it inherited, and the projector already
+// reads that list; matching it against the outline gives the spans
+// exactly, with no guess about which paragraph came from where.
+//
+// A document that is not a registry, or one that declares no `inherits:`,
+// has no inherited text and yields nothing — which is every RDR in the
+// corpus, so the common path costs one class check.
+func inheritedSpans(d *scan.Document) lineSpans {
+	if d == nil || model.ClassOf(d.Path) != model.ClassJDR {
+		return nil
+	}
+	reg := scan.RegistryAt(d.Path)
+	if reg == nil || len(reg.Inherits) == 0 {
+		return nil
+	}
+	var out lineSpans
+	for _, n := range d.Outline {
+		// A heading that DECLARES the hoist covers everything under it.
+		// `### Hoisted from RFD 0004 §3c` is the document saying, in the
+		// place a reader looks, that this section is someone else's text.
+		// It is needed beside the frontmatter and not instead of it: the
+		// §3c decisions were hoisted as BULLETS, which mint no outline
+		// node of their own, and their ids continue past the declared
+		// `DX-1..DX-18` range. Frontmatter names the anchors; the heading
+		// names the span, and a section may be hoisted whole before
+		// anyone enumerates what is in it.
+		if hoistedHeading.MatchString(n.Heading) {
+			out = append(out, [2]int{n.LineStart, n.LineEnd})
+			continue
+		}
+		if id := scan.EntryIDIn(n.Heading); id != "" && reg.Inherits[id] {
+			out = append(out, [2]int{n.LineStart, n.LineEnd})
+		}
+	}
+	return out
+}
+
+// hoistedHeading matches a heading that declares its section hoisted from
+// an earlier home: `### Hoisted from RFD 0004 §3c — …`. "Hoist" is the
+// registry doctrine's own verb for moving a decision to a single
+// normative home (jdr/README.md), so the mark is the vocabulary already
+// in use rather than a new one invented for the lint.
+var hoistedHeading = regexp.MustCompile(`(?i)^\s*hoisted\s+from\b`)

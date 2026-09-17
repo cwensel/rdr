@@ -47,6 +47,7 @@ import (
 	"github.com/cwensel/rdr/tools/rdr/internal/edge"
 	"github.com/cwensel/rdr/tools/rdr/internal/ident"
 	"github.com/cwensel/rdr/tools/rdr/internal/lint"
+	"github.com/cwensel/rdr/tools/rdr/internal/model"
 	"github.com/cwensel/rdr/tools/rdr/internal/scan"
 )
 
@@ -280,6 +281,13 @@ func run(args []string, stdout, stderr io.Writer) int {
 		// consumer that has not adopted the class.
 		scan.SetJDRRoot(envOrSeam("RDR_JDRS"))
 		scan.SetRFDRoot(envOrSeam("RDR_RFDS"))
+		// The same two roots, to the reader that asks which TEMPLATE.md a
+		// file is judged against. They are the same fact — a tier's tree —
+		// read by two packages, so they bind from one place: a lint that
+		// judged a registry by the RDR template while the resolver read it
+		// as a registry would be the two halves disagreeing about what the
+		// file is.
+		model.SetClassRoots(envOrSeam("RDR_JDRS"), envOrSeam("RDR_RFDS"))
 		// Every stopped: line lands on BOTH streams. Sessions habitually
 		// 2>/dev/null a read they expect to succeed, and a stated absence
 		// that lives only on the suppressed stream reads as an empty

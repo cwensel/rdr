@@ -408,6 +408,30 @@ type missing struct {
 // Advising a locked record to restore the five gate subsections would be
 // advising it to undo the current process.
 func missingRequired(d *scan.Document) []missing {
+	// A JDR or an RFD is judged against its OWN template. The RDR
+	// template's spine is a record's, and a registry is defined by not
+	// having it: applying it to jdr/cli/0001 reported eleven missing
+	// sections on a document that conforms to jdr/TEMPLATE.md exactly.
+	// Those two tiers have no parent/gate structure to model, so the
+	// list is flat and the exclusions below have nothing to exclude.
+	if c := model.ClassOf(d.Path); c != model.ClassRDR {
+		// Matched on the heading AS WRITTEN, not on Canonical: Canonical
+		// is this heading's RDR section, and a registry's headings map to
+		// none. The class's own template is the authority here, so the
+		// comparison is against the text it writes.
+		present := map[string]bool{}
+		for _, n := range d.Outline {
+			present[strings.TrimSpace(n.Heading)] = true
+		}
+		var out []missing
+		for _, name := range model.ClassRequiredSections(c) {
+			if !present[name] {
+				out = append(out, missing{name: name, line: 1})
+			}
+		}
+		return out
+	}
+
 	present := map[string]bool{}
 	for _, n := range d.Outline {
 		if n.Canonical != "" {

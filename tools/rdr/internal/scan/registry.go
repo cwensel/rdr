@@ -298,3 +298,33 @@ func frontmatterList(front, key string) []string {
 	}
 	return nil
 }
+
+// RegistryAt reads the registry a path names, or nil when the path is not
+// a readable registry.
+//
+// It reads the ONE file rather than the tree. A caller that has a
+// registry's path in hand — lint, given a file to judge — wants that
+// file's own declarations, and walking the JDR root to find it again
+// would make a single-file lint depend on a bound root it does not need.
+func RegistryAt(path string) *Registry {
+	if strings.TrimSpace(path) == "" {
+		return nil
+	}
+	body, err := os.ReadFile(path)
+	if err != nil {
+		return nil
+	}
+	reg := parseRegistry(string(body))
+	reg.Number, reg.Path = registryNumber(filepath.Base(path)), path
+	return reg
+}
+
+// EntryIDIn reads the entry id a heading or bullet leads with, normalized
+// for lookup, or "" when it leads with none. `## DX-13 — the band` yields
+// `dx13`, which is the key Entries and Inherits are held under.
+func EntryIDIn(s string) string {
+	if m := entryHeading.FindStringSubmatch("## " + strings.TrimLeft(s, "#- *\t")); m != nil {
+		return normalizeEntry(m[1])
+	}
+	return ""
+}
