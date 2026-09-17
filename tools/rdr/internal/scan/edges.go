@@ -426,6 +426,15 @@ func (d *Document) qualifierEdges(claimed map[int][][2]int) {
 				d.addEdge(Edge{From: d.docID(), To: r.ID(), Kind: edge.JointDecisionHome,
 					Line: f.LineStart, LineEnd: f.LineEnd, Evidence: q, Field: "Status"}, claimed, [2]int{})
 			}
+			// An RFD home is the same claim one tier over, and reaches
+			// the same way: `RFD 0004 §3c` is the section the decision
+			// sits in. The record grammar no longer reads it, so without
+			// this arm an RFD-homed fire reads UNHOMED — honest, but the
+			// home is right there and resolvable once RDR_RFDS is bound.
+			for _, r := range edge.FindRFDRefs(m[1]) {
+				d.addEdge(Edge{From: d.docID(), To: r.ID(), Kind: edge.JointDecisionHome,
+					Line: f.LineStart, LineEnd: f.LineEnd, Evidence: q, Field: "Status"}, claimed, [2]int{})
+			}
 			for _, r := range edge.FindRefs(m[1], true) {
 				d.addEdge(Edge{From: d.docID(), To: d.target(r), Kind: edge.JointDecisionHome,
 					Line: f.LineStart, LineEnd: f.LineEnd, Evidence: q, Field: "Status", Slug: r.Slug}, claimed, [2]int{})
@@ -533,8 +542,27 @@ func (d *Document) jointCheckEdges(claimed map[int][][2]int) {
 				if t == "" || strings.HasPrefix(strings.ToUpper(t), "OPEN") {
 					continue
 				}
+				// A segment homing on another tier — `JDR cli/0001
+				// §DX-13`, `RFD 0004 §3c` — is a home like any other and
+				// counts as one. The record grammar does not read those
+				// spans, so a segment that names one would otherwise
+				// leave the fire reading unhomed with its home written
+				// on the line.
+				homed := false
+				for _, r := range edge.FindJDRRefs(seg) {
+					homed = true
+					d.addEdge(Edge{From: el.ID, To: r.ID(), Kind: edge.JointDecisionHome,
+						Line: line, LineEnd: el.LineEnd, Evidence: t, Field: "Joint-check"},
+						claimed, [2]int{start + r.Start, start + r.End})
+				}
+				for _, r := range edge.FindRFDRefs(seg) {
+					homed = true
+					d.addEdge(Edge{From: el.ID, To: r.ID(), Kind: edge.JointDecisionHome,
+						Line: line, LineEnd: el.LineEnd, Evidence: t, Field: "Joint-check"},
+						claimed, [2]int{start + r.Start, start + r.End})
+				}
 				refs := homeRefs(seg)
-				if len(refs) > 0 {
+				if len(refs) > 0 || homed {
 					el.Joint.Homes = append(el.Joint.Homes, t)
 				}
 				for _, r := range refs {

@@ -550,7 +550,7 @@ document's own; `to` is what the kind's target class says it is.
 | `overrides` | `- **Overrides**:` | record or element |
 | `cluster` | `- **Cluster**:` | record |
 | `moved-to` | `Demoted [→ …]` | issue or record |
-| `joint-decision-home` | `Final [joint decision → <home §anchor>: …]`, and a `Joint-check: fired … (home: <ref>)` line (from the `JC` element; `OPEN` mints nothing) | element |
+| `joint-decision-home` | `Final [joint decision → <home §anchor>: …]`, and a `Joint-check: fired … (home: <ref>)` line (from the `JC` element; `OPEN` mints nothing) | element, RFD anchor, or JDR entry |
 | `reverify` | `Draft [revised from Final …; re-verify A2,A4]` | this record's own assumptions |
 | `peer-evidence` | a `Method: Peer RDR` assumption's Evidence | element |
 | `transient-deleted-by` | the `Transient — scheduled deletion by …` marker | record |
@@ -584,6 +584,27 @@ guard tables and `G-faithful` for a mode; reading those as gate responses
 asserts an element the target cannot have under any spelling and reports
 a correct citation broken forever. They target the document, for the same
 reason `REQ-N` does.
+
+**A FOREIGN TIER'S REFERENCE IS NEVER A RECORD.** `RFD 0004 §3c` and
+`JDR 0001 §JD-18` are four digits followed by an anchor — a record
+reference by shape — and `rfd/0004/README.md` is the `project/NNNN` form
+exactly. So the marked spans of both tiers are claimed before the record
+grammar reads the line, and what reaches it is a reference with no tier
+marker on it.
+
+The harm they do is the one this whole file is built against: a false
+edge that resolves TRUE. A joint-decision home written `RFD 0004 §3c`
+minted a home edge to record `cli/0004` — a different document — and the
+propose gate clears a lock on that edge resolving. A `Cluster` value
+naming `rfd/0007/advisory-inventory.md` minted a cluster edge to
+`cli/0007`, and 7.1 derives cluster membership from it. Both read sound;
+neither was ever checked.
+
+Claiming is the MARKED forms only. A governing prefix — one `RFD NNNN`
+opening a value, bare `§2a`s after it — is a reading of that value's
+grammar rather than a marker on the text, so those spans stay available
+to the record grammar; a record reference in the same field is not
+silenced by an RFD named earlier in it.
 
 **A record-shaped filename segment is not a citation.** The `NNNN-slug`
 form is the one grammar with no marker of its own, and a path in the

@@ -432,3 +432,93 @@ func TestJDRQualifierDoesNotResolveAgainstARecord(t *testing.T) {
 		})
 	}
 }
+
+// TestRFDReferenceDoesNotResolveAgainstARecord is TestJDRQualifierDoes
+// NotResolveAgainstARecord's other half, and the same defect one tier
+// over: `RFD 0004 §Decision 1` is four digits followed by an anchor — a
+// record reference by shape — so every position that hands text to
+// edge.FindRefs read it as record 0004.
+//
+// The harm is the JDR one exactly. On the reference corpus a Status
+// qualifier homing on `RFD 0004 §3c` minted a joint-decision-home edge
+// that resolved TRUE against cli/0004, a different document, and the
+// propose gate reads that edge to clear a lock. `rfd/0004/README.md` is
+// worse still: the path form parses as project `rfd`, record `0004`,
+// which is a record target in a project that does not exist.
+//
+// An RFD reference is therefore claimed by the RFD grammar first, in
+// every position FindRefs is called from, and what reaches the record
+// grammar is a reference with no RFD marker.
+func TestRFDReferenceDoesNotResolveAgainstARecord(t *testing.T) {
+	head := "# Recommendation 0042: X\n\n## Metadata\n\n- **Date**: 2026-09-16\n"
+
+	// The kata's example: a joint-decision home on an RFD.
+	t.Run("status qualifier home", func(t *testing.T) {
+		for _, tc := range []struct{ name, status, to string }{
+			{"legacy decision", "Final [joint decision → RFD 0007 Decision 1: the band]", "rfd/0007:§decision-1"},
+			{"section", "Final [joint decision → RFD 0004 §3c: how they compose]", "rfd/0004:§3c"},
+			{"decision row", "Final [joint decision → RFD 0004 DX-13: the shape]", "rfd/0004:§dx-13"},
+			{"principle", "Final [joint decision → RFD 0004 P-2: the rule]", "rfd/0004:§p-2"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				d := Bytes([]byte(head+"- **Status**: "+tc.status+"\n\n## Problem Statement\n\nX.\n"), Options{})
+				homes := edgesOf(d, edge.JointDecisionHome)
+				if len(homes) != 1 {
+					t.Fatalf("want one home edge, got %v", homes)
+				}
+				if got := homes[0].To; got != tc.to {
+					t.Errorf("home target = %q, want %q — an RFD reference must never mint a record target", got, tc.to)
+				}
+			})
+		}
+	})
+
+	// The Joint-check line's home half, which reads its segments through
+	// homeRefs rather than the qualifier grammar.
+	t.Run("joint-check home", func(t *testing.T) {
+		body := "# Recommendation 0026: X\n\n## Metadata\n\n- **Date**: 2026-08-01\n- **Status**: Draft\n\n" +
+			"## Decision Rationale\n\nJoint-check: fired → 0113 (home: RFD 0004 §3c) — shared.\n"
+		d := Bytes([]byte(body), Options{})
+		homes := edgesOf(d, edge.JointDecisionHome)
+		if len(homes) != 1 || homes[0].To != "rfd/0004:§3c" {
+			t.Errorf("joint-check home = %v, want one edge to rfd/0004:§3c", homes)
+		}
+	})
+
+	// The three record-list Metadata fields, whose bare-number sweep is
+	// what read `RFD 0004` as `0004` in the first place.
+	t.Run("record-list metadata", func(t *testing.T) {
+		d := Bytes([]byte(head+"- **Status**: Draft\n- **Predecessors**: RFD 0004 §3c fixes the band.\n\n## Problem Statement\n\nX.\n"), Options{})
+		for _, e := range d.Edges {
+			if e.Field == "Predecessors" && !strings.HasPrefix(e.To, "rfd/") {
+				t.Errorf("Predecessors minted %+v, want an rfd target only", e)
+			}
+		}
+	})
+
+	// A Peer-RDR assumption's Evidence, read with bare=false: the path
+	// form is what fires here, since `rfd/0004` carries its own marker.
+	t.Run("peer evidence", func(t *testing.T) {
+		body := head + "- **Status**: Draft\n\n## Critical Assumptions\n\n" +
+			"### A1: the band holds\n\n- **Method**: Peer RDR\n- **Evidence**: rfd/0004/README.md §3c states it.\n"
+		d := Bytes([]byte(body), Options{})
+		for _, e := range d.Edges {
+			if e.Kind == edge.PeerEvidence || (e.Kind == edge.Mentions && strings.Contains(e.To, "0004")) {
+				if !strings.HasPrefix(e.To, "rfd/") {
+					t.Errorf("peer evidence minted %+v, want an rfd target", e)
+				}
+			}
+		}
+	})
+
+	// Free prose: the mentions pass claims the RFD span before FindRefs
+	// sees it, so the path form is not a record mention either.
+	t.Run("prose mention", func(t *testing.T) {
+		d := Bytes([]byte(head+"- **Status**: Draft\n\n## Problem Statement\n\nThe band is set by rfd/0004/README.md §3c.\n"), Options{})
+		for _, e := range d.Edges {
+			if e.Kind == edge.Mentions && strings.Contains(e.To, "0004") {
+				t.Errorf("prose mention minted %+v, want the rfd edge only", e)
+			}
+		}
+	})
+}

@@ -355,15 +355,19 @@ func FindRefs(s string, bare bool) []Ref {
 	}
 	var out []Ref
 	claimed := make([]bool, len(s)+1)
-	// A JDR reference is claimed FIRST, so the record grammar never sees
-	// it. `JDR 0001 §JD-18` is four digits and a `§` anchor — a record
-	// reference by shape — so without this the joint-decision home minted
-	// an edge to record 0001, which resolves TRUE wherever that record
-	// exists. A registry lives in its own namespace and is read by
-	// JDRRe; here it is only a span to keep out of the record grammar.
-	for _, m := range JDRRe.FindAllStringIndex(s, -1) {
-		for i := m[0]; i < m[1]; i++ {
-			claimed[i] = true
+	// A FOREIGN-TIER reference is claimed FIRST, so the record grammar
+	// never sees it. `JDR 0001 §JD-18` and `RFD 0004 §3c` are four digits
+	// and an anchor — a record reference by shape — so without this the
+	// joint-decision home minted an edge to record 0001 or 0004, which
+	// resolves TRUE wherever that record exists, against a document that
+	// is not the one cited. A registry and an RFD live in their own
+	// namespaces and are read by FindJDRRefs and FindRFDRefs; here they
+	// are only spans to keep out of the record grammar.
+	for _, re := range foreignTierRefs {
+		for _, m := range re.FindAllStringIndex(s, -1) {
+			for i := m[0]; i < m[1]; i++ {
+				claimed[i] = true
+			}
 		}
 	}
 	for _, m := range recordRef.FindAllStringSubmatchIndex(s, -1) {
@@ -803,6 +807,24 @@ func FindRFDRefs(s string) []RFDRef {
 	}
 	return out
 }
+
+// foreignTierRefs are the grammars whose spans the RECORD grammar must
+// not read: a reference to a document in another tier, carrying that
+// tier's own marker.
+//
+// Only the MARKED forms are here, and that is the whole rule. `RFD 0004
+// §3c` and `rfd/0004/README.md` say which document they mean, so
+// claiming their spans costs the record grammar nothing it was right
+// about. FindRFDRefs' governing-prefix arm is NOT here: it attributes a
+// bare `§2a` to the last RFD a value named, which is a reading of that
+// value's grammar and not a marker on the text — claiming those spans
+// would silence record references that sit in the same field.
+//
+// RFDAnchorRe is listed beside RFDRe because it is the longer match:
+// RFDRe alone claims `RFD 0004` and leaves `§3c` for the record grammar,
+// which reads it as a section of the RECORD. The anchor half belongs to
+// the RFD or to nothing.
+var foreignTierRefs = []*regexp.Regexp{JDRRe, RFDAnchorRe, RFDRe}
 
 // rfdBareAnchor matches an anchor with no `RFD NNNN` of its own: `§3c`,
 // `§1a`, `DX-13`. Only meaningful under a governing prefix.
