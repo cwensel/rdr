@@ -1,0 +1,291 @@
+# jdr-membership.toml — is this record on this registry's seam, and is its
+# citation honest? A decision table over the facts the projector publishes.
+#
+# `jdr/README.md` §Membership is derived is the prose; this file decides it.
+# One resolve per (record, registry) pair.
+#
+# WHY THE TABLE DECIDES AND THE PROJECTOR COMPUTES. Membership is an
+# INTERSECTION — the record's source anchors against the registry's declared
+# loci — and the intrastate guard vocabulary is closed at eight operators
+# with no intersection among them. So `recs` computes the intersection and
+# publishes the answer as a fact, and this table routes on the fact. That is
+# the same split `rdr-facts.toml` and `rdr-status.toml` already use, and it
+# is why the seam's loci live in the registry's own frontmatter rather than
+# in a second file this table would have to read.
+#
+# WHY THE GUARDED DIMENSIONS ARE BOOLS. `jdr_cited` and `jdr_bound_by` are
+# sets of entry ids, and a `set` is guarded only by `contains` — a superset
+# test with no negated form, costing 2^|elements| cells in the coverage
+# product. Guarding both would blow the published 2048 bound and could not
+# express "cited AND NOT bound" anyway, since two `unless` atoms negate
+# their CONJUNCTION rather than each other. So the projector publishes a
+# companion bool for each, and the sets ride along declared-but-unguarded:
+# held to their elements on the wire, costing the product nothing, and
+# carried into the finding so a lint line can name the entries.
+#
+# `jdr_member` is likewise published rather than re-derived here. It is
+# `jdr_seam_hits >= 1 OR jdr_lineage_match`, and folding those two into the
+# table would add a 65-value int to every cell for an answer the projector
+# already has.
+
+outcomes = ["route"]
+
+[model]
+id          = "jdr-membership"
+version     = 1
+class       = "decision-table"
+description = "One (record, registry) pair: member or not, and whether its citations and bindings are honest."
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["route"]
+single_valued = true
+required      = true
+
+# The four dimensions, and the whole product: 2^4 = 16 cells, each claimed
+# by exactly one row below. No escape row — the table is proved.
+
+# `jdr_seam_hits >= 1 OR jdr_lineage_match`, computed by the projector.
+# A member is a record whose anchors touch the seam; membership is DERIVED
+# and never declared, which is why no row reads a `cluster` field.
+[tags.jdr_member]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# Whether `jdr_cited` is non-empty: the record names at least one entry of
+# this registry, through a `jdr` or `joint-decision-home` edge.
+[tags.jdr_has_citation]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# Whether `jdr_bound_by` is non-empty: at least one entry names this record.
+# Every bound record must be a member; not every member is bound.
+[tags.jdr_has_binding]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# Test L3: every anchor that hits the seam sits under a section other than
+# Implementation Plan — the record cites the seam for contrast rather than
+# modifying it. Deterministic, because every edge carries its `From`
+# section. False whenever the record modifies the seam, and false for a
+# non-member (there are no hits to qualify), so the projector publishes it
+# as an ordinary bool and the table needs no third state.
+[tags.jdr_cite_only]
+provenance    = "observed"
+kind          = "bool"
+single_valued = true
+required      = true
+
+# --- carriers: declared for wire hygiene, guarded by nothing ----------------
+#
+# Declaring a set is what makes an array literal parse as a set and holds it
+# to its elements; declaring one this table never guards on costs the
+# coverage product nothing. They are here so a finding can name the entries
+# rather than only asserting that some exist. `elements` is open-ended by
+# nature — entry ids are minted per registry — so these stay undeclared as
+# domains and are carried verbatim.
+
+# The entry ids this record's edges name.
+[tags.jdr_cited]
+provenance = "observed"
+kind       = "scalar"
+
+# The entry ids that name this record.
+[tags.jdr_bound_by]
+provenance = "observed"
+kind       = "scalar"
+
+# Whether any entry binding this record is `open`. An open entry is the
+# analogue of a Draft home, so a Final record bound by one is a home ahead
+# of its lock — reported by `index --cycles`, not by this table.
+[tags.jdr_blocks]
+provenance = "observed"
+kind       = "scalar"
+
+# --- the emitted vocabulary -------------------------------------------------
+#
+# Declaring one emit key makes the whole model strict: every rule's emit
+# keys must be declared, escape rows included. That is wanted here — a
+# misspelled lint code would otherwise load clean and be answered verbatim.
+
+# What the caller does with the pair. The dispositions are the caller's
+# tokens; intrastate never interprets them.
+[emit.route]
+kind = "enum"
+[emit.route.domain]
+register = ["member", "member-cite-only"]
+report   = ["cited-off-seam", "bound-off-seam"]
+skip     = ["unrelated"]
+
+# The lint code, where the row raises one. `none` is the declared absent
+# sentinel: a clean pair says so by name rather than by an omitted key.
+[emit.code]
+kind   = "enum"
+domain = ["none", "jdr:cited-off-seam", "jdr:bound-off-seam", "jdr:cite-only-member"]
+
+[emit.severity]
+kind   = "enum"
+domain = ["none", "advisory", "blocking"]
+
+[emit.why]
+kind = "scalar"
+
+# --- member ----------------------------------------------------------------
+
+# A member that modifies the seam: the ordinary case, whatever its citation
+# state. One row per (cited, bound) pair, all with `jdr_cite_only = false`.
+
+[[rule]]
+id = "member-bound"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "true"
+[rule.guard.all.jdr_has_binding]
+eq = "true"
+[rule.guard.all.jdr_cite_only]
+eq = "false"
+[rule.emit]
+route    = "member"
+code     = "none"
+severity = "none"
+why      = "On the seam and named by an entry: bound, which is what the registry is for."
+
+[[rule]]
+id = "member-cited"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "true"
+[rule.guard.all.jdr_has_citation]
+eq = "true"
+[rule.guard.all.jdr_has_binding]
+eq = "false"
+[rule.guard.all.jdr_cite_only]
+eq = "false"
+[rule.emit]
+route    = "member"
+code     = "none"
+severity = "none"
+why      = "On the seam and citing the registry, with no entry naming it back — normal: not every member is bound."
+
+# A member that neither cites nor is bound. Not a defect: the seam is wider
+# than the entries filed so far, and that is the ordinary state of a
+# registry mid-life. It is the candidate set a reconcile draws from.
+[[rule]]
+id = "member-silent"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "true"
+[rule.guard.all.jdr_has_citation]
+eq = "false"
+[rule.guard.all.jdr_has_binding]
+eq = "false"
+[rule.guard.all.jdr_cite_only]
+eq = "false"
+[rule.emit]
+route    = "member"
+code     = "none"
+severity = "none"
+why      = "On the seam, neither citing nor bound — a candidate the next reconcile may disposition, not a defect."
+
+# --- test L3: a member that only cites the seam ------------------------------
+#
+# Every hit sits outside the Implementation Plan, so the record names the
+# seam for contrast rather than modifying it. ADVISORY, never blocking: it
+# is a member the author may wish to disposition, and the call is the
+# author's. Bound is the one arm worth separating — an entry that binds a
+# cite-only record is the registry asserting a contract over a record that
+# does not implement it.
+
+[[rule]]
+id = "cite-only-bound"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "true"
+[rule.guard.all.jdr_has_binding]
+eq = "true"
+[rule.guard.all.jdr_cite_only]
+eq = "true"
+[rule.emit]
+route    = "member-cite-only"
+code     = "jdr:cite-only-member"
+severity = "advisory"
+why      = "An entry binds a record whose seam anchors all sit outside its Implementation Plan — it cites the seam, it does not modify it."
+
+[[rule]]
+id = "cite-only-unbound"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "true"
+[rule.guard.all.jdr_has_binding]
+eq = "false"
+[rule.guard.all.jdr_cite_only]
+eq = "true"
+[rule.emit]
+route    = "member-cite-only"
+code     = "jdr:cite-only-member"
+severity = "advisory"
+why      = "The record's seam anchors all sit outside its Implementation Plan — a member by the anchor test, but one that cites the seam rather than modifying it."
+
+# --- not a member ----------------------------------------------------------
+#
+# The two lint codes the README names, plus the honest silence. `bound` is
+# checked before `cited` because it is the registry's own error: an entry
+# reached outside its seam, which only the registry can have written.
+
+[[rule]]
+id = "bound-off-seam"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "false"
+[rule.guard.all.jdr_has_binding]
+eq = "true"
+[rule.emit]
+route    = "bound-off-seam"
+code     = "jdr:bound-off-seam"
+severity = "blocking"
+why      = "An entry binds a record whose anchors do not touch the seam. Either the seam widens (it may never narrow) or the entry names the wrong record."
+
+[[rule]]
+id = "cited-off-seam"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "false"
+[rule.guard.all.jdr_has_citation]
+eq = "true"
+[rule.guard.all.jdr_has_binding]
+eq = "false"
+[rule.emit]
+route    = "cited-off-seam"
+code     = "jdr:cited-off-seam"
+severity = "blocking"
+why      = "A record cites a registry whose seam it does not touch. Either the seam widens or the citation is wrong."
+
+[[rule]]
+id = "unrelated"
+[rule.match.recognized]
+eq = "route"
+[rule.guard.all.jdr_member]
+eq = "false"
+[rule.guard.all.jdr_has_citation]
+eq = "false"
+[rule.guard.all.jdr_has_binding]
+eq = "false"
+[rule.emit]
+route    = "unrelated"
+code     = "none"
+severity = "none"
+why      = "Off the seam, uncited, unbound — this registry has nothing to say about this record."

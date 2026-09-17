@@ -1,0 +1,250 @@
+# jdr-entry.toml — one JDR entry's lifecycle, as a state machine.
+#
+# `jdr/README.md` §Entry lifecycle is the prose; this file is the
+# transition table, so `intrastate lint --model` proves the table covers
+# the state space instead of a reader trusting that the prose enumerated
+# every case. A missing branch is a lint failure here, not a wrong answer
+# to an author three months from now.
+#
+# THE STATE IS PER ENTRY, NOT PER DOCUMENT. A registry holds many entries
+# at different states at once; the document's own state is DERIVED
+# (`settled` when no entry is `open`) and is never asserted, so it is not
+# modelled here.
+#
+# WHY `none` IS IN THE DOMAIN. The table's first move is `(none) -> open |
+# constraint | blank`, the grade a Joint-check fire carries. `[initial]`
+# is the root the graph is reached from, not a default: an entry that does
+# not exist yet is `none`, and the seed rows are the only ones that leave
+# it. Nothing returns to it — an entry is never deleted, only `withdrawn`
+# (README: deleting breaks citations).
+#
+# THE GRADE IS AN INPUT, NOT AN INFERENCE. Whether a fire is a fork, a
+# constraint or a blank is the author's judgement against shipped code
+# (README §Grade entries) — so it arrives as a tag with `unknown` a
+# declared member that stops by name, the way `rdr-write.toml` takes the
+# Profile. This table maps a grade; it never guesses one.
+
+outcomes = ["seed", "decide", "defer", "withdraw"]
+
+# Terminals are [context.*] PREDICATES over owned tags, never bare state
+# names. `decided` and `withdrawn` are the two states nothing leaves:
+# a decided entry is re-opened by a new entry, never by a transition
+# backwards, and a withdrawn one keeps its anchor alive and nothing more.
+terminal = ["decided", "withdrawn"]
+
+[model]
+id          = "jdr-entry"
+version     = 1
+class       = "state-machine"
+description = "A JDR entry's per-entry lifecycle: the grade that files it, and the moves that close it."
+
+# An entry that does not exist yet. The seed rows are the only ones that
+# leave `none`, and no row returns to it.
+[initial]
+entry_state = "none"
+
+[tags.recognized]
+provenance    = "recognized"
+kind          = "enum"
+domain        = ["seed", "decide", "defer", "withdraw"]
+single_valued = true
+required      = true
+
+# OWNED: `[write.entry]` applies it, so intrastate reads it through
+# `[read.entry]` and refuses it as argv (`flow-tag-owned`).
+[tags.entry_state]
+provenance    = "owned"
+kind          = "enum"
+domain        = ["none", "open", "constraint", "blank", "deferred", "decided", "withdrawn"]
+single_valued = true
+required      = true
+
+# The second axis the README insists on, and the reason this table exists:
+# the cluster gate's severity inflates `blocks-impl`, so a registry that
+# copied severity into `open` would hold a cluster at NOT RECONCILED over
+# bookkeeping. `unknown` is the declared absent sentinel — a fire whose
+# grade nobody decided stops by name rather than defaulting to a fork.
+[tags.grade]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["fork", "constraint", "blank", "unknown"]
+single_valued = true
+required      = true
+
+# Whether the move carries what the target state requires: a `decide` needs
+# a Resolved line naming the landing records, a `defer` needs the phase that
+# will settle it, a `withdraw` needs its reason (the anchor must never
+# dangle). One tag, because the requirement is the same shape each time —
+# the move names its evidence or it does not move.
+[tags.move_named]
+provenance    = "observed"
+kind          = "enum"
+domain        = ["yes", "no"]
+single_valued = true
+required      = true
+
+# The entry's own state, in the JSON store the caller binds as
+# `--artifact entry=<path>`; nothing is discovered. `flow init-state` seeds
+# it from `[initial]` over an EMPTY store — an un-seeded store reads as
+# absent rather than falling back, which is the point.
+#
+# `read_back` is what makes `flow set-state` verify the write by reading it
+# back rather than trusting that it landed.
+[read.entry]
+role    = "entry"
+path    = "entry_state"
+keys    = ["entry_state"]
+timeout = "5s"
+
+[write.entry]
+role      = "entry"
+path      = "entry_state"
+keys      = ["entry_state"]
+timeout   = "5s"
+read_back = true
+
+[context.decided]
+[context.decided.match.entry_state]
+eq = "decided"
+
+[context.withdrawn]
+[context.withdrawn.match.entry_state]
+eq = "withdrawn"
+
+# --- (none) -> open | constraint | blank, by grade ---------------------------
+#
+# One row per grade, because the grade IS the transition: a fork gates
+# implementation and the other two do not, so collapsing them would lose the
+# distinction the README says the registry lives or dies by.
+
+[[rule]]
+id = "seed-fork"
+[rule.match.recognized]
+eq = "seed"
+[rule.guard.all.entry_state]
+eq = "none"
+[rule.guard.all.grade]
+eq = "fork"
+[rule.write]
+entry_state = "open"
+
+[[rule]]
+id = "seed-constraint"
+[rule.match.recognized]
+eq = "seed"
+[rule.guard.all.entry_state]
+eq = "none"
+[rule.guard.all.grade]
+eq = "constraint"
+[rule.write]
+entry_state = "constraint"
+
+[[rule]]
+id = "seed-blank"
+[rule.match.recognized]
+eq = "seed"
+[rule.guard.all.entry_state]
+eq = "none"
+[rule.guard.all.grade]
+eq = "blank"
+[rule.write]
+entry_state = "blank"
+
+# --- open -> decided, deferred -> decided ------------------------------------
+#
+# Two rows, not one guarded on `in = ["open", "deferred"]`, because they are
+# different claims: an `open` entry is settled ON PAPER here, and a
+# `deferred` one is settled by the phase it named. Both need the Resolved
+# line; neither may move without it.
+
+[[rule]]
+id = "decide-open"
+[rule.match.recognized]
+eq = "decide"
+[rule.guard.all.entry_state]
+eq = "open"
+[rule.guard.all.move_named]
+eq = "yes"
+[rule.write]
+entry_state = "decided"
+
+[[rule]]
+id = "decide-deferred"
+[rule.match.recognized]
+eq = "decide"
+[rule.guard.all.entry_state]
+eq = "deferred"
+[rule.guard.all.move_named]
+eq = "yes"
+[rule.write]
+entry_state = "decided"
+
+# --- open -> deferred --------------------------------------------------------
+#
+# Only from `open`. A `constraint` or `blank` does not block, so there is
+# nothing to defer; deferring one would be a re-grade, which is a withdrawal
+# and a new entry.
+
+[[rule]]
+id = "defer-open"
+[rule.match.recognized]
+eq = "defer"
+[rule.guard.all.entry_state]
+eq = "open"
+[rule.guard.all.move_named]
+eq = "yes"
+[rule.write]
+entry_state = "deferred"
+
+# --- any live state -> withdrawn ---------------------------------------------
+#
+# The one move every live state admits, and the reason the table has no
+# delete: an entry re-triaged as a single-record defect or a non-finding
+# keeps its id and its reason so the anchor never dangles. `none` is
+# excluded — there is nothing to withdraw before the entry exists — and
+# `withdrawn` is excluded because it is terminal.
+
+[[rule]]
+id = "withdraw"
+[rule.match.recognized]
+eq = "withdraw"
+[rule.guard.all.entry_state]
+in = ["open", "constraint", "blank", "deferred", "decided"]
+[rule.guard.all.move_named]
+eq = "yes"
+[rule.write]
+entry_state = "withdrawn"
+
+# --- the escape rows ---------------------------------------------------------
+#
+# One per outcome: the request is legal but the state does not admit the
+# transition — a `decide` asked of a `none`, a `seed` of an entry that
+# already exists, any move whose evidence was not named. It resolves to the
+# escape row with `escaped=true` rather than refusing, and carries no write
+# block, so nothing advances. This is also what keeps the one rule the
+# README states absolutely — an entry is NEVER deleted — true by
+# construction: no row writes `none`, and no outcome asks for it.
+
+[[rule]]
+id = "seed-otherwise"
+escape = ["no_match"]
+[rule.match.recognized]
+eq = "seed"
+
+[[rule]]
+id = "decide-otherwise"
+escape = ["no_match"]
+[rule.match.recognized]
+eq = "decide"
+
+[[rule]]
+id = "defer-otherwise"
+escape = ["no_match"]
+[rule.match.recognized]
+eq = "defer"
+
+[[rule]]
+id = "withdraw-otherwise"
+escape = ["no_match"]
+[rule.match.recognized]
+eq = "withdraw"
