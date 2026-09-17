@@ -279,6 +279,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 		// registry citation unchecked, which is the honest answer for a
 		// consumer that has not adopted the class.
 		scan.SetJDRRoot(envOrSeam("RDR_JDRS"))
+		scan.SetRFDRoot(envOrSeam("RDR_RFDS"))
 		// Every stopped: line lands on BOTH streams. Sessions habitually
 		// 2>/dev/null a read they expect to succeed, and a stated absence
 		// that lives only on the suppressed stream reads as an empty

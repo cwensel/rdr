@@ -61,6 +61,10 @@ type Resolver struct {
 	// registries maps `[<project>/]<NNNN>` to the registry projection, for
 	// every registry under the JDR root.
 	registries map[string]*Registry
+	// rfds maps a four-digit number to the RFD projection, and rfdsRead
+	// is its `consulted`. Same three-valued contract as the registries.
+	rfds     map[string]*RFD
+	rfdsRead bool
 	// registriesRead is the `consulted` of the registry tree, and carries
 	// the same distinction for the same reason: an unbound JDR root and a
 	// root holding no registries must not report the same verdict. Unbound
@@ -68,6 +72,17 @@ type Resolver struct {
 	// — a consumer that has not adopted the class yet has not written a
 	// dangling reference, it has written one nothing has looked for.
 	registriesRead bool
+}
+
+// BindRFDs gives the resolver the RFD tree an `RFD NNNN §x` citation
+// resolves against. Without it every RFD anchor stays unchecked — which
+// is what it was before this existed, for every RFD citation in the
+// corpus.
+func (r *Resolver) BindRFDs(rfds []*RFD, read bool) {
+	r.rfdsRead = read
+	for _, f := range rfds {
+		r.rfds[f.Number] = f
+	}
 }
 
 // BindRegistries gives the resolver the registry tree a JDR citation
@@ -118,6 +133,15 @@ func SetJDRRoot(dir string) { jdrRoot = dir }
 // JDRRoot is the bound registry tree, or "" when none is.
 func JDRRoot() string { return jdrRoot }
 
+// rfdRoot is the RFD tree, bound the same way and for the same reason.
+var rfdRoot string
+
+// SetRFDRoot binds the RFD tree. Called once, from the seam.
+func SetRFDRoot(dir string) { rfdRoot = dir }
+
+// RFDRoot is the bound RFD tree, or "" when none is.
+func RFDRoot() string { return rfdRoot }
+
 // NewResolverOver is NewResolver with the records-dir fact stated rather
 // than inferred. consulted=true means a dir was read; every element
 // target it does not hold is then genuinely absent from the corpus and
@@ -130,12 +154,14 @@ func NewResolverOver(docs []*Document, repo string, consulted bool) *Resolver {
 		symbols:   map[string]bool{},
 		consulted:  consulted,
 		registries: map[string]*Registry{},
+		rfds:       map[string]*RFD{},
 	}
 	// The JDR root binds in the ONE constructor every path funnels
 	// through, not at the five call sites, so a facet that resolves edges
 	// cannot report a registry citation unchecked while its neighbour
 	// checks one. Unset leaves registriesRead false — nothing-looked.
 	r.BindRegistries(LoadRegistries(JDRRoot()))
+	r.BindRFDs(LoadRFDs(RFDRoot()))
 	for _, d := range docs {
 		if d.Record == "" {
 			continue
@@ -164,6 +190,17 @@ func (r *Resolver) Resolve(d *Document) {
 		// keeps one edge kind able to name either home.
 		if strings.HasPrefix(e.To, "jdr:") {
 			e.Resolved = r.resolveRegistry(e.To)
+			continue
+		}
+		// An RFD anchor is likewise decided by its target. The `rfd` kind
+		// stays TargetExternal — a bare `RFD 0004` names a document this
+		// binary has no reason to open — but a citation that reaches
+		// INSIDE one names something checkable, and a renumbered section
+		// then shows up as an unresolved edge from the records that cite
+		// it. That is how section freeze falls out of resolution rather
+		// than needing a rule of its own.
+		if strings.HasPrefix(e.To, "rfd/") && strings.Contains(e.To, ":§") {
+			e.Resolved = r.resolveRFD(e.To)
 			continue
 		}
 		switch e.Kind.Class() {
@@ -1087,4 +1124,22 @@ func (r *Resolver) resolveRegistry(target string) *bool {
 		return truth(true) // the document itself
 	}
 	return truth(reg.Has(anchor))
+}
+
+// resolveRFD decides an `rfd/NNNN:§anchor` target: the RFD must exist
+// under the RFD root, and the anchor must exist in it.
+func (r *Resolver) resolveRFD(target string) *bool {
+	if !r.rfdsRead {
+		return nil // nothing looked
+	}
+	rest := strings.TrimPrefix(target, "rfd/")
+	num, anchor, hasAnchor := strings.Cut(rest, ":")
+	f, ok := r.rfds[num]
+	if !ok {
+		return truth(false)
+	}
+	if !hasAnchor || anchor == "" {
+		return truth(true)
+	}
+	return truth(f.Has(anchor))
 }

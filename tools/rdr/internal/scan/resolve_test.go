@@ -1119,3 +1119,79 @@ func deref(b *bool) any {
 	}
 	return *b
 }
+
+// TestRFDAnchorsResolve: an RFD citation that reaches inside the document
+// is checked against the RFD tree, and a companion artifact beside an RFD
+// is not a second RFD.
+//
+// That last clause is the bug this test exists for. `rfd/NNNN/` is a
+// directory SO an RFD can carry artifacts beside its README; taking every
+// .md in it loaded the artifact as a second RFD 0007 with no anchors,
+// which overwrote the real one and reported 42 live citations of an
+// existing section as dangling on terminal records.
+func TestRFDAnchorsResolve(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "0007")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	rfd := `---
+state: committed
+---
+
+# RFD 0007 Advisories
+
+## Decision 1 — Classified how?
+
+## Decision 4 — The catalog
+
+### 4a — Do codes carry a class?
+
+### 4b — What carries the structure?
+
+### 4e
+
+## Principles
+
+- **P-1** MUST name the grounds.
+`
+	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte(rfd), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The companion artifact that must NOT load as an RFD.
+	if err := os.WriteFile(filepath.Join(dir, "advisory-inventory.md"), []byte("# Inventory\n\nrows\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	rfds, read := LoadRFDs(root)
+	if !read || len(rfds) != 1 {
+		t.Fatalf("LoadRFDs: read=%v n=%d, want true/1 — an artifact beside the README is not an RFD", read, len(rfds))
+	}
+	r := NewResolverOver(nil, "", true)
+	r.BindRFDs(rfds, read)
+
+	for _, tc := range []struct {
+		target string
+		want   bool
+		why    string
+	}{
+		{"rfd/0007:§4b", true, "an em-dash heading, which 42 citations name"},
+		{"rfd/0007:§4a", true, "a sibling subsection"},
+		{"rfd/0007:§4e", true, "a heading with no separator at all"},
+		{"rfd/0007:§decision-1", true, "the legacy decision spelling"},
+		{"rfd/0007:§p-1", true, "a principle"},
+		{"rfd/0007:§3", false, "RFD 0007 has Decision 3, not §3 — a real dangling citation"},
+		{"rfd/0009:§1", false, "no such RFD"},
+	} {
+		got := r.resolveRFD(tc.target)
+		if got == nil || *got != tc.want {
+			t.Errorf("resolveRFD(%q) = %v, want %v — %s", tc.target, deref(got), tc.want, tc.why)
+		}
+	}
+
+	unbound := NewResolverOver(nil, "", true)
+	unbound.BindRFDs(LoadRFDs(filepath.Join(root, "nope")))
+	if got := unbound.resolveRFD("rfd/0007:§4b"); got != nil {
+		t.Errorf("unbound RFD root resolved %v, want nil (nothing looked)", *got)
+	}
+}

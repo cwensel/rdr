@@ -508,3 +508,85 @@ func TestClauseIsReadInTheColonFormOnly(t *testing.T) {
 		}
 	})
 }
+
+// TestRFDAnchorGrammar pins the four traps the live corpus sprang, each
+// of which produced FALSE findings on terminal records before it was
+// closed. The negative cases are the valuable half.
+func TestRFDAnchorGrammar(t *testing.T) {
+	ids := func(s string) []string {
+		var out []string
+		for _, r := range FindRFDRefs(s) {
+			out = append(out, r.ID())
+		}
+		return out
+	}
+	eq := func(got []string, want ...string) bool {
+		if len(got) != len(want) {
+			return false
+		}
+		for i := range got {
+			if got[i] != want[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	// The anchored forms the corpus writes.
+	if g := ids("RFD 0004 §3c"); !eq(g, "rfd/0004:§3c") {
+		t.Errorf("section: %v", g)
+	}
+	if g := ids("RFD 0004 DX-13"); !eq(g, "rfd/0004:§dx-13") {
+		t.Errorf("decision row: %v", g)
+	}
+	if g := ids("RFD 0007 Decision 1"); !eq(g, "rfd/0007:§decision-1") {
+		t.Errorf("legacy decision: %v", g)
+	}
+	if g := ids("RFD 0004 P-2"); !eq(g, "rfd/0004:§p-2") {
+		t.Errorf("principle: %v", g)
+	}
+
+	// A GOVERNING PREFIX: one `RFD NNNN` opens the value and the bare
+	// anchors after it belong to it. This is how `Related Issues` is
+	// written, and reading only the first anchor was most of what
+	// `edge:unmapped-reference` reported.
+	g := ids("RFD 0004 (`process/rfd/0004/`) — locked: DX-5 (the verb), DX-1; §1a, §2a, §3")
+	for _, want := range []string{"rfd/0004:§dx-5", "rfd/0004:§dx-1", "rfd/0004:§1a", "rfd/0004:§2a", "rfd/0004:§3"} {
+		found := false
+		for _, x := range g {
+			if x == want {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("governing prefix missed %s: got %v", want, g)
+		}
+	}
+
+	// Trap 1: `P-n` is NOT a bare anchor. The corpus writes premortem
+	// points as `critic.md P-1…P-16`, and attributing those to whatever
+	// RFD the value named earlier minted 96 false unresolved edges.
+	for _, x := range ids("RFD 0004 DX-5; Premortem: hardened — critic.md P-1…P-16") {
+		if strings.Contains(x, "p-1") {
+			t.Errorf("a bare P-n was attributed to an RFD: %v", ids("RFD 0004 DX-5; critic.md P-1"))
+		}
+	}
+
+	// Trap 2: a bare number is not a section. `Follow-on 3` is a
+	// numbered noun, not `§3`.
+	for _, x := range ids("RFD 0007 Follow-on 3 reconciliation work") {
+		t.Errorf("a numbered noun read as a section: %s", x)
+	}
+
+	// Trap 3: no governing prefix, no anchor. A bare `§3` in free prose
+	// is a section of THIS record.
+	if g := ids("see §3 below"); len(g) != 0 {
+		t.Errorf("an ungoverned anchor minted %v", g)
+	}
+
+	// Trap 4: the nearer prefix governs.
+	g = ids("RFD 0004 DX-1 and RFD 0007 §4b")
+	if !eq(g, "rfd/0004:§dx-1", "rfd/0007:§4b") {
+		t.Errorf("two RFDs in one value: %v", g)
+	}
+}

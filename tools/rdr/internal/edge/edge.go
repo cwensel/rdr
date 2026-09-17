@@ -672,6 +672,164 @@ func FindJDRRefs(s string) []JDRRef {
 // RFDRe matches an RFD by number (`RFD 0004`) or by path (`rfd/0004/…`).
 var RFDRe = regexp.MustCompile(`\b(?:RFD\s+(\d{3,4})|rfd/(\d{3,4})(?:/([A-Za-z0-9_./-]*))?)`)
 
+// RFDAnchorRe matches an RFD citation that reaches INSIDE the document:
+// `RFD 0004 §3c` (a section), `RFD 0004 P-2` (a principle), `RFD 0004
+// DX-13` (a legacy decision row), `RFD 0007 Decision 1` (the other legacy
+// spelling). The corpus writes the decision rows WITHOUT a `§`, which is
+// why the anchor alternation carries them bare.
+//
+// Only the number was read before, so the anchor half fell out as
+// `edge:unmapped-reference` — twelve warnings on one record, six of them
+// RFD section lists. Reading the anchor is what turns those into edges
+// that can be checked.
+var RFDAnchorRe = regexp.MustCompile(
+	`\bRFD\s+(\d{3,4})\s+(?:§\s*([0-9]+[a-z]?)` +
+		`|(P-\d+[a-z]?)` +
+		`|(DX-\d+[a-z]?)` +
+		`|Decision\s+(\d+[a-z]?))`)
+
+// RFDRef is one RFD citation: the document, and the anchor when the
+// citation reaches inside it.
+type RFDRef struct {
+	// Number is the four-digit RFD number.
+	Number string
+	// Anchor is the section number, principle or decision id,
+	// lowercased (`3c`, `p-2`, `dx-13`, `decision-1`), or "" for a
+	// reference to the document.
+	Anchor string
+	// Start and End bound the span in the source string.
+	Start, End int
+	// Raw is the reference as written.
+	Raw string
+}
+
+// ID renders the reference as a target, in the RFD's own namespace —
+// `rfd/0004`, `rfd/0004:§3c` — the namespace the `rfd` edge already used
+// for the document.
+func (r RFDRef) ID() string {
+	id := "rfd/" + r.Number
+	if r.Anchor != "" {
+		id += ":§" + r.Anchor
+	}
+	return id
+}
+
+// rfdContinuation matches a bare `, §2a` following an RFD citation: the
+// corpus writes SECTION LISTS — `RFD 0004 §1, §1a, §2, §2a` — where one
+// `RFD NNNN` prefix governs several anchors. Reading only the first left
+// the rest falling out as `edge:unmapped-reference`, which is most of
+// what that warning was reporting on the live corpus.
+var rfdContinuation = regexp.MustCompile(`^[,;]\s*§\s*([0-9]+[a-z]?|P-\d+[a-z]?|DX-\d+[a-z]?)`)
+
+// FindRFDRefs recovers every RFD citation that names an anchor, including
+// the continuations of a section list. The document-only form stays with
+// RFDRe, which issueEdges already reads.
+func FindRFDRefs(s string) []RFDRef {
+	var out []RFDRef
+	for _, m := range RFDAnchorRe.FindAllStringSubmatchIndex(s, -1) {
+		r := RFDRef{Start: m[0], End: m[1], Raw: s[m[0]:m[1]]}
+		r.Number = group(s, m, 1)
+		switch {
+		case group(s, m, 2) != "":
+			r.Anchor = strings.ToLower(group(s, m, 2))
+		case group(s, m, 3) != "":
+			r.Anchor = strings.ToLower(group(s, m, 3))
+		case group(s, m, 4) != "":
+			r.Anchor = strings.ToLower(group(s, m, 4))
+		case group(s, m, 5) != "":
+			r.Anchor = "decision-" + strings.ToLower(group(s, m, 5))
+		}
+		if r.Number == "" || r.Anchor == "" {
+			continue
+		}
+		out = append(out, r)
+	}
+	// A GOVERNING PREFIX: one `RFD NNNN` opens a value and every bare
+	// `§x` / `DX-n` after it names an anchor of that RFD. The corpus
+	// writes whole fields this way —
+	//
+	//   Related Issues: RFD 0004 (…) — locked: DX-5 (…), DX-1 (…);
+	//   §1, §1a, §2, §2a Rejected (…), §3 chain key, §6 journeys
+	//
+	// and reading only the anchors glued to the prefix left the rest
+	// falling out as `edge:unmapped-reference`, which is most of what
+	// that warning reported on the live corpus.
+	//
+	// Scoped to ONE value and to the LAST RFD named, so a bare `§3` in
+	// free prose mints nothing (there is no prefix to govern it) and a
+	// value naming two RFDs attributes each anchor to the nearer one.
+	// A bare `§x` is otherwise a section of the RECORD, so the prefix is
+	// what makes it an RFD anchor rather than a guess.
+	if len(out) == 0 && !RFDRe.MatchString(s) {
+		return out
+	}
+	claimed := make([]bool, len(s)+1)
+	for _, r := range out {
+		for i := r.Start; i < r.End; i++ {
+			claimed[i] = true
+		}
+	}
+	var governing string
+	var spans [][]int
+	for _, m := range RFDRe.FindAllStringSubmatchIndex(s, -1) {
+		spans = append(spans, m)
+	}
+	for _, m := range rfdBareAnchor.FindAllStringSubmatchIndex(s, -1) {
+		if claimed[m[0]] {
+			continue
+		}
+		governing = ""
+		for _, sp := range spans {
+			if sp[1] <= m[0] {
+				if n := groupAt(s, sp, 1); n != "" {
+					governing = n
+				} else if n := groupAt(s, sp, 2); n != "" {
+					governing = n
+				}
+			}
+		}
+		if governing == "" {
+			continue
+		}
+		anchor := groupAt(s, m, 1) + groupAt(s, m, 2)
+		if anchor == "" {
+			continue
+		}
+		out = append(out, RFDRef{
+			Number: governing,
+			Anchor: strings.ToLower(anchor),
+			Start:  m[0], End: m[1], Raw: s[m[0]:m[1]],
+		})
+	}
+	return out
+}
+
+// rfdBareAnchor matches an anchor with no `RFD NNNN` of its own: `§3c`,
+// `§1a`, `DX-13`. Only meaningful under a governing prefix.
+//
+// `P-n` IS NOT HERE, and that is a finding rather than an omission. The
+// corpus uses `P-n` for premortem points from a critic pass ("critic.md
+// P-1…P-16") at least as often as for a principle, and under a governing
+// prefix those were attributed to whatever RFD the value named earlier —
+// 96 false unresolved edges on the live corpus, every one of them a
+// terminal record reporting a dangling reference it never wrote. A
+// principle is read only when it carries its own `RFD NNNN P-n`, which
+// RFDAnchorRe handles. An ambiguous reference stays unresolved.
+// The section arm REQUIRES the `§`. A bare digit under a governing
+// prefix reads "RFD 0007 Follow-on 3" as §3 — a section that RFD does not
+// have, reported as a dangling citation on a terminal record. The `§` is
+// what distinguishes a section citation from a numbered noun, and the
+// corpus always writes it.
+var rfdBareAnchor = regexp.MustCompile(`§\s*([0-9]+[a-z]?)\b|\b(DX-\d+[a-z]?)\b`)
+
+// groupAt is group() over an explicit match slice.
+func groupAt(s string, m []int, n int) string {
+	if 2*n+1 < len(m) && m[2*n] >= 0 {
+		return s[m[2*n]:m[2*n+1]]
+	}
+	return ""
+}
+
 // referenceShaped matches a string that looks like a reference to
 // something — the test for AC-1's unmapped-form warning. A token in an
 // edge-bearing field that looks like a citation and matches no grammar is

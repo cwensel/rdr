@@ -346,9 +346,20 @@ func (d *Document) issueEdges(from, value string, line, lineEnd int, field strin
 		d.addEdge(Edge{From: from, To: "issue/" + id, Kind: edge.Issue, Line: line, LineEnd: lineEnd,
 			Evidence: value[m[0]:m[1]], Field: field}, claimed, [2]int{m[0], m[1]})
 	}
+	// An ANCHORED citation first, so the anchor half is not dropped: a
+	// bare `RFD 0004` names a document, `RFD 0004 §3c` names a section a
+	// record's claim actually rests on, and only the second can be
+	// checked. The section lists that used to fall out as
+	// `edge:unmapped-reference` are read here.
+	anchored := map[int]bool{}
+	for _, r := range edge.FindRFDRefs(value) {
+		anchored[r.Start] = true
+		d.addEdge(Edge{From: from, To: r.ID(), Kind: edge.RFD, Line: line, LineEnd: lineEnd,
+			Evidence: r.Raw, Field: field}, claimed, [2]int{r.Start, r.End})
+	}
 	for _, m := range edge.RFDRe.FindAllStringSubmatchIndex(value, -1) {
 		id := firstGroup(value, m)
-		if id == "" {
+		if id == "" || anchored[m[0]] {
 			continue
 		}
 		d.addEdge(Edge{From: from, To: "rfd/" + id, Kind: edge.RFD, Line: line, LineEnd: lineEnd,
@@ -835,6 +846,13 @@ func (d *Document) mentionEdges(claimed map[int][][2]int) {
 			}
 			d.addEdge(Edge{From: d.sectionOwner(i), To: jr.ID(), Kind: edge.JDR,
 				Line: i, LineEnd: i, Evidence: jr.Raw}, claimed, [2]int{jr.Start, jr.End})
+		}
+		for _, fr := range edge.FindRFDRefs(line) {
+			if d.claimedAt(claimed, i, fr.Start) {
+				continue
+			}
+			d.addEdge(Edge{From: d.sectionOwner(i), To: fr.ID(), Kind: edge.RFD,
+				Line: i, LineEnd: i, Evidence: fr.Raw}, claimed, [2]int{fr.Start, fr.End})
 		}
 		for _, r := range edge.FindRefs(line, false) {
 			if d.claimedAt(claimed, i, r.Start) {
