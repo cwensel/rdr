@@ -19,6 +19,17 @@ import (
 
 func fixturePath(name string) string { return filepath.Join("testdata", name) }
 
+// engineRoot is the repo's engine root, where TEMPLATE.md and the per-class
+// templates sit. TestMain binds the schema from the same place.
+func engineRoot(t *testing.T) string {
+	t.Helper()
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
 func runCapture(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
 	// run() binds --records/--repo into the package-level flagBound map so
@@ -3061,5 +3072,139 @@ func TestOneBadFileDoesNotTakeTheWalkDown(t *testing.T) {
 		if strings.TrimSpace(s["why"]) == "" {
 			t.Errorf("a skipped row with no reason is an absence nobody can act on: %v", s)
 		}
+	}
+}
+
+// TestRFDAndJDRAreSubjects is the other half of "one template per
+// document class": the class decides which template JUDGES a file, and
+// this is the class being readable as a SUBJECT at all.
+//
+// `recs lint rfd/0004/README.md` stopped with `no-record-number` on a
+// document whose number is in its title and in its path, because the
+// title grammar accepted only `# Recommendation NNNN` and the filename
+// fallback read a basename that is `README.md`. So neither `inspect` nor
+// `lint` could take an RFD or a JDR at all — the tier could be cited and
+// resolved against, and not read.
+func TestRFDAndJDRAreSubjects(t *testing.T) {
+	dir := t.TempDir()
+	rfdRoot := filepath.Join(dir, "rfd", "0004")
+	jdrRoot := filepath.Join(dir, "jdr", "cli")
+	for _, d := range []string{rfdRoot, jdrRoot} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// An RFD: the number is on the DIRECTORY, the title carries it too.
+	rfd := "# RFD 0004 Data Corpus\n\n## Problem Statement\n\nX.\n\n" +
+		"## Principles\n\n- **P-2** MUST hold the band.\n\n### 3c. How they compose\n\nY.\n"
+	if err := os.WriteFile(filepath.Join(rfdRoot, "README.md"), []byte(rfd), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// A JDR: `cli/0001` is how it is addressed, and the bare number is a
+	// different document.
+	jdr := "---\nrfd: 0004\n---\n\n# JDR cli/0001 What classifies a row\n\n" +
+		"## Problem statement\n\nX.\n\n## Principles\n\n1. **Hold** — because.\n\n" +
+		"## D1 — the fork\n\n**Binds:** 0113.\n\n## Interface record\n\nY.\n\n" +
+		"## What this does not decide\n\nZ.\n"
+	if err := os.WriteFile(filepath.Join(jdrRoot, "0001-data-corpus.md"), []byte(jdr), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Setenv("RDR_RFDS", filepath.Join(dir, "rfd"))
+	t.Setenv("RDR_JDRS", filepath.Join(dir, "jdr"))
+
+	for _, tc := range []struct{ name, path, record, project string }{
+		{"rfd by directory number", filepath.Join(rfdRoot, "README.md"), "0004", ""},
+		{"jdr by title", filepath.Join(jdrRoot, "0001-data-corpus.md"), "0001", "cli"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, out, errb := runCapture(t, "inspect", "--json", tc.path)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errb)
+			}
+			var got struct {
+				Record  string `json:"record"`
+				Project string `json:"project"`
+			}
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("unmarshal: %v\n%s", err, out)
+			}
+			if got.Record != tc.record {
+				t.Errorf("record = %q, want %q — the tier's title states its number", got.Record, tc.record)
+			}
+			if tc.project != "" && got.Project != tc.project {
+				t.Errorf("project = %q, want %q — a registry is addressed project/NNNN", got.Project, tc.project)
+			}
+
+			// And lint reaches a verdict rather than stopping.
+			code, _, errb = runCapture(t, "lint", tc.path)
+			if code == 2 || strings.Contains(errb, "stopped:") {
+				t.Errorf("lint stopped instead of judging: exit %d %s", code, errb)
+			}
+		})
+	}
+
+	// The tier's CITABLE surface: an RFD is reached by section number and
+	// principle, a registry by entry id. The heading slug is neither —
+	// `§dx-1-one-chain-on-every-producer` is a spelling no citation uses.
+	for _, tc := range []struct {
+		name, path string
+		want       []string
+	}{
+		{"rfd anchors", filepath.Join(rfdRoot, "README.md"), []string{"0004:§3c", "0004:§p-2"}},
+		{"jdr anchors", filepath.Join(jdrRoot, "0001-data-corpus.md"), []string{"cli/0001:§d1"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			code, out, errb := runCapture(t, "inspect", "--json", tc.path)
+			if code != 0 {
+				t.Fatalf("exit %d: %s", code, errb)
+			}
+			var got struct {
+				Anchors []struct {
+					ID   string `json:"id"`
+					Line int    `json:"line"`
+				} `json:"anchors"`
+			}
+			if err := json.Unmarshal([]byte(out), &got); err != nil {
+				t.Fatalf("unmarshal: %v\n%s", err, out)
+			}
+			have := map[string]int{}
+			for _, a := range got.Anchors {
+				have[a.ID] = a.Line
+			}
+			for _, w := range tc.want {
+				line, ok := have[w]
+				if !ok {
+					t.Errorf("anchor %q missing; the tier's citable ids are %v", w, have)
+					continue
+				}
+				if line <= 1 {
+					t.Errorf("anchor %q points at line %d; it is written in the body", w, line)
+				}
+			}
+		})
+	}
+}
+
+// TestClassTemplateLoads is the third of the tier's asks: `--template`
+// naming a CLASS template must load. It used to stop with
+// `malformed-template (… the Metadata block declares no fields)`, which
+// is the RDR schema's shape demanded of a template whose tier has no
+// Metadata block and is defined by not having one.
+func TestClassTemplateLoads(t *testing.T) {
+	for _, class := range []string{"jdr", "rfd"} {
+		t.Run(class, func(t *testing.T) {
+			tmpl := filepath.Join(engineRoot(t), class, "TEMPLATE.md")
+			if _, err := os.Stat(tmpl); err != nil {
+				t.Skipf("no %s template in the engine: %v", class, err)
+			}
+			code, _, errb := runCapture(t, "lint", "--template", tmpl, fixturePath("current-shape.md"))
+			if strings.Contains(errb, "malformed-template") {
+				t.Errorf("--template %s/TEMPLATE.md: %s", class, errb)
+			}
+			if code == 2 {
+				t.Errorf("exit 2 on a class template: %s", errb)
+			}
+		})
 	}
 }

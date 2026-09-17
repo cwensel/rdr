@@ -224,9 +224,150 @@ func File(path string, opts Options) (*Document, error) {
 	doc.Path = path
 	if doc.Record == "" {
 		doc.Record = ident.RecordOf(filepath.Base(path))
+		if doc.Record == "" {
+			// An RFD is `rfd/NNNN/README.md` — the dir form exists so the
+			// document can carry companion artifacts beside it — so its
+			// number is on the DIRECTORY and the basename carries none.
+			// LoadRFDs already reads it that way; a caller handed the
+			// same file by path was told `no-record-number` about a
+			// document whose number is in its title and in its path.
+			doc.Record = dirRecordNumber(path)
+		}
 		doc.reassign()
 	}
+	doc.classAnchors()
 	return doc, nil
+}
+
+// classAnchors mints the citable anchors of a NON-RDR tier, which are
+// not the ones a heading slug gives.
+//
+// A citation reaches into an RFD by its SECTION NUMBER (`§3c`) or a
+// principle (`P-2`), and into a registry by its ENTRY ID (`§DX-13`) —
+// ids the author fixes once and never moves, which is what makes the
+// tier citable while its prose stays free to change. The heading slug is
+// none of those: `§dx-1-one-chain-on-every-producer` is a spelling no
+// citation uses and which changes the moment the prose does.
+//
+// They are ANCHORS rather than elements, for the reason Anchor already
+// states — `§` is how the corpus names a piece of a document, and the
+// anchor namespace is what a section citation resolves against. Minting
+// elements instead would give a registry the RDR element grammar, which
+// is the category error this class split exists to end.
+//
+// It runs from File and not from Bytes: the class is read from the ROOT
+// the file sits under, and a document held in memory has no root.
+func (d *Document) classAnchors() {
+	body := strings.Join(d.lines, "\n")
+	anchors := map[string]bool{}
+	switch model.ClassOf(d.Path) {
+	case model.ClassRFD:
+		anchors = parseRFD(body, d.Record, d.Path).Anchors
+	case model.ClassJDR:
+		// The WRITTEN entry id, not the normalized lookup key: the
+		// citation form is `§DX-13`, and `§dx13` is a spelling no author
+		// writes and no reader recognises. Registry.Entries is keyed for
+		// lookup — `DX-13`, `dx-13` and `DX13` collapse to one — which is
+		// right for answering a citation and wrong for stating one.
+		for _, m := range entryHeading.FindAllStringSubmatch(body, -1) {
+			anchors[strings.ToLower(m[1])] = true
+		}
+	default:
+		return
+	}
+	have := map[string]bool{}
+	for _, a := range d.Anchors {
+		have[a.ID] = true
+	}
+	keys := make([]string, 0, len(anchors))
+	for k := range anchors {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		// A slug the outline already minted is that heading's, and
+		// re-minting it here would claim one id twice.
+		id := d.id(ident.Section, k)
+		if have[id] || d.hasNode(id) {
+			continue
+		}
+		line := d.anchorLine(k)
+		d.Anchors = append(d.Anchors, Anchor{
+			ID: id, Text: k, Section: d.sectionAt(line), Line: line})
+		have[id] = true
+	}
+}
+
+// hasNode reports whether the outline already carries an id.
+func (d *Document) hasNode(id string) bool {
+	for _, n := range d.nodes {
+		if n.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// anchorLine is where a class anchor is written: the HEADING that leads
+// with it, else the first line that does.
+//
+// The heading wins because a registry indexes itself. `jdr/cli/0001`
+// opens with a summary table whose every row leads with an entry id, and
+// the entry it summarises is 20 lines further down under `#### DX-1 —
+// …`. Taking the first match sends every citation of every entry into
+// the index table instead of the entry, which is a pointer that resolves
+// and still lands in the wrong place.
+//
+// Leading is the test, not containing: a `DX-13` named in the prose of
+// entry DX-2 is a cross-reference. The grammars that found these anchors
+// all match at a line's start, so the same rule finds the line they
+// matched on. An anchor no line leads with reads as line 1, the document
+// itself — the honest answer for an id carried by frontmatter (an
+// `inherits:` alias) rather than written in the body.
+func (d *Document) anchorLine(key string) int {
+	first := 0
+	for i, l := range d.lines {
+		if d.fenced[i] || !leadsWith(l, key) {
+			continue
+		}
+		if strings.HasPrefix(strings.TrimSpace(l), "#") {
+			return i + 1
+		}
+		if first == 0 {
+			first = i + 1
+		}
+	}
+	if first > 0 {
+		return first
+	}
+	return 1
+}
+
+// leadsWith reports whether a line's content opens with key as a whole
+// token, under the list, heading, table and emphasis markers the corpus
+// writes in front of an id.
+func leadsWith(line, key string) bool {
+	lead := strings.TrimLeft(line, "#-*| \t")
+	lead = strings.TrimLeft(lead, "`*")
+	if len(lead) < len(key) || !strings.EqualFold(lead[:len(key)], key) {
+		return false
+	}
+	// A whole token: `DX-1` must not answer for the DX-13 heading. The
+	// hyphen counts as a continuation here, which it does not in
+	// resolve's identByte, because these ids are written with one.
+	rest := lead[len(key):]
+	return rest == "" || !(rest[0] == '-' || identByte(rest[0]))
+}
+
+// dirRecordNumber is the number a `NNNN/README.md` layout puts on the
+// directory. Only a README takes it: a companion artifact in the same dir
+// (`rfd/0007/advisory-inventory.md`) is not the document, and giving it
+// the dir's number would mint a second RFD 0007.
+func dirRecordNumber(path string) string {
+	if !strings.EqualFold(filepath.Base(path), "README.md") {
+		return ""
+	}
+	return ident.RecordOf(filepath.Base(filepath.Dir(path)))
 }
 
 // Bytes scans a record held in memory. The record number is read from the
@@ -384,7 +525,23 @@ func (d *Document) markFences() {
 
 // --- outline -----------------------------------------------------------
 
-var titleRecord = regexp.MustCompile(`^#\s+Recommendation\s+(\d{4})\b`)
+// titleRecord reads the number out of a title, in each tier's own
+// spelling: `# Recommendation 0055`, `# RFD 0004 …`, `# JDR cli/0001 …`.
+//
+// One grammar for the three, because the number is what every caller
+// downstream keys on — the element ids, `--record`, the receipt, the
+// findings' record column — and a tier whose title it cannot read has no
+// identity at all: `recs lint rfd/0004/README.md` stopped with
+// `no-record-number` on a document whose number is in its title and in
+// its path. The PROJECT half of a JDR title is captured too, since a
+// registry is addressed `cli/0001` and the bare number is a different
+// document.
+//
+// The class is not consulted here. A title says which tier wrote it, and
+// reading `# RFD 0004` as an RFD's number is true wherever the file
+// sits; the ROOT decides which TEMPLATE judges it (model.ClassOf), which
+// is the question a heading set cannot answer.
+var titleRecord = regexp.MustCompile(`^#\s+(?:Recommendation\s+|RFD\s+|JDR\s+(?:([a-z][a-z0-9-]*)/)?)(\d{3,4})\b`)
 
 // outline builds the heading tree. A node's range runs from its heading
 // to the line before the next heading of its level or higher, trailing
@@ -426,7 +583,10 @@ func (d *Document) outline() {
 			n.LineStart, n.LineEnd = 1, len(d.lines)
 			if d.Record == "" {
 				if m := titleRecord.FindStringSubmatch(l1(d.lines, h.line)); m != nil {
-					d.Record = m[1]
+					d.Record = m[2]
+					if d.Project == "" {
+						d.Project = m[1]
+					}
 				}
 			}
 		}

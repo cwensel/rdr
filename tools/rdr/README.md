@@ -915,6 +915,35 @@ required-section list by class — `TEMPLATE.md`, `jdr/TEMPLATE.md`,
 `rfd/TEMPLATE.md`, all read with the same heading-and-bracket grammar, where
 unmarked still means Required.
 
+**The other two tiers are SUBJECTS, not only targets.** `recs inspect`
+and `recs lint` take an RFD or a JDR, so the tier that can be cited can
+also be read. The title grammar reads each tier's own spelling — `#
+Recommendation 0055`, `# RFD 0004 …`, `# JDR cli/0001 …` — and an RFD
+written `rfd/NNNN/README.md` takes its number from the DIRECTORY, which
+is where that layout puts it; before this, `recs lint rfd/0004/README.md`
+stopped with `no-record-number` on a document whose number is in its
+title and in its path.
+
+Each tier mints its own **citable anchors**, in the `§` namespace the
+corpus cites with: an RFD's section numbers and principles (`0004:§3c`,
+`0004:§p-2`), a registry's entry ids (`cli/0001:§dx-13`). Those are the
+ids the author fixes once and never moves, which is what makes the tier
+citable while its prose stays free to change — the heading SLUG is not
+one of them, because `§dx-1-one-chain-on-every-producer` is a spelling no
+citation uses and which changes the moment the prose does. They are
+anchors rather than elements: minting elements would give a registry the
+RDR element grammar, which is the category error the class split exists
+to end. An anchor points at the HEADING that leads with it, because a
+registry indexes itself and the first line naming `DX-1` is a summary
+table twenty lines above the entry.
+
+`--template <class>/TEMPLATE.md` installs that class's required-section
+list and leaves the reader's schema bound. The flag cannot replace the
+schema for a class template — that schema is the reader's, and a JDR or
+RFD template declares none of it, so loading one as the reader's schema
+stopped with `malformed-template (the Metadata block declares no
+fields)` about a template defined by not having one.
+
 The class is read from the **root** the file sits under (`RDR_JDRS`,
 `RDR_RFDS`), never from its content: a heading set is a guess — an RFD's
 `Problem Statement` and a JDR's `Problem statement` differ by a letter — while

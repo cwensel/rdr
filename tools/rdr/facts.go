@@ -2649,6 +2649,19 @@ func bindSchema(f *flags) error {
 	if f != nil && f.template != nil {
 		explicit = *f.template
 	}
+	// A CLASS template names a class, not the reader's schema. Only the
+	// required-section list is per class (README §One template, read
+	// never judge), and a JDR or RFD template declares none of the rest —
+	// no Metadata block, no Evidence Record, no Status vocabulary — so
+	// loading one as the reader's schema stopped with
+	// `malformed-template` about a template that is not malformed. It is
+	// installed for its class instead, and the root template still binds.
+	if c := model.ClassOfTemplate(explicit); c != model.ClassRDR {
+		if err := model.SetClassTemplate(c, explicit); err != nil {
+			return err
+		}
+		explicit = ""
+	}
 	if explicit == "" && model.Bound() {
 		return nil
 	}

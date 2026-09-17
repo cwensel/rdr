@@ -23,6 +23,7 @@ package model
 // it runs on one.
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -139,6 +140,61 @@ func ClassRequiredSections(c DocClass) []string {
 	t := &classTemplate{required: readClassTemplate(c)}
 	classTmpl[c] = t
 	return t.required
+}
+
+// ClassOfTemplate reports which class a TEMPLATE.md path states, from the
+// directory holding it: `<engine>/jdr/TEMPLATE.md` is the JDR's. It is
+// the mirror of ClassOf, and reads a path for the same reason — a
+// template's own headings are the sections it PRESCRIBES, so they cannot
+// say which tier prescribes them.
+//
+// ClassRDR means "the root template", which is the answer for
+// `<engine>/TEMPLATE.md` and for any file a caller names directly.
+func ClassOfTemplate(path string) DocClass {
+	if strings.TrimSpace(path) == "" {
+		return ClassRDR
+	}
+	switch strings.ToLower(filepath.Base(filepath.Dir(path))) {
+	case string(ClassJDR):
+		return ClassJDR
+	case string(ClassRFD):
+		return ClassRFD
+	default:
+		return ClassRDR
+	}
+}
+
+// SetClassTemplate installs a class's required-section list from an
+// explicit template file, overriding the engine copy this process would
+// otherwise read.
+//
+// It is what `--template <class>/TEMPLATE.md` means. The flag cannot
+// replace the BOUND schema for a class template: that schema is the
+// reader's — the element grammar, the metadata vocabulary, the Method
+// list — and a registry's template declares none of them, so loading one
+// as the reader's schema stopped with `malformed-template (the Metadata
+// block declares no fields)` about a template defined by not having one.
+// Only the required-section list is per class, so only it is overridden.
+func SetClassTemplate(c DocClass, path string) error {
+	src, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("stopped:no-template (%s: %v)", path, err)
+	}
+	secs, err := parseSections(string(src))
+	if err != nil {
+		return fmt.Errorf("stopped:malformed-template (%s: %v)", path, err)
+	}
+	var out []string
+	for _, sec := range secs {
+		if sec.Class != Required || strings.Contains(sec.Name, "[") {
+			continue
+		}
+		out = append(out, sec.Name)
+	}
+	classMu.Lock()
+	defer classMu.Unlock()
+	classTmpl[c] = &classTemplate{required: out}
+	return nil
 }
 
 // readClassTemplate parses `<engine>/<class>/TEMPLATE.md` for its
