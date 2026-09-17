@@ -1331,3 +1331,212 @@ inherits: RFD 0004 DX-13
 		t.Errorf("unbound JDR root = %v alias=%q, want false/\"\"", deref(got), alias)
 	}
 }
+
+// TestInheritsSectionAndRenameAliases: the `inherits:` grammar is
+// `<source> [-> <target>]`, and it covers the three shapes a migration
+// out of an RFD actually produces.
+//
+// An id range with no arrow is IDENTITY — the shape that already existed,
+// and still the common case: the ids did not move. A section source lets
+// a registry claim `§4b` and `§Facts of record`, which is how an RFD's
+// prose anchors survive being hoisted. And an arrow declares a RENAME,
+// because the class's entry form is `## D1 — …` while the RFD that held
+// the fork wrote `## Decision 1 — …`: the heading label is structure and
+// migrates, the body under it does not.
+//
+// The rename is DECLARED, never inferred. Teaching the scanner that
+// "Decision N" means "DN" would bake one registry's convention into the
+// grammar, and the next hoist of a differently-named fork would inherit
+// the guess.
+func TestInheritsSectionAndRenameAliases(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reg := `---
+state: open
+inherits:
+  - RFD 0007 Decision 1..4 -> §D1..§D4
+  - RFD 0007 §4a..§4e
+  - RFD 0007 §Follow-on RDRs
+---
+
+# JDR cli/0003 What does a code promise?
+
+## Principles
+
+1. **One home** — cite, never restate.
+
+## D1 — Classified by what it says, or by how loud it is?
+
+**Resolved: (a).**
+
+## D2 — May a user silence a report, ever?
+
+## D3 — What happens to a repeating advisory?
+
+## D4 — The code catalog
+
+### 4a — Do codes carry a class?
+
+### 4b — What carries the structure?
+
+### 4c — What grounds an advisory?
+
+### 4d — What happens after it ships?
+
+### 4e — One identifier
+
+## Follow-on RDRs
+`
+	if err := os.WriteFile(filepath.Join(dir, "0003-advisory.md"), []byte(reg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	regs, read := LoadRegistries(root)
+	if !read || len(regs) != 1 {
+		t.Fatalf("LoadRegistries: read=%v n=%d, want true/1", read, len(regs))
+	}
+	// The RFD the anchors LEFT still exists — item 4's stub keeps the
+	// document, and an RFD number is never reused once cited. It holds
+	// none of the moved anchors, which is exactly the state the alias arm
+	// is there to answer.
+	rfdRoot := filepath.Join(root, "rfd", "0007")
+	if err := os.MkdirAll(rfdRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stub := "---\nstate: committed\n---\n\n# RFD 0007 The Advisory Tier\n\n## Position\n"
+	if err := os.WriteFile(filepath.Join(rfdRoot, "README.md"), []byte(stub), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rfds, rfdRead := LoadRFDs(filepath.Join(root, "rfd"))
+	if !rfdRead || len(rfds) != 1 {
+		t.Fatalf("LoadRFDs: read=%v n=%d, want true/1", rfdRead, len(rfds))
+	}
+
+	r := NewResolverOver(nil, "", true)
+	r.BindRegistries(regs, read)
+	r.BindRFDs(rfds, rfdRead)
+
+	for _, tc := range []struct {
+		target string
+		want   bool
+		alias  bool
+		why    string
+	}{
+		{"rfd/0007:§decision-1", true, true, "a RENAME: Decision 1 landed as D1"},
+		{"rfd/0007:§decision-4", true, true, "the far end of the renamed range"},
+		{"rfd/0007:§4b", true, true, "IDENTITY: a section that kept its name"},
+		{"rfd/0007:§4e", true, true, "the far end of the identity range"},
+		{"rfd/0007:§follow-on-rdrs", true, true, "a single section source"},
+		{"rfd/0007:§decision-5", false, false, "outside the declared range"},
+		{"rfd/0007:§4f", false, false, "outside the section range"},
+		{"rfd/0006:§decision-1", false, false, "the alias is SCOPED to RFD 0007"},
+	} {
+		got, alias := r.resolveRFDEdge(tc.target)
+		if got == nil || *got != tc.want {
+			t.Errorf("resolveRFDEdge(%q) = %v, want %v — %s",
+				tc.target, deref(got), tc.want, tc.why)
+			continue
+		}
+		if (alias != "") != tc.alias {
+			t.Errorf("resolveRFDEdge(%q) alias = %q, want alias=%v — %s",
+				tc.target, alias, tc.alias, tc.why)
+		}
+	}
+
+	// THE OVER-READ CASE. A citation carries the heading plus a tail of
+	// the sentence it was written in — `§Decision 1 — Classified by…`.
+	// The whole-word prefix rule shortens it a word at a time until
+	// exactly one declared source matches, which is the same rule, and
+	// the same uniqueness guard, the resolver already applies to a
+	// record's own headings.
+	for _, cited := range []string{
+		"§Decision 1 — Classified by what it says",
+		"§Decision 1",
+		"§decision-1",
+	} {
+		got, alias := r.resolveRFDEdge("rfd/0007:" + cited)
+		if got == nil || !*got || alias == "" {
+			t.Errorf("resolveRFDEdge(%q) = %v alias=%q, want resolved through the alias",
+				cited, deref(got), alias)
+		}
+	}
+}
+
+// TestInheritsUnanchoredDeclarations: a mapping the registry cannot honour
+// does not resolve, and the projector says so at the declaration.
+//
+// The two ways a declaration breaks on its own are an unequal pairing and
+// a target the registry never grew. Both would otherwise surface as a
+// dangling edge on whatever frozen record happened to cite through the
+// alias — blaming a record that is correct for a registry that is not.
+func TestInheritsUnanchoredDeclarations(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "cli")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reg := `---
+state: open
+inherits:
+  - RFD 0009 Decision 1..4 -> §D1..§D2
+  - RFD 0009 §Ghost -> §D9
+---
+
+# JDR cli/0004 What breaks?
+
+## D1 — A fork
+
+## D2 — Another fork
+`
+	if err := os.WriteFile(filepath.Join(dir, "0004-broken.md"), []byte(reg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	regs, read := LoadRegistries(root)
+	if !read || len(regs) != 1 {
+		t.Fatalf("LoadRegistries: read=%v n=%d", read, len(regs))
+	}
+
+	decls := regs[0].InheritsDecls
+	if len(decls) != 2 {
+		t.Fatalf("InheritsDecls = %d, want 2 — a declaration the parser drops is one no lint can report", len(decls))
+	}
+	if decls[0].Err == "" {
+		t.Error("a 4-onto-2 range pairing must carry an Err; positional pairing needs equal lengths")
+	}
+	// The second parses cleanly and fails on the TARGET: §D9 is not an
+	// anchor this registry has. That half is the resolver's guard, not the
+	// parser's, because only a loaded registry knows its own anchors.
+	if decls[1].Err != "" {
+		t.Errorf("decl %q parsed with Err=%q, want a clean parse whose target is checked later",
+			decls[1].Raw, decls[1].Err)
+	}
+	if regs[0].Has("d9") {
+		t.Fatal("fixture invalid: the registry must NOT have D9")
+	}
+
+	rfdRoot := filepath.Join(root, "rfd", "0009")
+	if err := os.MkdirAll(rfdRoot, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	stub := "---\nstate: committed\n---\n\n# RFD 0009 A capability\n"
+	if err := os.WriteFile(filepath.Join(rfdRoot, "README.md"), []byte(stub), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rfds, rfdRead := LoadRFDs(filepath.Join(root, "rfd"))
+
+	r := NewResolverOver(nil, "", true)
+	r.BindRegistries(regs, read)
+	r.BindRFDs(rfds, rfdRead)
+	for _, target := range []string{"rfd/0009:§decision-1", "rfd/0009:§ghost"} {
+		got, alias := r.resolveRFDEdge(target)
+		if got == nil || *got {
+			t.Errorf("resolveRFDEdge(%q) = %v, want false — an unhonourable mapping resolves to nothing",
+				target, deref(got))
+		}
+		if alias != "" {
+			t.Errorf("resolveRFDEdge(%q) alias = %q, want none", target, alias)
+		}
+	}
+}

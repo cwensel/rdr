@@ -7,7 +7,15 @@ seam:
   - [path/file.go::Symbol]
 cluster: [NNNN, NNNN — members as of iteration [n]; a VIEW, not the identity]
 labels: [comma-separated]
-inherits: [RFD NNNN DX-1..DX-18 — legacy anchors this registry took over; omit if none]
+inherits: [legacy anchors this registry took over; omit if none. Each item is
+  `<source> [-> <target>]`; no target means the anchor did not move. See
+  `$RDR_HOME/jdr/README.md` §The `inherits:` grammar.
+    - RFD NNNN DX-1..DX-18          an id range, unmoved
+    - RFD NNNN §4a..§4e             a section range, unmoved
+    - RFD NNNN §Facts of record     one section, unmoved
+    - RFD NNNN Decision 1..4 -> §D1..§D4   a rename: the old home's
+                                    spelling on the left, this registry's
+                                    entry id on the right]
 ---
 
 # JDR [PROJECT]/[NUMBER] [The question this registry answers]

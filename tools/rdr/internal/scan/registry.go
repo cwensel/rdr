@@ -44,7 +44,22 @@ type Registry struct {
 	// a registry that inherited DX-13 from some other RFD has not made
 	// that claim true. Inherits alone would resolve it anyway — the id is
 	// the same string — which is a guess wearing a map hit.
-	InheritsFrom map[string]map[string]bool
+	//
+	// The value is the anchor THIS registry answers the citation with,
+	// which is the source id itself for an identity alias and the
+	// declared target for a rename.
+	InheritsFrom map[string]map[string]string
+	// InheritsSections holds the section aliases, keyed by source
+	// document: `0007` -> {`decision-1`: `d1`}. They are held apart from
+	// InheritsFrom because a section source is matched by the resolver's
+	// whole-word prefix rule rather than by equality — a citation spelled
+	// `§Decision 1 — Classified by…` names the heading `Decision 1`, and
+	// only the target's own headings can say which one it means. An id
+	// alias is an exact string and stays one.
+	InheritsSections map[string]map[string]string
+	// InheritsDecls are the `inherits:` items as written, in order, for a
+	// lint that judges the declaration rather than resolving through it.
+	InheritsDecls []InheritsDecl
 	// Seam is the declared loci, from `seam:` frontmatter.
 	Seam []string
 	// Binds maps an entry id to the records that entry names. An entry
@@ -69,6 +84,196 @@ var registrySection = regexp.MustCompile(`(?m)^#{2,4}\s+(.+?)\s*$`)
 // the migration's whole point is that the ids did not move.
 var inheritsRange = regexp.MustCompile(
 	`((?:DX|JD|D)-?)(\d+)\s*(?:\.\.|–|—|-)\s*(?:(?:DX|JD|D)-?)?(\d+)`)
+
+// InheritsDecl is one `inherits:` item, parsed.
+//
+// THE GRAMMAR IS `<source> [-> <target>]`. A target left off means the
+// anchor did not move, which is what the DX range has always meant and
+// stays the common case: `RFD 0004 DX-1..DX-18` and `RFD 0007 §4a..§4e`
+// both declare that a citation resolves under the id it already names.
+// An arrow declares a RENAME the registry performed on the way in —
+// `RFD 0007 Decision 1..4 -> §D1..§D4`, where the class's entry form is
+// `## D1 — …` and the old home wrote `## Decision 1 — …`.
+//
+// A heading label is structure and migrates; the body under it does not.
+// That asymmetry is why the rename is DECLARED rather than inferred: a
+// scanner taught that "Decision N" means "DN" would be guessing at a
+// convention, and the next registry to hoist a differently-named fork
+// would inherit the guess. The declaration costs one line and says
+// exactly what happened.
+type InheritsDecl struct {
+	// Raw is the item as written, for a finding to quote.
+	Raw string
+	// From is the RFD number the anchors were taken from, or "" when the
+	// item names none.
+	From string
+	// Sources are the anchors the OLD home spelled, normalized: entry ids
+	// (`dx13`) or section slugs (`decision-1`).
+	Sources []string
+	// Targets are the anchors THIS registry answers with, positionally
+	// paired with Sources. An identity declaration repeats the source.
+	Targets []string
+	// Section reports whether the sources are section anchors, matched by
+	// the whole-word prefix rule rather than by equality.
+	Section bool
+	// Err names why the item could not be read as a mapping — an unequal
+	// range pairing, or a side that named no anchor at all. It is the
+	// `jdr:inherits-unanchored` message's own text.
+	Err string
+}
+
+// inheritsArrow splits an `inherits:` item on the mapping arrow. Only the
+// ASCII `->` and the unicode `→` are arrows: an em-dash is prose ("DX-1
+// — the band"), and reading one as a mapping would silently halve a
+// declaration.
+var inheritsArrow = regexp.MustCompile(`\s*(?:->|→)\s*`)
+
+// inheritsSectionRange matches a section range on either side of the
+// arrow: `§4a..§4e`, `§Decision 1..3`, `Decision 1..4`.
+//
+// TWO AXES VARY, NEVER BOTH. `Decision 1..4` counts the ORDINAL under a
+// fixed label; `§4a..§4e` counts the LETTER under a fixed number. A
+// grammar that let both move at once would have to invent an ordering
+// across them, and no citation spells one.
+//
+// The label before the ordinal is carried onto every member, so
+// `§Decision 1..3` names `decision-1`, `decision-2`, `decision-3` and not
+// three bare numbers.
+var inheritsSectionRange = regexp.MustCompile(
+	`(?i)^§?\s*(.*?)(\d+)([a-z]?)\s*(?:\.\.|–|—)\s*§?\s*(.*?)(\d+)?([a-z]?)$`)
+
+// entryPrefix matches a range label that is an entry-id prefix rather
+// than a section label: the `D` of `§D1..§D4`, the `JD` of `JD-1..JD-5`.
+var entryPrefix = regexp.MustCompile(`(?i)^(?:DX|JD|D)-?$`)
+
+// inheritsEntryID matches a single entry id on either side of the arrow.
+var inheritsEntryID = regexp.MustCompile(`(?i)^§?\s*((?:DX|JD|D)-?\d+[a-z]?)$`)
+
+// parseInherits reads one `inherits:` item into a declaration.
+//
+// It is deliberately total: an item it cannot read yields a decl carrying
+// Err rather than nothing, because a declaration the projector silently
+// dropped is a registry that believes it aliased an anchor and a corpus
+// whose citations quietly dangle. `jdr:inherits-unanchored` is that Err
+// surfaced.
+func parseInherits(raw string) InheritsDecl {
+	d := InheritsDecl{Raw: strings.TrimSpace(raw), From: inheritedFrom(raw)}
+	// The source half keeps the `RFD NNNN` prefix off: it names the
+	// document, not an anchor, and From already holds it.
+	body := strings.TrimSpace(inheritsSource.ReplaceAllString(d.Raw, ""))
+	lhs, rhs := body, ""
+	if parts := inheritsArrow.Split(body, 2); len(parts) == 2 {
+		lhs, rhs = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
+	}
+	d.Sources, d.Section = inheritsAnchors(lhs)
+	if len(d.Sources) == 0 {
+		d.Err = "names no anchor on the left of the mapping"
+		return d
+	}
+	if rhs == "" {
+		// Identity: the anchor did not move. Targets repeat Sources so
+		// every consumer reads one shape.
+		d.Targets = append([]string(nil), d.Sources...)
+		return d
+	}
+	targets, _ := inheritsAnchors(rhs)
+	if len(targets) == 0 {
+		d.Err = "names no anchor on the right of the mapping"
+		return d
+	}
+	if len(targets) != len(d.Sources) {
+		d.Err = "maps " + strconv.Itoa(len(d.Sources)) + " anchors onto " + strconv.Itoa(len(targets)) +
+			"; a range mapping pairs positionally and must be equal length"
+		return d
+	}
+	d.Targets = targets
+	return d
+}
+
+// inheritsAnchors reads one side of a mapping into its anchors, and
+// reports whether they are sections.
+//
+// A side is a range or a single anchor, and an entry id is tried before a
+// section: `D1` is an id in the class's own entry grammar, and reading it
+// as the section slug `d1` would make the alias miss the entry it names.
+func inheritsAnchors(side string) (out []string, section bool) {
+	if side == "" {
+		return nil, false
+	}
+	if m := inheritsRange.FindStringSubmatch(side); m != nil && looksLikeEntryRange(side) {
+		lo, _ := strconv.Atoi(m[2])
+		hi, _ := strconv.Atoi(m[3])
+		if lo > 0 && hi >= lo && hi-lo < 512 {
+			for i := lo; i <= hi; i++ {
+				out = append(out, normalizeEntry(m[1]+strconv.Itoa(i)))
+			}
+			return out, false
+		}
+	}
+	if m := inheritsEntryID.FindStringSubmatch(side); m != nil {
+		return []string{normalizeEntry(m[1])}, false
+	}
+	if m := inheritsSectionRange.FindStringSubmatch(side); m != nil {
+		label, loN, loL := strings.TrimSpace(m[1]), m[2], m[3]
+		hiN, hiL := m[5], m[6]
+		switch {
+		case loL == "" && hiL == "" && hiN != "":
+			// The ordinal varies under a fixed label: `Decision 1..4`,
+			// and `§D1..§D4`.
+			lo, _ := strconv.Atoi(loN)
+			hi, _ := strconv.Atoi(hiN)
+			if lo > 0 && hi >= lo && hi-lo < 512 {
+				// A LABEL THAT IS AN ENTRY PREFIX MAKES THIS AN ID RANGE.
+				// `§D1..§D4` wears the section spelling — the citation
+				// grammar puts `§` on both — but `D1` is an id in the
+				// class's own entry grammar, and slugging it to `d-1`
+				// would miss the `d1` the entry table is keyed under.
+				id := entryPrefix.MatchString(label)
+				for i := lo; i <= hi; i++ {
+					if id {
+						out = append(out, normalizeEntry(label+strconv.Itoa(i)))
+						continue
+					}
+					out = append(out, sectionKey(label+" "+strconv.Itoa(i)))
+				}
+				return out, !id
+			}
+		case loL != "" && hiL != "" && (hiN == "" || hiN == loN):
+			// The letter varies under a fixed number: `§4a..§4e`.
+			if hiL[0] >= loL[0] && hiL[0]-loL[0] < 26 {
+				for c := loL[0]; c <= hiL[0]; c++ {
+					out = append(out, sectionKey(label+loN+string(c)))
+				}
+				return out, true
+			}
+		}
+	}
+	// A single section anchor: `§4b`, `§Facts of record`, `§Decision 1`.
+	if k := sectionKey(strings.TrimPrefix(strings.TrimSpace(side), "§")); k != "" {
+		return []string{k}, true
+	}
+	return nil, false
+}
+
+// looksLikeEntryRange reports whether a range's endpoints are entry ids
+// rather than sections. `DX-1..DX-18` is an id range; `4a..4e` and
+// `Decision 1..4` are not, and inheritsRange's own grammar would match
+// the `D` of `Decision` as an id prefix if nothing asked.
+func looksLikeEntryRange(side string) bool {
+	return regexp.MustCompile(`(?i)^§?\s*(?:DX|JD|D)-?\d`).MatchString(strings.TrimSpace(side))
+}
+
+// sectionKey normalizes a section anchor the way the resolver's section
+// keys are: a slug, so `§Facts of record` and `§facts-of-record` are one
+// anchor. A bare section NUMBER keeps its digits, which is the form
+// rfd.go records (`4b`).
+func sectionKey(s string) string {
+	s = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(s), "§"))
+	if s == "" {
+		return ""
+	}
+	return ident.Slug(s)
+}
 
 // LoadRegistries reads every registry under root. A root that is unset or
 // unreadable yields nothing AND reports false, which is what keeps an
@@ -127,20 +332,33 @@ func registryNumber(base string) string {
 // parseRegistry reads the citable surface out of a registry's text.
 func parseRegistry(body string) *Registry {
 	reg := &Registry{Entries: map[string]bool{}, Inherits: map[string]bool{},
-		InheritsFrom: map[string]map[string]bool{}, Binds: map[string][]string{}}
+		InheritsFrom: map[string]map[string]string{},
+		InheritsSections: map[string]map[string]string{}, Binds: map[string][]string{}}
 	front, rest := splitFrontmatter(body)
 	reg.Seam = frontmatterList(front, "seam")
 	for _, raw := range frontmatterList(front, "inherits") {
-		from := inheritedFrom(raw)
-		for _, id := range expandInherits(raw) {
-			reg.Inherits[id] = true
-			if from == "" {
+		d := parseInherits(raw)
+		reg.InheritsDecls = append(reg.InheritsDecls, d)
+		if d.Err != "" {
+			continue // the lint reports it; resolving through it would guess
+		}
+		into := reg.InheritsFrom
+		if d.Section {
+			into = reg.InheritsSections
+		}
+		for i, src := range d.Sources {
+			// Inherits is the UNSCOPED table, and it holds what a citation
+			// SPELLS, not what the registry answers with — a bare `DX-13`
+			// names the old id, and the unscoped arm has no document to
+			// check the rename against.
+			reg.Inherits[src] = true
+			if d.From == "" {
 				continue
 			}
-			if reg.InheritsFrom[from] == nil {
-				reg.InheritsFrom[from] = map[string]bool{}
+			if into[d.From] == nil {
+				into[d.From] = map[string]string{}
 			}
-			reg.InheritsFrom[from][id] = true
+			into[d.From][src] = d.Targets[i]
 		}
 	}
 	for _, m := range entryHeading.FindAllStringSubmatchIndex(rest, -1) {
@@ -207,36 +425,49 @@ func inheritedFrom(s string) string {
 // names the old home resolves here, and only against the registry that
 // actually claimed that home's anchor.
 func (r *Registry) InheritsAnchorFrom(num, anchor string) bool {
-	return r.InheritsFrom[num][normalizeEntry(strings.TrimPrefix(anchor, "§"))]
+	_, ok := r.inheritedTarget(num, anchor)
+	return ok
 }
 
-// expandInherits turns `RFD 0004 DX-1..DX-18` into every id it names.
-// The range is expanded rather than stored, so a lookup is a map hit and
-// the alias table says exactly which anchors it covers.
-func expandInherits(s string) []string {
-	var out []string
-	if m := inheritsRange.FindStringSubmatch(s); m != nil {
-		lo, _ := strconv.Atoi(m[2])
-		hi, _ := strconv.Atoi(m[3])
-		if lo > 0 && hi >= lo && hi-lo < 512 {
-			for i := lo; i <= hi; i++ {
-				out = append(out, normalizeEntry(m[1]+strconv.Itoa(i)))
+// inheritedTarget resolves an old-home anchor to the anchor this registry
+// answers it with, and reports whether the registry claimed it at all.
+//
+// The id table is tried first and by equality, then the section table by
+// the whole-word prefix rule — an id is an exact string, and a section
+// anchor is a citation of a heading whose tail the author may have
+// carried into the reference. Trying the prefix rule on ids would let
+// `§DX-1` reach `dx-18`, which is a different decision.
+func (r *Registry) inheritedTarget(num, anchor string) (string, bool) {
+	a := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(anchor), "§"))
+	if t, ok := r.InheritsFrom[num][normalizeEntry(a)]; ok {
+		return t, true
+	}
+	if t, ok := r.InheritsSections[num][sectionKey(a)]; ok {
+		return t, true
+	}
+	// The over-read case: `§Decision 1 — Classified by…` carries the
+	// heading plus a tail of the sentence. Shorten a whole word at a time,
+	// longest first, and take the first length that names exactly one
+	// declared source — the same rule, and the same uniqueness guard, that
+	// uniqueSectionPrefix applies to a record's own headings.
+	for key := sectionKey(a); key != ""; key = dropLastSegment(key) {
+		t, n := "", 0
+		for src, tgt := range r.InheritsSections[num] {
+			if src != key && !slugPrefix(key, src) && !slugPrefix(src, key) {
+				continue
 			}
-			return out
+			t, n = tgt, n+1
+		}
+		if n == 1 {
+			return t, true
+		}
+		if n > 1 {
+			return "", false // ambiguous; a tiebreak would be a guess
 		}
 	}
-	for _, m := range entryHeading.FindAllStringSubmatch("- "+s, -1) {
-		out = append(out, normalizeEntry(m[1]))
-	}
-	if len(out) == 0 {
-		if m := regexp.MustCompile(`((?:DX|JD|D)-?\d+[a-z]?)`).FindAllStringSubmatch(s, -1); m != nil {
-			for _, x := range m {
-				out = append(out, normalizeEntry(x[1]))
-			}
-		}
-	}
-	return out
+	return "", false
 }
+
 
 // Key is how a citation addresses this registry: `cli/0001`, or the bare
 // number when the tree has no project level.
@@ -249,9 +480,25 @@ func (r *Registry) Key() string {
 
 // Has reports whether an anchor resolves against this registry, by entry
 // or by an inherited alias. An alias hit is not a finding.
+//
+// TWO KEYINGS, BOTH TRIED. An entry id is keyed with its hyphen dropped,
+// so `DX-13`, `dx-13` and `DX13` are one anchor; a prose section is keyed
+// as its slug, where the hyphens are the word boundaries and dropping
+// them destroys the key. Normalizing every anchor the entry way turned
+// `§Facts of record` into `factsofrecord` and missed the
+// `facts-of-record` heading the registry has — so a registry's prose
+// anchors were addressable only when they were a single word.
+//
+// Nothing in the live corpus cited one yet, which is why this stayed
+// latent: `jdr/cli/0001`'s citations are all `§DX-n`. It is load-bearing
+// the moment a registry inherits a named section.
 func (r *Registry) Has(anchor string) bool {
-	a := normalizeEntry(strings.TrimPrefix(anchor, "§"))
-	return r.Entries[a] || r.Inherits[a]
+	a := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(anchor), "§"))
+	if id := normalizeEntry(a); r.Entries[id] || r.Inherits[id] {
+		return true
+	}
+	k := sectionKey(a)
+	return r.Entries[k] || r.Inherits[k]
 }
 
 // splitFrontmatter separates a leading `---` block from the body. A file
@@ -339,24 +586,46 @@ func EntryIDIn(s string) string {
 // come from the bound JDR root, so an unbound root claims nothing and the
 // migration simply has no proposal to make.
 func RegistryInheriting(num, anchor string) string {
+	key, _ := RegistryInheritingAnchor(num, anchor)
+	return key
+}
+
+// RegistryInheritingAnchor is RegistryInheriting with the LANDED anchor
+// reported beside the registry: the id or slug that registry answers the
+// citation with, which differs from the anchor cited whenever the
+// registry declared a rename.
+//
+// The migration needs both halves. The registry key says which document
+// to name; the landed anchor says which id to name inside it, and a
+// rewrite that carried the old id across would point at an anchor the new
+// home does not have — the dangling citation the alias exists to prevent,
+// reintroduced by the tool meant to retire it.
+func RegistryInheritingAnchor(num, anchor string) (key, landed string) {
 	regs, read := cachedRegistries()
 	if !read {
-		return ""
+		return "", ""
 	}
 	var claimant *Registry
 	for _, reg := range regs {
-		if !reg.InheritsAnchorFrom(num, anchor) {
+		t, ok := reg.inheritedTarget(num, anchor)
+		if !ok {
 			continue
 		}
 		if claimant != nil {
-			return ""
+			return "", ""
 		}
-		claimant = reg
+		claimant, landed = reg, t
 	}
 	if claimant == nil {
-		return ""
+		return "", ""
 	}
-	return claimant.Key()
+	// The same guard the resolver applies: a rename onto an anchor the
+	// registry never grew is a declaration to fix, not a rewrite to
+	// propose.
+	if !claimant.Has(landed) {
+		return "", ""
+	}
+	return claimant.Key(), landed
 }
 
 // cachedRegistries reads the bound JDR tree once per root. The alias

@@ -350,3 +350,88 @@ The home is RFD 0004 DX-6 and also RFD 0004 DX-18 on one line.
 		t.Errorf("shared patch %q still carries an unmigrated citation", text)
 	}
 }
+
+// TestInheritsUnanchoredFinding: a registry's `inherits:` is judged against
+// the registry itself, at the line it was written on.
+//
+// An alias promises that a citation of an old home still lands on
+// something readable here. Two ways a declaration breaks that promise on
+// its own — an unequal range pairing, and a target the registry never grew
+// — are visible in the frontmatter with no citation involved, so they are
+// reported where they are written. The alternative is a dangling edge on
+// whatever frozen record happened to cite through the alias, which blames
+// a correct record for an incorrect registry.
+func TestInheritsUnanchoredFinding(t *testing.T) {
+	root := t.TempDir()
+	jdr := filepath.Join(root, "jdr", "cli")
+	if err := os.MkdirAll(jdr, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	reg := `---
+state: open
+inherits:
+  - RFD 0007 Decision 1..4 -> §D1..§D2
+  - RFD 0007 §Ghost -> §D9
+  - RFD 0007 §4a..§4b
+---
+
+# JDR cli/0003 What does a code promise?
+
+## D1 — the first fork
+
+## D2 — the second fork
+
+### 4a — a sub-decision
+
+### 4b — another
+`
+	path := filepath.Join(jdr, "0003-advisory.md")
+	if err := os.WriteFile(path, []byte(reg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	scan.SetJDRRoot(filepath.Join(root, "jdr"))
+	model.SetClassRoots(filepath.Join(root, "jdr"), "")
+	t.Cleanup(func() {
+		scan.SetJDRRoot("")
+		model.SetClassRoots("", "")
+	})
+
+	d, err := scan.File(path, scan.Options{Project: "cli"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []Finding
+	for _, f := range inheritsFindings(d) {
+		got = append(got, f)
+	}
+	if len(got) != 2 {
+		t.Fatalf("inheritsFindings = %d findings, want 2 (the 4-onto-2 pairing and the §D9 target); got %+v",
+			len(got), got)
+	}
+	for _, f := range got {
+		if f.Code != "jdr:inherits-unanchored" {
+			t.Errorf("code = %q, want jdr:inherits-unanchored", f.Code)
+		}
+		// The finding points at the declaration, which is in the
+		// frontmatter — never at line 1 by default, or a reader cannot
+		// tell which of three items is wrong.
+		if f.LineStart < 3 || f.LineStart > 6 {
+			t.Errorf("finding %q at line %d, want the frontmatter item's own line (3-6)",
+				f.Message, f.LineStart)
+		}
+	}
+	if !strings.Contains(got[0].Message, "equal length") {
+		t.Errorf("first message = %q, want it to name the positional-pairing rule", got[0].Message)
+	}
+	if !strings.Contains(got[1].Message, "d9") {
+		t.Errorf("second message = %q, want it to name the missing target", got[1].Message)
+	}
+
+	// The clean identity range is NOT reported. `§4a..§4b` maps onto
+	// anchors the registry has, which is the whole point of an alias.
+	for _, f := range got {
+		if strings.Contains(f.Message, "4a") {
+			t.Errorf("the honourable declaration %q was reported; an alias that resolves is not a finding", f.Message)
+		}
+	}
+}

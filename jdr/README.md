@@ -220,6 +220,50 @@ for the home it was actually taken from. And exactly one registry may claim an
 anchor: two claimants make the citation genuinely ambiguous, so it stays
 unresolved rather than resolving to a guess.
 
+### The `inherits:` grammar
+
+Each item is `<source> [-> <target>]`. **A target left off means identity** —
+the anchor did not move, which is what the id range has always meant and stays
+the common case.
+
+| Form | Example | What it declares |
+| --- | --- | --- |
+| id, or id range | `RFD 0004 DX-1..DX-18` | those ids resolve here, unmoved |
+| section, or section range | `RFD 0007 §4a..§4e` · `RFD 0006 §Facts of record` | a prose anchor the registry took over under its own name |
+| rename | `RFD 0007 Decision 1..4 -> §D1..§D4` | the old home's spelling on the left, this registry's anchor on the right |
+
+A **rename** is what a hoist into this class usually needs: the entry form is
+`## D1 — …` and the RFD that held the fork wrote `## Decision 1 — …`. A heading
+label is structure and migrates; the body under it is byte-identical. The
+mapping is **declared, never inferred** — a scanner taught that "Decision N"
+means "DN" would bake one registry's convention into the grammar, and the next
+hoist of a differently-named fork would inherit the guess.
+
+**Ranges map positionally and must be equal length.** One axis varies per range:
+the ordinal under a fixed label (`Decision 1..4`), or the letter under a fixed
+number (`§4a..§4e`). Never both — an ordering across two axes is one no citation
+spells.
+
+**A section source is matched by the resolver's whole-word prefix rule**, not by
+equality, because a citation carries the heading plus however much of the
+sentence the author ran on into: `§Decision 1 — Classified by…` names the
+heading `Decision 1`. The reference is shortened a word at a time, longest
+first, and exactly one declared source must match — two is ambiguous and stays
+unresolved, the same guard the projector applies to a record's own headings.
+
+Two ways a declaration breaks on its own, both `jdr:inherits-unanchored` and
+both reported at the frontmatter line that wrote them: **an unequal pairing**,
+and **a target this registry does not have**. A rename says where an anchor
+went; it does not create what it points at. Reporting these at the declaration
+rather than as a dangling edge is deliberate — the alternative blames whatever
+frozen record happened to cite through the alias for a defect in the registry.
+
+**A cited anchor never dangles, so a cited section is never simply deleted.**
+Where a registry takes over a section whose content does not belong here — a
+work plan the RDR index owns — keep the heading with one line naming the real
+authority, and inherit it. The heading is the anchor; the content was never the
+promise.
+
 ## Entry lifecycle
 
 Per entry, not per document.

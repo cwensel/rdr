@@ -1188,16 +1188,29 @@ func (r *Resolver) inheritedRFDAnchor(num, anchor string) (*bool, string) {
 	// same registry is reachable twice; count DOCUMENTS, not keys, or a
 	// single claimant reads as the ambiguous pair.
 	var claimant *Registry
+	var target string
 	for _, reg := range r.registries {
-		if reg == claimant || !reg.InheritsAnchorFrom(num, anchor) {
+		if reg == claimant {
+			continue
+		}
+		t, ok := reg.inheritedTarget(num, anchor)
+		if !ok {
 			continue
 		}
 		if claimant != nil {
 			return truth(false), "" // two homes; ambiguous, so unresolved
 		}
-		claimant = reg
+		claimant, target = reg, t
 	}
 	if claimant == nil {
+		return truth(false), ""
+	}
+	// THE TARGET MUST BE AN ANCHOR THE REGISTRY ACTUALLY HAS. A rename
+	// declares where an anchor went; it does not create what it points
+	// at. A declaration naming a target the registry never grew is the
+	// `jdr:inherits-unanchored` finding, and resolving through it would
+	// answer a citation with an anchor no reader can open.
+	if !claimant.Has(target) {
 		return truth(false), ""
 	}
 	return truth(true), "jdr:" + claimant.Key()

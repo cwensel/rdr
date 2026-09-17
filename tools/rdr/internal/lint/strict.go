@@ -68,6 +68,7 @@ func templateFindings(d *scan.Document) []Finding {
 	out = append(out, labelFindings(d)...)
 	out = append(out, citationFindings(d)...)
 	out = append(out, registryCitationFindings(d)...)
+	out = append(out, inheritsFindings(d)...)
 	out = append(out, vocabularyFindings(d)...)
 	out = append(out, gateFindings(d)...)
 	out = append(out, placeholderFindings(d)...)
@@ -1312,6 +1313,79 @@ func inheritedSpans(d *scan.Document) lineSpans {
 	return out
 }
 
+// inheritsFindings judge a registry's `inherits:` declarations against
+// the registry itself.
+//
+// An alias is a promise that a citation of an old home still lands on
+// something readable here. The promise has two halves a declaration can
+// break on its own, with no citation involved: a mapping whose sides do
+// not pair, and a target this registry does not have. Both leave a
+// citation that LOOKS aliased resolving to nothing, and both are visible
+// in the frontmatter alone — so they are reported where they are written
+// rather than as a dangling edge on whatever frozen record happens to
+// cite through them.
+//
+// It runs on registries only. An RDR has no `inherits:`, and reading one
+// for a key its template never declares would report on a field the
+// document does not have.
+func inheritsFindings(d *scan.Document) []Finding {
+	if d == nil || model.ClassOf(d.Path) != model.ClassJDR {
+		return nil
+	}
+	reg := scan.RegistryAt(d.Path)
+	if reg == nil {
+		return nil
+	}
+	var out []Finding
+	for _, decl := range reg.InheritsDecls {
+		why := decl.Err
+		var missing []string
+		if why == "" {
+			for _, t := range decl.Targets {
+				if !reg.Has(t) {
+					missing = append(missing, t)
+				}
+			}
+			if len(missing) > 0 {
+				why = "maps onto " + strings.Join(missing, ", ") +
+					", which this registry has no entry or section for"
+			}
+		}
+		if why == "" {
+			continue
+		}
+		line := inheritsLine(d, decl.Raw)
+		out = append(out, Finding{
+			Tier:      TierConformance,
+			Code:      "jdr:inherits-unanchored",
+			Element:   d.Record,
+			Message:   "inherits: `" + decl.Raw + "` " + why,
+			LineStart: line,
+			LineEnd:   line,
+			Fix: "name a target this registry has, or drop the mapping so the " +
+				"anchor is inherited under the id it already carries",
+		})
+	}
+	return out
+}
+
+// inheritsLine finds the frontmatter line an `inherits:` item was written
+// on, so the finding points at the declaration rather than at line 1.
+// A line it cannot find is reported at the top of the file, which is
+// where the frontmatter is.
+func inheritsLine(d *scan.Document, raw string) int {
+	for i := 1; i <= d.Lines; i++ {
+		t := strings.TrimSpace(d.Line(i))
+		if t == "---" && i > 1 {
+			break // end of frontmatter
+		}
+		if strings.Contains(t, raw) {
+			return i
+		}
+	}
+	return 1
+}
+
 // hoistedHeading matches a heading that declares its section hoisted from
 // an earlier home: `### Hoisted from RFD 0004 §3c — …`. "Hoist" is the
 // registry doctrine's own verb for moving a decision to a single
@@ -1332,6 +1406,30 @@ var namesRFD = regexp.MustCompile(`(?i)\bRFD[ -]*\d{3,4}\b`)
 // wrote once, and the substitution would swallow the rest.
 var continuesAnchor = regexp.MustCompile(
 	`^(?:\s*[/,]\s*(?:DX|JD|D)?-?\d+[a-z]?\b|\s+(?:and|&|or)\s+(?:DX|JD|D)-?\d+[a-z]?\b)`)
+
+// inheritedSpelling renders a landed anchor the way a citation writes it.
+//
+// The landed anchor arrives NORMALIZED — `dx6`, the key the alias tables
+// are held under, with the hyphen dropped so `DX-6`, `dx-6` and `DX6` are
+// one lookup. That is the right key and the wrong spelling: the citation
+// form jdr/README.md fixes is `§DX-6`, and emitting `§DX6` would migrate
+// the corpus onto an id no document writes.
+//
+// So an entry id is re-spelled from its parts — prefix upper-cased,
+// hyphen restored, ordinal kept — and a section slug is returned as it
+// stands, because upper-casing `facts-of-record` yields a heading no
+// registry has.
+func inheritedSpelling(anchor string) string {
+	if m := entryIDSpelling.FindStringSubmatch(anchor); m != nil {
+		return strings.ToUpper(m[1]) + "-" + m[2]
+	}
+	return anchor
+}
+
+// entryIDSpelling matches a landed anchor that is an entry id rather than
+// a section slug, splitting it into the prefix and the ordinal so the
+// canonical hyphenated form can be rebuilt.
+var entryIDSpelling = regexp.MustCompile(`(?i)^(DX|JD|D)-?(\d+[a-z]?)$`)
 
 // registryCitationFindings propose the JDR spelling for a citation that
 // still names an anchor's OLD home: `RFD 0004 DX-13` where the registry
@@ -1386,14 +1484,19 @@ func registryCitationFindings(d *scan.Document) []Finding {
 		// but the entry has already moved, which is exactly when the
 		// migration wants to run. So the claim is asked of the registry
 		// tree either way, and Alias is the fast path.
-		home := strings.TrimPrefix(e.Alias, "jdr:")
-		if home == "" {
-			home = scan.RegistryInheriting(doc, anchor)
-		}
+		home, landed := scan.RegistryInheritingAnchor(doc, anchor)
 		if home == "" {
 			continue // no registry claims it; the RFD is still its home
 		}
-		want := "JDR " + home + " §" + strings.ToUpper(strings.TrimPrefix(anchor, "§"))
+		// THE REWRITE NAMES WHERE THE ANCHOR LANDED, NOT WHAT IT WAS
+		// CALLED. An identity alias leaves the two the same and the
+		// substitution is the one this rule has always made. A RENAME —
+		// `RFD 0007 Decision 1` into the registry's `D1` — must emit the
+		// new id, because the old spelling names nothing in the new home
+		// and a reader following the migrated citation would land on an
+		// anchor that is not there. The registry declared the mapping; the
+		// fix field is that declaration applied to the corpus.
+		want := "JDR " + home + " §" + inheritedSpelling(landed)
 		f := Finding{
 			Tier:      TierConformance,
 			Code:      "citation:registry-form",
