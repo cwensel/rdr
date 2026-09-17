@@ -149,3 +149,70 @@ func TestLookupField(t *testing.T) {
 		}
 	}
 }
+
+// TestRFDClassAliases: the pre-class RFD headings read as advisories, not
+// unknowns.
+//
+// RFD 0003 through 0009 were written before the tier had a template, so
+// their headings are what an RFD looked like here at the time — not
+// foreign sections. The table is per class for the same reason the
+// scaffolds are: `Problem statement` is a legacy RDR spelling and a
+// registry's correct one, so one shared table makes each tier's
+// conforming headings findings against another's template.
+func TestRFDClassAliases(t *testing.T) {
+	for _, tc := range []struct {
+		heading   string
+		want      MatchKind
+		canonical string
+		why       string
+	}{
+		{"Desired Developer Experience", MatchLegacyAlias, "Desired Experience",
+			"the same section; the template dropped `Developer`"},
+		{"Background / Context", MatchLegacyAlias, "Background",
+			"a pre-class spelling"},
+		{"Proposed Approach", MatchLegacyAlias, "Desired Experience",
+			"the capability as the user meets it"},
+		{"Position", MatchRecognizedUnmapped, "",
+			"the stance is carried by Principles as citable ids; a rename would lose the anchors"},
+		{"Alternatives Considered", MatchRecognizedUnmapped, "",
+			"an RFD's rejected options are carried by Non-goals"},
+		{"Success Criteria", MatchRecognizedUnmapped, "", "carried by Principles"},
+		{"References", MatchRecognizedUnmapped, "", "the template's Prior Art states what a source contributes"},
+		{"Sources", MatchRecognizedUnmapped, "", "RFD 0007's spelling of References"},
+	} {
+		got := LookupSectionIn(ClassRFD, tc.heading, 2)
+		if got.Kind != tc.want {
+			t.Errorf("LookupSectionIn(RFD, %q) kind = %v, want %v — %s",
+				tc.heading, got.Kind, tc.want, tc.why)
+			continue
+		}
+		name := ""
+		if got.Canonical != nil {
+			name = got.Canonical.Name
+		}
+		if name != tc.canonical {
+			t.Errorf("LookupSectionIn(RFD, %q) canonical = %q, want %q — %s",
+				tc.heading, name, tc.canonical, tc.why)
+		}
+	}
+
+	// THE TABLES DO NOT CROSS. An RFD legacy name is not an RDR one, and
+	// the RDR's own table must not answer for the RFD tier.
+	if got := LookupSectionIn(ClassRDR, "Desired Developer Experience", 2); got.Kind == MatchLegacyAlias {
+		t.Error("an RFD legacy heading resolved through the RDR alias table; the tables are per tier")
+	}
+	if got := LookupSectionIn(ClassRFD, "Dependency Source Verification", 2); got.Kind == MatchLegacyAlias {
+		t.Error("an RDR legacy heading resolved through the RFD alias table; the tables are per tier")
+	}
+}
+
+// TestRFDPriorArtIsOptional: Prior Art is a section an RFD may have and
+// need not. A capability resting on no external work deletes it, and a
+// cleanly deleted Conditional section is conformant.
+func TestRFDPriorArtIsOptional(t *testing.T) {
+	for _, name := range ClassRequiredSections(ClassRFD) {
+		if name == "Prior Art" {
+			t.Error("Prior Art is Required; it must be Conditional — an RFD may rest on no external work")
+		}
+	}
+}

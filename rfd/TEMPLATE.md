@@ -24,6 +24,14 @@ solution has skipped the argument.]
 [What exists now and why it is shaped that way. Prior art, and what it got
 right. Non-normative.]
 
+## Prior Art
+
+[Conditional — delete the section when the capability rests on no external
+work. What each source contributes and how it was checked, one bullet per
+source: the claim taken from it, and the section of this document it
+grounds. A source listed with no claim taken from it is a reading list, not
+prior art.]
+
 ## Desired Experience
 
 [The capability as the user meets it — journeys, in order, each with what the

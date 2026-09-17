@@ -229,6 +229,50 @@ var SectionAliases = []sectionAlias{
 		"author-added; prior art is normally cited in Research Findings"},
 }
 
+// ClassSectionAliases are a non-RDR tier's own legacy heading names.
+//
+// They exist for the same reason SectionAliases does and are kept apart
+// for the same reason the scaffolds are: a tier's history is its own. The
+// RDR's table calls `Problem statement` a legacy spelling, which is a
+// registry's current and correct one — so one shared table would make
+// each tier's conforming headings findings against the other's template.
+//
+// THE RFD ENTRIES ARE THE PRE-CLASS HEADINGS. RFD 0003 through 0009 were
+// written before the class had a template, against the Oxide RFD shape
+// and against each author's sense of the document. Those headings are not
+// foreign sections — they are what an RFD looked like here before the
+// template said — so they read as advisories rather than unknowns.
+//
+// Most map to "" (MatchRecognizedUnmapped): recognised, with no canonical
+// section to project onto. That is the honest answer for a heading whose
+// content the template deliberately rehomed — `Position` argues a stance
+// the Principles section now carries as ids, and mapping the two would
+// claim a rename that would lose the argument. Only the headings that are
+// genuinely the same section under an older name get a canonical.
+var ClassSectionAliases = map[DocClass][]sectionAlias{
+	ClassRFD: {
+		// Genuine predecessors: the same section, renamed.
+		{"Desired Developer Experience", "Desired Experience",
+			"pre-class heading for the journeys section; the template dropped `Developer` when the tier stopped being CLI-specific"},
+		{"Background / Context", "Background",
+			"pre-class spelling of Background"},
+		{"Proposed Approach", "Desired Experience",
+			"pre-class heading; the capability as the user meets it is the template's Desired Experience"},
+
+		// Recognised, with no canonical home.
+		{"Alternatives Considered", "",
+			"pre-class heading; an RFD's rejected options are carried by Non-goals and by the Principles that rule them out — a decision's alternatives belong to the record that decides it"},
+		{"Position", "",
+			"pre-class heading; the stance an RFD takes is carried by Principles as citable ids, and a rename would keep the prose while losing the anchors"},
+		{"Success Criteria", "",
+			"pre-class heading; what the capability owes is carried by Principles, and how it is measured belongs to the records"},
+		{"References", "",
+			"pre-class heading; the template's Prior Art states what each source contributes rather than listing it"},
+		{"Sources", "",
+			"pre-class heading; the same job as References under RFD 0007's spelling"},
+	},
+}
+
 // fieldAlias is one legacy metadata field label and where it maps.
 type fieldAlias struct {
 	name      string
@@ -357,8 +401,12 @@ func lookupSection(te TemplateTable, name string, level int, c DocClass) Match {
 		}
 	}
 
-	for _, a := range SectionAliases {
-		if !ClassUsesRDRAliases(c) || !strings.EqualFold(a.name, name) {
+	aliases := SectionAliases
+	if !ClassUsesRDRAliases(c) {
+		aliases = ClassSectionAliases[c]
+	}
+	for _, a := range aliases {
+		if !strings.EqualFold(a.name, name) {
 			continue
 		}
 		if a.canonical == "" {
